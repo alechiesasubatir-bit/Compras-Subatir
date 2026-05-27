@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Copiloto IA — Subatir / Prolimpio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ═══ DESIGN SYSTEM ══════════════════════════════════════════ */
+:root{
+  --bg:#07090f; --bg2:#0c1119; --bg3:#111926;
+  --teal:#0e8aaa; --tl:#1bc8ff;
+  --or:#f97316; --orl:#fb923c;
+  --grn:#22c55e; --amb:#f59e0b; --red:#ef4444; --pur:#a78bfa; --pur2:#7c3aed;
+  --txt:#e2e8f0; --mut:#5a6a80; --mut2:#7a8fa8;
+  --bdr:rgba(255,255,255,.07); --bdr2:rgba(255,255,255,.12);
+  --gl:rgba(255,255,255,.04); --gl2:rgba(255,255,255,.07);
+  --shd:0 8px 32px rgba(0,0,0,.45); --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scrollbar-gutter:stable;overflow-x:hidden}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 55% at 5% 10%,rgba(124,58,237,.13) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,rgba(14,138,170,.09) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 50%,rgba(167,139,250,.05) 0%,transparent 50%)}
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");opacity:.5}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(167,139,250,.25);border-radius:4px}
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+.hdr{display:flex;align-items:center;gap:14px;padding:11px 22px;
+  background:rgba(7,9,15,.92);border-bottom:1px solid var(--bdr);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(24px);flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.logo-icon{width:36px;height:36px;border-radius:50%;object-fit:cover;
+  box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25)}
+.logo-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;letter-spacing:-.3px;color:var(--txt)}
+.logo-sub{font-size:9px;color:var(--mut2);margin-top:1px}
+nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
+.nl{padding:5px 11px;border-radius:8px;font-size:11.5px;font-weight:600;color:var(--mut2);
+  text-decoration:none;border:1px solid transparent;transition:all .18s;white-space:nowrap;font-family:'Syne',sans-serif}
+.nl:hover{color:var(--txt);background:var(--gl2);border-color:var(--bdr)}
+.nl.on{color:#fff;background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(167,139,250,.25));
+  border-color:rgba(167,139,250,.3);box-shadow:0 0 10px rgba(124,58,237,.25)}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ts{font-size:10px;color:var(--mut);font-family:'IBM Plex Mono',monospace}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;
+  border:1px solid var(--bdr);background:var(--gl2);cursor:pointer;font-size:11px;
+  font-weight:700;letter-spacing:.3px;transition:all .18s;font-family:'DM Sans',sans-serif;color:var(--txt)}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.15);border-color:var(--bdr2)}
+.btn-pur{background:linear-gradient(135deg,rgba(124,58,237,.5),rgba(167,139,250,.3));
+  border-color:rgba(167,139,250,.3);color:#fff}
+
+/* AI pulse badge in header */
+.ai-badge{display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:20px;
+  background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(167,139,250,.15));
+  border:1px solid rgba(167,139,250,.3);font-size:11px;font-weight:700;color:var(--pur);
+  font-family:'Syne',sans-serif;letter-spacing:.3px}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:var(--pur);animation:ai-pulse 2s ease-in-out infinite}
+@keyframes ai-pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+
+/* ── LOADING BAR ─────────────────────────────────────────────── */
+#loading-bar{height:3px;background:linear-gradient(90deg,var(--pur2),var(--pur),var(--tl));
+  position:fixed;top:0;left:0;right:0;z-index:9999;animation:bar-slide 1.4s ease-in-out infinite;display:none}
+@keyframes bar-slide{0%{opacity:1;transform:scaleX(.1) translateX(-50%)}50%{opacity:.8;transform:scaleX(.6) translateX(20%)}100%{opacity:0;transform:scaleX(1) translateX(50%)}}
+
+/* ── GLASS ───────────────────────────────────────────────────── */
+.glass{background:var(--gl);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--bdr);border-radius:var(--r);box-shadow:var(--shd)}
+
+/* ── MAIN LAYOUT ─────────────────────────────────────────────── */
+.main{padding:20px 22px;display:flex;flex-direction:column;gap:18px;max-width:1640px;margin:0 auto;width:100%}
+
+/* ── KPI STRIP ───────────────────────────────────────────────── */
+.kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+.kpi{padding:14px 16px;border-radius:12px;background:var(--gl);border:1px solid var(--bdr);
+  display:flex;flex-direction:column;gap:4px;transition:border-color .2s}
+.kpi:hover{border-color:var(--bdr2)}
+.knum{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;line-height:1}
+.ksub{font-family:'Syne',sans-serif;font-size:10px;font-weight:600;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--mut2)}
+.kpi.k-red .knum{color:var(--red)}
+.kpi.k-or .knum{color:var(--or)}
+.kpi.k-amb .knum{color:var(--amb)}
+.kpi.k-grn .knum{color:var(--grn)}
+.kpi.k-pur .knum{color:var(--pur)}
+.kpi.k-tl .knum{color:var(--tl)}
+
+/* ── GRID ────────────────────────────────────────────────────── */
+.main-grid{display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.main-grid{grid-template-columns:1fr}}
+.col-l{display:flex;flex-direction:column;gap:16px}
+.col-r{display:flex;flex-direction:column;gap:16px}
+
+/* ── SECTION HEADER ──────────────────────────────────────────── */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sec-hdr h2{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:.2px;flex:1}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 9px;border-radius:20px;
+  font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.badge-or{background:rgba(249,115,22,.15);color:var(--or);border:1px solid rgba(249,115,22,.25)}
+.badge-amb{background:rgba(245,158,11,.15);color:var(--amb);border:1px solid rgba(245,158,11,.25)}
+.badge-grn{background:rgba(34,197,94,.15);color:var(--grn);border:1px solid rgba(34,197,94,.25)}
+.badge-pur{background:rgba(167,139,250,.15);color:var(--pur);border:1px solid rgba(167,139,250,.25)}
+.badge-tl{background:rgba(27,200,255,.12);color:var(--tl);border:1px solid rgba(27,200,255,.2)}
+
+/* ── EXECUTIVE SUMMARY ───────────────────────────────────────── */
+.exec-card{padding:20px;border-radius:var(--r);
+  background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(14,138,170,.08));
+  border:1px solid rgba(167,139,250,.2);box-shadow:0 0 30px rgba(124,58,237,.08)}
+.exec-avatar{width:42px;height:42px;border-radius:50%;
+  background:linear-gradient(135deg,var(--pur2),var(--pur));
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  flex-shrink:0;box-shadow:0 0 20px rgba(124,58,237,.4);animation:ai-glow 3s ease-in-out infinite}
+@keyframes ai-glow{0%,100%{box-shadow:0 0 20px rgba(124,58,237,.4)}50%{box-shadow:0 0 35px rgba(124,58,237,.7)}}
+.exec-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.exec-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--pur);letter-spacing:.2px}
+.exec-subtitle{font-size:11px;color:var(--mut2)}
+.exec-text{font-size:13.5px;line-height:1.7;color:var(--txt)}
+.exec-text strong{color:var(--pur);font-weight:600}
+
+/* ── ALERTS ──────────────────────────────────────────────────── */
+.alerts-list{display:flex;flex-direction:column;gap:8px}
+.alert-item{padding:12px 14px;border-radius:10px;background:var(--gl);border-left:3px solid var(--bdr2);
+  display:flex;gap:12px;align-items:flex-start;transition:border-color .15s}
+.alert-item.p-critico{border-left-color:var(--red);background:rgba(239,68,68,.04)}
+.alert-item.p-alto{border-left-color:var(--or);background:rgba(249,115,22,.04)}
+.alert-item.p-medio{border-left-color:var(--amb);background:rgba(245,158,11,.03)}
+.alert-item.p-bajo{border-left-color:var(--teal);background:rgba(14,138,170,.03)}
+.alert-icon{font-size:16px;line-height:1;flex-shrink:0;margin-top:1px}
+.alert-body{flex:1;min-width:0}
+.alert-title{font-size:12.5px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:3px}
+.alert-detail{font-size:11.5px;color:var(--mut2);line-height:1.5}
+.alert-action{font-size:11px;color:var(--pur);margin-top:5px;font-style:italic}
+.priority-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;
+  text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;margin-top:2px}
+.p-critico .priority-tag{background:rgba(239,68,68,.2);color:var(--red)}
+.p-alto .priority-tag{background:rgba(249,115,22,.2);color:var(--or)}
+.p-medio .priority-tag{background:rgba(245,158,11,.2);color:var(--amb)}
+.p-bajo .priority-tag{background:rgba(14,138,170,.15);color:var(--tl)}
+
+/* ── RECOMMENDATIONS ─────────────────────────────────────────── */
+.rec-list{display:flex;flex-direction:column;gap:10px}
+.rec-card{padding:14px;border-radius:12px;background:var(--gl);border:1px solid var(--bdr);transition:all .18s}
+.rec-card:hover{border-color:rgba(167,139,250,.25);background:rgba(167,139,250,.04)}
+.rec-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
+.rec-icon{width:32px;height:32px;border-radius:8px;
+  background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(167,139,250,.2));
+  display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.rec-product{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--txt)}
+.rec-reason{font-size:11px;color:var(--mut2);margin-top:2px;line-height:1.4}
+.rec-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.rec-tag{font-size:10px;padding:3px 8px;border-radius:6px;font-family:'IBM Plex Mono',monospace}
+.rec-tag.best{background:rgba(34,197,94,.12);color:var(--grn);border:1px solid rgba(34,197,94,.2)}
+.rec-tag.alt{background:rgba(245,158,11,.1);color:var(--amb);border:1px solid rgba(245,158,11,.2)}
+.rec-tag.price{background:rgba(27,200,255,.1);color:var(--tl);border:1px solid rgba(27,200,255,.15)}
+.rec-tag.cont{background:rgba(167,139,250,.12);color:var(--pur);border:1px solid rgba(167,139,250,.2)}
+.rec-tag.risk{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.15)}
+.rec-semaphore{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--mut2)}
+
+/* ── PROVIDER RANKING ────────────────────────────────────────── */
+.prov-rank-list{display:flex;flex-direction:column;gap:7px}
+.prov-rank-item{display:flex;align-items:center;gap:10px;padding:9px 12px;
+  border-radius:9px;background:var(--gl);border:1px solid var(--bdr)}
+.prov-rank-pos{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;flex-shrink:0}
+.pos-1{background:rgba(245,158,11,.2);color:var(--amb)}
+.pos-2{background:rgba(167,139,250,.15);color:var(--pur)}
+.pos-3{background:rgba(14,138,170,.15);color:var(--tl)}
+.pos-n{background:var(--gl2);color:var(--mut2)}
+.prov-rank-name{flex:1;font-size:12px;font-weight:600;font-family:'Syne',sans-serif;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prov-rank-score{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700}
+.prov-rank-bar{height:4px;border-radius:2px;margin-top:4px;transition:width .5s ease}
+.prov-rank-detail{font-size:10px;color:var(--mut2);margin-top:2px}
+
+/* ── CONTINGENCY SUGGESTIONS ─────────────────────────────────── */
+.cont-list{display:flex;flex-direction:column;gap:8px}
+.cont-item{padding:11px 13px;border-radius:10px;background:var(--gl);border:1px solid var(--bdr);
+  border-left:3px solid rgba(167,139,250,.4)}
+.cont-product{font-size:12px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:4px}
+.cont-detail{font-size:11px;color:var(--mut2);line-height:1.5}
+.cont-tag{display:inline-block;font-size:9.5px;padding:2px 7px;border-radius:5px;
+  background:rgba(167,139,250,.12);color:var(--pur);border:1px solid rgba(167,139,250,.2);
+  font-weight:700;margin-top:5px}
+
+/* ── CHAT ────────────────────────────────────────────────────── */
+.chat-section{padding:20px}
+.chat-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.chat-icon{width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,var(--pur2),var(--pur));
+  display:flex;align-items:center;justify-content:center;font-size:18px}
+.chat-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:800}
+.chat-subtitle{font-size:11px;color:var(--mut2)}
+.chat-body{max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:14px;
+  padding-right:4px}
+.chat-msg{display:flex;gap:10px;align-items:flex-start}
+.chat-msg.user{flex-direction:row-reverse}
+.chat-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:13px;flex-shrink:0}
+.ai-avatar-sm{background:linear-gradient(135deg,var(--pur2),var(--pur))}
+.user-avatar-sm{background:linear-gradient(135deg,rgba(14,138,170,.5),rgba(27,200,255,.3));color:var(--tl)}
+.chat-bubble{max-width:85%;padding:11px 14px;border-radius:12px;font-size:12.5px;line-height:1.65}
+.chat-msg.ai .chat-bubble{background:rgba(124,58,237,.1);border:1px solid rgba(167,139,250,.15);
+  border-top-left-radius:3px}
+.chat-msg.user .chat-bubble{background:rgba(14,138,170,.15);border:1px solid rgba(27,200,255,.15);
+  border-top-right-radius:3px;color:var(--tl)}
+.chat-bubble h3{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--pur);
+  margin:8px 0 4px;text-transform:uppercase;letter-spacing:.4px}
+.chat-bubble h3:first-child{margin-top:0}
+.chat-bubble p{margin:3px 0;color:var(--txt)}
+.chat-bubble strong{color:var(--pur);font-weight:600}
+.chat-bubble em{color:var(--mut2);font-style:normal;font-size:11px}
+.chat-bubble ul{padding-left:14px;margin:4px 0}
+.chat-bubble li{margin:2px 0;color:var(--txt)}
+.chat-typing{display:flex;gap:4px;align-items:center;padding:10px 14px}
+.dot-1,.dot-2,.dot-3{width:6px;height:6px;border-radius:50%;background:var(--pur);
+  animation:typing-bounce .9s ease-in-out infinite}
+.dot-2{animation-delay:.15s}.dot-3{animation-delay:.3s}
+@keyframes typing-bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+
+.chat-input-row{display:flex;gap:9px;align-items:flex-end}
+.chat-input{flex:1;background:var(--gl2);border:1px solid var(--bdr);border-radius:10px;
+  padding:10px 14px;color:var(--txt);font-size:13px;font-family:'DM Sans',sans-serif;
+  resize:none;outline:none;transition:border-color .18s;min-height:44px;max-height:120px}
+.chat-input:focus{border-color:rgba(167,139,250,.4)}
+.chat-input::placeholder{color:var(--mut)}
+.chat-send{width:42px;height:42px;border-radius:10px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--pur2),var(--pur));
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  transition:all .18s;flex-shrink:0}
+.chat-send:hover{transform:translateY(-2px);filter:brightness(1.15)}
+.chat-send:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+.chat-suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chat-suggestion{padding:5px 11px;border-radius:20px;background:var(--gl2);border:1px solid var(--bdr);
+  font-size:11px;color:var(--mut2);cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif}
+.chat-suggestion:hover{color:var(--pur);border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.08)}
+
+/* ── API KEY CONFIG ──────────────────────────────────────────── */
+.api-row{display:flex;align-items:center;gap:10px;padding:13px 16px;border-radius:11px;margin-top:14px;
+  transition:all .2s;cursor:pointer}
+.api-row.no-key{background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(167,139,250,.06));
+  border:1px solid rgba(167,139,250,.3)}
+.api-row.no-key:hover{background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(167,139,250,.10));
+  border-color:rgba(167,139,250,.5)}
+.api-row.has-key{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2)}
+.api-label{font-size:12px;color:var(--txt);flex:1;line-height:1.4}
+.api-label small{display:block;font-size:10.5px;color:var(--mut2);margin-top:2px}
+.api-status-icon{font-size:18px;flex-shrink:0}
+.api-status{font-size:11px;font-weight:700;flex-shrink:0}
+.api-status.ok{color:var(--grn)}.api-status.no{color:var(--pur)}
+.api-btn{padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
+  border:none;font-family:'Syne',sans-serif;letter-spacing:.3px;transition:all .15s;white-space:nowrap}
+.api-btn.setup{background:linear-gradient(135deg,var(--pur2),var(--pur));color:#fff}
+.api-btn.setup:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.api-btn.configured{background:rgba(34,197,94,.15);color:var(--grn);border:1px solid rgba(34,197,94,.25)}
+.api-btn.configured:hover{background:rgba(34,197,94,.25)}
+
+/* ── EMPTY STATES ────────────────────────────────────────────── */
+.empty-state{text-align:center;padding:32px 20px;color:var(--mut2)}
+.empty-state .es-icon{font-size:36px;margin-bottom:10px;opacity:.4}
+.empty-state p{font-size:12px}
+
+/* ── MODAL ───────────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;z-index:500;background:rgba(7,9,15,.8);
+  backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:#0d1520;border:1px solid var(--bdr2);border-radius:16px;
+  padding:24px;max-width:440px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.modal-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;margin-bottom:6px}
+.modal-sub{font-size:12px;color:var(--mut2);margin-bottom:16px;line-height:1.6}
+.modal-input{width:100%;background:var(--gl2);border:1px solid var(--bdr);border-radius:9px;
+  padding:10px 13px;color:var(--txt);font-size:13px;outline:none;font-family:'IBM Plex Mono',monospace;
+  transition:border-color .18s;margin-bottom:10px}
+.modal-input:focus{border-color:rgba(167,139,250,.4)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+
+/* ── TOAST ───────────────────────────────────────────────────── */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;padding:10px 16px;border-radius:10px;
+  font-size:12.5px;font-weight:600;max-width:320px;opacity:0;transform:translateY(8px);
+  transition:all .25s;pointer-events:none;background:#1a2235;border:1px solid var(--bdr2)}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.ok{border-color:rgba(34,197,94,.3);color:var(--grn)}
+#toast.err{border-color:rgba(239,68,68,.3);color:var(--red)}
+
+/* ── SPIN ────────────────────────────────────────────────────── */
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.1);
+  border-top-color:var(--pur);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── NO DATA ─────────────────────────────────────────────────── */
+.no-data-card{padding:32px;text-align:center;border-radius:var(--r);
+  background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(14,138,170,.05));
+  border:1px dashed rgba(167,139,250,.2)}
+.no-data-card h3{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:8px;color:var(--pur)}
+.no-data-card p{font-size:12.5px;color:var(--mut2);line-height:1.7}
+.no-data-card a{color:var(--pur);text-decoration:none;font-weight:600}
+
+/* Semaphore colors */
+.sem-verde::before{content:'🟢 '}
+.sem-amarillo::before{content:'🟡 '}
+.sem-naranja::before{content:'🟠 '}
+.sem-rojo::before{content:'🔴 '}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── LOADING BAR ─────────────────────────────────────────── -->
+<div id="loading-bar"></div>
+
+<!-- ── HEADER ─────────────────────────────────────────────── -->
+<header class="hdr">
+  <a class="logo" href="index.html">
+    <img class="logo-icon" src="logo.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt=""/>
+    <div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ea580c);align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:#fff;box-shadow:0 0 0 2px rgba(249,115,22,.5)">SB</div>
+    <div>
+      <div class="logo-name">SUBATIR / PROLIMPIO</div>
+      <div class="logo-sub">Sistema de Compras</div>
+    </div>
+  </a>
+  <nav>
+    <a href="index.html"        class="nl">⬡ Dashboard</a>
+    <a href="pedidos.html"      class="nl">📦 Pedidos</a>
+    <a href="stock.html"        class="nl">📊 Stock</a>
+    <a href="precios.html"      class="nl">💲 Precios</a>
+    <a href="proveedores.html"  class="nl">🏭 Proveedores</a>
+    <a href="contingencia.html" class="nl">🛡 Contingencia</a>
+    <a href="copiloto.html"     class="nl on">🤖 Copiloto IA</a>
+  </nav>
+  <div class="hdr-r">
+    <div class="ai-badge"><div class="ai-dot"></div> COPILOTO ACTIVO</div>
+    <span class="ts" id="ts">—</span>
+    <button class="btn" onclick="load()" id="ref-btn"><span class="spin" id="spin" style="display:none"></span><span id="ref-lbl">⟳ Analizar</span></button>
+    <button class="btn" onclick="openSetup()" title="Configurar">⚙</button>
+  </div>
+</header>
+
+<!-- ── MAIN ───────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi k-red">
+      <div class="knum" id="kpi-criticos">—</div>
+      <div class="ksub">Alertas Críticas</div>
+    </div>
+    <div class="kpi k-or">
+      <div class="knum" id="kpi-alertas">—</div>
+      <div class="ksub">Riesgo Alto</div>
+    </div>
+    <div class="kpi k-pur">
+      <div class="knum" id="kpi-recs">—</div>
+      <div class="ksub">Recomendaciones</div>
+    </div>
+    <div class="kpi k-amb">
+      <div class="knum" id="kpi-dep">—</div>
+      <div class="ksub">Dependencias Únicas</div>
+    </div>
+    <div class="kpi k-tl">
+      <div class="knum" id="kpi-cont">—</div>
+      <div class="ksub">Usar Contingencia</div>
+    </div>
+    <div class="kpi k-grn">
+      <div class="knum" id="kpi-score">—</div>
+      <div class="ksub">Score Proveedores</div>
+    </div>
+  </div>
+
+  <!-- NO DATA -->
+  <div id="no-data-state" style="display:none">
+    <div class="no-data-card">
+      <h3>🤖 Copiloto sin datos</h3>
+      <p>No hay URL de Apps Script configurada.<br>
+      Configurá la conexión desde el <a href="index.html">Dashboard →</a></p>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid" id="main-content" style="display:none">
+
+    <!-- COLUMNA IZQUIERDA -->
+    <div class="col-l">
+
+      <!-- Resumen ejecutivo -->
+      <div class="exec-card">
+        <div class="exec-header">
+          <div class="exec-avatar">🧠</div>
+          <div>
+            <div class="exec-title">COPILOTO IA — RESUMEN EJECUTIVO</div>
+            <div class="exec-subtitle" id="exec-date">—</div>
+          </div>
+        </div>
+        <div class="exec-text" id="exec-text">Analizando datos…</div>
+      </div>
+
+      <!-- Alertas -->
+      <div class="glass" style="padding:16px">
+        <div class="sec-hdr">
+          <h2>⚠ Alertas Inteligentes</h2>
+          <span class="badge badge-red" id="alerts-count">0</span>
+        </div>
+        <div class="alerts-list" id="alerts-list">
+          <div class="empty-state"><div class="es-icon">✅</div><p>Sin alertas activas</p></div>
+        </div>
+      </div>
+
+      <!-- Recomendaciones -->
+      <div class="glass" style="padding:16px">
+        <div class="sec-hdr">
+          <h2>🎯 Recomendaciones de Compra</h2>
+          <span class="badge badge-pur" id="recs-count">0</span>
+        </div>
+        <div class="rec-list" id="recs-list">
+          <div class="empty-state"><div class="es-icon">📋</div><p>Cargando análisis…</p></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COLUMNA DERECHA -->
+    <div class="col-r">
+
+      <!-- Análisis proveedores -->
+      <div class="glass" style="padding:16px">
+        <div class="sec-hdr">
+          <h2>🏭 Ranking de Proveedores</h2>
+          <span class="badge badge-tl" id="prov-count">—</span>
+        </div>
+        <div class="prov-rank-list" id="prov-rank-list">
+          <div class="empty-state"><p>Cargando…</p></div>
+        </div>
+      </div>
+
+      <!-- Contingencia sugerida -->
+      <div class="glass" style="padding:16px">
+        <div class="sec-hdr">
+          <h2>🛡 Contingencia Sugerida</h2>
+          <span class="badge badge-pur" id="cont-count">0</span>
+        </div>
+        <div class="cont-list" id="cont-list">
+          <div class="empty-state"><div class="es-icon">🛡</div><p>Sin oportunidades detectadas</p></div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /main-grid -->
+
+  <!-- CHAT COPILOTO (full width) -->
+  <div class="glass chat-section" id="chat-section">
+    <div class="chat-header">
+      <div class="chat-icon">🤖</div>
+      <div>
+        <div class="chat-title">Preguntale al Copiloto</div>
+        <div class="chat-subtitle">Hacé preguntas sobre proveedores, compras, stock y precios</div>
+      </div>
+    </div>
+
+    <div class="chat-suggestions" id="chat-suggestions">
+      <span class="chat-suggestion" onclick="askSuggestion('¿Qué debo comprar hoy?')">¿Qué debo comprar hoy?</span>
+      <span class="chat-suggestion" onclick="askSuggestion('¿Tengo riesgo de faltante?')">¿Tengo riesgo de faltante?</span>
+      <span class="chat-suggestion" onclick="askSuggestion('¿Dónde estoy pagando caro?')">¿Dónde estoy pagando caro?</span>
+      <span class="chat-suggestion" onclick="askSuggestion('¿Qué proveedor viene fallando?')">¿Qué proveedor viene fallando?</span>
+      <span class="chat-suggestion" onclick="askSuggestion('¿Conviene usar contingencia?')">¿Conviene usar contingencia?</span>
+      <span class="chat-suggestion" onclick="askSuggestion('¿Qué proveedor aumentó?')">¿Qué proveedor aumentó?</span>
+    </div>
+
+    <div class="chat-body" id="chat-body">
+      <div class="chat-msg ai">
+        <div class="chat-avatar ai-avatar-sm">🤖</div>
+        <div class="chat-bubble">
+          <p>Hola. Soy el Copiloto IA de Subatir / Prolimpio.</p>
+          <p>Analizaré tus precios, proveedores, pedidos y contingencia para darte recomendaciones estratégicas. Cargá los datos y empezá a consultarme.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chat-input" placeholder="Escribí tu pregunta… ej: ¿qué proveedor conviene para ácido muriático?" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"
+        oninput="autoResize(this)"></textarea>
+      <button class="chat-send" id="chat-send" onclick="sendChat()">↑</button>
+    </div>
+
+    <!-- API Key row -->
+    <div class="api-row no-key" id="api-row" onclick="openApiModal()" title="Configurar Claude API Key">
+      <div class="api-status-icon" id="api-icon">🔑</div>
+      <div class="api-label">
+        <span id="api-label-text">Conectar con Claude IA — respuestas más inteligentes y contextuales</span>
+        <small id="api-label-sub">Configurá tu API Key de Claude para respuestas analíticas avanzadas. Se guarda solo en este navegador.</small>
+      </div>
+      <span class="api-status no" id="api-status-label">No configurada</span>
+      <button class="api-btn setup" id="api-action-btn" onclick="event.stopPropagation();openApiModal()">Conectar →</button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── SETUP MODAL ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="setup-modal">
+  <div class="modal-box">
+    <div class="modal-title">⚙ Configuración</div>
+    <div class="modal-sub">URL del Apps Script de Google (la misma usada en todos los módulos)</div>
+    <input id="setup-url" class="modal-input" type="url" placeholder="https://script.google.com/macros/s/…/exec"/>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeSetup()">Cancelar</button>
+      <button class="btn btn-pur" onclick="saveSetup()">Guardar y analizar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── API KEY MODAL ────────────────────────────────────────── -->
+<div class="modal-overlay" id="api-modal">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-title">🔑 Conectar con Claude IA</div>
+    <div class="modal-sub">
+      El Copiloto usa <strong style="color:var(--pur)">Claude Haiku</strong> de Anthropic para responder preguntas en lenguaje natural con mayor profundidad y contexto empresarial.
+    </div>
+
+    <!-- Pasos -->
+    <div style="background:rgba(124,58,237,.07);border:1px solid rgba(167,139,250,.15);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--pur);font-family:'Syne',sans-serif;margin-bottom:10px;letter-spacing:.3px">CÓMO OBTENER TU API KEY</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+          <span style="width:20px;height:20px;border-radius:50%;background:rgba(124,58,237,.4);color:var(--pur);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex-shrink:0">1</span>
+          <span style="color:var(--txt)">Ingresá a <a href="https://console.anthropic.com" target="_blank" style="color:var(--pur);font-weight:600">console.anthropic.com</a> con tu cuenta de Anthropic</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+          <span style="width:20px;height:20px;border-radius:50%;background:rgba(124,58,237,.4);color:var(--pur);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex-shrink:0">2</span>
+          <span style="color:var(--txt)">En el menú izquierdo: <strong>API Keys</strong> → <strong>Create Key</strong></span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+          <span style="width:20px;height:20px;border-radius:50%;background:rgba(124,58,237,.4);color:var(--pur);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex-shrink:0">3</span>
+          <span style="color:var(--txt)">Copiá la key (empieza con <code style="background:rgba(255,255,255,.07);padding:1px 5px;border-radius:4px;font-size:11px">sk-ant-api03-…</code>) y pegala abajo</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+          <span style="width:20px;height:20px;border-radius:50%;background:rgba(124,58,237,.4);color:var(--pur);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex-shrink:0">4</span>
+          <span style="color:var(--txt)">¡Listo! Las respuestas del Copiloto serán generadas por IA real con tus datos</span>
+        </div>
+      </div>
+    </div>
+
+    <input id="api-key-input" class="modal-input" type="password" placeholder="sk-ant-api03-…" style="letter-spacing:1px"/>
+    <div style="font-size:10.5px;color:var(--mut2);margin-bottom:16px;line-height:1.6">
+      🔒 La key se guarda <strong>solo en este navegador</strong> (localStorage). Nunca se transmite a servidores externos. Cada usuario configura la suya.
+    </div>
+
+    <div id="api-test-result" style="display:none;padding:8px 12px;border-radius:8px;font-size:11.5px;margin-bottom:12px"></div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="clearApiKey()" style="color:var(--red);border-color:rgba(239,68,68,.2)">🗑 Eliminar</button>
+      <button class="btn" onclick="testApiKey()" style="color:var(--pur);border-color:rgba(167,139,250,.3)">⚡ Probar</button>
+      <button class="btn" onclick="closeApiModal()">Cancelar</button>
+      <button class="btn btn-pur" onclick="saveApiKey()">✓ Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ───────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ══ SCRIPT ═════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ── Estado global ────────────────────────────────────────── */
+var SCRIPT_URL = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+var CLAUDE_KEY = localStorage.getItem('subatir_claude_key') || '';
+
+var RAW_PREC  = [];
+var RAW_PED   = [];
+var RAW_HIST  = [];
+var RAW_CONT  = [];
+var RAW_PROV  = [];
+
+var PK = {};   // precios column keys
+var OK = {};   // pedidos column keys
+var CK = {};   // contingencia column keys
+var HK = {};   // historial column keys
+
+var GROUPS = {};       // articulo → [rows] de precios
+var ALERTS = [];
+var RECS   = [];
+var PROV_SCORES = [];
+var CONT_OPPS  = [];
+
+var CHAT_HISTORY = [];
+var IS_TYPING = false;
+
+/* ── Utilidades ───────────────────────────────────────────── */
+function fk(keys, candidates){
+  for(var i=0;i<candidates.length;i++){
+    for(var j=0;j<keys.length;j++){
+      if(keys[j].trim().toLowerCase()===candidates[i].toLowerCase()) return keys[j];
+    }
+  }
+  // partial match
+  for(var i=0;i<candidates.length;i++){
+    for(var j=0;j<keys.length;j++){
+      if(keys[j].toLowerCase().indexOf(candidates[i].toLowerCase())>=0) return keys[j];
+    }
+  }
+  return null;
+}
+
+function parseNum(v){
+  if(v===null||v===undefined||v==='') return 0;
+  var s = String(v).replace(/[^\d.,\-]/g,'').replace(',','.');
+  var n = parseFloat(s);
+  return isNaN(n)?0:n;
+}
+
+function normText(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+function capFirst(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+function scoreCalidad(v){
+  var s=normText(v);
+  if(/buena|excelente|muy bien|optima/.test(s)) return 100;
+  if(/regular|media|aceptable/.test(s)) return 50;
+  if(/mala|deficiente|mala/.test(s)) return 10;
+  return 65;
+}
+function scoreDemora(v){
+  var s=normText(v);
+  if(/buena|rapida|inmediata|sin demora/.test(s)) return 100;
+  if(/regular|media|moderada/.test(s)) return 50;
+  if(/mala|lenta|demora|tardanza/.test(s)) return 10;
+  return 65;
+}
+function scorePago(v){
+  var s=normText(v);
+  if(/60|90|120/.test(s)) return 100;
+  if(/30/.test(s)) return 75;
+  if(/15/.test(s)) return 50;
+  if(/contado|efectivo|anticipado/.test(s)) return 25;
+  return 60;
+}
+
+var _toastT;
+function toast(msg,type){
+  var el=document.getElementById('toast');
+  el.textContent=msg;el.className='show'+(type?' '+type:'');
+  clearTimeout(_toastT);_toastT=setTimeout(function(){el.className='';},3500);
+}
+
+function setLoading(on){
+  document.getElementById('loading-bar').style.display=on?'block':'none';
+  document.getElementById('spin').style.display=on?'inline-block':'none';
+  document.getElementById('ref-lbl').textContent=on?'Analizando…':'⟳ Analizar';
+}
+
+function autoResize(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+
+/* ── Modals ───────────────────────────────────────────────── */
+function openSetup(){
+  document.getElementById('setup-url').value=SCRIPT_URL;
+  document.getElementById('setup-modal').classList.add('open');
+}
+function closeSetup(){document.getElementById('setup-modal').classList.remove('open');}
+function saveSetup(){
+  var url=document.getElementById('setup-url').value.trim();
+  if(!url){toast('Ingresá una URL válida','err');return;}
+  SCRIPT_URL=url;
+  localStorage.setItem('subatir_script_url',url);
+  closeSetup();
+  load();
+}
+
+function openApiModal(){
+  document.getElementById('api-key-input').value=CLAUDE_KEY?'••••••••••••••':'' ;
+  document.getElementById('api-modal').classList.add('open');
+}
+function closeApiModal(){
+  document.getElementById('api-modal').classList.remove('open');
+  var res=document.getElementById('api-test-result');
+  if(res) res.style.display='none';
+}
+function saveApiKey(){
+  var v=document.getElementById('api-key-input').value.trim();
+  if(v&&v!=='••••••••••••••'){CLAUDE_KEY=v;localStorage.setItem('subatir_claude_key',v);}
+  updateApiStatus();
+  closeApiModal();
+  toast('API Key guardada','ok');
+}
+function clearApiKey(){
+  CLAUDE_KEY='';localStorage.removeItem('subatir_claude_key');
+  document.getElementById('api-key-input').value='';
+  updateApiStatus();
+  closeApiModal();
+  toast('API Key eliminada');
+}
+function updateApiStatus(){
+  var lbl   = document.getElementById('api-status-label');
+  var icon  = document.getElementById('api-icon');
+  var row   = document.getElementById('api-row');
+  var btn   = document.getElementById('api-action-btn');
+  var sub   = document.getElementById('api-label-sub');
+  var ltext = document.getElementById('api-label-text');
+  if(CLAUDE_KEY){
+    lbl.textContent  = '✓ Conectado';
+    lbl.className    = 'api-status ok';
+    icon.textContent = '🟢';
+    if(row){ row.className='api-row has-key'; }
+    if(btn){ btn.textContent='⚙ Cambiar key'; btn.className='api-btn configured'; }
+    if(ltext) ltext.textContent='Claude IA activo — respuestas avanzadas habilitadas';
+    if(sub)   sub.textContent='Modelo: claude-haiku-4-5. Costo estimado: <$0.01 por consulta.';
+  } else {
+    lbl.textContent  = 'No configurada';
+    lbl.className    = 'api-status no';
+    icon.textContent = '🔑';
+    if(row){ row.className='api-row no-key'; }
+    if(btn){ btn.textContent='Conectar →'; btn.className='api-btn setup'; }
+    if(ltext) ltext.textContent='Conectar con Claude IA — respuestas más inteligentes y contextuales';
+    if(sub)   sub.textContent='Configurá tu API Key de Claude para respuestas analíticas avanzadas. Se guarda solo en este navegador.';
+  }
+}
+
+async function testApiKey(){
+  var v = document.getElementById('api-key-input').value.trim();
+  if(!v || v==='••••••••••••••'){ toast('Ingresá una API Key para probar','err'); return; }
+  var res = document.getElementById('api-test-result');
+  res.style.display='block';
+  res.style.background='rgba(245,158,11,.1)';
+  res.style.borderLeft='3px solid var(--amb)';
+  res.textContent='⏳ Probando conexión con Claude…';
+  try{
+    var r = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':v,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:20,
+        messages:[{role:'user',content:'Respondé solo "OK" en español.'}]
+      })
+    });
+    var d = await r.json();
+    if(r.ok && d.content && d.content[0]){
+      res.style.background='rgba(34,197,94,.1)';
+      res.style.borderLeft='3px solid var(--grn)';
+      res.textContent='✅ Conexión exitosa. Claude respondió correctamente.';
+    } else {
+      throw new Error(d.error&&d.error.message||'Error '+r.status);
+    }
+  } catch(e){
+    res.style.background='rgba(239,68,68,.1)';
+    res.style.borderLeft='3px solid var(--red)';
+    res.textContent='❌ Error: '+(e.message||'No se pudo conectar. Verificá tu API Key.');
+  }
+}
+
+/* ── Fetch con fallback JSONP ─────────────────────────────── */
+function smartFetch(url,ok,err){
+  fetch(url).then(function(r){return r.json();}).then(ok)
+    .catch(function(){
+      var cb='__cp_'+Date.now(),s=document.createElement('script');
+      window[cb]=function(d){delete window[cb];s.parentNode&&s.parentNode.removeChild(s);ok(d);};
+      var sep=url.indexOf('?')>=0?'&':'?';
+      s.src=url+sep+'callback='+cb+'&_t='+Date.now();
+      s.onerror=function(){delete window[cb];err(new Error('Sin conexión'));};
+      document.head.appendChild(s);
+    });
+}
+
+/* ── Init ─────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded',function(){
+  updateApiStatus();
+  if(!SCRIPT_URL){
+    document.getElementById('no-data-state').style.display='block';
+    document.getElementById('main-content').style.display='none';
+  } else {
+    load();
+  }
+});
+
+/* ── Load ─────────────────────────────────────────────────── */
+function load(){
+  if(!SCRIPT_URL){openSetup();return;}
+  setLoading(true);
+  smartFetch(SCRIPT_URL+'?action=getData&t='+Date.now(),
+    function(d){
+      setLoading(false);
+      if(d.error){toast('Error: '+d.error,'err');return;}
+
+      RAW_PREC=[]; RAW_PED=[]; RAW_HIST=[]; RAW_CONT=[]; RAW_PROV=[];
+
+      // Extraer datos de cada sección con variantes de nombre
+      RAW_PREC = d.precios || d.Precios || d.PRECIOS || [];
+      RAW_HIST = d.historial || d.Historial || d.HISTORIAL || [];
+      RAW_PED  = d.pedidos || d.Pedidos || d.PEDIDOS || d.compras || d.Compras || [];
+
+      // Contingencia
+      Object.keys(d).forEach(function(k){
+        if(k.toLowerCase()==='contingencia') RAW_CONT=d[k];
+      });
+
+      // Contactos / proveedores
+      Object.keys(d).forEach(function(k){
+        if(k.toLowerCase()==='contactos'||k.toLowerCase()==='proveedores') RAW_PROV=d[k];
+      });
+
+      detectKeys();
+      runAnalysis();
+      renderAll();
+
+      document.getElementById('no-data-state').style.display='none';
+      document.getElementById('main-content').style.display='grid';
+
+      if(d.timestamp){
+        var dt=new Date(d.timestamp);
+        document.getElementById('ts').textContent='Act.: '+dt.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+      } else {
+        document.getElementById('ts').textContent='Act.: '+new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+      }
+
+      var products=Object.keys(GROUPS).length;
+      toast('Análisis completo: '+products+' productos, '+(RAW_PREC.length)+' registros de precios','ok');
+    },
+    function(e){setLoading(false);toast('Error de conexión: '+e.message,'err');}
+  );
+}
+
+/* ── Detección de columnas ────────────────────────────────── */
+function detectKeys(){
+  if(RAW_PREC.length){
+    var k=Object.keys(RAW_PREC[0]);
+    PK.articulo =fk(k,['ARTICULO','Artículo','articulo','ARTÍCULO','Articulo']);
+    PK.proveedor=fk(k,['PROVEEDOR','Proveedor','proveedor']);
+    PK.precioUSD=fk(k,['PRECIO S/IVA U$S','U$S','USD','PRECIO USD','PRECIO U$S','DOLAR','PRECIO DOLAR','PRECIO UN USD']);
+    PK.precioPSO=fk(k,['PRECIO S/IVA $','PRECIO $','$','PESOS','UYU','PRECIO PESOS','PVP $','COSTO $']);
+    PK.calidad  =fk(k,['CALIDAD','calidad']);
+    PK.demora   =fk(k,['DEMORA DE ENTREGA','DEMORA','demora']);
+    PK.pago     =fk(k,['MODALIDAD DE PAGO','PAGO','pago','MODALIDAD']);
+    PK.atencion =fk(k,['ATENCION DE VENTA','ATENCIÓN','atencion','ATENCION']);
+    PK.codigo   =fk(k,['CODIGO','Código','codigo']);
+  }
+  if(RAW_PED.length){
+    var op=Object.keys(RAW_PED[0]);
+    OK.fecha     =fk(op,['Fecha','FECHA','fecha']);
+    OK.desc      =fk(op,['Descripción','Descripcion','DESCRIPCION','DESCRIPCIÓN','DESC','Articulo','ARTICULO']);
+    OK.proveedor =fk(op,['Proveedor','PROVEEDOR','proveedor']);
+    OK.estado    =fk(op,['Estado','ESTADO','estado','Status','STATUS']);
+    OK.cantidad  =fk(op,['Cantidad','CANTIDAD','cantidad','QTY']);
+    OK.precioUn  =fk(op,['Precio un','PRECIO UN','precio un','P.Unit','PRECIO UNITARIO','Precio unitario']);
+  }
+  if(RAW_CONT.length){
+    var ck=Object.keys(RAW_CONT[0]);
+    CK.desc     =fk(ck,['Descripción','DESCRIPCION','descripcion','Articulo','ARTICULO','articulo','PRODUCTO','Producto']);
+    CK.cantidad =fk(ck,['Cantidad','CANTIDAD','cantidad','Stock','STOCK','QTY']);
+    CK.unidad   =fk(ck,['Unidad','UNIDAD','unidad','UND','UNID']);
+    CK.valorRef =fk(ck,['Valor Ref','VALOR REF','valor ref','Precio Ref','PRECIO REF','Valor referencia','VALOR REFERENCIA','Precio referencia']);
+  }
+}
+
+/* ═══ MOTOR DE ANÁLISIS ═════════════════════════════════════ */
+
+function runAnalysis(){
+  ALERTS=[]; RECS=[]; PROV_SCORES=[]; CONT_OPPS=[];
+
+  // Build groups (articulo → rows)
+  GROUPS={};
+  RAW_PREC.forEach(function(r){
+    if(!r[PK.articulo]) return;
+    var art=normText(r[PK.articulo]);
+    if(!GROUPS[art]) GROUPS[art]=[];
+    GROUPS[art].push(r);
+  });
+
+  ALERTS=ALERTS.concat(analyzePriceSpreads());
+  ALERTS=ALERTS.concat(analyzeProviderDependency());
+  ALERTS=ALERTS.concat(analyzeDeliveryRisks());
+  ALERTS=ALERTS.concat(analyzePendingOrders());
+
+  CONT_OPPS=analyzeContingency();
+  CONT_OPPS.forEach(function(op){
+    ALERTS.push({
+      type:'cont',priority:'medio',
+      title:'Contingencia disponible: '+capFirst(op.product),
+      detail:'Precio actual '+Math.round(op.diffPct)+'% sobre referencia. Contingencia puede cubrir la necesidad.',
+      action:'Evaluar uso de stock de contingencia antes de comprar al precio actual.'
+    });
+  });
+
+  // Sort alerts
+  var pOrder={critico:4,alto:3,medio:2,bajo:1};
+  ALERTS.sort(function(a,b){return (pOrder[b.priority]||0)-(pOrder[a.priority]||0);});
+
+  RECS=generateRecommendations();
+  PROV_SCORES=scoreProviders();
+}
+
+/* ── Price spreads ────────────────────────────────────────── */
+function analyzePriceSpreads(){
+  var alerts=[];
+  Object.keys(GROUPS).forEach(function(art){
+    var rows=GROUPS[art];
+    if(rows.length<2) return;
+    var prices=rows.map(function(r){
+      var p=parseNum(r[PK.precioUSD]);
+      if(!p) p=parseNum(r[PK.precioPSO]);
+      return {prov:String(r[PK.proveedor]||'').trim(), precio:p, row:r};
+    }).filter(function(p){return p.precio>0;});
+    if(prices.length<2) return;
+    prices.sort(function(a,b){return a.precio-b.precio;});
+    var min=prices[0].precio, max=prices[prices.length-1].precio;
+    if(max>min*1.25){
+      var diffPct=((max/min)-1)*100;
+      alerts.push({
+        type:'price_spread',
+        priority:diffPct>60?'alto':diffPct>40?'medio':'bajo',
+        title:'Dispersión de precios: '+capFirst(rows[0][PK.articulo]),
+        detail:prices[prices.length-1].prov+' cotiza '+diffPct.toFixed(0)+'% sobre el mínimo del mercado ('+prices[0].prov+').',
+        action:'Evaluar cotización del proveedor más caro o negociar mejora.'
+      });
+    }
+  });
+  return alerts;
+}
+
+/* ── Dependencia de proveedor ─────────────────────────────── */
+function analyzeProviderDependency(){
+  var alerts=[];
+  Object.keys(GROUPS).forEach(function(art){
+    var rows=GROUPS[art];
+    var provSet=new Set();
+    rows.forEach(function(r){if(r[PK.proveedor])provSet.add(normText(r[PK.proveedor]));});
+    if(provSet.size===1){
+      var r0=rows[0];
+      var demora=normText(r0[PK.demora]||'');
+      var calidad=normText(r0[PK.calidad]||'');
+      var isBad=/mala|regular/.test(demora)||/mala|regular/.test(calidad);
+      alerts.push({
+        type:'dependency',
+        priority:isBad?'alto':'medio',
+        title:'Dependencia única: '+capFirst(r0[PK.articulo]),
+        detail:'Solo un proveedor activo: '+r0[PK.proveedor]+'.'+(isBad?' Presenta demora o calidad no óptima.':''),
+        action:'Buscar y evaluar proveedores alternativos para reducir riesgo operativo.'
+      });
+    }
+  });
+  return alerts;
+}
+
+/* ── Riesgo de entrega ────────────────────────────────────── */
+function analyzeDeliveryRisks(){
+  var alerts=[];
+  var badProvs={};
+  RAW_PREC.forEach(function(r){
+    var demora=normText(r[PK.demora]||'');
+    if(/mala|lenta/.test(demora)){
+      var pn=normText(r[PK.proveedor]||'');
+      badProvs[pn]={name:r[PK.proveedor],demora:r[PK.demora]};
+    }
+  });
+  if(Object.keys(badProvs).length>0){
+    alerts.push({
+      type:'delivery',
+      priority:'alto',
+      title:Object.keys(badProvs).length+' proveedor(es) con demora mala',
+      detail:'Proveedores con demora mala: '+Object.values(badProvs).map(function(p){return p.name;}).join(', ')+'.',
+      action:'Evitar compras urgentes con estos proveedores. Buscar alternativas.'
+    });
+  }
+  return alerts;
+}
+
+/* ── Pedidos pendientes ───────────────────────────────────── */
+function analyzePendingOrders(){
+  var alerts=[];
+  if(!RAW_PED.length) return alerts;
+  var pending=RAW_PED.filter(function(r){
+    var est=normText(r[OK.estado]||'');
+    return /pendiente|proceso|espera|curso/.test(est);
+  });
+  if(pending.length>0){
+    alerts.push({
+      type:'pending',
+      priority:'medio',
+      title:pending.length+' pedido(s) pendiente(s) de recepción',
+      detail:'Hay órdenes de compra aún no recibidas que pueden afectar disponibilidad.',
+      action:'Hacer seguimiento activo de las entregas pendientes.'
+    });
+  }
+  return alerts;
+}
+
+/* ── Contingencia ─────────────────────────────────────────── */
+function analyzeContingency(){
+  var opps=[];
+  if(!RAW_CONT.length||!RAW_PREC.length) return opps;
+  RAW_CONT.forEach(function(cont){
+    if(!cont[CK.desc]) return;
+    var descCont=normText(cont[CK.desc]);
+    var qty=parseNum(cont[CK.cantidad]);
+    var refVal=parseNum(cont[CK.valorRef]);
+    if(qty<=0) return;
+
+    RAW_PREC.forEach(function(p){
+      if(!p[PK.articulo]) return;
+      var descPrec=normText(p[PK.articulo]);
+      var overlap=wordOverlap(descCont,descPrec);
+      if(overlap<0.35) return;
+
+      var precio=parseNum(p[PK.precioUSD])||parseNum(p[PK.precioPSO]);
+      if(precio<=0||refVal<=0) return;
+      var diffPct=((precio/refVal)-1)*100;
+      if(diffPct>15){
+        // avoid duplicates
+        var exists=opps.some(function(o){return normText(o.product)===descCont;});
+        if(!exists){
+          opps.push({
+            product:cont[CK.desc],
+            qty:qty,
+            unit:cont[CK.unidad]||'',
+            currentPrice:precio,
+            refValue:refVal,
+            diffPct:diffPct,
+            proveedor:p[PK.proveedor]
+          });
+        }
+      }
+    });
+  });
+  return opps;
+}
+
+function wordOverlap(a,b){
+  var wa=a.split(/\s+/).filter(function(w){return w.length>3;});
+  var wb=b.split(/\s+/).filter(function(w){return w.length>3;});
+  if(!wa.length||!wb.length) return 0;
+  var matches=0;
+  wa.forEach(function(w){if(wb.some(function(x){return x.indexOf(w)>=0||w.indexOf(x)>=0;}))matches++;});
+  return matches/Math.max(wa.length,wb.length);
+}
+
+/* ── Recomendaciones ──────────────────────────────────────── */
+function generateRecommendations(){
+  var recs=[];
+  Object.keys(GROUPS).forEach(function(art){
+    var rows=GROUPS[art];
+    if(rows.length<1) return;
+
+    var scored=rows.map(function(r){
+      var priceUSD=parseNum(r[PK.precioUSD]);
+      var pricePSO=parseNum(r[PK.precioPSO]);
+      var price=priceUSD||pricePSO;
+      return {
+        proveedor:r[PK.proveedor]||'—',
+        precioUSD:priceUSD,
+        precioPSO:pricePSO,
+        precio:price,
+        calScore:scoreCalidad(r[PK.calidad]),
+        demScore:scoreDemora(r[PK.demora]),
+        pagScore:scorePago(r[PK.pago]),
+        calidad:r[PK.calidad]||'',
+        demora:r[PK.demora]||'',
+        pago:r[PK.pago]||'',
+        totalScore:0,
+        row:r
+      };
+    });
+
+    var prices=scored.map(function(s){return s.precio;}).filter(function(p){return p>0;});
+    var minP=prices.length?Math.min.apply(null,prices):0;
+    var maxP=prices.length?Math.max.apply(null,prices):0;
+
+    scored.forEach(function(s){
+      var priceScore=minP>0&&maxP>minP ? 100-((s.precio-minP)/(maxP-minP))*100 : (s.precio>0?70:40);
+      s.totalScore=priceScore*0.45+s.calScore*0.25+s.demScore*0.2+s.pagScore*0.1;
+    });
+
+    scored.sort(function(a,b){return b.totalScore-a.totalScore;});
+
+    if(rows.length>=2&&(maxP>minP*1.1||scored[0].demScore<100||scored[0].calScore<100)){
+      recs.push({
+        articulo:rows[0][PK.articulo],
+        scored:scored,
+        best:scored[0],
+        alt:scored.length>1?scored[1]:null,
+        minPrice:minP,
+        maxPrice:maxP,
+        diffPct:minP>0?(maxP-minP)/minP*100:0,
+        provCount:rows.length
+      });
+    }
+  });
+  recs.sort(function(a,b){return b.diffPct-a.diffPct;});
+  return recs.slice(0,10);
+}
+
+/* ── Score proveedores ────────────────────────────────────── */
+function scoreProviders(){
+  var provData={};
+  RAW_PREC.forEach(function(r){
+    if(!r[PK.proveedor]) return;
+    var pn=String(r[PK.proveedor]).trim();
+    if(!provData[pn]) provData[pn]={name:pn,scores:[],calidad:[],demora:[],pago:[]};
+    var priceUSD=parseNum(r[PK.precioUSD]);
+    var pricePSO=parseNum(r[PK.precioPSO]);
+    var cs=scoreCalidad(r[PK.calidad]);
+    var ds=scoreDemora(r[PK.demora]);
+    var ps=scorePago(r[PK.pago]);
+    provData[pn].calidad.push(cs);
+    provData[pn].demora.push(ds);
+    provData[pn].pago.push(ps);
+  });
+
+  // Price score per provider (relative to min for each product)
+  var priceScoresByProv={};
+  Object.keys(GROUPS).forEach(function(art){
+    var rows=GROUPS[art];
+    var prices=rows.map(function(r){
+      return {prov:String(r[PK.proveedor]||'').trim(),price:parseNum(r[PK.precioUSD])||parseNum(r[PK.precioPSO])};
+    }).filter(function(p){return p.price>0;});
+    if(!prices.length) return;
+    var minP=Math.min.apply(null,prices.map(function(p){return p.price;}));
+    var maxP=Math.max.apply(null,prices.map(function(p){return p.price;}));
+    prices.forEach(function(p){
+      if(!priceScoresByProv[p.prov]) priceScoresByProv[p.prov]=[];
+      var ps=minP<maxP?100-((p.price-minP)/(maxP-minP))*100:100;
+      priceScoresByProv[p.prov].push(ps);
+    });
+  });
+
+  var result=Object.values(provData).map(function(pd){
+    var avg=function(arr){return arr.length?arr.reduce(function(a,b){return a+b;},0)/arr.length:65;};
+    var priceScores=priceScoresByProv[pd.name]||[];
+    var priceScore=avg(priceScores);
+    var calScore=avg(pd.calidad);
+    var demScore=avg(pd.demora);
+    var pagScore=avg(pd.pago);
+    var total=priceScore*0.45+calScore*0.25+demScore*0.2+pagScore*0.1;
+    return {
+      name:pd.name,
+      total:Math.round(total),
+      priceScore:Math.round(priceScore),
+      calScore:Math.round(calScore),
+      demScore:Math.round(demScore),
+      pagScore:Math.round(pagScore),
+      productCount:priceScores.length
+    };
+  });
+
+  result.sort(function(a,b){return b.total-a.total;});
+  return result;
+}
+
+/* ═══ RENDER ════════════════════════════════════════════════ */
+
+function renderAll(){
+  renderKPIs();
+  renderExecutiveSummary();
+  renderAlerts();
+  renderRecommendations();
+  renderProviderRanking();
+  renderContingency();
+  updateExecDate();
+}
+
+function renderKPIs(){
+  var criticos=ALERTS.filter(function(a){return a.priority==='critico';}).length;
+  var altos=ALERTS.filter(function(a){return a.priority==='alto';}).length;
+  var deps=ALERTS.filter(function(a){return a.type==='dependency';}).length;
+  var avgScore=PROV_SCORES.length?Math.round(PROV_SCORES.reduce(function(s,p){return s+p.total;},0)/PROV_SCORES.length):0;
+
+  document.getElementById('kpi-criticos').textContent=criticos||'0';
+  document.getElementById('kpi-alertas').textContent=altos||'0';
+  document.getElementById('kpi-recs').textContent=RECS.length||'0';
+  document.getElementById('kpi-dep').textContent=deps||'0';
+  document.getElementById('kpi-cont').textContent=CONT_OPPS.length||'0';
+  document.getElementById('kpi-score').textContent=avgScore?avgScore:'—';
+}
+
+function renderExecutiveSummary(){
+  var criticos=ALERTS.filter(function(a){return a.priority==='critico';}).length;
+  var altos=ALERTS.filter(function(a){return a.priority==='alto';}).length;
+  var medios=ALERTS.filter(function(a){return a.priority==='medio';}).length;
+  var products=Object.keys(GROUPS).length;
+  var provs=PROV_SCORES.length;
+
+  var parts=[];
+  if(criticos>0) parts.push('<strong>'+criticos+' alerta'+(criticos>1?'s':'')+' crítica'+(criticos>1?'s':'')+'</strong>');
+  if(altos>0) parts.push('<strong>'+altos+' situación'+(altos>1?'es':'')+' de riesgo alto</strong>');
+  if(medios>0) parts.push(medios+' observación'+(medios>1?'es':'')+ ' de nivel medio');
+  if(RECS.length>0) parts.push('<strong>'+RECS.length+' recomendación'+(RECS.length>1?'es':'')+' de compra</strong>');
+  if(CONT_OPPS.length>0) parts.push(CONT_OPPS.length+' oportunidad'+(CONT_OPPS.length>1?'es':'')+' de usar contingencia');
+
+  var intro='Analicé <strong>'+products+' productos</strong> con <strong>'+RAW_PREC.length+' cotizaciones</strong> de <strong>'+provs+' proveedores</strong>. ';
+
+  var body;
+  if(parts.length===0){
+    body='El sistema no detectó alertas críticas. El estado de compras parece estable. Podés usar el chat para consultar sobre productos o proveedores específicos.';
+  } else {
+    body='Detecté: '+parts.join(', ')+'. Revisá las alertas y recomendaciones a continuación.';
+    if(PROV_SCORES.length>0){
+      body+=' El proveedor con mejor desempeño general es <strong>'+PROV_SCORES[0].name+'</strong> (score '+PROV_SCORES[0].total+'/100).';
+    }
+  }
+
+  document.getElementById('exec-text').innerHTML=intro+body;
+}
+
+function updateExecDate(){
+  var now=new Date();
+  var opts={weekday:'long',day:'numeric',month:'long',year:'numeric'};
+  document.getElementById('exec-date').textContent=capFirst(now.toLocaleDateString('es-UY',opts));
+}
+
+function renderAlerts(){
+  var list=document.getElementById('alerts-list');
+  document.getElementById('alerts-count').textContent=ALERTS.length;
+
+  if(!ALERTS.length){
+    list.innerHTML='<div class="empty-state"><div class="es-icon">✅</div><p>Sin alertas activas</p></div>';
+    return;
+  }
+
+  var icons={critico:'🔴',alto:'🟠',medio:'🟡',bajo:'🟢'};
+  list.innerHTML=ALERTS.slice(0,10).map(function(a){
+    return '<div class="alert-item p-'+a.priority+'">'
+      +'<div class="alert-icon">'+( icons[a.priority]||'•')+'</div>'
+      +'<div class="alert-body">'
+        +'<div class="alert-title">'+esc(a.title)+'</div>'
+        +'<div class="alert-detail">'+esc(a.detail)+'</div>'
+        +(a.action?'<div class="alert-action">→ '+esc(a.action)+'</div>':'')
+      +'</div>'
+      +'<div class="priority-tag">'+a.priority+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function renderRecommendations(){
+  var list=document.getElementById('recs-list');
+  document.getElementById('recs-count').textContent=RECS.length;
+
+  if(!RECS.length){
+    if(!RAW_PREC.length){
+      list.innerHTML='<div class="empty-state"><div class="es-icon">📡</div><p>Sin datos de precios cargados</p></div>';
+    } else {
+      list.innerHTML='<div class="empty-state"><div class="es-icon">✅</div><p>Sin recomendaciones activas. Los precios parecen estables.</p></div>';
+    }
+    return;
+  }
+
+  list.innerHTML=RECS.map(function(r){
+    var best=r.best;
+    var alt=r.alt;
+    var semClass=r.diffPct>40?'sem-rojo':r.diffPct>25?'sem-naranja':r.diffPct>10?'sem-amarillo':'sem-verde';
+    var priceLabel=best.precioUSD>0?'U$S '+best.precioUSD.toFixed(2):(best.precioPSO>0?'$'+best.precioPSO.toFixed(2):'—');
+
+    var tags='<span class="rec-tag best">✓ '+esc(best.proveedor)+'</span>'
+      +'<span class="rec-tag price">'+priceLabel+'</span>';
+    if(alt) tags+='<span class="rec-tag alt">Alt: '+esc(alt.proveedor)+'</span>';
+    if(r.diffPct>20) tags+='<span class="rec-tag risk">Ahorro '+r.diffPct.toFixed(0)+'% vs más caro</span>';
+
+    var reasons=[];
+    if(r.diffPct>10) reasons.push('mejor precio');
+    if(best.calScore>=90) reasons.push('calidad buena');
+    if(best.demScore>=90) reasons.push('entrega rápida');
+    if(best.pagScore>=75) reasons.push('pago conveniente');
+
+    return '<div class="rec-card">'
+      +'<div class="rec-top">'
+        +'<div class="rec-icon">🎯</div>'
+        +'<div>'
+          +'<div class="rec-product">'+esc(r.articulo)+'</div>'
+          +'<div class="rec-reason">'+esc(capFirst(reasons.join(', ')||'mejor relación precio-calidad'))+'. '+r.provCount+' proveedores.</div>'
+        +'</div>'
+        +'<div class="rec-semaphore '+semClass+'"><span style="font-size:11px;color:var(--mut2)">riesgo</span></div>'
+      +'</div>'
+      +'<div class="rec-meta">'+tags+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function renderProviderRanking(){
+  var list=document.getElementById('prov-rank-list');
+  document.getElementById('prov-count').textContent=PROV_SCORES.length;
+
+  if(!PROV_SCORES.length){
+    list.innerHTML='<div class="empty-state"><p>Sin datos de proveedores</p></div>';
+    return;
+  }
+
+  var maxScore=PROV_SCORES.length?PROV_SCORES[0].total:100;
+
+  list.innerHTML=PROV_SCORES.slice(0,8).map(function(p,i){
+    var posClass=i===0?'pos-1':i===1?'pos-2':i===2?'pos-3':'pos-n';
+    var scoreColor=p.total>=75?'var(--grn)':p.total>=55?'var(--amb)':'var(--red)';
+    var barWidth=Math.round((p.total/Math.max(maxScore,1))*100);
+    var barColor=p.total>=75?'var(--grn)':p.total>=55?'var(--amb)':'var(--or)';
+    var details=[];
+    if(p.priceScore) details.push('precio '+p.priceScore);
+    if(p.calScore)   details.push('calidad '+p.calScore);
+    if(p.demScore)   details.push('demora '+p.demScore);
+    return '<div class="prov-rank-item">'
+      +'<div class="prov-rank-pos '+posClass+'">'+(i+1)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div class="prov-rank-name">'+esc(p.name)+'</div>'
+        +'<div class="prov-rank-bar" style="width:'+barWidth+'%;background:'+barColor+'"></div>'
+        +'<div class="prov-rank-detail">'+details.join(' · ')+(p.productCount?' · '+p.productCount+' artículos':'')+'</div>'
+      +'</div>'
+      +'<div class="prov-rank-score" style="color:'+scoreColor+'">'+p.total+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function renderContingency(){
+  var list=document.getElementById('cont-list');
+  document.getElementById('cont-count').textContent=CONT_OPPS.length;
+
+  if(!CONT_OPPS.length){
+    if(!RAW_CONT.length){
+      list.innerHTML='<div class="empty-state"><div class="es-icon">🛡</div><p>No se cargaron datos de contingencia</p></div>';
+    } else {
+      list.innerHTML='<div class="empty-state"><div class="es-icon">✅</div><p>No se detectaron oportunidades de contingencia</p></div>';
+    }
+    return;
+  }
+
+  list.innerHTML=CONT_OPPS.map(function(op){
+    var priceLabel=op.currentPrice?'U$S '+op.currentPrice.toFixed(2):'—';
+    var refLabel=op.refValue?'U$S '+op.refValue.toFixed(2):'—';
+    return '<div class="cont-item">'
+      +'<div class="cont-product">'+esc(op.product)+'</div>'
+      +'<div class="cont-detail">'
+        +'Precio actual: <strong>'+priceLabel+'</strong> vs referencia: '+refLabel
+        +' (<strong>+'+op.diffPct.toFixed(0)+'%</strong>)'
+        +(op.qty?' · Stock contingencia: '+op.qty+(op.unit?' '+op.unit:''):'')
+      +'</div>'
+      +'<span class="cont-tag">Usar contingencia →</span>'
+    +'</div>';
+  }).join('');
+}
+
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ═══ CHAT Q&A ══════════════════════════════════════════════ */
+
+function askSuggestion(q){
+  document.getElementById('chat-input').value=q;
+  sendChat();
+}
+
+function sendChat(){
+  var input=document.getElementById('chat-input');
+  var q=input.value.trim();
+  if(!q||IS_TYPING) return;
+  input.value='';
+  input.style.height='auto';
+  addChatMessage('user',q);
+  showTyping();
+  IS_TYPING=true;
+
+  if(CLAUDE_KEY&&RAW_PREC.length){
+    askClaude(q).then(function(res){
+      hideTyping();
+      IS_TYPING=false;
+      addChatMessage('ai',res,true);
+    }).catch(function(){
+      hideTyping();
+      IS_TYPING=false;
+      addChatMessage('ai',processLocal(q),true);
+    });
+  } else {
+    setTimeout(function(){
+      hideTyping();
+      IS_TYPING=false;
+      addChatMessage('ai',processLocal(q),true);
+    },600+Math.random()*400);
+  }
+}
+
+function addChatMessage(role,content,isHtml){
+  var body=document.getElementById('chat-body');
+  var div=document.createElement('div');
+  div.className='chat-msg '+role;
+  var avatar=role==='ai'
+    ?'<div class="chat-avatar ai-avatar-sm">🤖</div>'
+    :'<div class="chat-avatar user-avatar-sm">👤</div>';
+  var bubble='<div class="chat-bubble">'+(isHtml?content:esc(content))+'</div>';
+  div.innerHTML=avatar+bubble;
+  body.appendChild(div);
+  body.scrollTop=body.scrollHeight;
+}
+
+function showTyping(){
+  var body=document.getElementById('chat-body');
+  var div=document.createElement('div');
+  div.id='typing-indicator';div.className='chat-msg ai';
+  div.innerHTML='<div class="chat-avatar ai-avatar-sm">🤖</div>'
+    +'<div class="chat-bubble chat-typing"><div class="dot-1"></div><div class="dot-2"></div><div class="dot-3"></div></div>';
+  body.appendChild(div);
+  body.scrollTop=body.scrollHeight;
+}
+
+function hideTyping(){
+  var el=document.getElementById('typing-indicator');
+  if(el) el.parentNode.removeChild(el);
+}
+
+/* ── Respuestas locales ────────────────────────────────────── */
+function processLocal(q){
+  var n=normText(q);
+
+  if(/que.*comprar|comprar.*(hoy|semana|ahora)|prioritario|prioridad/.test(n)){
+    return respComprarHoy();
+  }
+  if(/proveedor.*(conviene|mejor|recomend)|mejor.*proveedor|que.*proveedor/.test(n)){
+    return respMejorProveedor(q);
+  }
+  if(/riesgo.*faltante|faltante|me.*quedo.*sin|sin.*stock/.test(n)){
+    return respRiesgoFaltante();
+  }
+  if(/pagando.*caro|precio.*(caro|alto|elevado)|sobrepago|caro/.test(n)){
+    return respPagandoCaro();
+  }
+  if(/proveedor.*(fall|problem|mal)|fallando|incumpliendo/.test(n)){
+    return respProveedorFalla();
+  }
+  if(/contingencia|stock.*reserva|usar.*reserva/.test(n)){
+    return respContingencia();
+  }
+  if(/pendiente|en.*curso|en.*proceso|que.*falta|que.*espera/.test(n)){
+    return respPendientes();
+  }
+  if(/aument|subio|precio.*(subi|creci|aument)|inflacion|suba/.test(n)){
+    return respAumentos();
+  }
+  if(/dependo|dependencia|unico.*proveedor|solo.*proveedor|alternativ/.test(n)){
+    return respDependencias();
+  }
+  if(/ranking|mejor.*proveedor|top.*proveedor|score/.test(n)){
+    return respRankingProveedores();
+  }
+
+  // Búsqueda de producto específico
+  var prod=findProductInQuestion(q);
+  if(prod){
+    return respProducto(prod);
+  }
+
+  return respAyuda();
+}
+
+function respComprarHoy(){
+  if(!RAW_PREC.length) return noDataMsg();
+  var h='<h3>🎯 Diagnóstico</h3>';
+  var alertas=ALERTS.filter(function(a){return a.priority==='critico'||a.priority==='alto';});
+  if(alertas.length>0){
+    h+='<p>Tenés <strong>'+alertas.length+' situaciones prioritarias</strong> que requieren atención.</p>';
+  } else {
+    h+='<p>No hay alertas críticas activas.</p>';
+  }
+  h+='<h3>📋 Recomendación</h3>';
+  if(RECS.length>0){
+    h+='<p>Productos con mayor oportunidad de mejora hoy:</p><ul>';
+    RECS.slice(0,4).forEach(function(r){
+      h+='<li><strong>'+esc(r.articulo)+'</strong>: comprar con <strong>'+esc(r.best.proveedor)+'</strong>'
+        +(r.diffPct>10?' (ahorro '+r.diffPct.toFixed(0)+'% vs más caro)':'')+' </li>';
+    });
+    h+='</ul>';
+  } else {
+    h+='<p>Los precios actuales son similares entre proveedores. Priorizá los pedidos pendientes.</p>';
+  }
+  if(CONT_OPPS.length>0){
+    h+='<h3>🛡 Contingencia</h3><p>Para <strong>'+CONT_OPPS.length+' producto(s)</strong> conviene usar stock de contingencia en lugar de comprar al precio actual.</p>';
+  }
+  h+='<h3>⚡ Acción sugerida</h3>';
+  if(RECS.length>0) h+='<p>Empezar por <strong>'+esc(RECS[0].articulo)+'</strong> con <strong>'+esc(RECS[0].best.proveedor)+'</strong>.</p>';
+  else h+='<p>Hacer seguimiento de pedidos pendientes.</p>';
+  return h;
+}
+
+function respMejorProveedor(q){
+  if(!RAW_PREC.length) return noDataMsg();
+  var prod=findProductInQuestion(q);
+  if(prod) return respProducto(prod);
+
+  var h='<h3>🏭 Diagnóstico</h3>';
+  h+='<p>Analizando proveedores en general según precio, calidad, demora y modalidad de pago.</p>';
+  h+='<h3>🏆 Ranking general</h3>';
+  if(PROV_SCORES.length>0){
+    h+='<ul>';
+    PROV_SCORES.slice(0,5).forEach(function(p,i){
+      h+='<li>'+(i+1)+'. <strong>'+esc(p.name)+'</strong> — Score '+p.total+'/100'
+        +' (precio '+p.priceScore+', calidad '+p.calScore+', demora '+p.demScore+')</li>';
+    });
+    h+='</ul>';
+  }
+  h+='<h3>💡 Recomendación</h3>';
+  if(PROV_SCORES.length>0){
+    h+='<p><strong>'+esc(PROV_SCORES[0].name)+'</strong> tiene el mejor desempeño general con score <strong>'+PROV_SCORES[0].total+'/100</strong>. '
+      +'Para productos específicos, preguntame por el artículo.</p>';
+  }
+  return h;
+}
+
+function respRiesgoFaltante(){
+  if(!RAW_PREC.length) return noDataMsg();
+  var h='<h3>📦 Diagnóstico</h3>';
+  var deps=ALERTS.filter(function(a){return a.type==='dependency';});
+  var delivery=ALERTS.filter(function(a){return a.type==='delivery';});
+  var pending=ALERTS.filter(function(a){return a.type==='pending';});
+
+  if(!deps.length&&!delivery.length&&!pending.length){
+    return '<h3>✅ Diagnóstico</h3><p>No se detectaron riesgos críticos de faltante en este momento.</p>'
+      +'<h3>Recomendación</h3><p>Mantener monitoreo regular de los pedidos pendientes y niveles de stock.</p>';
+  }
+
+  if(deps.length>0){
+    h+='<p><strong>'+deps.length+' producto(s) con proveedor único</strong>: cualquier falla del proveedor puede generar faltante.</p><ul>';
+    deps.slice(0,3).forEach(function(a){h+='<li>'+esc(a.title.replace('Dependencia única: ',''))+'</li>';});
+    h+='</ul>';
+  }
+  if(delivery.length>0){
+    h+='<p><strong>Proveedores con demora mala</strong> pueden retrasar entregas activas.</p>';
+  }
+  if(pending.length>0){
+    h+='<p><strong>Pedidos pendientes</strong> que podrían no llegar a tiempo.</p>';
+  }
+
+  h+='<h3>⚠ Riesgo si no se actúa</h3>';
+  h+='<p>Posibles interrupciones operativas por falta de insumos críticos.</p>';
+  h+='<h3>⚡ Acción sugerida</h3>';
+  h+='<p>Revisar dependencias únicas y buscar proveedores alternativos. Hacer seguimiento activo de pedidos pendientes.</p>';
+  if(CONT_OPPS.length>0){
+    h+='<p>Usar contingencia para <strong>'+CONT_OPPS.length+' producto(s)</strong> donde hay precio alto o demora.</p>';
+  }
+  return h;
+}
+
+function respPagandoCaro(){
+  if(!RAW_PREC.length) return noDataMsg();
+  var spreads=ALERTS.filter(function(a){return a.type==='price_spread';});
+  var h='<h3>💸 Diagnóstico</h3>';
+  if(!spreads.length){
+    return '<h3>✅ Diagnóstico</h3><p>No se detectaron dispersiones de precio significativas. Los proveedores parecen competitivos entre sí.</p>';
+  }
+  h+='<p>Detecté <strong>'+spreads.length+' producto(s) con dispersión de precios relevante</strong>:</p><ul>';
+  spreads.slice(0,5).forEach(function(a){h+='<li>'+esc(a.detail)+'</li>';});
+  h+='</ul>';
+  h+='<h3>📊 Análisis</h3>';
+  h+='<p>La diferencia de precio más alta entre proveedores para el mismo producto puede generar sobrecostos importantes.</p>';
+  h+='<h3>⚡ Acción sugerida</h3>';
+  h+='<p>Revisar cotizaciones de los artículos marcados y negociar con el proveedor más caro o cambiar de proveedor.</p>';
+  return h;
+}
+
+function respProveedorFalla(){
+  if(!RAW_PREC.length) return noDataMsg();
+  var bad=[];
+  RAW_PREC.forEach(function(r){
+    var d=normText(r[PK.demora]||'');
+    var c=normText(r[PK.calidad]||'');
+    if(/mala|lenta/.test(d)||/mala/.test(c)){
+      bad.push({name:r[PK.proveedor],demora:r[PK.demora],calidad:r[PK.calidad],art:r[PK.articulo]});
+    }
+  });
+  var h='<h3>🚨 Diagnóstico</h3>';
+  if(!bad.length){
+    return '<h3>✅ Diagnóstico</h3><p>No se registran proveedores con demora o calidad mala en el sistema actual.</p>';
+  }
+  var provs={};
+  bad.forEach(function(b){if(!provs[b.name])provs[b.name]={name:b.name,arts:[]};provs[b.name].arts.push(b.art);});
+  h+='<p><strong>'+Object.keys(provs).length+' proveedor(es) con problemas detectados:</strong></p><ul>';
+  Object.values(provs).forEach(function(p){
+    h+='<li><strong>'+esc(p.name)+'</strong>: '+p.arts.slice(0,3).map(esc).join(', ')+(p.arts.length>3?' y más…':'')+'</li>';
+  });
+  h+='</ul>';
+  h+='<h3>⚠ Riesgo</h3><p>Dependencia de proveedores con bajo desempeño puede generar demoras productivas.</p>';
+  h+='<h3>⚡ Acción sugerida</h3><p>Evaluar proveedores alternativos para los artículos afectados. Considerar usar contingencia mientras se resuelve.</p>';
+  return h;
+}
+
+function respContingencia(){
+  if(!RAW_CONT.length) return '<h3>Sin datos</h3><p>No se cargaron datos de la hoja de Contingencia. Verificá la conexión.</p>';
+  var h='<h3>🛡 Diagnóstico</h3>';
+  h+='<p>Contingencia disponible: <strong>'+RAW_CONT.length+' artículos</strong> en stock reservado.</p>';
+  if(CONT_OPPS.length>0){
+    h+='<h3>✅ Oportunidades detectadas</h3><ul>';
+    CONT_OPPS.forEach(function(op){
+      h+='<li><strong>'+esc(op.product)+'</strong>: precio actual <strong>'+op.diffPct.toFixed(0)+'% sobre referencia</strong>. Stock: '+op.qty+(op.unit?' '+op.unit:'')+'. <em>Recomiendo usar contingencia.</em></li>';
+    });
+    h+='</ul>';
+    h+='<h3>💡 Recomendación</h3>';
+    h+='<p>Usar contingencia evita la exposición al precio actual alto y asegura continuidad operativa.</p>';
+  } else {
+    h+='<h3>📊 Análisis</h3><p>Los precios actuales están dentro del rango de referencia. La contingencia no es necesaria urgentemente.</p>';
+  }
+  return h;
+}
+
+function respPendientes(){
+  if(!RAW_PED.length) return '<h3>Sin datos</h3><p>No se cargaron datos de pedidos. Verificá la conexión.</p>';
+  var pending=RAW_PED.filter(function(r){
+    var est=normText(r[OK.estado]||'');
+    return /pendiente|proceso|espera|curso/.test(est);
+  });
+  var h='<h3>📦 Diagnóstico</h3>';
+  if(!pending.length){
+    return '<h3>✅ Diagnóstico</h3><p>No hay pedidos pendientes de recepción en el sistema.</p>';
+  }
+  h+='<p>Hay <strong>'+pending.length+' pedido(s) pendiente(s)</strong>:</p><ul>';
+  pending.slice(0,6).forEach(function(r){
+    h+='<li>'+(r[OK.desc]?esc(r[OK.desc]):r[OK.articulo]?esc(r[OK.articulo]):'—')
+      +(r[OK.proveedor]?' — <em>'+esc(r[OK.proveedor])+'</em>':'')
+      +(r[OK.fecha]?' ('+esc(r[OK.fecha])+')':'')
+    +'</li>';
+  });
+  if(pending.length>6) h+='<li><em>…y '+(pending.length-6)+' más.</em></li>';
+  h+='</ul>';
+  h+='<h3>⚡ Acción sugerida</h3><p>Contactar a los proveedores para confirmar fechas de entrega y evitar interrupciones.</p>';
+  return h;
+}
+
+function respAumentos(){
+  if(!RAW_PREC.length) return noDataMsg();
+  var spreads=ALERTS.filter(function(a){return a.type==='price_spread';});
+  var h='<h3>📈 Diagnóstico</h3>';
+  if(!spreads.length){
+    return '<h3>📊 Diagnóstico</h3><p>No se detectaron aumentos significativos comparando los precios actuales entre proveedores. Sin datos de historial no es posible comparar con períodos anteriores.</p>';
+  }
+  h+='<p>Se detectaron <strong>'+spreads.length+' producto(s) con disparidades de precio</strong> entre proveedores, lo que puede indicar aumentos recientes en algunos:</p><ul>';
+  spreads.slice(0,5).forEach(function(a){h+='<li>'+esc(a.detail)+'</li>';});
+  h+='</ul>';
+  h+='<h3>💡 Recomendación</h3>';
+  h+='<p>Comparar con precios históricos si están disponibles. Negociar con los proveedores que superan el promedio del mercado.</p>';
+  return h;
+}
+
+function respDependencias(){
+  if(!RAW_PREC.length) return noDataMsg();
+  var deps=ALERTS.filter(function(a){return a.type==='dependency';});
+  var h='<h3>⚠ Diagnóstico</h3>';
+  if(!deps.length){
+    return '<h3>✅ Diagnóstico</h3><p>No se detectaron productos con dependencia única de proveedor.</p>';
+  }
+  h+='<p><strong>'+deps.length+' producto(s) con un solo proveedor activo</strong>:</p><ul>';
+  deps.forEach(function(a){h+='<li>'+esc(a.title.replace('Dependencia única: ',''))+'</li>';});
+  h+='</ul>';
+  h+='<h3>⚠ Riesgo</h3><p>Cualquier falla de estos proveedores puede paralizar la operación.</p>';
+  h+='<h3>⚡ Acción sugerida</h3><p>Iniciar búsqueda de al menos un proveedor alternativo para cada artículo crítico.</p>';
+  return h;
+}
+
+function respRankingProveedores(){
+  if(!PROV_SCORES.length) return noDataMsg();
+  var h='<h3>🏆 Ranking de Proveedores</h3>';
+  h+='<p>Evaluados por precio (45%), calidad (25%), demora (20%) y pago (10%):</p><ul>';
+  PROV_SCORES.slice(0,8).forEach(function(p,i){
+    h+='<li>'+(i+1)+'. <strong>'+esc(p.name)+'</strong> — Score <strong>'+p.total+'/100</strong>'
+      +' | Precio: '+p.priceScore+', Calidad: '+p.calScore+', Demora: '+p.demScore+'</li>';
+  });
+  h+='</ul>';
+  if(PROV_SCORES.length>0){
+    h+='<h3>💡 Recomendación</h3>';
+    h+='<p><strong>'+esc(PROV_SCORES[0].name)+'</strong> es el proveedor con mejor performance general. '
+      +(PROV_SCORES.length>1?'<strong>'+esc(PROV_SCORES[1].name)+'</strong> es una buena alternativa.':'')+'</p>';
+  }
+  return h;
+}
+
+function respProducto(prod){
+  var key=normText(prod);
+  var matches=RAW_PREC.filter(function(r){
+    return r[PK.articulo]&&normText(r[PK.articulo]).indexOf(key)>=0;
+  });
+  if(!matches.length){
+    return '<h3>Sin resultados</h3><p>No encontré "<strong>'+esc(prod)+'</strong>" en los datos de precios. Verificá el nombre del producto.</p>';
+  }
+  var h='<h3>🔍 Producto: '+esc(matches[0][PK.articulo])+'</h3>';
+  h+='<p>'+matches.length+' cotizaci'+(matches.length===1?'ón':'ones')+' disponible'+(matches.length===1?'':'s')+':</p>';
+
+  var scored=matches.map(function(r){
+    var pUSD=parseNum(r[PK.precioUSD]), pPSO=parseNum(r[PK.precioPSO]);
+    var precio=pUSD||pPSO;
+    return {
+      proveedor:r[PK.proveedor]||'—',
+      precioLabel:pUSD?'U$S '+pUSD.toFixed(2):(pPSO?'$'+pPSO.toFixed(2):'—'),
+      precio:precio,
+      calidad:r[PK.calidad]||'—',
+      demora:r[PK.demora]||'—',
+      pago:r[PK.pago]||'—',
+      calScore:scoreCalidad(r[PK.calidad]),
+      demScore:scoreDemora(r[PK.demora]),
+      pagScore:scorePago(r[PK.pago])
+    };
+  });
+  var prices=scored.map(function(s){return s.precio;}).filter(function(p){return p>0;});
+  var minP=prices.length?Math.min.apply(null,prices):0;
+  var maxP=prices.length?Math.max.apply(null,prices):0;
+  scored.forEach(function(s){
+    var ps=minP<maxP?100-((s.precio-minP)/(maxP-minP))*100:100;
+    s.totalScore=ps*0.45+s.calScore*0.25+s.demScore*0.2+s.pagScore*0.1;
+  });
+  scored.sort(function(a,b){return b.totalScore-a.totalScore;});
+
+  h+='<ul>';
+  scored.forEach(function(s,i){
+    h+='<li>'+(i===0?'<strong>★ ':'')+'<strong>'+esc(s.proveedor)+'</strong>'+(i===0?' (RECOMENDADO)':'')
+      +' — '+s.precioLabel
+      +' | Cal: '+esc(s.calidad)+' | Demora: '+esc(s.demora)+' | Pago: '+esc(s.pago)
+      +(i===0?'</strong>':'')+'</li>';
+  });
+  h+='</ul>';
+
+  h+='<h3>💡 Recomendación</h3>';
+  var best=scored[0];
+  h+='<p>Comprar con <strong>'+esc(best.proveedor)+'</strong>.';
+  if(scored.length>1){
+    h+=' Como alternativa: <strong>'+esc(scored[1].proveedor)+'</strong>.';
+  }
+  if(maxP>minP*1.1){
+    h+=' Diferencia de precio entre proveedores: <strong>'+((maxP/minP-1)*100).toFixed(0)+'%</strong>.';
+  }
+  h+='</p>';
+
+  return h;
+}
+
+function respAyuda(){
+  return '<h3>🤖 Copiloto IA disponible</h3>'
+    +'<p>Podés preguntarme sobre:</p><ul>'
+    +'<li>¿Qué debo comprar hoy?</li>'
+    +'<li>¿Qué proveedor conviene para [producto]?</li>'
+    +'<li>¿Tengo riesgo de faltante?</li>'
+    +'<li>¿Dónde estoy pagando caro?</li>'
+    +'<li>¿Qué proveedor viene fallando?</li>'
+    +'<li>¿Conviene usar contingencia?</li>'
+    +'<li>¿Qué está pendiente de recibir?</li>'
+    +'<li>¿Qué proveedor aumentó?</li>'
+    +'<li>Ranking de proveedores</li>'
+    +'</ul>'
+    +'<p><em>Con Claude API Key configurada, podés hacer preguntas libres más complejas.</em></p>';
+}
+
+function noDataMsg(){
+  return '<h3>Sin datos</h3><p>No hay datos cargados. Hacé clic en <strong>⟳ Analizar</strong> para conectar con el Apps Script, o configurá la URL desde el Dashboard.</p>';
+}
+
+function findProductInQuestion(q){
+  var n=normText(q);
+  // Try to match against known products
+  var artList=Object.keys(GROUPS);
+  var bestMatch=null,bestScore=0;
+  artList.forEach(function(art){
+    var overlap=wordOverlap(n,art);
+    if(overlap>0.4&&overlap>bestScore){bestScore=overlap;bestMatch=art;}
+  });
+  if(bestMatch) return bestMatch;
+  // Try to extract a noun phrase after common triggers
+  var m=q.match(/(?:para|de|sobre|con|del?)\s+([a-záéíóúüñ\s]{3,30})/i);
+  if(m) return m[1].trim();
+  return null;
+}
+
+/* ── Claude API ───────────────────────────────────────────── */
+async function askClaude(question){
+  var context=buildContext();
+  var response=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':CLAUDE_KEY,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:1024,
+      system:buildSystemPrompt(context),
+      messages:[{role:'user',content:question}]
+    })
+  });
+  var data=await response.json();
+  if(!response.ok) throw new Error(data.error&&data.error.message||'Error API');
+  var text=data.content&&data.content[0]&&data.content[0].text||'Sin respuesta.';
+  return mdToHtml(text);
+}
+
+function buildContext(){
+  var lines=[];
+  lines.push('PRODUCTOS EN PRECIOS: '+Object.keys(GROUPS).length);
+  lines.push('COTIZACIONES TOTALES: '+RAW_PREC.length);
+  lines.push('PROVEEDORES: '+PROV_SCORES.length);
+
+  if(PROV_SCORES.length){
+    lines.push('\nRANKING PROVEEDORES (top 5):');
+    PROV_SCORES.slice(0,5).forEach(function(p,i){
+      lines.push((i+1)+'. '+p.name+' — Score '+p.total+'/100 (precio '+p.priceScore+', cal '+p.calScore+', demora '+p.demScore+', pago '+p.pagScore+')');
+    });
+  }
+
+  var deps=ALERTS.filter(function(a){return a.type==='dependency';});
+  if(deps.length){
+    lines.push('\nDEPENDENCIAS ÚNICAS ('+deps.length+'):');
+    deps.slice(0,5).forEach(function(a){lines.push('- '+a.title.replace('Dependencia única: ',''));});
+  }
+
+  var spreads=ALERTS.filter(function(a){return a.type==='price_spread';});
+  if(spreads.length){
+    lines.push('\nDISPERSIONES DE PRECIO ('+spreads.length+'):');
+    spreads.slice(0,5).forEach(function(a){lines.push('- '+a.detail);});
+  }
+
+  if(CONT_OPPS.length){
+    lines.push('\nOPORTUNIDADES CONTINGENCIA:');
+    CONT_OPPS.forEach(function(op){lines.push('- '+op.product+': precio actual '+op.diffPct.toFixed(0)+'% sobre referencia');});
+  }
+
+  var pending=RAW_PED.filter(function(r){return /pendiente|proceso|espera/.test(normText(r[OK.estado]||''));});
+  if(pending.length) lines.push('\nPEDIDOS PENDIENTES: '+pending.length);
+
+  return lines.join('\n');
+}
+
+function buildSystemPrompt(ctx){
+  return 'Sos el Copiloto IA de Subatir S.A. / Prolimpio — asistente estratégico de compras empresariales.\n\n'
+    +'DATOS ACTUALES:\n'+ctx+'\n\n'
+    +'INSTRUCCIONES:\n'
+    +'- Respondé SIEMPRE en español, de forma ejecutiva, directa y orientada a resultados.\n'
+    +'- Nunca des respuestas genéricas. Basate en los datos disponibles.\n'
+    +'- Usá el formato: ## Diagnóstico / ## Análisis / ## Recomendación / ## Riesgo / ## Acción sugerida\n'
+    +'- Sé humano, útil, ejecutivo, estratégico y directo.\n'
+    +'- La decisión final siempre queda en manos del Gerente de Compras.\n'
+    +'- Si no tenés datos suficientes sobre algo específico, decilo y basate en lo que sí tenés.';
+}
+
+function mdToHtml(md){
+  return md
+    .replace(/## (.+)/g,'<h3>$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
+    .replace(/\n{2,}/g,'</p><p>')
+    .replace(/^(?!<[hup])/gm,'<p>')
+    .replace(/\n/g,'');
+}
+
+/* ── Setup URL inicial ────────────────────────────────────── */
+updateApiStatus();
+</script>
+</body>
+</html>

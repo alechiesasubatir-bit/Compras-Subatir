@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pedidos en Proceso — Subatir / Prolimpio</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ═══ DESIGN SYSTEM ═══════════════════════════════════════════ */
+:root{
+  --bg:    #07090f;
+  --bg2:   #0c1119;
+  --bg3:   #111926;
+  --teal:  #0e8aaa;
+  --teal-l:#1bc8ff;
+  --orange:#f97316;--orange-d:#c2580a;
+  --glass: rgba(255,255,255,.04);--glass-b:rgba(255,255,255,.08);
+  --border:rgba(255,255,255,.07);--text:#e2e8f0;--muted:#5a6a80;
+  --danger:#ef4444;--warn:#f59e0b;--ok:#22c55e;
+  --radius:14px;--shadow:0 8px 32px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scrollbar-gutter:stable;overflow-x:hidden}
+body{
+  background:var(--bg);
+  min-height:100vh;color:var(--text);
+  font-family:'DM Sans',system-ui,sans-serif;
+  font-size:14px;line-height:1.5;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 55% at 5% 10%,rgba(167,139,250,.12) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,rgba(14,138,170,.09) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 50%,rgba(249,115,22,.04) 0%,transparent 50%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity:.5;
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+/* ── Ticker ──────────────────────────────────────────────────── */
+.ticker-bar{overflow:hidden;background:linear-gradient(90deg,rgba(14,138,170,.18),rgba(167,139,250,.12),rgba(14,138,170,.18));border-bottom:1px solid rgba(27,200,255,.15);height:32px;display:flex;align-items:center;position:relative;z-index:100}
+.ticker-bar::before,.ticker-bar::after{content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
+.ticker-bar::before{left:0;background:linear-gradient(90deg,rgba(7,9,15,1),transparent)}
+.ticker-bar::after{right:0;background:linear-gradient(270deg,rgba(7,9,15,1),transparent)}
+.ticker-label{position:absolute;left:12px;z-index:3;font-family:'Syne',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal-l);white-space:nowrap;text-shadow:0 0 10px rgba(27,200,255,.5)}
+.ticker-track{display:flex;align-items:center;animation:ticker-scroll 38s linear infinite;white-space:nowrap;padding-left:160px}
+.ticker-track:hover{animation-play-state:paused}
+.ticker-item{display:inline-flex;align-items:center;gap:6px;padding:0 22px;font-size:11px;font-family:'DM Sans',sans-serif;color:var(--muted)}
+.ticker-item .ti-dot{width:4px;height:4px;border-radius:50%;background:var(--teal-l);flex-shrink:0;box-shadow:0 0 5px var(--teal-l)}
+.ticker-item b{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--teal-l)}
+@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+::-webkit-scrollbar-thumb{background:rgba(167,139,250,.25);border-radius:4px}
+.card{
+  position:relative;z-index:1;
+  background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
+}
+
+/* ═══ HEADER + NAV ═══════════════════════════════════════════ */
+header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  padding:13px 24px;background:rgba(7,9,15,.9);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;
+  backdrop-filter:blur(24px);
+}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-icon{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  object-fit:cover;display:block;
+  box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
+}
+.logo h1{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo p{font-size:10px;color:var(--muted);margin-top:1px}
+nav{display:flex;gap:3px;flex-wrap:wrap}
+.nav-link{
+  padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;
+  color:var(--muted);text-decoration:none;transition:all .18s;border:1px solid transparent;
+  font-family:'Syne',sans-serif;
+}
+.nav-link:hover{color:var(--text);background:rgba(255,255,255,.07);border-color:var(--border)}
+.nav-link.active{
+  color:#fff;
+  background:linear-gradient(135deg,rgba(14,138,170,.4),rgba(27,200,255,.25));
+  border-color:rgba(27,200,255,.3);box-shadow:0 0 10px rgba(14,138,170,.25);
+}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;
+  border:1px solid var(--border);background:rgba(255,255,255,.06);cursor:pointer;
+  font-size:12px;font-weight:600;letter-spacing:.2px;transition:all .18s;
+  font-family:'DM Sans',sans-serif;color:var(--text);
+}
+.btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.1)}
+.btn-primary{
+  background:linear-gradient(135deg,var(--teal),var(--teal-l));
+  border-color:rgba(27,200,255,.3);color:#fff;box-shadow:0 0 14px rgba(14,138,170,.3);
+}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-orange{background:linear-gradient(135deg,var(--orange-d),var(--orange));border-color:rgba(249,115,22,.3);color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text)}
+.btn-danger{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+.btn-sm{padding:5px 10px;font-size:11px}
+.sync-badge{background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.35);
+  color:var(--orange);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;
+  display:none;align-items:center;gap:5px;}
+.sync-badge.visible{display:flex}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.12);
+  border-top-color:var(--teal-l);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══ MAIN ═══════════════════════════════════════════════════ */
+.main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
+
+/* ═══ KPI ROW ════════════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.kpi{
+  padding:18px 20px;position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;cursor:default;
+}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(0,0,0,.55)}
+.kpi-label{
+  font-family:'Syne',sans-serif;font-size:10px;color:var(--muted);
+  font-weight:700;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px;
+}
+.kpi-val{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:28px;font-weight:700;line-height:1;letter-spacing:-1px;
+}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:5px}
+.c-teal{color:var(--teal-l)}.c-warn{color:var(--warn)}.c-ok{color:var(--ok)}
+.c-orange{color:var(--orange)}.c-danger{color:var(--danger)}
+
+/* ═══ TOOLBAR ════════════════════════════════════════════════ */
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.search-box{flex:1;min-width:200px;max-width:320px;position:relative}
+.search-box input{width:100%;padding:8px 12px 8px 34px;border-radius:9px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);
+  color:var(--text);font-size:13px;outline:none;transition:border .2s;}
+.search-box input:focus{border-color:var(--teal-l)}
+.search-box::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  font-size:13px;pointer-events:none;}
+.filter-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fsel{padding:7px 10px;border-radius:8px;font-size:12px;
+  background:#0c1119;border:1px solid var(--border);
+  color:var(--text);outline:none;cursor:pointer;color-scheme:dark;}
+.fsel:focus{border-color:var(--teal-l)}
+.fsel option{background:#0c1119;color:var(--text)}
+.date-range{display:flex;align-items:center;gap:6px}
+.date-range label{font-size:11px;color:var(--muted);white-space:nowrap}
+.date-input{padding:6px 9px;border-radius:7px;font-size:12px;
+  background:rgba(255,255,255,.05);border:1px solid var(--border);
+  color:var(--text);outline:none;}
+.date-input:focus{border-color:var(--teal-l)}
+.clear-btn{font-size:11px;color:var(--muted);background:none;border:none;
+  cursor:pointer;padding:4px 8px;border-radius:5px;}
+.clear-btn:hover{color:var(--text);background:rgba(255,255,255,.07)}
+
+/* ═══ TABLE ══════════════════════════════════════════════════ */
+.table-wrap{overflow-x:auto;overflow-y:auto;max-height:540px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{position:sticky;top:0;z-index:10}
+thead th{padding:9px 11px;text-align:left;white-space:nowrap;
+  background:rgba(14,138,170,.15);color:var(--teal-l);
+  font-family:'Syne',sans-serif;font-weight:700;font-size:10px;
+  letter-spacing:.5px;text-transform:uppercase;
+  border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+thead th:hover{background:rgba(14,138,170,.24)}
+thead th.sorted-asc::after{content:' ▲';font-size:9px}
+thead th.sorted-desc::after{content:' ▼';font-size:9px}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s}
+tbody tr:hover{background:rgba(255,255,255,.05)}
+tbody tr.local-row{border-left:2px solid var(--orange)}
+tbody tr.modified-row{border-left:2px solid var(--teal-l)}
+tbody td{padding:8px 11px;white-space:nowrap;vertical-align:middle}
+.empty-row td{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+
+/* Cells */
+.orden-cell{font-weight:700;color:var(--teal-l);font-size:13px}
+.money-cell{text-align:right;color:var(--ok);font-weight:600;font-family:'IBM Plex Mono',monospace}
+.muted-cell{color:var(--muted)}
+.num-cell{font-family:'IBM Plex Mono',monospace;text-align:right}
+.delay-cell{font-family:'IBM Plex Mono',monospace;color:var(--danger);font-weight:700;font-size:11px;white-space:nowrap}
+
+/* Pills */
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;
+  border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+/* Pendiente normal → ámbar */
+.pill-pend{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
+/* Pendiente atrasado (F.Vto superado sin recepción) → rojo */
+.pill-late{background:rgba(239,68,68,.18);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
+/* Recibido → verde */
+.pill-recv{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.3)}
+/* Parcial / especial → naranja */
+.pill-parcial{background:rgba(249,115,22,.18);color:#fdba74;border:1px solid rgba(249,115,22,.4)}
+.pill-ok{background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25)}
+.pill-warn{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)}
+.pill-local{background:rgba(249,115,22,.15);color:#fdba74;border:1px solid rgba(249,115,22,.3)}
+.pill-mod{background:rgba(14,107,138,.2);color:var(--teal-l);border:1px solid rgba(14,107,138,.35)}
+.pill-vto{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
+
+/* Row actions */
+.row-actions{display:flex;gap:5px}
+.icon-btn{
+  border:none;cursor:pointer;padding:5px 9px;border-radius:7px;
+  font-size:13px;font-weight:700;transition:all .15s;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.icon-btn.btn-view{
+  background:rgba(14,138,170,.2);color:var(--teal-l);border:1px solid rgba(14,138,170,.35);
+}
+.icon-btn.btn-view:hover{background:rgba(14,138,170,.35);transform:translateY(-1px)}
+.icon-btn.btn-edit{
+  background:rgba(249,115,22,.18);color:var(--orange);border:1px solid rgba(249,115,22,.35);
+}
+.icon-btn.btn-edit:hover{background:rgba(249,115,22,.32);transform:translateY(-1px)}
+
+/* ═══ RESUMEN POR PROVEEDOR ══════════════════════════════════ */
+.prov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.prov-card{padding:14px 16px;border-radius:12px;background:rgba(255,255,255,.03);
+  border:1px solid var(--border);}
+.prov-name{font-size:13px;font-weight:700;margin-bottom:6px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prov-stats{display:flex;gap:14px;flex-wrap:wrap}
+.prov-stat{font-size:11px;color:var(--muted)}
+.prov-stat strong{display:block;font-size:15px;font-weight:700;color:var(--text)}
+
+/* ═══ MODAL ══════════════════════════════════════════════════ */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);
+  backdrop-filter:blur(4px);z-index:500;display:none;
+  align-items:center;justify-content:center;padding:20px;}
+.overlay.open{display:flex}
+.modal{background:linear-gradient(145deg,rgba(13,27,46,.96),rgba(10,18,32,.98));
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid var(--glass-b);border-radius:18px;
+  width:100%;max-width:620px;max-height:90vh;overflow-y:auto;
+  box-shadow:0 24px 80px rgba(0,0,0,.75);}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;
+  cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;}
+.modal-close:hover{color:var(--text);background:rgba(255,255,255,.08)}
+.modal-body{padding:20px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:10px;}
+
+/* Form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid.full{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.span2{grid-column:1/-1}
+label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.form-input,.form-select,.form-textarea{
+  padding:9px 12px;border-radius:9px;font-size:13px;
+  background:rgba(255,255,255,.07);border:1px solid var(--border);
+  color:var(--text);outline:none;transition:border .2s;width:100%;
+  color-scheme:dark;}
+.form-select option{background:#0c1119;color:var(--text)}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--teal-l)}
+.form-input::placeholder{color:var(--muted)}
+.form-textarea{resize:vertical;min-height:70px;font-family:inherit}
+.check-row{display:flex;align-items:center;gap:8px;padding:8px 0}
+.check-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal-l);cursor:pointer}
+.check-row label{font-size:13px;color:var(--text);text-transform:none;letter-spacing:0}
+.calc-preview{background:rgba(14,107,138,.12);border:1px solid rgba(14,107,138,.25);
+  border-radius:9px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.calc-item{font-size:12px;color:var(--muted)}
+.calc-item strong{display:block;font-size:15px;font-weight:700;color:var(--teal-l)}
+
+/* Detail view */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-item{padding:10px 12px;background:rgba(255,255,255,.03);border-radius:9px;
+  border:1px solid var(--border);}
+.detail-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;margin-bottom:4px}
+.detail-value{font-size:13px;font-weight:600}
+.detail-item.span2{grid-column:1/-1}
+.detail-divider{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
+
+/* Confirm modal */
+.confirm-modal{max-width:420px}
+.confirm-msg{font-size:14px;line-height:1.7;margin-bottom:4px}
+.confirm-warn{font-size:12px;color:var(--warn);margin-top:8px}
+
+/* ═══ TOAST ══════════════════════════════════════════════════ */
+#toast-container{position:fixed;bottom:24px;right:24px;z-index:999;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{padding:11px 16px;border-radius:10px;font-size:13px;font-weight:600;
+  min-width:260px;animation:slideIn .25s ease;pointer-events:all;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.toast-ok{background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#86efac}
+.toast-err{background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.4);color:#fca5a5}
+.toast-info{background:rgba(14,107,138,.25);border:1px solid rgba(14,107,138,.4);color:var(--teal-l)}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ═══ SECTION TITLE ══════════════════════════════════════════ */
+.section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-title h2{font-size:14px;font-weight:700;letter-spacing:.3px;
+  display:flex;align-items:center;gap:8px}
+.section-title h2 span{background:linear-gradient(135deg,var(--teal),var(--teal-l));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-info{background:rgba(14,107,138,.2);color:var(--teal-l);border:1px solid rgba(14,107,138,.3)}
+.badge-warn{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+
+/* ═══ PRINT ══════════════════════════════════════════════════ */
+@media print{
+  header,nav,.toolbar,.row-actions,.sync-badge,#toast-container,.modal,.overlay{display:none!important}
+  body{background:#fff;color:#000}
+  .card{box-shadow:none;border:1px solid #ddd;background:#fff}
+  table{font-size:11px}
+  thead th{background:#f0f0f0;color:#000}
+  .kpi-val,.money-cell,.orden-cell{color:#000!important}
+  .muted-cell{color:#555!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ════════════════════════════════════════════ -->
+<header>
+  <a class="logo" href="index.html" style="text-decoration:none">
+    <img class="logo-icon" src="logo.jpg" alt="Subatir"/>
+    <div>
+      <h1>Subatir</h1>
+      <p>Pedidos en Proceso</p>
+    </div>
+  </a>
+  <nav>
+    <a href="index.html" class="nav-link">⬡ Dashboard</a>
+    <a href="pedidos.html" class="nav-link active">📦 Pedidos</a>
+    <a href="stock.html" class="nav-link">📊 Stock</a>
+    <a href="precios.html" class="nav-link">💲 Precios</a>
+    <a href="proveedores.html"  class="nav-link">🏭 Proveedores</a>
+    <a href="contingencia.html" class="nav-link">🛡 Contingencia</a>
+    <a href="copiloto.html"     class="nav-link">🤖 Copiloto IA</a>
+  </nav>
+  <div class="header-right">
+    <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
+    <div class="sync-badge" id="sync-badge">⚡ <span id="sync-count">0</span> cambios pendientes</div>
+    <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
+    <button class="btn btn-ghost btn-sm" onclick="refresh()" id="btn-refresh">
+      <span id="spin-icon" style="display:none" class="spin"></span>
+      <span id="refresh-label">⟳ Actualizar</span>
+    </button>
+    <button class="btn btn-orange btn-sm" onclick="syncPending()" id="btn-sync" style="display:none">
+      ☁ Sincronizar
+    </button>
+    <button class="btn btn-orange" onclick="openNewModal()" style="font-size:13px;padding:8px 16px">+ Nueva OC</button>
+  </div>
+</header>
+
+<!-- ── Ticker banner ─────────────────────────────────────────── -->
+<div class="ticker-bar">
+  <span class="ticker-label">⬡ OC</span>
+  <div class="ticker-track">
+    <span class="ticker-item"><span class="ti-dot"></span>Órdenes de Compra — <b>Subatir S.A. / Prolimpio</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Gestión integral de compras y recepción</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Control de proveedores y trazabilidad de órdenes</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Seguimiento de lotes, COA y conformidades</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Órdenes de Compra — <b>Subatir S.A. / Prolimpio</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Gestión integral de compras y recepción</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Control de proveedores y trazabilidad de órdenes</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Seguimiento de lotes, COA y conformidades</span>
+  </div>
+</div>
+
+<!-- ═══ MAIN ══════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="card kpi">
+      <div class="kpi-label">Total Órdenes</div>
+      <div class="kpi-val c-teal" id="kpi-total">—</div>
+      <div class="kpi-sub" id="kpi-total-sub">en el sistema</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-label">Pendientes</div>
+      <div class="kpi-val c-warn" id="kpi-pend">—</div>
+      <div class="kpi-sub">sin fecha de recepción</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-label">Recibidas</div>
+      <div class="kpi-val c-ok" id="kpi-recv">—</div>
+      <div class="kpi-sub">con F. Recepción</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-label">Comprometido U$S</div>
+      <div class="kpi-val c-orange" id="kpi-usd">—</div>
+      <div class="kpi-sub">pendiente en dólares</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-label">Comprometido $</div>
+      <div class="kpi-val" style="color:var(--teal-l)" id="kpi-pso">—</div>
+      <div class="kpi-sub">pendiente en pesos</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-label">Sin COA / Conforme</div>
+      <div class="kpi-val c-danger" id="kpi-coa">—</div>
+      <div class="kpi-sub">pendientes de calidad</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-label">Sin Lote</div>
+      <div class="kpi-val c-warn" id="kpi-lote">—</div>
+      <div class="kpi-sub">sin trazabilidad</div>
+    </div>
+  </div>
+
+  <!-- Tabla principal -->
+  <div class="card" style="padding:20px">
+    <div class="section-title">
+      <h2>📋 <span>Órdenes de Compra</span></h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge badge-info" id="tbl-count">—</span>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir</button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar" style="margin-bottom:14px">
+      <div class="search-box">
+        <input type="text" id="f-buscar" placeholder="Buscar por descripción, proveedor, N° orden…" oninput="applyFilters()"/>
+      </div>
+      <div class="filter-group">
+        <select class="fsel" id="f-estado" onchange="applyFilters()">
+          <option value="">Estado</option>
+          <option value="pendiente">⏳ Pendiente</option>
+          <option value="recibido">✓ Recibido</option>
+        </select>
+        <select class="fsel" id="f-proveedor" onchange="applyFilters()">
+          <option value="">Todos los proveedores</option>
+        </select>
+        <select class="fsel" id="f-coa" onchange="applyFilters()">
+          <option value="">COA</option>
+          <option value="si">Con COA</option>
+          <option value="no">Sin COA</option>
+        </select>
+        <select class="fsel" id="f-lote" onchange="applyFilters()">
+          <option value="">Lote</option>
+          <option value="si">Con lote</option>
+          <option value="no">Sin lote</option>
+        </select>
+      </div>
+      <div class="date-range">
+        <label>Desde</label>
+        <input type="date" class="date-input" id="f-desde" onchange="applyFilters()"/>
+        <label>Hasta</label>
+        <input type="date" class="date-input" id="f-hasta" onchange="applyFilters()"/>
+      </div>
+      <button class="clear-btn" onclick="clearFilters()">✕ Limpiar filtros</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="main-table">
+        <thead id="thead">
+          <tr>
+            <th onclick="sortBy('orden')">N° OC</th>
+            <th onclick="sortBy('fecha')">Fecha</th>
+            <th onclick="sortBy('proveedor')">Proveedor</th>
+            <th>Descripción</th>
+            <th onclick="sortBy('cantidad')" style="text-align:right">Cant.</th>
+            <th onclick="sortBy('precio')" style="text-align:right">P. Unit</th>
+            <th style="text-align:right">s/IVA</th>
+            <th style="text-align:right">c/IVA</th>
+            <th onclick="sortBy('recepcion')">Recepción</th>
+            <th>Lote</th>
+            <th>COA</th>
+            <th>Conforme</th>
+            <th style="text-align:center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr class="empty-row"><td colspan="12">Cargando datos…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Resumen por proveedor -->
+  <div class="card" style="padding:20px">
+    <div class="section-title">
+      <h2>🏭 <span>Resumen por Proveedor</span></h2>
+      <span class="badge badge-info" id="prov-count">—</span>
+    </div>
+    <div class="prov-grid" id="prov-grid">
+      <div style="color:var(--muted);font-size:13px">Cargando…</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ════════════════════════════════════════════════
+     MODAL: DETALLE / EDITAR
+════════════════════════════════════════════════ -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="edit-title">Detalle de Orden</div>
+      <button class="modal-close" onclick="closeModal('edit-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Vista detalle -->
+      <div id="detail-view">
+        <div class="detail-grid" id="detail-grid"></div>
+      </div>
+
+      <!-- Formulario de edición -->
+      <div id="edit-form" style="display:none">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Fecha de Recepción</label>
+            <input type="date" class="form-input" id="ed-recepcion"/>
+          </div>
+          <div class="form-group">
+            <label>Número de Lote</label>
+            <input type="text" class="form-input" id="ed-lote" placeholder="Ej: BB-2526-/32"/>
+          </div>
+          <div class="form-group span2">
+            <div class="check-row">
+              <input type="checkbox" id="ed-coa"/>
+              <label for="ed-coa">COA recibido (Certificado de Análisis)</label>
+            </div>
+            <div class="check-row">
+              <input type="checkbox" id="ed-conforme"/>
+              <label for="ed-conforme">Mercadería conforme con la orden</label>
+            </div>
+          </div>
+          <div class="form-group span2">
+            <label>Observaciones</label>
+            <textarea class="form-textarea" id="ed-obs" placeholder="Anotaciones internas…"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-toggle-edit" onclick="toggleEditForm()">✏ Editar</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete-row" onclick="confirmDelete()">🗑 Eliminar</button>
+      <button class="btn btn-primary" id="btn-save-edit" style="display:none" onclick="saveEdit()">💾 Guardar</button>
+      <button class="btn btn-ghost" onclick="closeModal('edit-overlay')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL: NUEVA ORDEN
+════════════════════════════════════════════════ -->
+<div class="overlay" id="new-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">➕ Nueva Orden de Compra</div>
+      <button class="modal-close" onclick="closeModal('new-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" class="form-input" id="nw-fecha"/>
+        </div>
+        <div class="form-group span2">
+          <label>Proveedor *</label>
+          <select class="form-select" id="nw-proveedor">
+            <option value="">— Seleccionar proveedor —</option>
+          </select>
+        </div>
+        <div class="form-group span2">
+          <label>Descripción del Artículo *</label>
+          <input type="text" class="form-input" id="nw-desc" placeholder="Nombre completo del producto"/>
+        </div>
+        <div class="form-group">
+          <label>Cantidad *</label>
+          <input type="number" class="form-input" id="nw-cantidad" min="0" step="0.01" placeholder="0" oninput="calcIVA()"/>
+        </div>
+        <div class="form-group">
+          <label>Precio Unitario USD s/IVA *</label>
+          <input type="number" class="form-input" id="nw-precio" min="0" step="0.001" placeholder="0.000" oninput="calcIVA()"/>
+        </div>
+        <div class="form-group span2">
+          <div class="calc-preview" id="calc-preview">
+            <div class="calc-item"><span>Subtotal s/IVA</span><strong id="calc-siva">—</strong></div>
+            <div class="calc-item"><span>Total c/IVA (22%)</span><strong id="calc-civa">—</strong></div>
+          </div>
+        </div>
+        <div class="form-group span2">
+          <label>Observaciones</label>
+          <textarea class="form-textarea" id="nw-obs" placeholder="Condiciones de entrega, referencias, etc."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-overlay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveNew()">💾 Crear Orden</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL: CONFIRMAR ELIMINACIÓN
+════════════════════════════════════════════════ -->
+<div class="overlay" id="confirm-overlay">
+  <div class="modal confirm-modal">
+    <div class="modal-header">
+      <div class="modal-title" style="color:var(--danger)">⚠ Confirmar eliminación</div>
+      <button class="modal-close" onclick="closeModal('confirm-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-msg" id="confirm-msg">¿Estás seguro de que querés eliminar esta orden?</p>
+      <p class="confirm-warn">Esta acción la eliminará del Google Sheets. No se puede deshacer.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('confirm-overlay')">Cancelar</button>
+      <button class="btn btn-danger" onclick="doDelete()">🗑 Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════ -->
+<script>
+// ── Estado global ─────────────────────────────────────────────
+var SCRIPT_URL   = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+var DATA_RAW     = [];   // datos originales del Sheet
+var DATA_DISPLAY = [];   // datos con overrides locales aplicados
+var RAW_PREC     = [];   // hoja PRECIOS para detectar moneda
+var CURR_MAP_P   = {};   // norm(artículo) → 'USD'|'PSO'
+var FILTERED     = [];   // datos filtrados para tabla
+var SORT_KEY     = 'orden';
+var SORT_DIR     = 'desc';
+var LOCAL        = JSON.parse(localStorage.getItem('subatir_local') || '{"overrides":{},"new":[],"deleted":[]}');
+var CURRENT_ROW  = null; // fila abierta en modal
+var IVA          = 1.22;
+
+// Columnas detectadas dinámicamente
+var K = {};
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  if (!SCRIPT_URL){
+    toast('No hay URL de Apps Script configurada. Volvé al Dashboard para configurarla.','err');
+    document.getElementById('tbody').innerHTML =
+      '<tr class="empty-row"><td colspan="12">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
+  } else {
+    load();
+  }
+  setTodayDate();
+  updateSyncUI();
+});
+
+function setTodayDate(){
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('nw-fecha').value = today;
+}
+
+// ── Fetch con fallback JSONP (funciona desde file:// y localhost) ──
+function smartFetch(url, onOk, onErr) {
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(onOk)
+    .catch(function() {
+      var cbName = '__sbcb_' + Date.now();
+      var script = document.createElement('script');
+      window[cbName] = function(data) {
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        onOk(data);
+      };
+      var sep = url.indexOf('?') >= 0 ? '&' : '?';
+      script.src = url + sep + 'callback=' + cbName + '&_t=' + Date.now();
+      script.onerror = function() {
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        onErr(new Error('No se pudo conectar. Verificá la URL y los permisos del Apps Script.'));
+      };
+      document.head.appendChild(script);
+    });
+}
+
+// ── Carga de datos ────────────────────────────────────────────
+function load(){
+  setLoading(true);
+  smartFetch(
+    SCRIPT_URL + '?action=getData&t=' + Date.now(),
+    function(d){
+      if (d.error) { setLoading(false); toast('Error del script: ' + d.error, 'err'); return; }
+      DATA_RAW  = d.pedidos || [];
+      RAW_PREC  = d.precios || [];
+      console.log('[Pedidos] Hojas:', d.sheetNames);
+      console.log('[Pedidos] Filas pedidos:', DATA_RAW.length);
+      if(DATA_RAW.length) console.log('[Pedidos] Columnas:', Object.keys(DATA_RAW[0]).join(' | '));
+      detectKeys(DATA_RAW);
+      console.log('[Pedidos] Keys → orden:', K.orden, '| fecha:', K.fecha, '| prov:', K.proveedor, '| recep:', K.recepcion);
+      if(DATA_RAW.length===0) toast('⚠ Hoja OC/Pedidos vacía. Hojas disponibles: '+(d.sheetNames||[]).join(', '),'err');
+      buildCurrencyMapP();
+      applyLocalOverrides();
+      renderAll();
+      setLoading(false);
+      if (d.timestamp){
+        var dt = new Date(d.timestamp);
+        document.getElementById('last-update').textContent =
+          'Actualizado: ' + dt.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+      }
+    },
+    function(e){
+      setLoading(false);
+      toast('Error al cargar datos: ' + e.message, 'err');
+      document.getElementById('tbody').innerHTML =
+        '<tr class="empty-row"><td colspan="12">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
+    }
+  );
+}
+
+function refresh(){ load(); }
+
+function setLoading(on){
+  document.getElementById('spin-icon').style.display   = on ? 'inline-block' : 'none';
+  document.getElementById('refresh-label').textContent = on ? 'Cargando…' : '⟳ Actualizar';
+}
+
+// ── Detección de columnas ─────────────────────────────────────
+function detectKeys(rows){
+  if (!rows || rows.length === 0) return;
+  var keys = Object.keys(rows[0]);
+  // Candidatos amplios: incluyen variantes con/sin tildes, espacios, símbolos grado °
+  K.orden     = fk(keys,['N° Orden','N°Orden','N° OC','N°OC','Nro Orden','Nro. Orden','N Orden','N OC','Orden','ORDEN','OC','N°','NUM','Numero','NUMERO']);
+  K.fecha     = fk(keys,['Fecha','FECHA','F. OC','F.OC','F. EMISION','F.EMISION','FECHA OC','FECHA EMISION','Fecha OC']);
+  K.proveedor = fk(keys,['Proveedor','PROVEEDOR','Empresa','EMPRESA','Proveedor/Empresa']);
+  K.cantidad  = fk(keys,['Cantidad','CANTIDAD','Cant','CANT','Cant.','CANT.','QTY','Qty']);
+  K.desc      = fk(keys,['Descripción','Descripcion','DESCRIPCIÓN','DESCRIPCION','Artículo','Articulo','ARTICULO','Producto','PRODUCTO','Material','MATERIAL','Insumo','INSUMO']);
+  K.precio    = fk(keys,['Precio un','Precio Un','precio un','PRECIO UN','P. Unit','P.Unit','PRECIO UNIT','Precio u','PRECIO U$S','PRECIO USD','Precio','PRECIO','P. UNIT']);
+  K.siva      = fk(keys,['s/iva','s/IVA','S/IVA','S/iva','SIVA','Subtotal','SUBTOTAL','Total s/iva','TOTAL S/IVA','MONTO S/IVA','Importe s/iva','IMPORTE S/IVA']);
+  K.civa      = fk(keys,['c/iva','c/IVA','C/IVA','C/iva','CIVA','Total c/iva','TOTAL C/IVA','MONTO C/IVA','Importe c/iva','IMPORTE C/IVA','Total','TOTAL']);
+  // Columna indicadora de moneda: "$/U$S" → "$" o "U$S"
+  K.moneda    = fk(keys,['$/U$S','Moneda','MONEDA','moneda','Divisa','DIVISA','Moneda OC']);
+  K.recepcion = fk(keys,['F.Recepción','F. Recepción','F.Recepcion','F. Recepcion','Recepción','Recepcion','RECEPCIÓN','RECEPCION','F. RECEPCION','FECHA RECEPCION','Fecha Recepción','Fecha Recepcion','F.LLEGADA','FECHA LLEGADA']);
+  K.vto       = fk(keys,['F.Vto','F. Vto','F.VTO','F. VTO','Vto','VTO','Vencimiento','VENCIMIENTO','F. Vencimiento','F.Vencimiento','F. VENCIMIENTO','FECHA VTO','Fecha Vto','EXPIRA','Expira']);
+  K.lote      = fk(keys,['Lote','LOTE','N° Lote','N°Lote','Nro Lote','Nro. Lote','NUM LOTE','Numero Lote']);
+  K.coa       = fk(keys,['COA','coa','Coa','C.O.A','Certificado','CERTIFICADO','Cert. Calidad','CERT. CALIDAD','Cert Calidad']);
+  K.conforme  = fk(keys,['Conforme','CONFORME','conforme','Aprobado','APROBADO','Estado Recepcion','ESTADO RECEPCION','Estado Recepción']);
+  K.obs       = fk(keys,['Observaciones','OBSERVACIONES','observaciones','Obs.','OBS','Obs','Comentarios','COMENTARIOS','Notas','NOTAS']);
+}
+
+function fk(keys, candidates){
+  for (var c = 0; c < candidates.length; c++){
+    for (var k = 0; k < keys.length; k++){
+      if (keys[k] === candidates[c] || keys[k].indexOf(candidates[c]) >= 0) return keys[k];
+    }
+  }
+  return candidates[0];
+}
+
+// ── Override local ────────────────────────────────────────────
+function applyLocalOverrides(){
+  DATA_DISPLAY = DATA_RAW.map(function(row){
+    var orden = String(row[K.orden] || '');
+    var ov    = LOCAL.overrides[orden];
+    if (!ov) return Object.assign({}, row);
+    var merged = Object.assign({}, row, ov);
+    merged.__modified = true;
+    return merged;
+  });
+  // Agregar órdenes nuevas locales
+  LOCAL.new.forEach(function(nr){
+    DATA_DISPLAY.push(Object.assign({}, nr, { __local: true }));
+  });
+  // Quitar eliminadas locales pendientes
+  var deleted = LOCAL.deleted || [];
+  DATA_DISPLAY = DATA_DISPLAY.filter(function(r){
+    return deleted.indexOf(String(r[K.orden])) < 0;
+  });
+}
+
+// ── Render all ────────────────────────────────────────────────
+function renderAll(){
+  applyFilters();
+  renderProveedores();
+  populateProveedorFilter();
+  updateKPIs();
+  updateSyncUI();
+}
+
+// ── Mapa moneda desde PRECIOS ──────────────────────────────────
+function normQ(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase(); }
+
+function buildCurrencyMapP(){
+  CURR_MAP_P = {};
+  if(!RAW_PREC.length) return;
+  var k0   = Object.keys(RAW_PREC[0]);
+  var kArt = fk(k0,['ARTICULO','Artículo','articulo','ARTÍCULO','DESCRIPCION','DESCRIPCIÓN']);
+  var kUSD = fk(k0,['PRECIO S/IVA U$S','U$S','PRECIO USD','PRECIO U$S','DOLAR','COSTO USD']);
+  var kPSO = fk(k0,['PRECIO S/IVA $','PRECIO $','PESOS','UYU','COSTO $']);
+  if(k0.indexOf(kUSD)<0) kUSD=null;
+  if(k0.indexOf(kPSO)<0) kPSO=null;
+  RAW_PREC.forEach(function(row){
+    var art = normQ(String(row[kArt]||'').trim());
+    if(!art||art.length<3) return;
+    var hasUSD = kUSD ? pNum(row[kUSD])>0 : false;
+    var hasPSO = kPSO ? pNum(row[kPSO])>0 : false;
+    if(hasUSD)       CURR_MAP_P[art]='USD';
+    else if(hasPSO)  CURR_MAP_P[art]='PSO';
+  });
+}
+
+function tokQ(s){
+  return normQ(s).replace(/\([^)]*\)/g,' ').split(/[\s\/\-\.°\(\)]+/)
+    .filter(function(w){ return w.length>=3 && !/^\d/.test(w); });
+}
+
+function ocMoneda(row){
+  // Prioridad 1: columna $/U$S explícita
+  if(K.moneda){
+    var mon = String(row[K.moneda]||'').trim();
+    if(mon === 'U$S' || mon === 'USD' || mon === 'US$') return 'USD';
+    if(mon === '$'   || mon === 'UYU' || mon === 'PSO') return 'PSO';
+  }
+  // Prioridad 2: prefijo en el valor raw de s/iva
+  var raw = String(row[K.siva]||'').trim();
+  if(/^U\$S\s/i.test(raw)) return 'USD';
+  if(/^\$\s/i.test(raw))   return 'PSO';
+  if(Object.keys(CURR_MAP_P).length){
+    var nd = normQ(String(row[K.desc]||'').trim());
+    if(CURR_MAP_P[nd]) return CURR_MAP_P[nd];
+    var ndToks = tokQ(nd);
+    if(ndToks.length){
+      var ndSet = {};
+      ndToks.forEach(function(t){ ndSet[t]=1; });
+      var keys = Object.keys(CURR_MAP_P);
+      for(var i=0;i<keys.length;i++){
+        var k=keys[i];
+        var kToks=tokQ(k); if(!kToks.length) continue;
+        var kSet={}; kToks.forEach(function(t){ kSet[t]=1; });
+        var shorter   = ndToks.length<=kToks.length ? ndToks : kToks;
+        var longerSet = ndToks.length<=kToks.length ? kSet   : ndSet;
+        if(shorter.filter(function(t){ return longerSet[t]; }).length/shorter.length >= 0.8)
+          return CURR_MAP_P[k];
+      }
+    }
+  }
+  var siva = pNum(row[K.siva]);
+  return siva > 5000 ? 'PSO' : 'USD';
+}
+
+// ── KPIs ──────────────────────────────────────────────────────
+function updateKPIs(){
+  var all      = DATA_DISPLAY;
+  var pend     = all.filter(isPendiente);
+  var recv     = all.filter(function(r){ return !isPendiente(r); });
+  var sinCOA   = all.filter(function(r){ return !r[K.coa] || r[K.coa]==='' || !r[K.conforme] || r[K.conforme]===''; });
+  var sinLote  = all.filter(function(r){ return !r[K.lote] || r[K.lote]===''; });
+  var totalUSD = pend.reduce(function(s,r){ return ocMoneda(r)==='USD' ? s+pNum(r[K.siva]) : s; }, 0);
+  var totalPSO = pend.reduce(function(s,r){ return ocMoneda(r)!=='USD' ? s+pNum(r[K.siva]) : s; }, 0);
+
+  setText('kpi-total',      all.length);
+  setText('kpi-total-sub',  all.length + ' órdenes en el sistema');
+  setText('kpi-pend',       pend.length);
+  setText('kpi-recv',       recv.length);
+  setText('kpi-usd',        fmtUSD(totalUSD));
+  setText('kpi-pso',        fmtPSO(totalPSO));
+  setText('kpi-coa',        sinCOA.length);
+  setText('kpi-lote',       sinLote.length);
+  // Actualizar contador en header
+  var hdrCounter = document.getElementById('hdr-counter');
+  if (hdrCounter && all.length > 0){
+    hdrCounter.textContent = pend.length + ' pend. / ' + all.length + ' total';
+    hdrCounter.style.display = 'block';
+  }
+}
+
+// ── Filtros ───────────────────────────────────────────────────
+function applyFilters(){
+  var buscar  = (document.getElementById('f-buscar').value  || '').toLowerCase();
+  var estado  = document.getElementById('f-estado').value;
+  var prov    = document.getElementById('f-proveedor').value;
+  var coa     = document.getElementById('f-coa').value;
+  var lote    = document.getElementById('f-lote').value;
+  var desde   = document.getElementById('f-desde').value;
+  var hasta   = document.getElementById('f-hasta').value;
+  var today   = new Date(); today.setHours(0,0,0,0);
+
+  FILTERED = DATA_DISPLAY.filter(function(r){
+    if (buscar){
+      var haystack = [r[K.desc],r[K.proveedor],r[K.orden],r[K.lote]].join(' ').toLowerCase();
+      if (haystack.indexOf(buscar) < 0) return false;
+    }
+    if (estado === 'pendiente' && !isPendiente(r)) return false;
+    if (estado === 'recibido'  &&  isPendiente(r)) return false;
+    if (prov && String(r[K.proveedor]||'').toLowerCase() !== prov.toLowerCase()) return false;
+    var coaVal = String(r[K.coa]||'').toUpperCase().trim();
+    if (coa === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== '1' && coaVal !== 'TRUE') return false;
+    if (coa === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === '1' || coaVal === 'TRUE')) return false;
+    if (lote === 'si' && (!r[K.lote] || String(r[K.lote]).trim()==='')) return false;
+    if (lote === 'no' && r[K.lote] && String(r[K.lote]).trim()!=='') return false;
+    if (desde && r[K.fecha] && r[K.fecha] < desde) return false;
+    if (hasta && r[K.fecha] && r[K.fecha] > hasta) return false;
+    return true;
+  });
+
+  sortFiltered();
+  renderTable();
+  setText('tbl-count', FILTERED.length + ' / ' + DATA_DISPLAY.length + ' registros');
+}
+
+function clearFilters(){
+  ['f-buscar','f-desde','f-hasta'].forEach(function(id){ document.getElementById(id).value = ''; });
+  ['f-estado','f-proveedor','f-coa','f-lote'].forEach(function(id){ document.getElementById(id).value = ''; });
+  applyFilters();
+}
+
+// ── Sort ──────────────────────────────────────────────────────
+function sortBy(key){
+  if (SORT_KEY === key) SORT_DIR = SORT_DIR === 'asc' ? 'desc' : 'asc';
+  else { SORT_KEY = key; SORT_DIR = 'asc'; }
+  // Actualizar clase visual
+  document.querySelectorAll('thead th').forEach(function(th){ th.className=''; });
+  sortFiltered();
+  renderTable();
+}
+
+function sortFiltered(){
+  var key = SORT_KEY;
+  var dir = SORT_DIR === 'asc' ? 1 : -1;
+  FILTERED.sort(function(a, b){
+    var va, vb;
+    if (key === 'orden')    { va = pNum(a[K.orden]);    vb = pNum(b[K.orden]); }
+    else if (key === 'fecha')     { va = a[K.fecha]||'';     vb = b[K.fecha]||''; }
+    else if (key === 'proveedor') { va = a[K.proveedor]||''; vb = b[K.proveedor]||''; }
+    else if (key === 'cantidad')  { va = pNum(a[K.cantidad]);vb = pNum(b[K.cantidad]); }
+    else if (key === 'precio')    { va = pNum(a[K.precio]);   vb = pNum(b[K.precio]); }
+    else if (key === 'recepcion') { va = a[K.recepcion]||''; vb = b[K.recepcion]||''; }
+    else { va = ''; vb = ''; }
+    if (va < vb) return -1 * dir;
+    if (va > vb) return  1 * dir;
+    return 0;
+  });
+}
+
+// ── Render tabla ──────────────────────────────────────────────
+function renderTable(){
+  var html  = '';
+
+  if (FILTERED.length === 0){
+    html = '<tr class="empty-row"><td colspan="12">Sin resultados con los filtros actuales.</td></tr>';
+  } else {
+    FILTERED.forEach(function(r){
+      var orden    = r[K.orden] || '—';
+      var pend     = isPendiente(r);
+      var sinLote  = !r[K.lote] || String(r[K.lote]).trim() === '';
+      var coaUp    = String(r[K.coa]||'').toUpperCase().trim();
+      var confUp   = String(r[K.conforme]||'').toUpperCase().trim();
+      var hasCOA   = coaUp === 'SI' || coaUp === 'S' || coaUp === '1' || coaUp === 'TRUE';
+      var hasConf  = confUp === 'SI' || confUp === 'S' || confUp === '1' || confUp === 'TRUE';
+      var rowClass  = r.__local ? 'local-row' : r.__modified ? 'modified-row' : '';
+      var moneda  = ocMoneda(r);
+      var sivaUSD = moneda === 'USD' ? pNum(r[K.siva]) : 0;
+      var sivaPSO = moneda !== 'USD' ? pNum(r[K.siva]) : 0;
+      var civaUSD = moneda === 'USD' ? pNum(r[K.civa]) : 0;
+      var civaPSO = moneda !== 'USD' ? pNum(r[K.civa]) : 0;
+      var siva    = sivaUSD;
+
+      var recepBadge = !pend
+        ? '<span class="pill pill-recv">✓ ' + fmtDate(r[K.recepcion]) + '</span>'
+        : '<span class="pill pill-pend">⏳ Pendiente</span>';
+
+      html += '<tr class="' + rowClass + '" data-orden="' + esc(String(orden)) + '">';
+      html += '<td class="orden-cell">' + esc(String(orden));
+      if (r.__local)    html += ' <span class="pill pill-local">Local</span>';
+      if (r.__modified) html += ' <span class="pill pill-mod">Editado</span>';
+      html += '</td>';
+      html += '<td>' + fmtDate(r[K.fecha]) + '</td>';
+      html += '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + esc(String(r[K.proveedor]||'—')) + '</td>';
+      html += '<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(r[K.desc]||''))+'">'+esc(String(r[K.desc]||'—'))+'</td>';
+      html += '<td class="num-cell">' + (r[K.cantidad]||'—') + '</td>';
+      var precioUn = pNum(r[K.precio]);
+      var moneda   = ocMoneda(r);
+      html += '<td class="money-cell">'
+            + (precioUn > 0
+               ? '<span style="color:'+(moneda==='USD'?'var(--grn)':'var(--teal-l)')+'">'+
+                 (moneda==='USD'?fmtUSD(precioUn):fmtPSO(precioUn))+'</span>'
+               : '<span class="muted-cell">—</span>')
+            + '</td>';
+      html += '<td class="money-cell">'
+            + (sivaUSD > 0 ? '<span style="color:var(--grn)">' + fmtUSD(sivaUSD) + '</span>'
+              : sivaPSO > 0 ? '<span style="color:var(--teal-l)">' + fmtPSO(sivaPSO) + '</span>'
+              : '<span class="muted-cell">—</span>')
+            + '</td>';
+      html += '<td class="money-cell">'
+            + (civaUSD > 0 ? '<span style="color:var(--grn)">' + fmtUSD(civaUSD) + '</span>'
+              : civaPSO > 0 ? '<span style="color:var(--teal-l)">' + fmtPSO(civaPSO) + '</span>'
+              : '<span class="muted-cell">—</span>')
+            + '</td>';
+      html += '<td>' + recepBadge + '</td>';
+      html += '<td>' + (sinLote
+        ? '<span class="pill pill-warn">Sin lote</span>'
+        : '<span style="font-size:11px;color:var(--muted)">'+esc(String(r[K.lote]))+'</span>') + '</td>';
+      html += '<td>' + (hasCOA ? '<span class="pill pill-ok">✓ COA</span>' : '<span class="muted-cell">—</span>') + '</td>';
+      html += '<td>' + (hasConf? '<span class="pill pill-ok">✓</span>'     : '<span class="muted-cell">—</span>') + '</td>';
+      html += '<td><div class="row-actions">'
+            + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(orden))+'\')">👁 Ver</button>'
+            + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(orden))+'\')">✏ Editar</button>'
+            + '</div></td>';
+      html += '</tr>';
+    });
+  }
+  document.getElementById('tbody').innerHTML = html;
+}
+
+// ── Resumen por proveedor ─────────────────────────────────────
+function renderProveedores(){
+  var map = {};
+  DATA_DISPLAY.forEach(function(r){
+    var p = String(r[K.proveedor]||'Desconocido');
+    if (!map[p]) map[p] = {total:0, pend:0, usd:0, ultima:''};
+    map[p].total++;
+    if (isPendiente(r)) { map[p].pend++; map[p].usd += pNum(r[K.siva]); }
+    var f = r[K.fecha]||'';
+    if (f > map[p].ultima) map[p].ultima = f;
+  });
+  var sorted = Object.keys(map).sort(function(a,b){ return map[b].total - map[a].total; });
+  var html = '';
+  sorted.forEach(function(p){
+    var m = map[p];
+    html += '<div class="prov-card">'
+          + '<div class="prov-name" title="'+esc(p)+'">'+esc(p)+'</div>'
+          + '<div class="prov-stats">'
+          + '<div class="prov-stat"><strong>'+m.total+'</strong>órdenes</div>'
+          + '<div class="prov-stat"><strong style="color:var(--warn)">'+m.pend+'</strong>pendientes</div>'
+          + '<div class="prov-stat"><strong style="color:var(--ok)">'+fmtUSD(m.usd)+'</strong>USD pend.</div>'
+          + '<div class="prov-stat"><strong style="font-size:12px">'+fmtDate(m.ultima)+'</strong>última OC</div>'
+          + '</div></div>';
+  });
+  document.getElementById('prov-grid').innerHTML = html || '<div style="color:var(--muted)">Sin datos.</div>';
+  setText('prov-count', sorted.length + ' proveedores');
+}
+
+// ── Populate filtro de proveedor ──────────────────────────────
+function populateProveedorFilter(){
+  var provs = [...new Set(DATA_DISPLAY.map(function(r){ return String(r[K.proveedor]||''); }).filter(Boolean))].sort();
+  var sel = document.getElementById('f-proveedor');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">Todos los proveedores</option>' +
+    provs.map(function(p){ return '<option value="'+esc(p)+'"'+(p===cur?' selected':'')+'>'+esc(p)+'</option>'; }).join('');
+
+  var newSel = document.getElementById('nw-proveedor');
+  newSel.innerHTML = '<option value="">— Seleccionar proveedor —</option>' +
+    provs.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('');
+}
+
+// ── Modal: detalle ────────────────────────────────────────────
+function openDetail(orden){
+  var row = findRow(orden);
+  if (!row) return;
+  CURRENT_ROW = row;
+  document.getElementById('edit-title').textContent = 'Detalle OC #' + orden;
+  document.getElementById('detail-view').style.display = 'block';
+  document.getElementById('edit-form').style.display   = 'none';
+  document.getElementById('btn-save-edit').style.display = 'none';
+  document.getElementById('btn-toggle-edit').textContent = '✏ Editar';
+
+  var fields = [
+    {l:'N° Orden',    v: row[K.orden]},
+    {l:'Fecha',       v: fmtDate(row[K.fecha])},
+    {l:'Proveedor',   v: row[K.proveedor]},
+    {l:'Descripción', v: row[K.desc], span:true},
+    {l:'Cantidad',    v: row[K.cantidad]},
+    {l:'Precio u.',   v: row[K.precio] ? fmtUSD(pNum(row[K.precio])) : '—'},
+    {l:'Moneda', v: ocMoneda(row)==='USD' ? 'U$S (Dólares)' : '$ (Pesos UY)'},
+    {l:'s/IVA',  v: pNum(row[K.siva])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.siva])) : '—'},
+    {l:'c/IVA',  v: pNum(row[K.civa])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.civa])) : '—'},
+    {l:'', v:'', divider:true},
+    {l:'F. Recepción',v: fmtDate(row[K.recepcion]) || 'Pendiente'},
+    {l:'F. Vencim.',  v: fmtDate(row[K.vto]) || '—'},
+    (function(){
+      var td=new Date(); td.setHours(0,0,0,0);
+      var pend=isPendiente(row); var atr=0;
+      if(pend&&row[K.vto]){var vd=new Date(row[K.vto]);vd.setHours(0,0,0,0);var dif=(td-vd)/86400000;if(dif>0)atr=Math.round(dif);}
+      return {l:'Atraso', v: atr>0 ? '+'+atr+' días de atraso' : (pend ? 'En plazo' : '—')};
+    }()),
+    {l:'Lote',        v: row[K.lote] || 'Sin lote'},
+    {l:'COA',         v: (['SI','S','1','TRUE'].indexOf(String(row[K.coa]||'').toUpperCase().trim())>=0) ? '✓ Recibido' : '✗ Pendiente'},
+    {l:'Conforme',    v: (['SI','S','1','TRUE'].indexOf(String(row[K.conforme]||'').toUpperCase().trim())>=0) ? '✓ Conforme' : '✗ Pendiente'},
+    {l:'Observaciones',v: row[K.obs] || '—', span:true},
+  ];
+  var html = '';
+  fields.forEach(function(f){
+    if (f.divider){ html += '<div class="detail-divider"></div>'; return; }
+    html += '<div class="detail-item'+(f.span?' span2':'')+'"><div class="detail-label">'+f.l+'</div><div class="detail-value">'+esc(String(f.v||'—'))+'</div></div>';
+  });
+  document.getElementById('detail-grid').innerHTML = html;
+  openModal('edit-overlay');
+}
+
+// ── Modal: editar ─────────────────────────────────────────────
+function openEdit(orden){
+  openDetail(orden);
+  toggleEditForm();
+}
+
+function toggleEditForm(){
+  var row   = CURRENT_ROW;
+  var shown = document.getElementById('edit-form').style.display !== 'none';
+  if (shown){
+    document.getElementById('edit-form').style.display   = 'none';
+    document.getElementById('detail-view').style.display = 'block';
+    document.getElementById('btn-save-edit').style.display = 'none';
+    document.getElementById('btn-toggle-edit').textContent = '✏ Editar';
+  } else {
+    document.getElementById('edit-form').style.display   = 'block';
+    document.getElementById('detail-view').style.display = 'none';
+    document.getElementById('btn-save-edit').style.display = 'inline-flex';
+    document.getElementById('btn-toggle-edit').textContent = '← Ver detalle';
+    // Poblar formulario
+    document.getElementById('ed-recepcion').value = row[K.recepcion] || '';
+    document.getElementById('ed-lote').value       = row[K.lote]     || '';
+    document.getElementById('ed-coa').checked      = String(row[K.coa]||'').toUpperCase() === 'SI';
+    document.getElementById('ed-conforme').checked = String(row[K.conforme]||'').toUpperCase() === 'SI';
+    document.getElementById('ed-obs').value        = row[K.obs]      || '';
+  }
+}
+
+function saveEdit(){
+  var row   = CURRENT_ROW;
+  var orden = String(row[K.orden]);
+  var ov = {
+    [K.recepcion]: document.getElementById('ed-recepcion').value,
+    [K.lote]:      document.getElementById('ed-lote').value,
+    [K.coa]:       document.getElementById('ed-coa').checked    ? 'SI' : '',
+    [K.conforme]:  document.getElementById('ed-conforme').checked ? 'SI' : '',
+    [K.obs]:       document.getElementById('ed-obs').value
+  };
+
+  // Guardar en estado local
+  LOCAL.overrides[orden] = ov;
+  // Agregar a cola de sync si no está ya
+  var pending = LOCAL.pendingSync = LOCAL.pendingSync || [];
+  var existing = pending.findIndex(function(p){ return p.action==='updatePedido' && p.orden===orden; });
+  var syncEntry = { action:'updatePedido', orden: orden,
+    recepcion: ov[K.recepcion], lote: ov[K.lote],
+    coa: ov[K.coa], conforme: ov[K.conforme], obs: ov[K.obs] };
+  if (existing >= 0) pending[existing] = syncEntry;
+  else pending.push(syncEntry);
+
+  saveLocal();
+  applyLocalOverrides();
+  renderAll();
+  closeModal('edit-overlay');
+  toast('Orden #' + orden + ' guardada localmente. ☁ Sincronizá para actualizar el Sheet.', 'info');
+}
+
+// ── Modal: nuevo pedido ───────────────────────────────────────
+function openNewModal(){ openModal('new-overlay'); calcIVA(); }
+
+function calcIVA(){
+  var cant   = parseFloat(document.getElementById('nw-cantidad').value) || 0;
+  var precio = parseFloat(document.getElementById('nw-precio').value)   || 0;
+  var siva   = cant * precio;
+  var civa   = siva * IVA;
+  document.getElementById('calc-siva').textContent = cant > 0 && precio > 0 ? fmtUSD(siva) : '—';
+  document.getElementById('calc-civa').textContent = cant > 0 && precio > 0 ? fmtUSD(civa) : '—';
+}
+
+function saveNew(){
+  var prov = document.getElementById('nw-proveedor').value.trim();
+  var desc = document.getElementById('nw-desc').value.trim();
+  var cant = document.getElementById('nw-cantidad').value;
+  var prec = document.getElementById('nw-precio').value;
+
+  if (!prov || !desc || !cant || !prec){
+    toast('Completá todos los campos obligatorios (*)','err'); return;
+  }
+
+  var siva  = parseFloat(cant) * parseFloat(prec);
+  var civa  = siva * IVA;
+  // Calcular próximo N° Orden local
+  var maxOrden = Math.max.apply(null,
+    DATA_DISPLAY.map(function(r){ return pNum(r[K.orden]); }).filter(function(n){ return n > 0; }).concat([500])
+  );
+  var newOrden = maxOrden + 1;
+
+  var newRow = {};
+  newRow[K.orden]     = newOrden;
+  newRow[K.fecha]     = document.getElementById('nw-fecha').value;
+  newRow[K.proveedor] = prov;
+  newRow[K.desc]      = desc;
+  newRow[K.cantidad]  = parseFloat(cant);
+  newRow[K.precio]    = parseFloat(prec);
+  newRow[K.siva]      = siva.toFixed(2);
+  newRow[K.civa]      = civa.toFixed(2);
+  newRow[K.recepcion] = '';
+  newRow[K.lote]      = '';
+  newRow[K.coa]       = '';
+  newRow[K.conforme]  = '';
+  newRow[K.obs]       = document.getElementById('nw-obs').value.trim();
+  newRow.__local      = true;
+
+  LOCAL.new = LOCAL.new || [];
+  LOCAL.new.push(newRow);
+  LOCAL.pendingSync = LOCAL.pendingSync || [];
+  LOCAL.pendingSync.push({
+    action:'addPedido', fecha:newRow[K.fecha], proveedor:prov,
+    descripcion:desc, cantidad:cant, precio:prec,
+    obs:newRow[K.obs]
+  });
+
+  saveLocal();
+  applyLocalOverrides();
+  renderAll();
+  closeModal('new-overlay');
+  clearNewForm();
+  toast('Orden #' + newOrden + ' creada localmente. ☁ Sincronizá para guardar en el Sheet.', 'info');
+}
+
+function clearNewForm(){
+  ['nw-proveedor','nw-desc','nw-obs'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('nw-cantidad').value = '';
+  document.getElementById('nw-precio').value = '';
+  document.getElementById('calc-siva').textContent = '—';
+  document.getElementById('calc-civa').textContent = '—';
+  setTodayDate();
+}
+
+// ── Eliminar ──────────────────────────────────────────────────
+function confirmDelete(){
+  var orden = String(CURRENT_ROW ? CURRENT_ROW[K.orden] : '?');
+  document.getElementById('confirm-msg').textContent =
+    '¿Eliminar la Orden #' + orden + ' de ' + (CURRENT_ROW[K.proveedor]||'?') + '?';
+  openModal('confirm-overlay');
+}
+
+function doDelete(){
+  var orden = String(CURRENT_ROW[K.orden]);
+  if (CURRENT_ROW.__local){
+    // Eliminar de la lista local y limpiar su entrada pendiente de sync
+    LOCAL.new = (LOCAL.new||[]).filter(function(r){ return String(r[K.orden])!==orden; });
+    // Quitar la entrada addPedido correspondiente comparando descripción y proveedor
+    var delProv = String(CURRENT_ROW[K.proveedor]||'');
+    var delDesc = String(CURRENT_ROW[K.desc]||'');
+    LOCAL.pendingSync = (LOCAL.pendingSync||[]).filter(function(p){
+      return !(p.action==='addPedido' && p.proveedor===delProv && p.descripcion===delDesc);
+    });
+  } else {
+    LOCAL.deleted = LOCAL.deleted || [];
+    if (LOCAL.deleted.indexOf(orden) < 0) LOCAL.deleted.push(orden);
+    LOCAL.pendingSync = LOCAL.pendingSync || [];
+    LOCAL.pendingSync.push({ action:'deletePedido', orden:orden });
+  }
+  saveLocal();
+  applyLocalOverrides();
+  renderAll();
+  closeModal('confirm-overlay');
+  closeModal('edit-overlay');
+  toast('Orden #' + orden + ' marcada para eliminar. ☁ Sincronizá para aplicar en el Sheet.', 'info');
+}
+
+// ── Sincronización con Google Sheets ─────────────────────────
+function syncPending(){
+  var pending = LOCAL.pendingSync || [];
+  if (pending.length === 0){ toast('No hay cambios pendientes.','info'); return; }
+  if (!SCRIPT_URL){ toast('Sin URL de Apps Script configurada.','err'); return; }
+
+  toast('Sincronizando ' + pending.length + ' cambio(s)…', 'info');
+
+  var processed = 0;
+  var errors    = 0;
+
+  function doNext(){
+    if (processed + errors >= pending.length){
+      if (errors === 0){
+        LOCAL.pendingSync = [];
+        LOCAL.overrides   = {};
+        LOCAL.deleted     = [];
+        // Limpiar filas locales que ya se sincronizaron
+        LOCAL.new = [];
+        saveLocal();
+        load(); // reload desde Sheets
+        toast('✓ Sincronizado correctamente.', 'ok');
+      } else {
+        toast(errors + ' error(s) durante la sincronización. Revisá la consola.', 'err');
+      }
+      updateSyncUI();
+      return;
+    }
+    var item = pending[processed + errors];
+    var url  = SCRIPT_URL + '?' + Object.keys(item).map(function(k){
+      return encodeURIComponent(k) + '=' + encodeURIComponent(item[k]||'');
+    }).join('&') + '&t=' + Date.now();
+
+    smartFetch(
+      url,
+      function(d){
+        if (d.error) { console.error('Sync error:', d.error); errors++; }
+        else processed++;
+        doNext();
+      },
+      function(e){ console.error('Fetch error:', e); errors++; doNext(); }
+    );
+  }
+  doNext();
+}
+
+function updateSyncUI(){
+  var count  = (LOCAL.pendingSync || []).length;
+  var badge  = document.getElementById('sync-badge');
+  var btnSync= document.getElementById('btn-sync');
+  if (count > 0){
+    document.getElementById('sync-count').textContent = count;
+    badge.classList.add('visible');
+    btnSync.style.display = 'inline-flex';
+  } else {
+    badge.classList.remove('visible');
+    btnSync.style.display = 'none';
+  }
+}
+
+// ── Export CSV ────────────────────────────────────────────────
+function exportCSV(){
+  var cols = [K.orden,K.fecha,K.proveedor,K.desc,K.cantidad,K.precio,K.siva,K.civa,K.recepcion,K.lote,K.coa,K.conforme,K.obs];
+  var header = cols.join(',');
+  var rows   = FILTERED.map(function(r){
+    return cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; }).join(',');
+  });
+  var csv  = '﻿' + header + '\n' + rows.join('\n'); // BOM para Excel
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href   = url;
+  a.download = 'pedidos_subatir_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exportado (' + FILTERED.length + ' filas)', 'ok');
+}
+
+// ── Modal helpers ─────────────────────────────────────────────
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.overlay').forEach(function(el){
+  el.addEventListener('click', function(e){ if (e.target === el) closeModal(el.id); });
+});
+
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(function(el){ closeModal(el.id); });
+});
+
+// ── Helpers ───────────────────────────────────────────────────
+function findRow(orden){
+  return DATA_DISPLAY.find(function(r){ return String(r[K.orden]) === String(orden); }) || null;
+}
+function isPendiente(r){ var v = r[K.recepcion]; return !v || v === '' || v === '0000-00-00'; }
+function pNum(v){
+  if (!v && v !== 0) return 0;
+  var s = String(v).trim();
+  // Detectar formato europeo: punto como separador de miles, coma como decimal
+  // Ej: "1.234,56" → "1234.56"  |  "1.234" (sin coma) → puede ser entero europeo o decimal anglosajón
+  if (/\d\.\d{3}(,\d+)?$/.test(s)) {
+    // Formato europeo: quitar puntos de miles, cambiar coma decimal por punto
+    s = s.replace(/\./g,'').replace(',','.');
+  } else {
+    // Formato anglosajón o sin separador: quitar comas de miles
+    s = s.replace(/,(?=\d{3})/g,'');
+    // Si queda una coma (decimal anglosajón con solo coma), convertirla
+    s = s.replace(',','.');
+  }
+  s = s.replace(/[^\d.-]/g,'');
+  return parseFloat(s) || 0;
+}
+function fmtUSD(n){ return 'U$S ' + n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtPSO(n){ return '$ '   + n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtDate(d){
+  if (!d || d==='' || d==='0000-00-00') return '—';
+  var p = String(d).split('-');
+  if (p.length===3 && p[0].length===4) return p[2]+'/'+p[1]+'/'+p[0];
+  return d;
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function setText(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; }
+function saveLocal(){ localStorage.setItem('subatir_local', JSON.stringify(LOCAL)); }
+
+// Toast
+function toast(msg, type){
+  var c = document.getElementById('toast-container');
+  var d = document.createElement('div');
+  d.className = 'toast toast-' + (type||'info');
+  d.textContent = msg;
+  c.appendChild(d);
+  setTimeout(function(){ d.style.opacity='0'; d.style.transition='opacity .4s'; setTimeout(function(){ d.remove(); },400); }, 3800);
+}
+</script>
+</body>
+</html>

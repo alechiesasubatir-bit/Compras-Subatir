@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard Compras — Subatir / Prolimpio</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ═══ DESIGN SYSTEM ═════════════════════════════════════════ */
+:root{
+  --bg:    #07090f;
+  --bg2:   #0c1119;
+  --bg3:   #111926;
+  --teal:  #0e8aaa;
+  --tl:    #1bc8ff;
+  --or:    #f97316;
+  --orl:   #fb923c;
+  --grn:   #22c55e;
+  --amb:   #f59e0b;
+  --red:   #ef4444;
+  --pur:   #a78bfa;
+  --txt:   #e2e8f0;
+  --mut:   #5a6a80;
+  --mut2:  #7a8fa8;
+  --bdr:   rgba(255,255,255,.07);
+  --bdr2:  rgba(255,255,255,.12);
+  --gl:    rgba(255,255,255,.04);
+  --gl2:   rgba(255,255,255,.07);
+  --shd:   0 8px 32px rgba(0,0,0,.45);
+  --r:     14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scrollbar-gutter:stable;overflow-x:hidden}
+body{
+  font-family:'DM Sans',system-ui,sans-serif;
+  background:var(--bg);color:var(--txt);
+  min-height:100vh;font-size:14px;line-height:1.5;
+  overflow-x:hidden;
+}
+
+/* ── Backgrounds ───────────────────────────────────────────── */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 55% at 5% 10%,rgba(167,139,250,.12) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,rgba(14,138,170,.09) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 50%,rgba(249,115,22,.04) 0%,transparent 50%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  opacity:.5;
+}
+
+/* ── App shell ─────────────────────────────────────────────── */
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+
+/* ── Intro overlay ─────────────────────────────────────────── */
+/* ── Intro logo splash ─────────────────────────────────────── */
+#intro-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:radial-gradient(ellipse 80% 80% at 50% 50%,#0d1520 0%,#07090f 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  transition:opacity .5s ease;
+}
+#intro-overlay.fade-out{opacity:0;pointer-events:none}
+
+.intro-logo-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+
+/* Anillos pulsantes detrás del logo */
+.intro-ring{
+  position:absolute;border-radius:50%;border:2px solid rgba(249,115,22,.35);
+  animation:ring-pulse 2s ease-out infinite;
+}
+.intro-ring:nth-child(1){width:200px;height:200px;animation-delay:0s}
+.intro-ring:nth-child(2){width:260px;height:260px;animation-delay:.4s;border-color:rgba(249,115,22,.2)}
+.intro-ring:nth-child(3){width:320px;height:320px;animation-delay:.8s;border-color:rgba(249,115,22,.1)}
+
+@keyframes ring-pulse{
+  0%  {transform:scale(.7);opacity:0}
+  40% {opacity:1}
+  100%{transform:scale(1.1);opacity:0}
+}
+
+/* Logo circular */
+.intro-logo{
+  width:160px;height:160px;border-radius:50%;
+  object-fit:cover;
+  box-shadow:0 0 0 4px rgba(249,115,22,.5), 0 0 40px rgba(249,115,22,.3), 0 20px 60px rgba(0,0,0,.8);
+  animation:logo-in .7s cubic-bezier(.34,1.56,.64,1) both;
+  position:relative;z-index:2;
+}
+@keyframes logo-in{
+  0%  {transform:scale(.4);opacity:0}
+  100%{transform:scale(1);opacity:1}
+}
+
+/* Texto debajo */
+.intro-tagline{
+  text-align:center;animation:tag-in .6s .5s ease both;
+}
+@keyframes tag-in{
+  0%  {transform:translateY(12px);opacity:0}
+  100%{transform:translateY(0);opacity:1}
+}
+.intro-tagline .it-name{
+  font-family:'Syne',sans-serif;font-size:22px;font-weight:800;
+  color:#fff;letter-spacing:.04em;display:block;margin-bottom:4px;
+}
+.intro-tagline .it-sub{
+  font-family:'DM Sans',sans-serif;font-size:11px;
+  color:rgba(255,255,255,.45);letter-spacing:.18em;text-transform:uppercase;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(167,139,250,.25);border-radius:4px}
+
+/* ── Ticker banner ─────────────────────────────────────────── */
+.ticker-bar{
+  position:relative;overflow:hidden;
+  background:linear-gradient(90deg,rgba(14,138,170,.18) 0%,rgba(167,139,250,.12) 50%,rgba(14,138,170,.18) 100%);
+  border-bottom:1px solid rgba(27,200,255,.15);
+  height:32px;display:flex;align-items:center;z-index:100;
+}
+.ticker-bar::before,.ticker-bar::after{
+  content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none;
+}
+.ticker-bar::before{left:0;background:linear-gradient(90deg,rgba(7,9,15,1),transparent)}
+.ticker-bar::after {right:0;background:linear-gradient(270deg,rgba(7,9,15,1),transparent)}
+.ticker-label{
+  position:absolute;left:12px;z-index:3;
+  font-family:'Syne',sans-serif;font-size:9px;font-weight:800;
+  letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--tl);white-space:nowrap;
+  text-shadow:0 0 10px rgba(27,200,255,.5);
+}
+.ticker-track{
+  display:flex;align-items:center;gap:0;
+  animation:ticker-scroll 40s linear infinite;
+  white-space:nowrap;padding-left:180px;
+}
+.ticker-track:hover{animation-play-state:paused}
+.ticker-item{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:0 24px;font-size:11px;font-family:'DM Sans',sans-serif;color:var(--mut2);
+}
+.ticker-item .ti-dot{
+  width:4px;height:4px;border-radius:50%;background:var(--tl);flex-shrink:0;
+  box-shadow:0 0 6px var(--tl);
+}
+.ticker-item .ti-val{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--tl)}
+.ticker-item .ti-or {font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--orl)}
+.ticker-item .ti-pu {font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--pur)}
+.ticker-item .ti-gr {font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--grn)}
+@keyframes ticker-scroll{
+  0%  {transform:translateX(0)}
+  100%{transform:translateX(-50%)}
+}
+
+/* ── Glass card ────────────────────────────────────────────── */
+.card{
+  background:var(--gl);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--bdr);border-radius:var(--r);box-shadow:var(--shd);
+}
+
+/* ═══ HEADER ════════════════════════════════════════════════ */
+.hdr{
+  display:flex;align-items:center;gap:16px;padding:13px 24px;
+  background:rgba(7,9,15,.9);border-bottom:1px solid var(--bdr);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(24px);
+  flex-wrap:wrap;
+}
+.logo{display:flex;align-items:center;gap:11px;text-decoration:none}
+.logo-icon{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  object-fit:cover;display:block;
+  box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
+}
+.logo-txt{line-height:1.2}
+.logo-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--txt);letter-spacing:-.3px}
+.logo-sub{font-size:10px;color:var(--mut2);margin-top:1px}
+nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
+.nl{
+  padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;
+  color:var(--mut2);text-decoration:none;border:1px solid transparent;
+  transition:all .18s;white-space:nowrap;font-family:'Syne',sans-serif;
+}
+.nl:hover{color:var(--txt);background:var(--gl2);border-color:var(--bdr)}
+.nl.on{
+  color:#fff;
+  background:linear-gradient(135deg,rgba(14,138,170,.4),rgba(27,200,255,.25));
+  border-color:rgba(27,200,255,.3);box-shadow:0 0 12px rgba(14,138,170,.25);
+}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+#last-update{font-size:10px;color:var(--mut);font-family:'IBM Plex Mono',monospace}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;
+  border:1px solid var(--bdr);background:var(--gl2);color:var(--txt);
+  font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;
+  letter-spacing:.2px;transition:all .18s;
+}
+.btn:hover{transform:translateY(-1px);border-color:var(--bdr2);background:rgba(255,255,255,.1)}
+.btn-primary{
+  background:linear-gradient(135deg,var(--teal),var(--tl));
+  border-color:rgba(27,200,255,.3);box-shadow:0 0 16px rgba(14,138,170,.3);color:#fff;
+}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-setup{background:rgba(249,115,22,.12);border-color:rgba(249,115,22,.3);color:var(--orl)}
+.btn-setup:hover{background:rgba(249,115,22,.2)}
+.btn-teal{background:rgba(14,138,170,.2);border-color:rgba(27,200,255,.3);color:var(--tl)}
+.btn-teal:hover{background:rgba(14,138,170,.32)}
+.btn-orange{background:rgba(249,115,22,.15);border-color:rgba(249,115,22,.35);color:var(--orl)}
+.btn-orange:hover{background:rgba(249,115,22,.25)}
+.btn-csv{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.3);color:#86efac}
+.btn-csv:hover{background:rgba(34,197,94,.22)}
+
+/* ── Spinner ───────────────────────────────────────────────── */
+.spin{
+  display:inline-block;width:14px;height:14px;
+  border:2px solid rgba(255,255,255,.12);border-top-color:var(--tl);
+  border-radius:50%;animation:spin .65s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══ SETUP SCREEN ══════════════════════════════════════════ */
+#setup-screen{max-width:660px;margin:60px auto;padding:0 20px}
+.setup-card{padding:36px 40px}
+.setup-card h2{
+  font-family:'Syne',sans-serif;font-size:22px;font-weight:800;
+  letter-spacing:-.5px;margin-bottom:8px;
+  background:linear-gradient(135deg,var(--tl),var(--orl));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.setup-card p{color:var(--mut2);margin-bottom:28px;line-height:1.7;font-size:13px}
+.steps{display:flex;flex-direction:column;gap:14px;margin-bottom:28px;text-align:left}
+.step{display:flex;gap:12px;align-items:flex-start}
+.step-num{
+  min-width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,var(--teal),var(--or));
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;font-family:'Syne',sans-serif;
+}
+.step-text{font-size:13px;line-height:1.6;color:var(--txt);padding-top:3px}
+.step-text a{color:var(--tl);text-decoration:none}
+.step-text a:hover{text-decoration:underline}
+.step-text code{
+  background:rgba(27,200,255,.1);border:1px solid rgba(27,200,255,.2);
+  padding:1px 6px;border-radius:4px;font-size:11px;color:var(--tl);
+  font-family:'IBM Plex Mono',monospace;
+}
+.url-input-row{display:flex;gap:8px}
+.url-input{
+  flex:1;padding:10px 14px;border-radius:9px;
+  background:var(--gl2);border:1px solid var(--bdr);
+  color:var(--txt);font-size:13px;outline:none;transition:border .2s;
+  font-family:'DM Sans',sans-serif;
+}
+.url-input:focus{border-color:var(--tl)}
+.url-input::placeholder{color:var(--mut)}
+
+/* ═══ MAIN ══════════════════════════════════════════════════ */
+#dashboard{display:none;flex:1}
+.main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
+
+/* ── Alert banner ───────────────────────────────────────────── */
+#alert-banner{
+  display:none;padding:10px 16px;border-radius:10px;
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);
+  font-size:13px;color:#fca5a5;align-items:center;gap:10px;
+}
+#alert-banner .icon{font-size:15px;flex-shrink:0}
+
+/* ── KPI grid ───────────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px}
+.kpi{
+  padding:20px 22px;position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;cursor:default;
+}
+.kpi:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,.55)}
+.kpi::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;
+  height:3px;border-radius:0 0 var(--r) var(--r);
+  background:currentColor;opacity:.35;
+}
+.kpi-icon{position:absolute;right:18px;top:18px;font-size:20px;opacity:.35}
+.kpi-label{
+  font-size:10px;color:var(--mut2);font-weight:700;letter-spacing:.7px;
+  text-transform:uppercase;margin-bottom:8px;font-family:'Syne',sans-serif;
+}
+.kpi-value{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:32px;font-weight:700;line-height:1;letter-spacing:-1px;
+}
+.kpi-sub{font-size:11px;color:var(--mut);margin-top:6px}
+
+.kpi-pending  .kpi-value,.kpi-pending ::after  {color:var(--tl)}
+.kpi-critical .kpi-value,.kpi-critical::after  {color:var(--red)}
+.kpi-value-usd.kpi-value,.kpi-value-usd::after {color:var(--grn)}
+.kpi-value-pso.kpi-value,.kpi-value-pso::after {color:var(--tl)}
+.kpi-conform  .kpi-value,.kpi-conform ::after  {color:var(--amb)}
+.kpi-expiry   .kpi-value,.kpi-expiry  ::after  {color:var(--or)}
+.kpi-pending  .kpi-value{color:var(--tl)}
+.kpi-critical .kpi-value{color:var(--red)}
+.kpi-value-usd .kpi-value{color:var(--grn)}
+.kpi-value-pso .kpi-value{color:var(--tl)}
+.kpi-conform  .kpi-value{color:var(--amb)}
+.kpi-expiry   .kpi-value{color:var(--or)}
+.kpi-pending::after  {background:var(--tl)}
+.kpi-critical::after {background:var(--red)}
+.kpi-value-usd::after{background:var(--grn)}
+.kpi-value-pso::after{background:var(--tl)}
+.kpi-conform::after  {background:var(--amb)}
+.kpi-expiry::after   {background:var(--or)}
+
+/* ── Main grid ──────────────────────────────────────────────── */
+.grid-main{display:grid;grid-template-columns:1fr 340px;gap:20px}
+@media(max-width:900px){.grid-main{grid-template-columns:1fr}}
+
+/* ── Section title ──────────────────────────────────────────── */
+.section-title{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;
+}
+.section-title h2{
+  font-family:'Syne',sans-serif;font-size:13px;font-weight:700;
+  letter-spacing:.2px;display:flex;align-items:center;gap:8px;
+}
+.section-title h2 span{
+  background:linear-gradient(135deg,var(--teal),var(--tl));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.badge{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.badge-info{background:rgba(14,138,170,.15);color:var(--tl);border:1px solid rgba(14,138,170,.3)}
+.badge-warn{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)}
+
+/* ── Filters ────────────────────────────────────────────────── */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.filter-input,.filter-select,.filter-date{
+  padding:7px 10px;border-radius:8px;font-size:12px;
+  background:#0c1119;border:1px solid var(--bdr);
+  color:var(--txt);outline:none;font-family:'DM Sans',sans-serif;
+  color-scheme:dark;
+}
+.filter-input{flex:1;min-width:160px;max-width:260px}
+.filter-input::placeholder{color:var(--mut)}
+.filter-input:focus,.filter-select:focus,.filter-date:focus{border-color:var(--tl)}
+.filter-select option,.filter-date option{background:#0c1119;color:var(--txt)}
+.filter-sep{font-size:11px;color:var(--mut);white-space:nowrap;align-self:center}
+.btn-clear-f{font-size:11px;color:var(--mut);background:none;border:none;cursor:pointer;
+  padding:4px 8px;border-radius:6px;}
+.btn-clear-f:hover{color:var(--txt);background:rgba(255,255,255,.07)}
+
+/* ── Table ──────────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto;max-height:400px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+/* Columnas con ancho controlado para evitar scroll horizontal excesivo */
+#tbl-pedidos col.col-orden    {width:80px}
+#tbl-pedidos col.col-fecha    {width:82px}
+#tbl-pedidos col.col-prov     {width:130px}
+#tbl-pedidos col.col-desc     {width:180px}
+#tbl-pedidos col.col-cant     {width:60px}
+#tbl-pedidos col.col-usd      {width:88px}
+#tbl-pedidos col.col-recep    {width:110px}
+#tbl-pedidos col.col-lote     {width:90px}
+#tbl-pedidos col.col-coa      {width:46px}
+#tbl-pedidos col.col-conf     {width:62px}
+thead th{
+  padding:9px 11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:rgba(14,138,170,.16);color:var(--tl);
+  font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
+  position:sticky;top:0;z-index:2;border-bottom:1px solid var(--bdr);
+  font-family:'Syne',sans-serif;
+}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.04)}
+tbody td{padding:8px 11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+
+/* ── Pills ──────────────────────────────────────────────────── */
+.pill{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;
+}
+.pill-pendiente{background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.25)}
+.pill-recibido{background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25)}
+.pill-sinlote{background:rgba(239,68,68,.10);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}
+.pill-ok{background:rgba(34,197,94,.10);color:#86efac;border:1px solid rgba(34,197,94,.2)}
+
+/* ── Stock crítico ──────────────────────────────────────────── */
+.stock-list{display:flex;flex-direction:column;gap:7px;max-height:200px;overflow-y:auto}
+.stock-item{
+  padding:9px 13px;border-radius:9px;
+  display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.025);border:1px solid var(--bdr);
+  transition:background .12s, border-color .12s;
+  cursor:pointer;text-decoration:none;color:inherit;
+}
+.stock-item:hover{background:rgba(27,200,255,.07);border-color:rgba(27,200,255,.25)}
+.stock-item-name{font-size:12px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stock-item-meta{font-size:10px;color:var(--mut2);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-red{background:var(--red);box-shadow:0 0 7px var(--red)}
+.dot-yellow{background:var(--amb);box-shadow:0 0 7px var(--amb)}
+.dot-green{background:var(--grn);box-shadow:0 0 7px var(--grn)}
+
+/* ── Charts ─────────────────────────────────────────────────── */
+.right-col{display:flex;flex-direction:column;gap:18px}
+.chart-wrap{position:relative;height:190px;display:flex;align-items:center;justify-content:center}
+
+/* ── Cobertura grid ─────────────────────────────────────────── */
+.progress-bg{height:4px;background:rgba(255,255,255,.07);border-radius:3px;margin-top:5px}
+.progress-fill{height:100%;border-radius:3px;transition:width .7s ease}
+
+/* ── Loading skeleton ───────────────────────────────────────── */
+.skeleton{
+  background:linear-gradient(90deg,rgba(255,255,255,.03) 25%,rgba(255,255,255,.07) 50%,rgba(255,255,255,.03) 75%);
+  background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── Empty / Error ──────────────────────────────────────────── */
+.empty{text-align:center;padding:28px;color:var(--mut);font-size:13px}
+.error-box{
+  padding:16px;border-radius:10px;
+  background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25);
+  color:#fca5a5;font-size:13px;line-height:1.6;
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+footer{
+  text-align:center;padding:18px;font-size:11px;color:var(--mut);
+  border-top:1px solid var(--bdr);margin-top:auto;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media(max-width:700px){
+  .hdr{padding:10px 14px;gap:10px}
+  .main{padding:14px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .kpi-value{font-size:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Intro logo splash ───────────────────────────────────── -->
+<div id="intro-overlay">
+  <div class="intro-logo-wrap">
+    <div class="intro-ring"></div>
+    <div class="intro-ring"></div>
+    <div class="intro-ring"></div>
+    <img class="intro-logo"
+      src="logo.jpg"
+      alt="Subatir S.A."/>
+  </div>
+  <div class="intro-tagline">
+    <span class="it-name">Subatir S.A.</span>
+    <span class="it-sub">Sistema de Compras · Droguería</span>
+  </div>
+</div>
+<script>
+(function(){
+  var ov=document.getElementById('intro-overlay');
+  function closeIntro(){
+    ov.classList.add('fade-out');
+    setTimeout(function(){ov.style.display='none';},520);
+  }
+  window.closeIntro=closeIntro;
+  setTimeout(closeIntro,3200);
+})();
+</script>
+
+<div class="app">
+
+<!-- ══════════════════════════════════════════
+     SETUP SCREEN
+══════════════════════════════════════════ -->
+<div id="setup-screen" style="position:relative;z-index:1">
+
+  <!-- Minimal header for setup -->
+  <div class="hdr">
+    <a class="logo" href="#">
+      <img class="logo-icon" src="logo.jpg" alt="Subatir"/>
+      <div class="logo-txt">
+        <div class="logo-name">Subatir</div>
+        <div class="logo-sub">Compras · Materia Prima</div>
+      </div>
+    </a>
+  </div>
+
+  <div style="max-width:660px;margin:60px auto;padding:0 20px">
+    <div class="card setup-card" style="padding:36px 40px;text-align:center">
+      <div style="font-size:44px;margin-bottom:14px">🔗</div>
+      <h2>Conectar con Google Sheets</h2>
+      <p>Para mostrar datos en vivo del Excel, necesitás desplegar el Apps Script una sola vez.<br>Solo lleva 3 minutos.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Abrí <a href="https://script.google.com" target="_blank">script.google.com</a>, hacé clic en <strong>Nuevo proyecto</strong>.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">Eliminá el contenido de <code>Code.gs</code> y pegá el contenido del archivo <code>apps-script/Code.gs</code> que está en la carpeta del proyecto.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Hacé clic en <strong>Implementar → Nueva implementación</strong>. Tipo: <em>Aplicación web</em>. Ejecutar como: <em>Yo</em>. Acceso: <em>Cualquier usuario</em>. Autorizá y copiá la URL.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">Pegá la URL aquí abajo y hacé clic en <strong>Conectar</strong>.</div>
+        </div>
+      </div>
+
+      <div class="url-input-row">
+        <input type="url" class="url-input" id="url-input" placeholder="https://script.google.com/macros/s/.../exec"/>
+        <button class="btn btn-primary" onclick="connect()">Conectar</button>
+      </div>
+      <div id="setup-error" style="margin-top:12px;color:var(--red);font-size:12px;display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     DASHBOARD
+══════════════════════════════════════════ -->
+<div id="dashboard" style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column">
+
+  <!-- Header -->
+  <div class="hdr">
+    <a class="logo" href="index.html">
+      <img class="logo-icon" src="logo.jpg" alt="Subatir"/>
+      <div class="logo-txt">
+        <div class="logo-name">Subatir</div>
+        <div class="logo-sub">Compras · Materia Prima</div>
+      </div>
+    </a>
+    <nav>
+      <a href="index.html"        class="nl on">⬡ Dashboard</a>
+      <a href="pedidos.html"      class="nl">📦 Pedidos</a>
+      <a href="stock.html"        class="nl">📊 Stock</a>
+      <a href="precios.html"      class="nl">💲 Precios</a>
+      <a href="proveedores.html"  class="nl">🏭 Proveedores</a>
+      <a href="contingencia.html" class="nl">🛡 Contingencia</a>
+      <a href="copiloto.html"     class="nl">🤖 Copiloto IA</a>
+    </nav>
+    <div class="hdr-right">
+      <span id="last-update">—</span>
+      <button class="btn btn-primary" onclick="refresh()" id="btn-refresh">
+        <span id="spin-icon" style="display:none" class="spin"></span>
+        <span id="refresh-label">⟳ Actualizar</span>
+      </button>
+      <button class="btn btn-setup" onclick="resetSetup()">⚙ Reconfigurar</button>
+    </div>
+  </div>
+
+  <!-- ── Ticker banner ───────────────────────────────────────── -->
+  <div class="ticker-bar">
+    <span class="ticker-label">⬡ COMPRAS</span>
+    <div class="ticker-track" id="ticker-track">
+      <span class="ticker-item"><span class="ti-dot"></span>Pedidos pendientes: <span class="ti-val" id="tk-pend">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Stock crítico: <span class="ti-or" id="tk-crit">—</span> artículos</span>
+      <span class="ticker-item"><span class="ti-dot"></span>Comprometido U$S: <span class="ti-gr" id="tk-usd">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Comprometido $: <span class="ti-val" id="tk-pso">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Sin COA / Conforme: <span class="ti-pu" id="tk-coa">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Sistema de Compras — Subatir S.A. / Prolimpio</span>
+      <!-- duplicado para loop continuo -->
+      <span class="ticker-item"><span class="ti-dot"></span>Pedidos pendientes: <span class="ti-val" id="tk-pend2">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Stock crítico: <span class="ti-or" id="tk-crit2">—</span> artículos</span>
+      <span class="ticker-item"><span class="ti-dot"></span>Comprometido U$S: <span class="ti-gr" id="tk-usd2">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Comprometido $: <span class="ti-val" id="tk-pso2">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Sin COA / Conforme: <span class="ti-pu" id="tk-coa2">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Sistema de Compras — Subatir S.A. / Prolimpio</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Alert banner -->
+    <div id="alert-banner">
+      <span class="icon">⚠</span>
+      <span id="alert-text"></span>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="card kpi kpi-pending" title="Pedidos de compra enviados a proveedores que aún no tienen fecha de recepción confirmada en el sistema.">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-label">Pedidos Pendientes</div>
+        <div class="kpi-value" id="kpi-pending">—</div>
+        <div class="kpi-sub" id="kpi-pending-sub">sin fecha de recepción</div>
+      </div>
+      <div class="card kpi kpi-critical" title="Artículos del inventario marcados como 'SOLICITAR' o con estado crítico en la hoja de stock. Requieren reposición urgente.">
+        <div class="kpi-icon">🔴</div>
+        <div class="kpi-label">Stock Crítico</div>
+        <div class="kpi-value" id="kpi-critical">—</div>
+        <div class="kpi-sub" id="kpi-critical-sub">artículos a reponer</div>
+      </div>
+      <div class="card kpi kpi-value-usd" title="Suma s/IVA en dólares de pedidos pendientes.">
+        <div class="kpi-icon">💵</div>
+        <div class="kpi-label">Comprometido U$S</div>
+        <div class="kpi-value" id="kpi-usd">—</div>
+        <div class="kpi-sub" id="kpi-usd-sub">pedidos en dólares</div>
+      </div>
+      <div class="card kpi kpi-value-pso" title="Suma s/IVA en pesos uruguayos de pedidos pendientes.">
+        <div class="kpi-icon">🪙</div>
+        <div class="kpi-label">Comprometido $</div>
+        <div class="kpi-value" id="kpi-pso">—</div>
+        <div class="kpi-sub" id="kpi-pso-sub">pedidos en pesos</div>
+      </div>
+      <div class="card kpi kpi-conform" title="Pedidos recibidos que no tienen Certificado de Análisis (COA) o Conformidad de calidad registrados. Pueden bloquear liberación de MP.">
+        <div class="kpi-icon">📋</div>
+        <div class="kpi-label">Sin COA / Conforme</div>
+        <div class="kpi-value" id="kpi-conform">—</div>
+        <div class="kpi-sub" id="kpi-conform-sub">pendientes de calidad</div>
+      </div>
+    </div>
+
+    <!-- Main grid -->
+    <div class="grid-main">
+
+      <!-- LEFT: Pedidos en Proceso -->
+      <div>
+        <div class="card" style="padding:20px">
+          <div class="section-title">
+            <h2>📦 <span>Pedidos en Proceso</span></h2>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="badge badge-info" id="pedidos-count">— registros</span>
+              <button class="btn btn-csv" onclick="exportarCSV()" title="Descargar pedidos visibles como CSV">⬇ CSV</button>
+            </div>
+          </div>
+
+          <div class="filters">
+            <input class="filter-input" id="f-buscar" placeholder="🔍 Buscar producto o proveedor…" oninput="renderPedidos()"/>
+            <select class="filter-select" id="f-estado" onchange="renderPedidos()">
+              <option value="">Estado</option>
+              <option value="pendiente">⏳ Pendiente</option>
+              <option value="recibido">✓ Recibido</option>
+            </select>
+            <select class="filter-select" id="f-proveedor" onchange="renderPedidos()">
+              <option value="">Todos los proveedores</option>
+            </select>
+            <select class="filter-select" id="f-coa" onchange="renderPedidos()">
+              <option value="">COA</option>
+              <option value="si">Con COA</option>
+              <option value="no">Sin COA</option>
+            </select>
+            <span class="filter-sep">Desde</span>
+            <input type="date" class="filter-date" id="f-desde" onchange="renderPedidos()"/>
+            <span class="filter-sep">Hasta</span>
+            <input type="date" class="filter-date" id="f-hasta" onchange="renderPedidos()"/>
+            <button class="btn-clear-f" onclick="clearDashFilters()">✕ Limpiar</button>
+          </div>
+
+          <div class="table-wrap">
+            <table id="tbl-pedidos">
+              <colgroup>
+                <col class="col-orden"/><col class="col-fecha"/>
+                <col class="col-prov"/> <col class="col-desc"/>
+                <col class="col-cant"/> <col class="col-usd"/>
+                <col class="col-recep"/>
+                <col class="col-lote"/> <col class="col-coa"/>
+                <col class="col-conf"/>
+              </colgroup>
+              <thead>
+                <tr>
+                  <th title="Número de orden de compra">N° Orden</th>
+                  <th title="Fecha del pedido">Fecha</th>
+                  <th title="Proveedor">Proveedor</th>
+                  <th title="Descripción del producto">Descripción</th>
+                  <th title="Cantidad pedida">Cant.</th>
+                  <th title="Precio total sin IVA (U$S o $)">s/IVA</th>
+                  <th title="Estado de recepción">Recepción</th>
+                  <th title="Número de lote">Lote</th>
+                  <th title="Certificado de Análisis recibido">COA</th>
+                  <th title="Conformidad de calidad">Conforme</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-pedidos">
+                <tr><td colspan="10" class="empty">Cargando datos…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Stock + Charts -->
+      <div class="right-col">
+
+        <!-- Stock crítico -->
+        <div class="card" style="padding:18px">
+          <div class="section-title">
+            <h2>🔴 <span>Stock Crítico</span></h2>
+            <span class="badge badge-warn" id="stock-count">— artículos</span>
+          </div>
+          <div class="stock-list" id="stock-list">
+            <div class="empty">Cargando…</div>
+          </div>
+        </div>
+
+        <!-- Pedidos por proveedor -->
+        <div class="card" style="padding:18px">
+          <div class="section-title">
+            <h2>🏭 <span>Por Proveedor</span></h2>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-proveedor"></canvas>
+          </div>
+        </div>
+
+        <!-- Estado de stock -->
+        <div class="card" style="padding:18px">
+          <div class="section-title">
+            <h2>📊 <span>Estado Inventario</span></h2>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-stock"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /grid-main -->
+
+    <!-- Banner Copiloto IA -->
+    <a href="copiloto.html" style="text-decoration:none;display:block">
+      <div style="padding:18px 22px;border-radius:var(--r);
+        background:linear-gradient(135deg,rgba(124,58,237,.18) 0%,rgba(14,138,170,.10) 50%,rgba(124,58,237,.08) 100%);
+        border:1px solid rgba(167,139,250,.3);
+        box-shadow:0 0 30px rgba(124,58,237,.10);
+        display:flex;align-items:center;gap:18px;
+        transition:all .2s;cursor:pointer"
+        onmouseover="this.style.borderColor='rgba(167,139,250,.55)';this.style.boxShadow='0 0 40px rgba(124,58,237,.2)'"
+        onmouseout="this.style.borderColor='rgba(167,139,250,.3)';this.style.boxShadow='0 0 30px rgba(124,58,237,.10)'"
+      >
+        <div style="width:52px;height:52px;border-radius:50%;flex-shrink:0;
+          background:linear-gradient(135deg,#7c3aed,#a78bfa);
+          display:flex;align-items:center;justify-content:center;font-size:24px;
+          box-shadow:0 0 22px rgba(124,58,237,.5);animation:ai-glow-idx 3s ease-in-out infinite">🧠</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:#a78bfa;letter-spacing:-.2px">
+            COPILOTO IA — Asistente Estratégico
+          </div>
+          <div style="font-size:12px;color:var(--mut2);margin-top:3px">
+            Análisis de proveedores · Recomendaciones de compra · Alertas inteligentes · Preguntas en lenguaje natural
+          </div>
+        </div>
+        <div style="flex-shrink:0;display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;
+            background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(167,139,250,.25));
+            border:1px solid rgba(167,139,250,.35);font-size:11px;font-weight:700;
+            color:#a78bfa;font-family:'Syne',sans-serif;letter-spacing:.3px">
+            <span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;
+              animation:ai-pulse-idx 2s ease-in-out infinite;display:inline-block"></span>
+            ABRIR COPILOTO
+          </div>
+          <span style="font-size:20px;color:rgba(167,139,250,.6)">→</span>
+        </div>
+      </div>
+    </a>
+    <style>
+    @keyframes ai-glow-idx{0%,100%{box-shadow:0 0 22px rgba(124,58,237,.5)}50%{box-shadow:0 0 36px rgba(124,58,237,.8)}}
+    @keyframes ai-pulse-idx{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+    </style>
+
+    <!-- Cobertura de stock por artículo -->
+    <div class="card" style="padding:20px">
+      <div class="section-title">
+        <h2>📅 <span>Cobertura de Stock (meses)</span></h2>
+        <span class="badge badge-info" id="cobertura-count">—</span>
+      </div>
+      <div id="cobertura-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">
+        <div class="empty">Cargando…</div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <footer>
+    Dashboard Compras · Subatir S.A. / Prolimpio · Datos en vivo desde Google Sheets · Auto-actualiza cada 5 min
+  </footer>
+
+</div><!-- /dashboard -->
+</div><!-- /app -->
+
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT — sin cambios de lógica
+══════════════════════════════════════════ -->
+<script>
+// ── Estado global ──────────────────────────────────────────────
+var DATA     = { pedidos:[], inventario:[], stock:[], precios:[], contactos:[] };
+var CHART_P  = null;
+var CHART_S  = null;
+var REFRESH_INTERVAL = null;
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+
+// ── Claves de columna detectadas dinámicamente ─────────────────
+var KEYS = {};
+// ── Mapa de moneda: norm(artículo) → 'USD' | 'PSO' ────────────
+var CURR_MAP = {};
+
+// ── Inicialización ─────────────────────────────────────────────
+(function init(){
+  var saved = localStorage.getItem('subatir_script_url');
+  if (saved) { SCRIPT_URL = saved; }
+  showDashboard(); load();
+})();
+
+function showSetup()    { document.getElementById('setup-screen').style.display='block'; document.getElementById('dashboard').style.display='none'; }
+function showDashboard(){ document.getElementById('setup-screen').style.display='none';  document.getElementById('dashboard').style.display='flex'; }
+
+function resetSetup(){
+  localStorage.removeItem('subatir_script_url');
+  clearInterval(REFRESH_INTERVAL);
+  showSetup();
+}
+
+function connect(){
+  var url = document.getElementById('url-input').value.trim();
+  if (!url || !url.startsWith('https://script.google.com')){
+    showSetupError('URL inválida. Debe comenzar con https://script.google.com');
+    return;
+  }
+  SCRIPT_URL = url;
+  localStorage.setItem('subatir_script_url', url);
+  showDashboard();
+  load();
+}
+
+function showSetupError(msg){
+  var el = document.getElementById('setup-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ── Fetch con fallback JSONP (funciona desde file:// y localhost) ──
+function smartFetch(url, onOk, onErr) {
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(onOk)
+    .catch(function() {
+      var cbName = '__sbcb_' + Date.now();
+      var script = document.createElement('script');
+      window[cbName] = function(data) {
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        onOk(data);
+      };
+      var sep = url.indexOf('?') >= 0 ? '&' : '?';
+      script.src = url + sep + 'callback=' + cbName + '&_t=' + Date.now();
+      script.onerror = function() {
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        onErr(new Error('No se pudo conectar. Verificá la URL y los permisos del Apps Script.'));
+      };
+      document.head.appendChild(script);
+    });
+}
+
+// ── Carga de datos ─────────────────────────────────────────────
+function load(){
+  setLoading(true);
+  smartFetch(
+    SCRIPT_URL + '?action=getData&t=' + Date.now(),
+    function(data){
+      if (data.error) { setLoading(false); showError('Apps Script devolvió error: ' + data.error); return; }
+      DATA = data;
+      detectKeys();
+      renderAll();
+      setLoading(false);
+      updateTimestamp(data.timestamp);
+      scheduleRefresh();
+    },
+    function(err){
+      setLoading(false);
+      showError('Error al conectar con el Apps Script: ' + err.message +
+                '<br><small>Verificá que la URL sea correcta y que el script esté desplegado con acceso "Cualquier usuario".</small>');
+    }
+  );
+}
+
+function refresh(){ clearInterval(REFRESH_INTERVAL); load(); }
+
+function scheduleRefresh(){
+  clearInterval(REFRESH_INTERVAL);
+  REFRESH_INTERVAL = setInterval(load, 5 * 60 * 1000);
+}
+
+function setLoading(on){
+  document.getElementById('spin-icon').style.display   = on ? 'inline-block' : 'none';
+  document.getElementById('refresh-label').textContent = on ? ' Cargando…' : '⟳ Actualizar';
+}
+
+function updateTimestamp(iso){
+  var d = new Date(iso);
+  document.getElementById('last-update').textContent =
+    'Actualizado: ' + d.toLocaleDateString('es-UY') + ' ' + d.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+}
+
+function showError(html){
+  document.querySelector('#tbody-pedidos').innerHTML =
+    '<tr><td colspan="11"><div class="error-box">' + html + '</div></td></tr>';
+}
+
+// ── Detección de columnas clave ────────────────────────────────
+function detectKeys(){
+  if (DATA.pedidos.length > 0){
+    var k = Object.keys(DATA.pedidos[0]);
+    KEYS.orden      = findKey(k, ['N° Orden','N.Orden','N°Orden','Numero','Orden','orden','N°','Nro']);
+    KEYS.fecha      = findKey(k, ['Fecha','FECHA','fecha','Fecha Pedido','FECHA PEDIDO']);
+    KEYS.proveedor  = findKey(k, ['Proveedor','PROVEEDOR','proveedor']);
+    KEYS.cantidad   = findKey(k, ['Cantidad','CANTIDAD','cant','Cant.']);
+    KEYS.desc       = findKey(k, ['Descripción','Descripcion','DESCRIPCION','DESCRIPCIÓN','Producto','PRODUCTO','Detalle','DETALLE']);
+    KEYS.precio     = findKey(k, ['Precio un','precio un','PRECIO UN','Precio unitario','Precio Unit']);
+    KEYS.siva       = findKey(k, ['s/iva','S/IVA','s/IVA','siva','Sin IVA','SIN IVA','s/ IVA','precio s/iva']);
+    KEYS.civa       = findKey(k, ['c/iva','C/IVA','c/IVA','civa','Con IVA','CON IVA','c/ IVA','precio c/iva']);
+    KEYS.moneda     = k.indexOf('$/U$S')>=0?'$/U$S':k.indexOf('Moneda')>=0?'Moneda':k.indexOf('MONEDA')>=0?'MONEDA':null;
+    KEYS.recepcion  = findKey(k, ['F.Recepción','F. Recepción','Recepcion','RECEPCION','F.Recepcion','Fecha Recepcion','Fecha Recepción','Fecha de Recepción']);
+    KEYS.vto        = findKey(k, ['F. Vto','F.Vto','Vto','VTO','vto','F.Vencimiento','Vencimiento','VENCIMIENTO','F. Vencimiento']);
+    KEYS.lote       = findKey(k, ['Lote','LOTE','lote','N° Lote','N.Lote','Nro Lote']);
+    KEYS.coa        = findKey(k, ['COA','coa','Coa','C.O.A.']);
+    KEYS.conforme   = findKey(k, ['Conforme','CONFORME','conforme','Conformidad','CONFORMIDAD']);
+    KEYS.obs        = findKey(k, ['Observaciones','OBSERVACIONES','observaciones','Obs','OBS','Notas','NOTAS']);
+  }
+  if (DATA.inventario.length > 0){
+    var ki = Object.keys(DATA.inventario[0]);
+    KEYS.invDesc    = findKey(ki, ['DESCRIPCIÓN','DESCRIPCION','Descripción','Descripcion']);
+    KEYS.invSolicitar = findKey(ki, ['SOLICITAR','solicitar']);
+    KEYS.invStock   = findKey(ki, ['INVENTARIO','inventario','Stock','STOCK']);
+    KEYS.invMinimo  = findKey(ki, ['STOCK MÍNIMO','STOCK MINIMO','Mínimo','Minimo']);
+    KEYS.invProv    = findKey(ki, ['PROVEEDOR SUGERIDO','Proveedor sugerido']);
+    KEYS.invConsumo = findKey(ki, ['CONSUMO MENSUAL','Consumo mensual','consumo']);
+    KEYS.invPendiente = findKey(ki, ['PENDIENTE DE ENTREGA','Pendiente de entrega']);
+  }
+  if (DATA.stock.length > 0){
+    var ks = Object.keys(DATA.stock[0]);
+    KEYS.stArticulo = findKey(ks, ['Artículo (Materia Prima)','Artículo','Articulo','ARTICULO']);
+    KEYS.stEstado   = findKey(ks, ['Estado','ESTADO','estado']);
+    KEYS.stDisp     = findKey(ks, ['Stock Disponible','stock disponible','DISPONIBLE']);
+    KEYS.stCobert   = findKey(ks, ['Meses Cobertura','meses cobertura','Cobertura']);
+    KEYS.stConsume  = findKey(ks, ['Consumo Mensual Est.','Consumo Mensual','consumo']);
+    KEYS.stPct      = findKey(ks, ['% Restante','% restante','pct']);
+  }
+  buildCurrencyMap();
+}
+
+function findKey(keys, candidates){
+  for (var c = 0; c < candidates.length; c++){
+    for (var k = 0; k < keys.length; k++){
+      if (keys[k].indexOf(candidates[c]) >= 0 || candidates[c].indexOf(keys[k]) >= 0){
+        return keys[k];
+      }
+    }
+  }
+  return candidates[0];
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function pNum(v){
+  if (v === '' || v === null || v === undefined) return 0;
+  var s = String(v).replace(/[^\d,.-]/g,'').replace(',','.');
+  return parseFloat(s) || 0;
+}
+function isEmpty(v){ return v === '' || v === null || v === undefined; }
+function fmtUSD(n){ return 'U$S ' + n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtPSO(n){ return '$ '   + n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtDate(d){
+  if (!d || d === '') return '—';
+  var parts = String(d).split('-');
+  if (parts.length === 3) return parts[2]+'/'+parts[1]+'/'+parts[0];
+  return d;
+}
+function isNearExpiry(dateStr, days){
+  if (!dateStr || dateStr === '') return false;
+  var d = new Date(dateStr);
+  var now = new Date();
+  var diff = (d - now) / 86400000;
+  return diff >= 0 && diff <= (days || 30);
+}
+function isPendiente(row){
+  return isEmpty(row[KEYS.recepcion]) || row[KEYS.recepcion] === '—';
+}
+function isCritical(inv){
+  var s = String(inv[KEYS.invSolicitar] || '').toLowerCase();
+  return s.indexOf('solicitar') >= 0;
+}
+function stockEstado(st){
+  var e = String(st[KEYS.stEstado] || '').toUpperCase()
+           .normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if (e.indexOf('CRIT') >= 0) return 'critical';
+  if (e.indexOf('MEDI') >= 0) return 'medium';
+  return 'ok';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  RENDER ALL
+// ══════════════════════════════════════════════════════════════
+function renderAll(){
+  renderKPIs();
+  renderTicker();
+  renderPedidos();
+  renderStockCritico();
+  renderCobertura();
+  renderChartProveedor();
+  renderChartStock();
+  renderAlertBanner();
+  populateProveedorFilter();
+}
+
+// ── Mapa moneda desde PRECIOS ──────────────────────────────────
+function normQ(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase(); }
+
+function buildCurrencyMap(){
+  CURR_MAP = {};
+  var prec = DATA.precios || [];
+  if(!prec.length) return;
+  var k0   = Object.keys(prec[0]);
+  var kArt = findKey(k0,['ARTICULO','Artículo','articulo','ARTÍCULO','DESCRIPCION','DESCRIPCIÓN','Descripción']);
+  var kUSD = findKey(k0,['PRECIO S/IVA U$S','U$S','PRECIO USD','PRECIO U$S','DOLAR','COSTO USD']);
+  var kPSO = findKey(k0,['PRECIO S/IVA $','PRECIO $','PESOS','UYU','COSTO $']);
+  // Verificar que las columnas existan realmente
+  if(k0.indexOf(kUSD)<0) kUSD=null;
+  if(k0.indexOf(kPSO)<0) kPSO=null;
+  prec.forEach(function(row){
+    var art = normQ(String(row[kArt]||'').trim());
+    if(!art||art.length<3) return;
+    var hasUSD = kUSD ? pNum(row[kUSD])>0 : false;
+    var hasPSO = kPSO ? pNum(row[kPSO])>0 : false;
+    // Si tiene precio USD → es artículo USD
+    // Si solo tiene precio pesos → es artículo PSO
+    if(hasUSD)       CURR_MAP[art]='USD';
+    else if(hasPSO)  CURR_MAP[art]='PSO';
+  });
+}
+
+function tokQ(s){
+  return normQ(s).replace(/\([^)]*\)/g,' ').split(/[\s\/\-\.°\(\)]+/)
+    .filter(function(w){ return w.length>=3 && !/^\d/.test(w); });
+}
+
+function ocRowMoneda(row){
+  // Prioridad 1: columna $/U$S explícita
+  if(KEYS.moneda){
+    var mon = String(row[KEYS.moneda]||'').trim();
+    if(mon==='U$S'||mon==='USD'||mon==='US$') return 'USD';
+    if(mon==='$'  ||mon==='UYU'||mon==='PSO') return 'PSO';
+  }
+  // Prioridad 2: prefijo en valor raw
+  var raw = String(row[KEYS.siva]||'').trim();
+  if(/^U\$S\s/i.test(raw)) return 'USD';
+  if(/^\$\s/i.test(raw))   return 'PSO';
+  if(!Object.keys(CURR_MAP).length) return 'USD';
+
+  var nd = normQ(String(row[KEYS.desc]||'').trim());
+  if(CURR_MAP[nd]) return CURR_MAP[nd];
+
+  // Tokenize match (igual a stock.html)
+  var ndToks = tokQ(nd);
+  if(!ndToks.length) return 'USD';
+  var ndSet = {};
+  ndToks.forEach(function(t){ ndSet[t]=1; });
+
+  var keys = Object.keys(CURR_MAP);
+  for(var i=0;i<keys.length;i++){
+    var k = keys[i];
+    var kToks = tokQ(k);
+    if(!kToks.length) continue;
+    var kSet = {};
+    kToks.forEach(function(t){ kSet[t]=1; });
+    var shorter    = ndToks.length <= kToks.length ? ndToks : kToks;
+    var longerSet  = ndToks.length <= kToks.length ? kSet   : ndSet;
+    var matched    = shorter.filter(function(t){ return longerSet[t]; }).length;
+    if(matched / shorter.length >= 0.8) return CURR_MAP[k];
+  }
+  // No está en PRECIOS: heurística por monto
+  // s/iva > 5000 → probablemente pesos (ningún artículo individual ≈ U$S 5000+ en este rubro)
+  var siva = pNum(row[KEYS.siva]);
+  return siva > 5000 ? 'PSO' : 'USD';
+}
+
+function renderTicker(){
+  var pedidos    = DATA.pedidos || [];
+  var inv        = DATA.inventario || [];
+  var pendientes = pedidos.filter(isPendiente);
+  var criticos   = inv.filter(isCritical);
+  var sinCOA     = pedidos.filter(function(p){ var cv=String(p[KEYS.coa]||'').trim().toUpperCase(); return cv!=='SI'&&cv!=='S'&&cv!=='SÍ'; });
+  var totalUSD   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)==='USD'?s+pNum(p[KEYS.siva]):s; },0);
+  var totalPSO   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)!=='USD'?s+pNum(p[KEYS.siva]):s; },0);
+  var vals = {
+    'tk-pend':pendientes.length, 'tk-pend2':pendientes.length,
+    'tk-crit':criticos.length,   'tk-crit2':criticos.length,
+    'tk-usd':fmtUSD(totalUSD),   'tk-usd2':fmtUSD(totalUSD),
+    'tk-pso':fmtPSO(totalPSO),   'tk-pso2':fmtPSO(totalPSO),
+    'tk-coa':sinCOA.length,      'tk-coa2':sinCOA.length
+  };
+  Object.keys(vals).forEach(function(id){
+    var el=document.getElementById(id); if(el) el.textContent=vals[id];
+  });
+}
+
+// ── KPIs ───────────────────────────────────────────────────────
+function renderKPIs(){
+  var pedidos  = DATA.pedidos || [];
+  var inv      = DATA.inventario || [];
+  var stock    = DATA.stock || [];
+
+  var pendientes  = pedidos.filter(isPendiente);
+  var criticos    = inv.filter(isCritical);
+  var sinCOA      = pedidos.filter(function(p){
+    var cv = String(p[KEYS.coa]||'').trim().toUpperCase();
+    var cfv= String(p[KEYS.conforme]||'').trim().toUpperCase();
+    var hasCOA  = cv==='SI'||cv==='S'||cv==='SÍ';
+    var hasConf = cfv==='SI'||cfv==='S'||cfv==='SÍ';
+    return !hasCOA || !hasConf;
+  });
+  var totalUSD    = pendientes.reduce(function(s,p){ return ocRowMoneda(p)==='USD'?s+pNum(p[KEYS.siva]):s; }, 0);
+  var totalPSO    = pendientes.reduce(function(s,p){ return ocRowMoneda(p)!=='USD'?s+pNum(p[KEYS.siva]):s; }, 0);
+
+  set('kpi-pending',   pendientes.length);
+  set('kpi-critical',  criticos.length);
+  set('kpi-usd',       fmtUSD(totalUSD));
+  set('kpi-pso',       fmtPSO(totalPSO));
+  set('kpi-conform',   sinCOA.length);
+
+  set('kpi-pending-sub',  'de ' + pedidos.length + ' pedidos totales');
+  set('kpi-critical-sub', 'requieren reposición urgente');
+  set('kpi-usd-sub',      'pedidos en dólares');
+  set('kpi-pso-sub',      'pedidos en pesos');
+  set('kpi-conform-sub',  'sin COA o conformidad');
+}
+
+// ── Alert banner ───────────────────────────────────────────────
+function renderAlertBanner(){
+  var criticos = (DATA.inventario || []).filter(isCritical);
+  var banner = document.getElementById('alert-banner');
+  if (criticos.length > 0){
+    var nombres = criticos.slice(0,3).map(function(i){ return i[KEYS.invDesc] || '—'; }).join(', ');
+    var extra   = criticos.length > 3 ? ' y ' + (criticos.length-3) + ' más.' : '.';
+    set('alert-text', '🔴 ' + criticos.length + ' artículo(s) requieren reposición urgente: ' + nombres + extra);
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function clearDashFilters(){
+  ['f-buscar'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['f-estado','f-proveedor','f-coa'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['f-desde','f-hasta'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  renderPedidos();
+}
+
+// ── Tabla de pedidos ───────────────────────────────────────────
+function renderPedidos(){
+  var buscar   = (document.getElementById('f-buscar').value || '').toLowerCase();
+  var estado   = document.getElementById('f-estado').value;
+  var provFilt = document.getElementById('f-proveedor').value;
+  var coaFilt  = document.getElementById('f-coa').value;
+  var desde    = document.getElementById('f-desde') ? document.getElementById('f-desde').value : '';
+  var hasta    = document.getElementById('f-hasta') ? document.getElementById('f-hasta').value : '';
+
+  var rows = (DATA.pedidos || []).filter(function(p){
+    if (buscar){
+      var hay = (String(p[KEYS.desc]||'')+' '+String(p[KEYS.proveedor]||'')+' '+String(p[KEYS.orden]||'')).toLowerCase();
+      if (hay.indexOf(buscar) < 0) return false;
+    }
+    if (estado === 'pendiente' && !isPendiente(p)) return false;
+    if (estado === 'recibido'  &&  isPendiente(p)) return false;
+    if (provFilt && String(p[KEYS.proveedor]||'') !== provFilt) return false;
+    var coaVal = String(p[KEYS.coa] || '').trim().toUpperCase();
+    if (coaFilt === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== 'SÍ') return false;
+    if (coaFilt === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === 'SÍ')) return false;
+    var f = String(p[KEYS.fecha]||'');
+    if (desde && f && f < desde) return false;
+    if (hasta && f && f > hasta) return false;
+    return true;
+  });
+
+  // Más reciente primero
+  rows.sort(function(a,b){
+    var fa = String(a[KEYS.fecha]||''); var fb = String(b[KEYS.fecha]||'');
+    return fa > fb ? -1 : fa < fb ? 1 : 0;
+  });
+
+  set('pedidos-count', rows.length + ' registros');
+
+  var html = '';
+  if (rows.length === 0){
+    html = '<tr><td colspan="11" class="empty">Sin resultados con los filtros actuales.</td></tr>';
+  } else {
+    rows.forEach(function(p){
+      var pend = isPendiente(p);
+      var sinLote = isEmpty(p[KEYS.lote]);
+      var coaNorm = String(p[KEYS.coa]||'').trim().toUpperCase();
+      var confNorm= String(p[KEYS.conforme]||'').trim().toUpperCase();
+      var hasCOA  = coaNorm === 'SI' || coaNorm === 'S' || coaNorm === 'SÍ';
+      var hasConf = confNorm === 'SI' || confNorm === 'S' || confNorm === 'SÍ';
+      html += '<tr>';
+      html += '<td style="font-weight:700;color:var(--tl);font-family:\'IBM Plex Mono\',monospace">' + (p[KEYS.orden]||'—') + '</td>';
+      html += '<td style="color:var(--mut2)">' + fmtDate(p[KEYS.fecha]) + '</td>';
+      html += '<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis">' + (p[KEYS.proveedor]||'—') + '</td>';
+      html += '<td style="max-width:190px;overflow:hidden;text-overflow:ellipsis">' + (p[KEYS.desc]||'—') + '</td>';
+      html += '<td style="text-align:right;font-family:\'IBM Plex Mono\',monospace">' + (p[KEYS.cantidad]||'—') + '</td>';
+      var mon=ocRowMoneda(p),sivVal=pNum(p[KEYS.siva]);
+      html += '<td style="text-align:right;color:'+(mon==='USD'?'var(--grn)':'var(--tl)')+';font-family:\'IBM Plex Mono\',monospace">'+(sivVal>0?(mon==='USD'?fmtUSD(sivVal):fmtPSO(sivVal)):'—')+'</td>';
+      html += '<td>' + (pend
+        ? '<span class="pill pill-pendiente">⏳ Pendiente</span>'
+        : '<span class="pill pill-recibido">✓ ' + fmtDate(p[KEYS.recepcion]) + '</span>') + '</td>';
+      html += '<td>' + (sinLote
+        ? '<span class="pill pill-sinlote">Sin lote</span>'
+        : '<span style="color:var(--mut2);font-size:11px;font-family:\'IBM Plex Mono\',monospace">' + p[KEYS.lote] + '</span>') + '</td>';
+      html += '<td>' + (hasCOA ? '<span class="pill pill-ok">✓</span>' : '<span style="color:var(--mut)">—</span>') + '</td>';
+      html += '<td>' + (hasConf? '<span class="pill pill-ok">✓</span>' : '<span style="color:var(--mut)">—</span>') + '</td>';
+      html += '</tr>';
+    });
+  }
+  document.getElementById('tbody-pedidos').innerHTML = html;
+}
+
+// ── Exportar CSV ───────────────────────────────────────────────
+function exportarCSV(){
+  // Obtiene las filas actualmente filtradas (misma lógica que renderPedidos)
+  var buscar   = (document.getElementById('f-buscar').value || '').toLowerCase();
+  var estado   = document.getElementById('f-estado').value;
+  var provFilt = document.getElementById('f-proveedor').value;
+  var coaFilt  = document.getElementById('f-coa').value;
+  var desde    = document.getElementById('f-desde') ? document.getElementById('f-desde').value : '';
+  var hasta    = document.getElementById('f-hasta') ? document.getElementById('f-hasta').value : '';
+
+  var rows = (DATA.pedidos || []).filter(function(p){
+    if (buscar){
+      var hay = (String(p[KEYS.desc]||'')+' '+String(p[KEYS.proveedor]||'')+' '+String(p[KEYS.orden]||'')).toLowerCase();
+      if (hay.indexOf(buscar) < 0) return false;
+    }
+    if (estado === 'pendiente' && !isPendiente(p)) return false;
+    if (estado === 'recibido'  &&  isPendiente(p)) return false;
+    if (provFilt && String(p[KEYS.proveedor]||'') !== provFilt) return false;
+    var coaVal = String(p[KEYS.coa] || '').trim().toUpperCase();
+    if (coaFilt === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== 'SÍ') return false;
+    if (coaFilt === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === 'SÍ')) return false;
+    var f = String(p[KEYS.fecha]||'');
+    if (desde && f && f < desde) return false;
+    if (hasta && f && f > hasta) return false;
+    return true;
+  });
+
+  rows.sort(function(a,b){
+    var fa = String(a[KEYS.fecha]||''); var fb = String(b[KEYS.fecha]||'');
+    return fa > fb ? -1 : fa < fb ? 1 : 0;
+  });
+
+  if (rows.length === 0){ alert('No hay filas visibles para exportar.'); return; }
+
+  // Cabeceras y valores
+  var cols = [
+    {h:'N° Orden',    k:KEYS.orden},
+    {h:'Fecha',       k:KEYS.fecha},
+    {h:'Proveedor',   k:KEYS.proveedor},
+    {h:'Descripción', k:KEYS.desc},
+    {h:'Cantidad',    k:KEYS.cantidad},
+    {h:'Precio un',   k:KEYS.precio},
+    {h:'s/IVA',       k:KEYS.siva},
+    {h:'c/IVA',       k:KEYS.civa},
+    {h:'F. Recepción',k:KEYS.recepcion},
+    {h:'F. Vto',      k:KEYS.vto},
+    {h:'Lote',        k:KEYS.lote},
+    {h:'COA',         k:KEYS.coa},
+    {h:'Conforme',    k:KEYS.conforme},
+    {h:'Observaciones',k:KEYS.obs}
+  ];
+
+  function csvCell(v){
+    var s = String(v === null || v === undefined ? '' : v);
+    // Si contiene coma, comilla o salto de línea, encerrar en comillas dobles
+    if (s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0){
+      return '"' + s.replace(/"/g,'""') + '"';
+    }
+    return s;
+  }
+
+  var lines = [cols.map(function(c){ return csvCell(c.h); }).join(',')];
+  rows.forEach(function(p){
+    lines.push(cols.map(function(c){ return csvCell(p[c.k]); }).join(','));
+  });
+
+  var bom = '﻿'; // BOM UTF-8 para Excel
+  var blob = new Blob([bom + lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  var fecha = new Date().toISOString().slice(0,10);
+  a.href     = url;
+  a.download = 'pedidos_subatir_' + fecha + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+}
+
+// ── Stock crítico panel ────────────────────────────────────────
+function renderStockCritico(){
+  var inv   = DATA.inventario || [];
+  var stock = DATA.stock      || [];
+  var criticos = inv.filter(isCritical);
+  var html = '';
+  var totalItems = 0;
+
+  // Usamos <a href="stock.html"> para hacer cada ítem clickeable
+  if (criticos.length === 0 && stock.length > 0){
+    criticos = stock.filter(function(s){ return stockEstado(s) === 'critical'; });
+    criticos.forEach(function(s){
+      var meses = pNum(s[KEYS.stCobert]);
+      html += '<a class="stock-item" href="stock.html" title="Ver en módulo Stock">'
+            + '<div class="dot dot-red"></div>'
+            + '<div class="stock-item-name">' + esc(s[KEYS.stArticulo]||'—') + '</div>'
+            + '<div class="stock-item-meta">' + meses.toFixed(1) + ' meses</div>'
+            + '</a>';
+    });
+  } else {
+    criticos.forEach(function(i){
+      var stock_act = pNum(i[KEYS.invStock]);
+      var pend      = pNum(i[KEYS.invPendiente]);
+      html += '<a class="stock-item" href="stock.html" title="Ver en módulo Stock">'
+            + '<div class="dot dot-red"></div>'
+            + '<div class="stock-item-name">' + esc(i[KEYS.invDesc]||'—') + '</div>'
+            + '<div class="stock-item-meta">Stock: ' + stock_act + (pend > 0 ? ' (+'+pend+')' : '') + '</div>'
+            + '</a>';
+    });
+  }
+  totalItems += criticos.length;
+
+  var medios = stock.filter(function(s){ return stockEstado(s) === 'medium'; });
+  medios.slice(0,5).forEach(function(s){
+    var meses = pNum(s[KEYS.stCobert]);
+    html += '<a class="stock-item" href="stock.html" title="Ver en módulo Stock">'
+          + '<div class="dot dot-yellow"></div>'
+          + '<div class="stock-item-name">' + esc(s[KEYS.stArticulo]||'—') + '</div>'
+          + '<div class="stock-item-meta">' + meses.toFixed(1) + ' meses</div>'
+          + '</a>';
+  });
+  totalItems += Math.min(medios.length, 5);
+
+  if (html === '') html = '<div class="empty">✅ Sin artículos críticos</div>';
+  document.getElementById('stock-list').innerHTML = html;
+  set('stock-count', totalItems + ' artículos');
+}
+
+// ── Cobertura de stock ────────────────────────────────────────
+function renderCobertura(){
+  var inv = DATA.inventario || [];
+  if (inv.length === 0){
+    document.getElementById('cobertura-grid').innerHTML = '<div class="empty">Sin datos de control de stock.</div>';
+    return;
+  }
+
+  // Calcula cobertura desde hoja COMPRAS (stock/consumo mensual) igual que el módulo stock
+  var items = inv.map(function(s){
+    var art     = String(s[KEYS.invDesc]    ||'').trim();
+    var stock   = pNum(s[KEYS.invStock]);
+    var minimo  = pNum(s[KEYS.invMinimo]);
+    var consumo = pNum(s[KEYS.invConsumo]);
+    var sol     = String(s[KEYS.invSolicitar]||'').toUpperCase();
+    var meses   = consumo > 0 ? stock / consumo : null;
+
+    var est;
+    if(sol.indexOf('SOLICITAR') >= 0)       est = 'critical';
+    else if(minimo > 0 && stock <= minimo)  est = 'critical';
+    else if(minimo > 0 && stock <= minimo * 1.5) est = 'medium';
+    else                                    est = 'ok';
+
+    // % respecto al doble del mínimo (6 meses si no hay mínimo)
+    var pct = minimo > 0
+      ? Math.min(100, (stock / (minimo * 2)) * 100)
+      : (meses !== null ? Math.min(100, (meses / 6) * 100) : 0);
+
+    return { art:art, meses:meses, pct:pct, est:est };
+  }).filter(function(x){ return x.art; });
+
+  // Ordenar: alfabético por nombre de artículo
+  items.sort(function(a,b){
+    return a.art.localeCompare(b.art, 'es', {sensitivity:'base'});
+  });
+
+  var html = '';
+  items.forEach(function(x){
+    var color = x.est === 'critical' ? 'var(--red)' : x.est === 'medium' ? 'var(--amb)' : 'var(--grn)';
+    var dot   = x.est === 'critical' ? 'dot-red'   : x.est === 'medium' ? 'dot-yellow' : 'dot-green';
+    var fill  = Math.min(Math.max(x.pct, 0), 100);
+    var mesesStr = x.meses !== null ? x.meses.toFixed(1) + ' meses' : 'Sin consumo';
+    var pctStr   = x.pct > 0 ? x.pct.toFixed(0) + '%' : '—';
+
+    html += '<div class="card" style="padding:12px 14px">'
+          + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
+          + '<div class="dot ' + dot + '"></div>'
+          + '<span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="' + x.art + '">' + x.art.slice(0,28) + '</span>'
+          + '</div>'
+          + '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut2)">'
+          + '<span>' + mesesStr + '</span>'
+          + '<span style="color:' + color + ';font-weight:700;font-family:\'IBM Plex Mono\',monospace">' + pctStr + '</span>'
+          + '</div>'
+          + '<div class="progress-bg"><div class="progress-fill" style="width:' + fill + '%;background:' + color + '"></div></div>'
+          + '</div>';
+  });
+  document.getElementById('cobertura-grid').innerHTML = html || '<div class="empty">Sin datos.</div>';
+  set('cobertura-count', items.length + ' artículos');
+}
+
+// ── Chart: Pedidos por proveedor ──────────────────────────────
+function renderChartProveedor(){
+  var pedidos = (DATA.pedidos || []).filter(isPendiente);
+  var counts  = {};
+  pedidos.forEach(function(p){
+    var pr = String(p[KEYS.proveedor]||'Desconocido').slice(0,20);
+    counts[pr] = (counts[pr]||0)+1;
+  });
+  var sorted = Object.entries(counts).sort(function(a,b){ return b[1]-a[1]; }).slice(0,8);
+  var labels = sorted.map(function(e){ return e[0]; });
+  var values = sorted.map(function(e){ return e[1]; });
+  var colors = ['#1bc8ff','#f97316','#22c55e','#a78bfa','#f59e0b','#ef4444','#14b8a6','#8b5cf6'];
+
+  var ctx = document.getElementById('chart-proveedor').getContext('2d');
+  if (CHART_P) CHART_P.destroy();
+  if (values.length === 0){
+    ctx.canvas.parentElement.innerHTML = '<div class="empty">Sin pedidos pendientes</div>';
+    return;
+  }
+  CHART_P = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: labels, datasets:[{ data: values, backgroundColor: colors, borderWidth:2, borderColor:'#07090f' }] },
+    options: {
+      plugins: {
+        legend: { position:'right', labels:{ color:'#7a8fa8', font:{size:10,family:'DM Sans'}, padding:8, boxWidth:10 } },
+        tooltip: { callbacks:{ label: function(c){ return c.label+': '+c.raw+' pedidos'; } } }
+      },
+      cutout: '62%'
+    }
+  });
+}
+
+// ── Chart: Estado de inventario ───────────────────────────────
+function renderChartStock(){
+  var inv    = DATA.inventario || [];
+  var stock  = DATA.stock || [];
+  var criticos, medios, ok;
+  if (stock.length > 0){
+    criticos = stock.filter(function(s){ return stockEstado(s)==='critical'; }).length;
+    medios   = stock.filter(function(s){ return stockEstado(s)==='medium'; }).length;
+    ok       = stock.filter(function(s){ return stockEstado(s)==='ok'; }).length;
+  } else {
+    criticos = inv.filter(isCritical).length;
+    medios   = inv.filter(function(i){ return String(i[KEYS.invSolicitar]||'').toLowerCase().indexOf('dato')>=0; }).length;
+    ok       = Math.max(0, inv.length - criticos - medios);
+  }
+
+  var ctx = document.getElementById('chart-stock').getContext('2d');
+  if (CHART_S) CHART_S.destroy();
+  CHART_S = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Crítico','Medio','Óptimo'],
+      datasets:[{
+        data: [criticos, medios, ok],
+        backgroundColor:['rgba(239,68,68,.65)','rgba(245,158,11,.65)','rgba(34,197,94,.65)'],
+        borderRadius: 6, borderSkipped: false
+      }]
+    },
+    options: {
+      plugins: { legend:{ display:false } },
+      scales: {
+        x: { ticks:{ color:'#5a6a80', font:{size:11,family:'DM Sans'} }, grid:{ color:'rgba(255,255,255,.04)' } },
+        y: { ticks:{ color:'#5a6a80', font:{size:11,family:'DM Sans'} }, grid:{ color:'rgba(255,255,255,.04)' }, beginAtZero:true }
+      }
+    }
+  });
+}
+
+// ── Populate proveedor filter ──────────────────────────────────
+function populateProveedorFilter(){
+  var sel = document.getElementById('f-proveedor');
+  var proveedores = [...new Set((DATA.pedidos||[]).map(function(p){ return String(p[KEYS.proveedor]||''); }).filter(Boolean))].sort();
+  var html = '<option value="">Todos los proveedores</option>';
+  proveedores.forEach(function(pr){ html += '<option value="'+esc(pr)+'">'+esc(pr)+'</option>'; });
+  sel.innerHTML = html;
+}
+
+// ── Helpers DOM ────────────────────────────────────────────────
+function set(id, val){ var el=document.getElementById(id); if(el) el.textContent=val; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+
+</body>
+</html>

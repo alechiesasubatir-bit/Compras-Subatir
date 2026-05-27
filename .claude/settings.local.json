@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat \"C:\\\\\\\\Users\\\\\\\\alech\\\\\\\\.claude\\\\\\\\projects\\\\\\\\C--SubatirApps-SistemaComprasSubatir\\\\\\\\cd6c1ef9-42ba-40b0-9771-967adc019d89\\\\\\\\tool-results\\\\\\\\mcp-claude_ai_Google_Drive-read_file_content-1779242555145.txt\")",
+      "Skill(frontend-design)"
+    ]
+  }
+}

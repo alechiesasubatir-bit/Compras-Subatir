@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Precios & Proveedores — Subatir / Prolimpio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ═══ DESIGN SYSTEM — idéntico a index.html ══════════════════ */
+:root{
+  --bg:    #07090f; --bg0:#07090f; --bg1:#0c1119; --bg2:#111926;
+  --teal:  #0e8aaa; --teal-l:#1bc8ff;
+  --orange:#f97316; --orange-d:#c2580a; --gold:#f5c842;
+  --glass: rgba(255,255,255,.04); --glass-b:rgba(255,255,255,.08);
+  --border:rgba(255,255,255,.07); --border-b:rgba(255,255,255,.12);
+  --text:  #e2e8f0; --muted:#5a6a80; --muted-l:#7a8fa8;
+  --red:   #ef4444; --amber:#f59e0b; --green:#22c55e; --purple:#a78bfa;
+  --mono:  'IBM Plex Mono',monospace;
+  --r:     14px; --shadow:0 8px 32px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scrollbar-gutter:stable;overflow-x:hidden}
+body{
+  background:var(--bg);
+  min-height:100vh;color:var(--text);
+  font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 55% at 5% 10%,rgba(167,139,250,.12) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,rgba(14,138,170,.09) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 50%,rgba(249,115,22,.04) 0%,transparent 50%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity:.5;
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(27,200,255,.2);border-radius:4px}
+.glass{
+  position:relative;z-index:1;
+  background:var(--glass);backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);border:1px solid var(--border);
+  border-radius:var(--r);box-shadow:var(--shadow);
+}
+
+/* ═══ HEADER ══════════════════════════════════════════════════ */
+header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:13px 22px;
+  background:rgba(7,9,15,.9);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(24px);
+}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-mark{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  object-fit:cover;display:block;
+  box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
+}
+.logo h1{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo p{font-size:10px;color:var(--muted-l)}
+nav{display:flex;gap:3px;flex-wrap:wrap}
+.nl{
+  padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;
+  color:var(--muted-l);text-decoration:none;transition:all .18s;border:1px solid transparent;
+  font-family:'Syne',sans-serif;
+}
+.nl:hover{color:var(--text);background:rgba(255,255,255,.07);border-color:var(--border)}
+.nl.on{
+  color:#fff;
+  background:linear-gradient(135deg,rgba(14,138,170,.4),rgba(27,200,255,.25));
+  border-color:rgba(27,200,255,.3);box-shadow:0 0 10px rgba(14,138,170,.25);
+}
+.nl.dim{opacity:.35;cursor:not-allowed;pointer-events:none}
+.hdr-r{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ts{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.btn{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 13px;
+  border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.06);
+  cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.3px;transition:all .18s;
+  font-family:'DM Sans',sans-serif;color:var(--text);
+}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.1);border-color:var(--border-b)}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text)}
+.btn-orange{background:linear-gradient(135deg,var(--orange-d),var(--orange));border-color:rgba(249,115,22,.3);color:#fff}
+.btn-sm{padding:4px 10px;font-size:10px}
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.12);
+  border-top-color:var(--teal-l);border-radius:50%;animation:spin .65s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══ MAIN ════════════════════════════════════════════════════ */
+.main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
+
+/* ═══ KPI ══════════════════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px}
+.kpi{padding:17px 16px;position:relative;overflow:hidden;transition:transform .2s;cursor:default}
+.kpi:hover{transform:translateY(-3px)}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 var(--r) var(--r)}
+.kpi-art::after {background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.kpi-prov::after{background:linear-gradient(90deg,var(--orange-d),var(--orange))}
+.kpi-comp::after{background:linear-gradient(90deg,var(--green),#4ade80)}
+.kpi-avg::after {background:linear-gradient(90deg,var(--gold),#fff9c4)}
+.kpi-upd::after {background:linear-gradient(90deg,var(--purple),#c084fc)}
+.klbl{font-family:'Syne',sans-serif;font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:10px}
+.knum{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1;letter-spacing:-1px}
+.ksub{font-size:10px;color:var(--muted);margin-top:5px;font-family:'Syne',sans-serif}
+.kico{position:absolute;right:13px;top:13px;font-size:20px;opacity:.35}
+.c-teal{color:var(--teal-l)}.c-or{color:var(--orange)}.c-gr{color:var(--green)}
+.c-gold{color:var(--gold)}.c-pur{color:var(--purple)}
+
+/* ═══ SEARCH HERO ══════════════════════════════════════════════ */
+.search-hero{padding:22px 24px;position:relative;overflow:hidden}
+.search-hero::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(249,115,22,.06),rgba(245,200,66,.03));
+  pointer-events:none;
+}
+.hero-label{font-size:11px;color:var(--orange);font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:10px}
+.search-wrap{position:relative;max-width:680px}
+.search-input{
+  width:100%;padding:14px 50px 14px 46px;border-radius:12px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(249,115,22,.3);
+  color:var(--text);font-size:15px;outline:none;transition:all .2s;
+  font-family:'Segoe UI',sans-serif;
+}
+.search-input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(249,115,22,.12)}
+.search-input::placeholder{color:var(--muted)}
+.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  font-size:18px;pointer-events:none;color:var(--orange);opacity:.7}
+.search-clear{position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted-l);font-size:16px;cursor:pointer;
+  padding:4px;border-radius:4px;transition:color .15s;display:none}
+.search-clear:hover{color:var(--text)}
+.suggestions{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;
+  background:#0d1b2e;border:1px solid rgba(249,115,22,.25);border-radius:10px;
+  max-height:280px;overflow-y:auto;display:none;
+  box-shadow:0 16px 48px rgba(0,0,0,.6);
+}
+.suggestions.open{display:block}
+.sug-item{padding:10px 14px;cursor:pointer;display:flex;align-items:center;
+  justify-content:space-between;gap:10px;font-size:13px;
+  border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s;}
+.sug-item:hover{background:rgba(249,115,22,.1)}
+.sug-item:last-child{border-bottom:none}
+.sug-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sug-cod{font-family:var(--mono);font-size:10px;color:var(--muted-l)}
+.sug-count{font-size:10px;color:var(--orange);font-weight:700;white-space:nowrap}
+.search-hint{margin-top:9px;font-size:11px;color:var(--muted-l)}
+
+/* ═══ COMPARATIVA ══════════════════════════════════════════════ */
+.comp-header{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.comp-title{font-size:16px;font-weight:700}
+.comp-sub{font-size:11px;color:var(--muted-l);margin-top:2px;font-family:var(--mono)}
+.comp-actions{display:flex;gap:8px;align-items:center}
+
+/* Ranking podium */
+.podium{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.podium-card{
+  display:grid;grid-template-columns:36px 1fr auto auto auto auto auto 80px 60px;
+  align-items:center;gap:10px;
+  padding:12px 16px;border-radius:12px;
+  border:1px solid var(--border);background:rgba(255,255,255,.03);
+  transition:border-color .2s;
+}
+.podium-card:hover{border-color:rgba(255,255,255,.15)}
+.podium-card.rank-1{
+  background:linear-gradient(135deg,rgba(245,200,66,.07),rgba(249,115,22,.04));
+  border-color:rgba(245,200,66,.35);
+}
+.podium-card.rank-2{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.1)}
+.rank-num{
+  width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  font-weight:800;font-size:14px;flex-shrink:0;
+}
+.rank-1 .rank-num{background:linear-gradient(135deg,var(--gold),var(--orange));color:#000}
+.rank-2 .rank-num{background:rgba(192,192,192,.2);color:#c0c0c0}
+.rank-3 .rank-num{background:rgba(205,127,50,.2);color:#cd7f32}
+.rank-n .rank-num{background:rgba(255,255,255,.07);color:var(--muted-l);font-size:12px}
+.pcard-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard-cod{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:1px}
+.pcard-price{font-family:var(--mono);font-weight:700;font-size:14px;text-align:right;white-space:nowrap}
+.pcard-price-s{font-size:10px;color:var(--muted-l);font-family:var(--mono);text-align:right;white-space:nowrap}
+.pcard-pago{font-size:10px;color:var(--muted-l);white-space:nowrap}
+
+/* Rating pills */
+.rp{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;
+  border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.rp-b{background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25)}
+.rp-r{background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.25)}
+.rp-m{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)}
+.rp-nd{background:rgba(78,97,117,.12);color:var(--muted-l);border:1px solid var(--border)}
+
+/* Badges especiales */
+.badge-rec{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:20px;font-size:10px;font-weight:800;
+  background:linear-gradient(135deg,rgba(245,200,66,.25),rgba(249,115,22,.2));
+  color:var(--gold);border:1px solid rgba(245,200,66,.4);white-space:nowrap;
+}
+.badge-cheap{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:20px;font-size:10px;font-weight:800;
+  background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.3);white-space:nowrap;
+}
+.badge-qual{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:20px;font-size:10px;font-weight:800;
+  background:rgba(168,85,247,.12);color:#d8b4fe;border:1px solid rgba(168,85,247,.3);white-space:nowrap;
+}
+
+/* Score circle */
+.score-circle{
+  width:44px;height:44px;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--mono);
+  font-weight:800;font-size:13px;flex-shrink:0;
+  border:2px solid;
+}
+
+/* Price bar */
+.pbar-wrap{width:80px}
+.pbar-bg{height:5px;background:rgba(255,255,255,.07);border-radius:3px}
+.pbar-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.34,1.56,.64,1)}
+.pbar-lbl{font-family:var(--mono);font-size:9px;color:var(--muted-l);margin-top:2px}
+
+/* ═══ MAIN GRID ════════════════════════════════════════════════ */
+.main-grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
+@media(max-width:940px){.main-grid{grid-template-columns:1fr}}
+
+/* ── Sec header ─────────────────────────────────────────────── */
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sh h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px}
+.sh h2 em{font-style:normal;background:linear-gradient(90deg,var(--orange),var(--gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.b-or{background:rgba(249,115,22,.15);color:var(--orange);border:1px solid rgba(249,115,22,.3)}
+.b-tl{background:rgba(14,107,138,.15);color:var(--teal-l);border:1px solid rgba(14,107,138,.3)}
+.b-gr{background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25)}
+
+/* ─── Catálogo ─────────────────────────────────────────────── */
+.cat-filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.fi{padding:6px 10px;border-radius:7px;font-size:11px;
+  background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);outline:none;cursor:pointer;}
+.fi:focus{border-color:var(--orange)}
+select.fi option{background:var(--bg2);color:var(--text)}
+.tbl-wrap{overflow:auto;max-height:440px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead{position:sticky;top:0;z-index:10}
+thead th{padding:8px 10px;text-align:left;white-space:nowrap;
+  background:rgba(14,138,170,.15);color:var(--teal-l);
+  font-family:'Syne',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
+  border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+thead th:hover{background:rgba(14,138,170,.25)}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.035);transition:background .12s;cursor:pointer}
+tbody tr:hover{background:rgba(14,138,170,.05)}
+tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
+.num{font-family:var(--mono);text-align:right}
+.muted{color:var(--muted-l)}
+.empty-td{text-align:center;padding:28px;color:var(--muted);font-size:13px}
+
+/* ─── Ranking proveedores ───────────────────────────────────── */
+.prov-rank-list{display:flex;flex-direction:column;gap:7px;max-height:320px;overflow-y:auto}
+.prov-rank-item{
+  padding:10px 12px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  cursor:pointer;transition:border-color .15s;
+}
+.prov-rank-item:hover{border-color:rgba(249,115,22,.35)}
+.pri-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.pri-rank{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--orange);width:20px}
+.pri-name{font-size:12px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pri-arts{font-family:var(--mono);font-size:10px;color:var(--muted-l)}
+.pri-stars{display:flex;gap:4px}
+.star-dot{width:6px;height:6px;border-radius:50%}
+
+/* ─── Evolución de Precios ──────────────────────────────────── */
+.hist-wrap{height:200px;position:relative}
+.hist-empty{height:120px;display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:12px;text-align:center;line-height:1.6}
+.evo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:16px}
+.evo-stat{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;padding:12px 10px;display:flex;flex-direction:column;gap:3px;text-align:center}
+.evo-val{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;color:var(--teal-l);line-height:1.2}
+.evo-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+
+/* ═══ TOAST ═══════════════════════════════════════════════════ */
+#tc{position:fixed;bottom:22px;right:22px;z-index:999;
+  display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{padding:10px 15px;border-radius:9px;font-size:12px;font-weight:600;
+  min-width:240px;animation:tin .22s ease;pointer-events:all;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);}
+.t-ok {background:rgba(34,197,94,.18);border:1px solid rgba(34,197,94,.3);color:#86efac}
+.t-err{background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+.t-inf{background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.3);color:var(--orange)}
+@keyframes tin{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* Placeholder con instrucción */
+.search-placeholder{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:48px 24px;text-align:center;gap:12px;
+}
+.search-placeholder .big-icon{font-size:48px;opacity:.25}
+.search-placeholder p{color:var(--muted-l);font-size:13px;max-width:360px;line-height:1.7}
+/* ── Ticker ──────────────────────────────────────────────────── */
+.ticker-bar{overflow:hidden;background:linear-gradient(90deg,rgba(14,138,170,.18),rgba(167,139,250,.12),rgba(14,138,170,.18));border-bottom:1px solid rgba(27,200,255,.15);height:32px;display:flex;align-items:center;position:relative;z-index:100}
+.ticker-bar::before,.ticker-bar::after{content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
+.ticker-bar::before{left:0;background:linear-gradient(90deg,rgba(7,9,15,1),transparent)}
+.ticker-bar::after{right:0;background:linear-gradient(270deg,rgba(7,9,15,1),transparent)}
+.ticker-label{flex-shrink:0;font-family:'Syne',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--teal-l);background:rgba(14,138,170,.25);border-right:1px solid rgba(14,138,170,.3);padding:0 12px;height:100%;display:flex;align-items:center;text-transform:uppercase;z-index:3;white-space:nowrap}
+.ticker-track{display:flex;white-space:nowrap;animation:ticker-scroll 28s linear infinite}
+.ticker-item{display:inline-flex;align-items:center;gap:8px;padding:0 32px;font-size:11px;color:rgba(200,220,255,.7);font-family:'DM Sans',sans-serif}
+.ticker-item b{color:var(--teal-l)}
+.ti-dot{width:5px;height:5px;border-radius:50%;background:var(--orange);flex-shrink:0}
+@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ════════════════════════════════════════════════ -->
+<header>
+  <a class="logo" href="index.html" style="text-decoration:none">
+    <img class="logo-mark" src="logo.jpg" alt="Subatir"/>
+    <div>
+      <h1>Subatir</h1>
+      <p>Precios & Proveedores</p>
+    </div>
+  </a>
+  <nav>
+    <a href="index.html"   class="nl">⬡ Dashboard</a>
+    <a href="pedidos.html" class="nl">📦 Pedidos</a>
+    <a href="stock.html"   class="nl">📊 Stock</a>
+    <a href="precios.html" class="nl on">💲 Precios</a>
+    <a href="proveedores.html"  class="nl">🏭 Proveedores</a>
+    <a href="contingencia.html" class="nl">🛡 Contingencia</a>
+    <a href="copiloto.html"     class="nl">🤖 Copiloto IA</a>
+  </nav>
+  <div class="hdr-r">
+    <span class="ts" id="ts">—</span>
+    <button class="btn btn-ghost btn-sm" id="btn-ref" onclick="refresh()">
+      <span id="spin" style="display:none" class="spin"></span>
+      <span id="ref-lbl">⟳ Actualizar</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()" id="btn-csv" style="display:none">⬇ CSV</button>
+  </div>
+</header>
+
+<!-- ── Ticker banner ─────────────────────────────────────────── -->
+<div class="ticker-bar">
+  <span class="ticker-label">⬡ PRECIOS</span>
+  <div class="ticker-track">
+    <span class="ticker-item"><span class="ti-dot"></span>Comparativa de Precios — <b>Subatir S.A. / Prolimpio</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Costos actualizados en USD y pesos uruguayos</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Análisis comparativo por proveedor y producto</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Precios con y sin IVA · Tipo de cambio referencial</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Comparativa de Precios — <b>Subatir S.A. / Prolimpio</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Costos actualizados en USD y pesos uruguayos</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Análisis comparativo por proveedor y producto</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Precios con y sin IVA · Tipo de cambio referencial</span>
+  </div>
+</div>
+
+<!-- ══ MAIN ══════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="glass kpi kpi-art">
+      <div class="kico">📦</div>
+      <div class="klbl">Artículos en catálogo</div>
+      <div class="knum c-teal" id="k-arts">—</div>
+      <div class="ksub">productos únicos</div>
+    </div>
+    <div class="glass kpi kpi-prov">
+      <div class="kico">🏭</div>
+      <div class="klbl">Proveedores</div>
+      <div class="knum c-or" id="k-provs">—</div>
+      <div class="ksub">en el catálogo</div>
+    </div>
+    <div class="glass kpi kpi-comp">
+      <div class="kico">⚡</div>
+      <div class="klbl">Con competencia</div>
+      <div class="knum c-gr" id="k-comp">—</div>
+      <div class="ksub">artículos con 2+ proveedores</div>
+    </div>
+    <div class="glass kpi kpi-avg">
+      <div class="kico">💰</div>
+      <div class="klbl">Precio mín. promedio USD</div>
+      <div class="knum c-gold" id="k-avg">—</div>
+      <div class="ksub">mejor precio por artículo</div>
+    </div>
+    <div class="glass kpi kpi-upd">
+      <div class="kico">📅</div>
+      <div class="klbl">Última actualización</div>
+      <div class="knum c-pur" id="k-upd" style="font-size:18px;letter-spacing:0">—</div>
+      <div class="ksub">precios del catálogo</div>
+    </div>
+  </div>
+
+  <!-- Buscador hero -->
+  <div class="glass search-hero">
+    <div class="hero-label">🔍 Comparador de Precios</div>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" class="search-input" id="search-input"
+             placeholder="Buscar artículo para comparar proveedores…"
+             autocomplete="off"
+             oninput="onSearchInput()"
+             onkeydown="onSearchKey(event)"/>
+      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+    <div class="search-hint" id="search-hint">Escribí el nombre del artículo para ver todos los proveedores con sus precios y calificaciones.</div>
+  </div>
+
+  <!-- Comparativa (se muestra al seleccionar artículo) -->
+  <div class="glass" id="comp-panel" style="padding:20px;display:none">
+    <div class="comp-header">
+      <div>
+        <div class="comp-title" id="comp-art-name">—</div>
+        <div class="comp-sub" id="comp-art-sub">—</div>
+      </div>
+      <div class="comp-actions">
+        <span id="comp-badges" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+        <button class="btn btn-ghost btn-sm" onclick="exportCompCSV()">⬇ CSV</button>
+      </div>
+    </div>
+    <div class="podium" id="podium"></div>
+  </div>
+
+  <!-- Histórico (si hay datos) -->
+  <div class="glass" id="hist-panel" style="padding:20px;display:none">
+    <div class="sh"><h2>📈 <em>Evolución de Precios</em></h2>
+      <span class="badge b-or" id="hist-art">—</span></div>
+    <div id="hist-content"></div>
+  </div>
+
+  <!-- Grid principal -->
+  <div class="main-grid">
+
+    <!-- Catálogo completo -->
+    <div class="glass" style="padding:18px">
+      <div class="sh">
+        <h2>📋 <em>Catálogo de Precios</em></h2>
+        <span class="badge b-tl" id="cat-cnt">—</span>
+      </div>
+      <div class="cat-filters">
+        <input class="fi" id="f-q" style="flex:1;min-width:160px;max-width:260px"
+               placeholder="🔍 Filtrar artículos…" oninput="filterCatalog()"/>
+        <select class="fi" id="f-prov" onchange="filterCatalog()">
+          <option value="">Todos los proveedores</option>
+        </select>
+        <select class="fi" id="f-pago" onchange="filterCatalog()">
+          <option value="">Condición de pago</option>
+          <option value="30">30 días</option>
+          <option value="60">60 días</option>
+          <option value="90">90 días</option>
+          <option value="CONTADO">Contado</option>
+        </select>
+        <select class="fi" id="f-cal" onchange="filterCatalog()">
+          <option value="">Calidad</option>
+          <option value="BUENA">Buena</option>
+          <option value="REGULAR">Regular</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearCatFilters()">✕</button>
+      </div>
+      <div class="tbl-wrap">
+        <table id="cat-table">
+          <thead>
+            <tr>
+              <th onclick="catSort('articulo')">Artículo</th>
+              <th onclick="catSort('codigo')">Código</th>
+              <th onclick="catSort('proveedor')">Proveedor</th>
+              <th onclick="catSort('precioUSD')" class="num">USD s/IVA</th>
+              <th onclick="catSort('precioPSO')" class="num">$ s/IVA</th>
+              <th>Calidad</th>
+              <th>Atención</th>
+              <th>Demora</th>
+              <th onclick="catSort('pago')">Pago</th>
+              <th onclick="catSort('fecha')">Actualizado</th>
+            </tr>
+          </thead>
+          <tbody id="cat-tbody">
+            <tr><td colspan="10" class="empty-td">Cargando datos…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Columna derecha -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+
+      <!-- Ranking proveedores -->
+      <div class="glass" style="padding:16px">
+        <div class="sh">
+          <h2>🏆 <em>Ranking Proveedores</em></h2>
+          <span class="badge b-or" id="prov-cnt">—</span>
+        </div>
+        <div class="prov-rank-list" id="prov-rank-list">
+          <div class="empty-td">Cargando…</div>
+        </div>
+      </div>
+
+      <!-- Top artículos con más opciones -->
+      <div class="glass" style="padding:16px">
+        <div class="sh">
+          <h2>⚡ <em>Más Competidos</em></h2>
+          <span class="badge b-gr" id="comp-cnt-badge">—</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto" id="comp-list">
+          <div class="empty-td">Cargando…</div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /main-grid -->
+
+</div><!-- /main -->
+
+<div id="tc"></div>
+
+<!-- ══ SCRIPT ═════════════════════════════════════════════════ -->
+<script>
+// ─── Estado ──────────────────────────────────────────────────
+var URL_AS   = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+var RAW      = [];   // todos los registros de precios
+var HIST     = [];   // histórico
+var GROUPS   = {};   // { articulo: [rows] }
+var ARTLIST  = [];   // artículos únicos ordenados
+var PROVLIST = [];   // proveedores únicos
+var CAT_FILT = [];   // catálogo filtrado
+var CAT_SORT = { k:'articulo', d:'asc' };
+var CHART_H  = null;
+var SEL_ART  = null; // artículo seleccionado en comparador
+// Datos del último historial graficado — para selector de moneda
+var HIST_DATA = { labels:[], pricesUSD:[], pricesPSO:[], provs:[], cantidades:[], minP:0, maxP:0 };
+
+// Claves de columna
+var PK = {}, HK = {}, OC_PK = {};
+var RAW_PED = []; // OC/Recepción — fuente para evolución de precios
+
+// ─── Init ─────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  if (!URL_AS){
+    toast('Sin URL de Apps Script configurada. Configurá desde el Dashboard.','err');
+    document.getElementById('cat-tbody').innerHTML =
+      '<tr><td colspan="10" class="empty-td">⚠ <a href="index.html" style="color:var(--orange)">Configurar URL →</a></td></tr>';
+  } else { load(); }
+  document.addEventListener('click', function(e){
+    if (!e.target.closest('.search-wrap')) closeSuggestions();
+  });
+});
+
+// ─── Fetch + JSONP fallback ───────────────────────────────────
+function smartFetch(url, ok, err){
+  fetch(url).then(function(r){return r.json();}).then(ok)
+    .catch(function(){
+      var cb='__sb_'+Date.now(), s=document.createElement('script');
+      window[cb]=function(d){delete window[cb];s.parentNode&&s.parentNode.removeChild(s);ok(d);};
+      var sep=url.indexOf('?')>=0?'&':'?';
+      s.src=url+sep+'callback='+cb+'&_t='+Date.now();
+      s.onerror=function(){delete window[cb];err(new Error('No se pudo conectar.'));};
+      document.head.appendChild(s);
+    });
+}
+
+// ─── Carga ────────────────────────────────────────────────────
+function load(){
+  setLoading(true);
+  smartFetch(URL_AS + '?action=getData&t=' + Date.now(),
+    function(d){
+      if(d.error){setLoading(false);toast('Error: '+d.error,'err');return;}
+      RAW     = d.precios  || [];
+      HIST    = d.historial|| [];
+      RAW_PED = d.pedidos  || [];
+      console.log('[Precios] OC/Recepción filas:', RAW_PED.length, RAW_PED.length?Object.keys(RAW_PED[0]).join(' | '):'(vacío)');
+      detectKeys();
+      console.log('[Precios] Columnas detectadas — USD:', PK.precioUSD, '| $:', PK.precioPSO, '| art:', PK.articulo, '| prov:', PK.proveedor);
+      // Diagnóstico: si la clave detectada no existe en los datos reales, avisar
+      if(RAW.length){
+        var _k0=Object.keys(RAW[0]);
+        if(PK.precioUSD && _k0.indexOf(PK.precioUSD)<0)
+          console.warn('[Precios] ⚠ PK.precioUSD="'+PK.precioUSD+'" NO encontrada en columnas reales. Cols disponibles:', _k0.join(' | '));
+        if(PK.precioPSO && _k0.indexOf(PK.precioPSO)<0)
+          console.warn('[Precios] ⚠ PK.precioPSO="'+PK.precioPSO+'" NO encontrada en columnas reales. Cols disponibles:', _k0.join(' | '));
+        if(PK.articulo && _k0.indexOf(PK.articulo)<0)
+          console.warn('[Precios] ⚠ PK.articulo="'+PK.articulo+'" NO encontrada en columnas reales.');
+      }
+      if(RAW_PED.length && OC_PK.precioUn){
+        var _op0=Object.keys(RAW_PED[0]);
+        if(_op0.indexOf(OC_PK.precioUn)<0)
+          console.warn('[OC] ⚠ OC_PK.precioUn="'+OC_PK.precioUn+'" NO encontrada. Cols disponibles:', _op0.join(' | '));
+      }
+      if(RAW.length===0) toast('⚠ Hoja de Precios vacía o no encontrada. Hojas: '+(d.sheetNames||[]).join(', '),'err');
+      buildGroups();
+      renderAll();
+      setLoading(false);
+      if(d.timestamp){
+        var dt=new Date(d.timestamp);
+        document.getElementById('ts').textContent='Act.: '+dt.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+      }
+    },
+    function(e){setLoading(false);toast('Error de conexión: '+e.message,'err');}
+  );
+}
+function refresh(){load();}
+function setLoading(on){
+  document.getElementById('spin').style.display=on?'inline-block':'none';
+  document.getElementById('ref-lbl').textContent=on?'Cargando…':'⟳ Actualizar';
+}
+
+// ─── Detección de columnas ────────────────────────────────────
+function detectKeys(){
+  if(RAW.length){
+    var k=Object.keys(RAW[0]);
+    PK.fecha    =fk(k,['FECHA ACTUALIZADO','FECHA','fecha']);
+    PK.codigo   =fk(k,['CODIGO','Código','codigo']);
+    PK.articulo =fk(k,['ARTICULO','Artículo','articulo','ARTÍCULO']);
+    PK.codProv  =fk(k,['Cod Prov','COD PROV','codprov']);
+    PK.proveedor=fk(k,['PROVEEDOR','Proveedor','proveedor']);
+    PK.precioUSD=fk(k,['PRECIO S/IVA U$S','U$S','USD','PRECIO USD','PRECIO U$S','DOLAR','PRECIO DOLAR','PRECIO UN USD','PRECIO UNIT USD','PVP USD','COSTO USD','PRECIO S/IVA']);
+    PK.precioPSO=fk(k,['PRECIO S/IVA $','PRECIO $','$','PESOS','UYU','PRECIO PESOS','PVP $','COSTO $','PRECIO S/IVA PESOS','PRECIO UYU']);
+    PK.atencion =fk(k,['ATENCION DE VENTA','ATENCIÓN','atencion','ATENCION']);
+    PK.calidad  =fk(k,['CALIDAD','calidad']);
+    PK.demora   =fk(k,['DEMORA DE ENTREGA','DEMORA','demora']);
+    PK.pago     =fk(k,['MODALIDAD DE PAGO','PAGO','pago','MODALIDAD']);
+  }
+  if(HIST.length){
+    var h=Object.keys(HIST[0]);
+    HK.codigo  =fk(h,['AVANCE DE PRECIOS/CODIGO','CODIGO','codigo']);
+    HK.articulo=fk(h,['AVANCE DE PRECIOS/ARTICULO','ARTICULO','articulo']);
+    HK.proveedor=fk(h,['AVANCE DE PRECIOS/PROVEEDOR','PROVEEDOR','proveedor']);
+  }
+  if(RAW_PED.length){
+    var op=Object.keys(RAW_PED[0]);
+    OC_PK.fecha     =fk(op,['Fecha','FECHA','fecha']);
+    OC_PK.desc      =fk(op,['Descripción','Descripcion','DESCRIPCION','DESCRIPCIÓN','DESC']);
+    OC_PK.precioUn  =fk(op,['Precio un','PRECIO UN','precio un','P.Unit','PRECIO UNITARIO','PRECIO UN ']);
+    OC_PK.precioPSO =fk(op,['Precio $','PRECIO $','PRECIO PESOS','Precio pesos','PESOS','UYU','$ UN','PRECIO UYU']);
+    OC_PK.proveedor =fk(op,['Proveedor','PROVEEDOR','proveedor']);
+    OC_PK.cantidad  =fk(op,['Cantidad','CANTIDAD','cantidad']);
+    // Verificar si la columna de precio en pesos realmente existe (no es solo el primer candidato)
+    if(op.indexOf(OC_PK.precioPSO)<0) OC_PK.precioPSO=null;
+    console.log('[OC] Cols detectadas — fecha:',OC_PK.fecha,'desc:',OC_PK.desc,'precioUn:',OC_PK.precioUn,'precioPSO:',OC_PK.precioPSO,'prov:',OC_PK.proveedor);
+  }
+}
+function fk(keys,cands){
+  for(var c=0;c<cands.length;c++)
+    for(var k=0;k<keys.length;k++)
+      if(keys[k]===cands[c]||keys[k].indexOf(cands[c])>=0||cands[c].indexOf(keys[k])>=0) return keys[k];
+  return cands[0];
+}
+// norm: elimina diacríticos, lleva a mayúsculas — rango explícito ̀-ͯ para máxima compatibilidad
+function norm(s){return String(s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+
+// ─── Build groups ─────────────────────────────────────────────
+function buildGroups(){
+  GROUPS={};
+  RAW.forEach(function(r){
+    var art=String(r[PK.articulo]||'').trim();
+    if(!art||art==='') return;
+    if(!GROUPS[art]) GROUPS[art]=[];
+    GROUPS[art].push(r);
+  });
+
+  ARTLIST=Object.keys(GROUPS).sort();
+  PROVLIST=[...new Set(RAW.map(function(r){return String(r[PK.proveedor]||'').trim();}).filter(Boolean))].sort();
+  CAT_FILT=RAW.slice();
+}
+
+// ─── Render all ───────────────────────────────────────────────
+function renderAll(){
+  updateKPIs();
+  filterCatalog();
+  renderProvRanking();
+  renderCompList();
+  populateFilters();
+  document.getElementById('btn-csv').style.display='inline-flex';
+}
+
+// ─── KPIs ─────────────────────────────────────────────────────
+function updateKPIs(){
+  var artCount  = ARTLIST.length;
+  var provCount = PROVLIST.length;
+  var compCount = ARTLIST.filter(function(a){return GROUPS[a].length>1;}).length;
+
+  // Precio mínimo promedio por artículo
+  var minPrices=[];
+  ARTLIST.forEach(function(a){
+    var prices=GROUPS[a].map(function(r){return pn(r[PK.precioUSD]);}).filter(function(p){return p>0;});
+    if(prices.length) minPrices.push(Math.min.apply(null,prices));
+  });
+  var avgMin = minPrices.length ? (minPrices.reduce(function(s,p){return s+p;},0)/minPrices.length) : 0;
+
+  // Fecha más reciente
+  var fechas=RAW.map(function(r){return String(r[PK.fecha]||'');}).filter(Boolean).sort().reverse();
+  var lastDate = fechas[0] ? fmtDate(fechas[0]) : '—';
+
+  setText('k-arts',  artCount);
+  setText('k-provs', provCount);
+  setText('k-comp',  compCount);
+  setText('k-avg',   avgMin>0 ? 'U$S '+avgMin.toFixed(2) : '—');
+  setText('k-upd',   lastDate);
+}
+
+// ─── Search autocomplete ─────────────────────────────────────
+function onSearchInput(){
+  var q=(document.getElementById('search-input').value||'').trim();
+  document.getElementById('search-clear').style.display=q?'block':'none';
+  if(q.length<2){closeSuggestions();return;}
+  var matches=ARTLIST.filter(function(a){return a.toLowerCase().indexOf(q.toLowerCase())>=0;}).slice(0,12);
+  renderSuggestions(matches, q);
+}
+
+function renderSuggestions(matches, q){
+  var box=document.getElementById('suggestions');
+  if(!matches.length){box.innerHTML='<div class="sug-item"><span class="sug-name" style="color:var(--muted-l)">Sin resultados para "'+esc(q)+'"</span></div>';box.classList.add('open');return;}
+  var html=matches.map(function(a){
+    var rows=GROUPS[a]||[];
+    var cod=rows[0]?String(rows[0][PK.codigo]||''):'';
+    var hl=a.replace(new RegExp('('+esc(q)+')','gi'),'<mark style="background:rgba(249,115,22,.3);color:var(--orange);border-radius:2px">$1</mark>');
+    return '<div class="sug-item" onclick="selectArt(\''+esc(a)+'\')">'
+      +'<span class="sug-name">'+hl+'</span>'
+      +(cod?'<span class="sug-cod">'+esc(cod)+'</span>':'')
+      +'<span class="sug-count">'+rows.length+' '+( rows.length===1?'proveedor':'proveedores')+'</span>'
+      +'</div>';
+  }).join('');
+  box.innerHTML=html; box.classList.add('open');
+}
+
+function closeSuggestions(){document.getElementById('suggestions').classList.remove('open');}
+
+function onSearchKey(e){
+  if(e.key==='Escape'){clearSearch();return;}
+  if(e.key==='Enter'){
+    var q=(document.getElementById('search-input').value||'').trim().toLowerCase();
+    var match=ARTLIST.find(function(a){return a.toLowerCase().indexOf(q)>=0;});
+    if(match){selectArt(match);}
+    closeSuggestions();
+  }
+}
+
+function clearSearch(){
+  document.getElementById('search-input').value='';
+  document.getElementById('search-clear').style.display='none';
+  closeSuggestions();
+  document.getElementById('comp-panel').style.display='none';
+  document.getElementById('hist-panel').style.display='none';
+  document.getElementById('search-hint').textContent='Escribí el nombre del artículo para ver todos los proveedores con sus precios y calificaciones.';
+  SEL_ART=null;
+  document.getElementById('btn-csv').style.display='inline-flex';
+}
+
+function selectArt(art){
+  SEL_ART=art;
+  document.getElementById('search-input').value=art;
+  document.getElementById('search-clear').style.display='block';
+  closeSuggestions();
+  renderComparativa(art);
+  renderHistorico(art);
+  document.getElementById('search-hint').textContent='';
+}
+
+// ─── Comparativa de proveedores ───────────────────────────────
+function renderComparativa(art){
+  var rows=GROUPS[art]||[];
+  if(!rows.length){document.getElementById('comp-panel').style.display='none';return;}
+
+  setText('comp-art-name', art);
+  setText('comp-art-sub',  rows.length+' proveedor'+(rows.length===1?'':'es') +
+    (rows[0]&&rows[0][PK.codigo]?' · Código: '+rows[0][PK.codigo]:''));
+
+  // Calcular scores
+  var validUSD=rows.map(function(r){return pn(r[PK.precioUSD]);}).filter(function(p){return p>0;});
+  var minUSD=validUSD.length?Math.min.apply(null,validUSD):0;
+  var maxUSD=validUSD.length?Math.max.apply(null,validUSD):0;
+
+  var scored=rows.map(function(r){
+    var usd=pn(r[PK.precioUSD]);
+    var priceScore = (minUSD>0&&usd>0) ? (minUSD/usd)*100 : 50;
+    var qualScore  = (ratingVal(r[PK.atencion])+ratingVal(r[PK.calidad])*1.5+ratingVal(r[PK.demora]))/3.5*100/3;
+    return Object.assign({}, r, {
+      _usd: usd, _pso: pn(r[PK.precioPSO]),
+      _score: Math.round(priceScore*0.45 + qualScore*0.55),
+      _priceRelPct: minUSD>0&&usd>0 ? (minUSD/usd)*100 : 0,
+      _isMin: usd===minUSD&&usd>0
+    });
+  }).sort(function(a,b){return b._score-a._score;});
+
+  // Badges de recomendación
+  var best=scored[0];
+  var cheapest=scored.slice().sort(function(a,b){return a._usd-b._usd||0;})[0];
+  var qualBest=scored.slice().sort(function(a,b){
+    return (ratingVal(b[PK.calidad])+ratingVal(b[PK.atencion]))-(ratingVal(a[PK.calidad])+ratingVal(a[PK.atencion]));
+  })[0];
+
+  var bHtml='';
+  if(best) bHtml+='<span class="badge-rec">🏆 '+esc(String(best[PK.proveedor]||'').split(' ')[0])+' — mejor relación</span>';
+  if(cheapest&&cheapest[PK.proveedor]!==best[PK.proveedor]&&cheapest._usd>0)
+    bHtml+='<span class="badge-cheap">💰 '+esc(String(cheapest[PK.proveedor]||'').split(' ')[0])+' — más barato</span>';
+  if(qualBest&&qualBest[PK.proveedor]!==best[PK.proveedor])
+    bHtml+='<span class="badge-qual">⭐ '+esc(String(qualBest[PK.proveedor]||'').split(' ')[0])+' — mejor calidad</span>';
+  document.getElementById('comp-badges').innerHTML=bHtml;
+
+  // Renderizar podium
+  var pHtml=scored.map(function(r,i){
+    var rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n';
+    var rankLbl = i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
+    var barPct  = r._priceRelPct>0?r._priceRelPct:100;
+    var barCol  = barPct>80?'var(--green)':barPct>50?'var(--amber)':'var(--red)';
+    var sc      = r._score;
+    var scCol   = sc>=70?'var(--green)':sc>=50?'var(--amber)':'var(--red)';
+    var usdStr  = r._usd>0 ? 'U$S '+r._usd.toFixed(3) : '—';
+    var psoStr  = r._pso>0 ? '$'+r._pso.toFixed(2) : '—';
+
+    return '<div class="podium-card '+rankCls+'">'
+      +'<div class="rank-num '+rankCls+'">'+rankLbl+'</div>'
+      +'<div><div class="pcard-name">'+esc(String(r[PK.proveedor]||'—'))+'</div>'
+      +'<div class="pcard-cod">'+esc(String(r[PK.codProv]||''))+'</div></div>'
+      +'<div><div class="pcard-price" style="color:'+(r._isMin?'var(--green)':'var(--text)')+'">'+usdStr+'</div>'
+      +'<div class="pcard-price-s">'+psoStr+'</div></div>'
+      +'<div>'+ratingPill(r[PK.atencion])+'<div style="font-size:9px;color:var(--muted-l);margin-top:2px">Atención</div></div>'
+      +'<div>'+ratingPill(r[PK.calidad])+'<div style="font-size:9px;color:var(--muted-l);margin-top:2px">Calidad</div></div>'
+      +'<div>'+ratingPill(r[PK.demora])+'<div style="font-size:9px;color:var(--muted-l);margin-top:2px">Demora</div></div>'
+      +'<div class="pcard-pago">'+esc(String(r[PK.pago]||'—'))+'</div>'
+      +'<div class="pbar-wrap"><div class="pbar-bg"><div class="pbar-fill" style="width:'+barPct+'%;background:'+barCol+'"></div></div>'
+      +'<div class="pbar-lbl">'+Math.round(barPct)+'% rel.</div></div>'
+      +'<div class="score-circle" style="border-color:'+scCol+';color:'+scCol+'">'+sc+'</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('podium').innerHTML=pHtml;
+  document.getElementById('comp-panel').style.display='block';
+  document.getElementById('comp-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ─── Evolución de Precios desde OC/Recepción ─────────────────
+function renderHistorico(art){
+  var panel  = document.getElementById('hist-panel');
+  var content= document.getElementById('hist-content');
+  setText('hist-art', art.length>38 ? art.slice(0,38)+'…' : art);
+
+  // Fuzzy match contra descripción en OC:
+  // — igualdad exacta, O bien
+  // — si ambos strings tienen al menos 6 chars: uno contiene al otro, o comparten prefijo de 8 chars
+  // Se usa minLen=8 para evitar falsos positivos con nombres cortos (<6 chars → sin match fuzzy)
+  var artN = norm(art);
+  var FUZZ_MIN = 6;  // longitud mínima requerida para aplicar fuzzy
+  var PREFIX_LEN = 8; // prefijo a comparar en fuzzy
+  var ocRows = RAW_PED.filter(function(r){
+    var d = norm(String(r[OC_PK.desc]||''));
+    if(!d) return false;
+    if(d === artN) return true; // coincidencia exacta
+    // Solo aplicar fuzzy si ambos tienen longitud suficiente
+    if(artN.length < FUZZ_MIN || d.length < FUZZ_MIN) return false;
+    // Uno contiene completamente al otro
+    if(d.indexOf(artN) >= 0 || artN.indexOf(d) >= 0) return true;
+    // Prefijo compartido (al menos PREFIX_LEN chars)
+    var pLen = Math.min(PREFIX_LEN, artN.length, d.length);
+    return artN.slice(0, pLen) === d.slice(0, pLen);
+  });
+
+  if(!ocRows.length){
+    content.innerHTML='<div class="hist-empty">Sin historial de compras en OC/Recepción para este artículo.<br><small>Verificá que el nombre coincida con la columna Descripción en la hoja OC.</small></div>';
+    panel.style.display='block';
+    return;
+  }
+
+  // Ordenar por fecha, extraer pares fecha-precio
+  ocRows.sort(function(a,b){ return String(a[OC_PK.fecha]||'').localeCompare(String(b[OC_PK.fecha]||'')); });
+
+  var labels=[], prices=[], pricesPSO=[], provs=[], cantidades=[];
+  ocRows.forEach(function(r){
+    var f = String(r[OC_PK.fecha]||'').trim();
+    var p = pn(r[OC_PK.precioUn]);
+    if(f && p > 0){
+      labels.push(f.length>=7 ? f.slice(0,7) : f);
+      prices.push(p);
+      // Intentar leer precio en pesos si existe columna (OC_PK.precioPSO puede ser undefined)
+      pricesPSO.push(OC_PK.precioPSO ? pn(r[OC_PK.precioPSO]) : 0);
+      provs.push(String(r[OC_PK.proveedor]||''));
+      cantidades.push(pn(r[OC_PK.cantidad]));
+    }
+  });
+
+  if(!prices.length){
+    content.innerHTML='<div class="hist-empty">No hay precios unitarios (col. F) registrados para este artículo en OC/Recepción.</div>';
+    panel.style.display='block';
+    return;
+  }
+
+  // ── Mini análisis ─────────────────────────────────────────
+  var first=prices[0], last=prices[prices.length-1];
+  var minP=Math.min.apply(null,prices), maxP=Math.max.apply(null,prices);
+  var avg=prices.reduce(function(s,v){return s+v;},0)/prices.length;
+  var pctChange=first>0 ? ((last-first)/first*100) : 0;
+  var trend=pctChange>5?'up':pctChange<-5?'down':'stable';
+  var trendTxt=trend==='up'?'▲ Subiendo':trend==='down'?'▼ Bajando':'→ Estable';
+  var trendColor=trend==='up'?'var(--red)':trend==='down'?'var(--green)':'var(--amber)';
+  var pctStr=(pctChange>=0?'+':'')+pctChange.toFixed(1)+'%';
+
+  // Proveedor más frecuente
+  var provFreq={};
+  provs.forEach(function(p){if(p){provFreq[p]=(provFreq[p]||0)+1;}});
+  var topProv=Object.keys(provFreq).sort(function(a,b){return provFreq[b]-provFreq[a];})[0]||'—';
+
+  content.innerHTML=
+    // Selector de moneda para el gráfico
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
+      '<span style="font-size:11px;color:var(--muted-l);font-family:\'Syne\',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Historial de compras en OC</span>'+
+      '<div style="display:flex;align-items:center;gap:7px">'+
+        '<span style="font-size:10px;color:var(--muted-l)">Moneda:</span>'+
+        '<select id="evo-currency" class="fi" style="padding:4px 8px;font-size:11px" onchange="updateHistChart()">'+
+          '<option value="USD">U$S (Dólares)</option>'+
+          '<option value="PSO">$ (Pesos)</option>'+
+        '</select>'+
+      '</div>'+
+    '</div>'+
+    '<div class="evo-grid">'+
+      '<div class="evo-stat"><span class="evo-val" style="color:'+trendColor+'">'+trendTxt+'</span><span class="evo-lbl">Tendencia</span></div>'+
+      '<div class="evo-stat"><span class="evo-val" style="color:'+trendColor+'">'+pctStr+'</span><span class="evo-lbl">Variación total</span></div>'+
+      '<div class="evo-stat"><span class="evo-val" style="color:var(--green)">U$S '+minP.toFixed(2)+'</span><span class="evo-lbl">Precio mínimo</span></div>'+
+      '<div class="evo-stat"><span class="evo-val" style="color:var(--red)">U$S '+maxP.toFixed(2)+'</span><span class="evo-lbl">Precio máximo</span></div>'+
+      '<div class="evo-stat"><span class="evo-val">U$S '+avg.toFixed(2)+'</span><span class="evo-lbl">Precio promedio</span></div>'+
+      '<div class="evo-stat"><span class="evo-val">'+prices.length+'</span><span class="evo-lbl">Compras en OC</span></div>'+
+      '<div class="evo-stat"><span class="evo-val" style="font-size:11px;font-family:\'DM Sans\',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+topProv+'</span><span class="evo-lbl">Proveedor habitual</span></div>'+
+    '</div>'+
+    '<div class="hist-wrap"><canvas id="chart-hist"></canvas></div>';
+
+  // Guardar datos para selector de moneda
+  HIST_DATA = { labels:labels, pricesUSD:prices, pricesPSO:pricesPSO, provs:provs, cantidades:cantidades };
+  buildHistChart();
+
+  panel.style.display='block';
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ─── Gráfico de evolución (compartido con selector de moneda) ────
+function updateHistChart(){
+  buildHistChart();
+}
+function buildHistChart(){
+  var selEl = document.getElementById('evo-currency');
+  var usePSO = selEl && selEl.value === 'PSO';
+  var labels    = HIST_DATA.labels;
+  var prices    = usePSO ? HIST_DATA.pricesPSO : HIST_DATA.pricesUSD;
+  var provs     = HIST_DATA.provs;
+  var cantidades= HIST_DATA.cantidades;
+  var hasPSO    = HIST_DATA.pricesPSO.some(function(p){return p>0;});
+
+  // Si seleccionó pesos pero no hay datos de pesos, avisar y volver a USD
+  if(usePSO && !hasPSO){
+    toast('Sin datos de precio en pesos en OC. Mostrando en U$S.','inf');
+    if(selEl) selEl.value='USD';
+    usePSO=false;
+    prices=HIST_DATA.pricesUSD;
+  }
+
+  var sym = usePSO ? '$' : 'U$S';
+  var posP = prices.filter(function(p){return p>0;});
+  var minP = posP.length ? Math.min.apply(null, posP) : 0;
+  var maxP = posP.length ? Math.max.apply(null, posP) : 0;
+
+  if(CHART_H) CHART_H.destroy();
+  var canvasEl = document.getElementById('chart-hist');
+  if(!canvasEl) return;
+  var ctx = canvasEl.getContext('2d');
+  CHART_H = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels:labels,
+      datasets:[{
+        label:'Precio Unitario ('+sym+')',
+        data:prices,
+        borderColor:'rgba(27,200,255,.85)',
+        backgroundColor:'rgba(27,200,255,.07)',
+        pointBackgroundColor:prices.map(function(p){
+          return p===minP&&minP>0?'rgba(34,197,94,.95)':p===maxP&&maxP>0?'rgba(239,68,68,.95)':'rgba(27,200,255,.9)';
+        }),
+        pointRadius:prices.map(function(p){return (p===minP||p===maxP)&&p>0?7:4;}),
+        pointHoverRadius:9,
+        borderWidth:2,tension:.35,fill:true
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          mode:'index',intersect:false,
+          callbacks:{
+            title:function(c){return 'Fecha: '+labels[c[0].dataIndex];},
+            label:function(c){return ' Precio: '+sym+' '+c.parsed.y.toFixed(2);},
+            afterLabel:function(c){
+              var pr=provs[c.dataIndex], ca=cantidades[c.dataIndex];
+              var lines=[];
+              if(pr) lines.push(' Prov: '+pr);
+              if(ca) lines.push(' Cant: '+ca);
+              return lines;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{
+          ticks:{color:'#64748b',font:{size:10},callback:function(v){return sym+' '+v.toFixed(2);}},
+          grid:{color:'rgba(255,255,255,.04)'},beginAtZero:false
+        }
+      }
+    }
+  });
+}
+
+// ─── Catálogo filtrado ────────────────────────────────────────
+function filterCatalog(){
+  var q   =(document.getElementById('f-q').value||'').toLowerCase();
+  var prov= document.getElementById('f-prov').value;
+  var pago= document.getElementById('f-pago').value;
+  var cal = document.getElementById('f-cal').value;
+
+  CAT_FILT=RAW.filter(function(r){
+    if(q){var h=(String(r[PK.articulo]||'')+' '+String(r[PK.codigo]||'')+' '+String(r[PK.proveedor]||'')).toLowerCase();if(h.indexOf(q)<0)return false;}
+    if(prov && String(r[PK.proveedor]||'')!==prov) return false;
+    if(pago && String(r[PK.pago]||'').indexOf(pago)<0) return false;
+    if(cal  && String(r[PK.calidad]||'').toUpperCase()!==cal) return false;
+    return true;
+  });
+  catSortApply();
+  renderCatTable();
+  setText('cat-cnt', CAT_FILT.length+' registros');
+}
+
+function clearCatFilters(){
+  document.getElementById('f-q').value='';
+  document.getElementById('f-prov').value='';
+  document.getElementById('f-pago').value='';
+  document.getElementById('f-cal').value='';
+  filterCatalog();
+}
+
+function catSort(k){
+  CAT_SORT.d=CAT_SORT.k===k&&CAT_SORT.d==='asc'?'desc':'asc';
+  CAT_SORT.k=k; catSortApply(); renderCatTable(); updateSortIndicators();
+}
+function updateSortIndicators(){
+  // Actualiza el indicador visual (▲▼) en los th de la tabla de catálogo
+  var ths=document.querySelectorAll('#cat-table thead th');
+  var keyMap=['articulo','codigo','proveedor','precioUSD','precioPSO','','','','pago','fecha'];
+  ths.forEach(function(th,i){
+    var base=th.getAttribute('data-base-text');
+    if(!base){ base=th.textContent.replace(/[▲▼]/g,'').trim(); th.setAttribute('data-base-text',base); }
+    if(keyMap[i]&&keyMap[i]===CAT_SORT.k){
+      th.textContent=base+' '+(CAT_SORT.d==='asc'?'▲':'▼');
+      th.style.color='var(--orange)';
+    } else {
+      th.textContent=base;
+      th.style.color='';
+    }
+  });
+}
+
+function catSortApply(){
+  var k=CAT_SORT.k, d=CAT_SORT.d==='asc'?1:-1;
+  CAT_FILT.sort(function(a,b){
+    var va,vb;
+    if(k==='precioUSD'||k==='precioPSO'){va=pn(a[k==='precioUSD'?PK.precioUSD:PK.precioPSO]);vb=pn(b[k==='precioUSD'?PK.precioUSD:PK.precioPSO]);}
+    else if(k==='articulo') {va=String(a[PK.articulo]||'');vb=String(b[PK.articulo]||'');}
+    else if(k==='codigo')   {va=String(a[PK.codigo]  ||'');vb=String(b[PK.codigo]  ||'');}
+    else if(k==='proveedor'){va=String(a[PK.proveedor]||'');vb=String(b[PK.proveedor]||'');}
+    else if(k==='pago')     {va=String(a[PK.pago]    ||'');vb=String(b[PK.pago]    ||'');}
+    else if(k==='fecha')    {va=String(a[PK.fecha]   ||'');vb=String(b[PK.fecha]   ||'');}
+    else {va='';vb='';}
+    if(va<vb)return -1*d;if(va>vb)return 1*d;return 0;
+  });
+}
+
+function renderCatTable(){
+  if(!CAT_FILT.length){
+    document.getElementById('cat-tbody').innerHTML='<tr><td colspan="10" class="empty-td">Sin resultados.</td></tr>';
+    return;
+  }
+  // Calcular mínimos por artículo para resaltar
+  var artMins={};
+  CAT_FILT.forEach(function(r){
+    var a=String(r[PK.articulo]||'');
+    var usd=pn(r[PK.precioUSD]);
+    if(usd>0&&(artMins[a]===undefined||usd<artMins[a])) artMins[a]=usd;
+  });
+  var html=CAT_FILT.map(function(r){
+    var art=String(r[PK.articulo]||'—');
+    var usd=pn(r[PK.precioUSD]);
+    var pso=pn(r[PK.precioPSO]);
+    var isMin=usd>0&&artMins[art]===usd;
+    return '<tr onclick="selectArt(\''+esc(art)+'\')">'
+      +'<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis" title="'+esc(art)+'">'+esc(art)+(GROUPS[art]&&GROUPS[art].length>1?'<span style="font-size:9px;color:var(--orange);margin-left:5px">×'+GROUPS[art].length+'</span>':'')+'</td>'
+      +'<td class="muted" style="font-family:var(--mono);font-size:10px">'+esc(String(r[PK.codigo]||'—'))+'</td>'
+      +'<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis">'+esc(String(r[PK.proveedor]||'—'))+'</td>'
+      +'<td class="num" style="color:'+(isMin?'var(--green)':'var(--text)')+(isMin?';font-weight:700':'')+'">'+( usd>0?'U$S '+usd.toFixed(2):'—')+'</td>'
+      +'<td class="num muted">'+( pso>0?'$'+pso.toFixed(2):'—')+'</td>'
+      +'<td>'+ratingPill(r[PK.calidad])+'</td>'
+      +'<td>'+ratingPill(r[PK.atencion])+'</td>'
+      +'<td>'+ratingPill(r[PK.demora])+'</td>'
+      +'<td class="muted">'+esc(String(r[PK.pago]||'—'))+'</td>'
+      +'<td class="muted" style="font-family:var(--mono);font-size:10px">'+fmtDate(String(r[PK.fecha]||''))+'</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('cat-tbody').innerHTML=html;
+}
+
+// ─── Ranking proveedores ──────────────────────────────────────
+function renderProvRanking(){
+  var map={};
+  RAW.forEach(function(r){
+    var p=String(r[PK.proveedor]||'').trim();
+    if(!p) return;
+    if(!map[p]) map[p]={name:p,arts:new Set(),atScore:0,calScore:0,demScore:0,cnt:0,usdPrices:[]};
+    map[p].arts.add(String(r[PK.articulo]||''));
+    map[p].atScore  +=ratingVal(r[PK.atencion]);
+    map[p].calScore +=ratingVal(r[PK.calidad]);
+    map[p].demScore +=ratingVal(r[PK.demora]);
+    map[p].cnt++;
+    var usd=pn(r[PK.precioUSD]);
+    if(usd>0) map[p].usdPrices.push(usd);
+  });
+  var ranked=Object.values(map).map(function(m){
+    var cnt=m.cnt||1;
+    var qScore=Math.round((m.atScore+m.calScore*1.5+m.demScore)/(cnt*3.5/3)*100/3);
+    return Object.assign(m,{artCount:m.arts.size,qScore:qScore});
+  }).sort(function(a,b){return b.artCount-a.artCount||b.qScore-a.qScore;});
+
+  setText('prov-cnt', ranked.length+' proveedores');
+  var html=ranked.slice(0,12).map(function(m,i){
+    var at =Math.round(m.atScore /(m.cnt||1)*100/3);
+    var cal=Math.round(m.calScore/(m.cnt||1)*100/3);
+    var dem=Math.round(m.demScore/(m.cnt||1)*100/3);
+    var sc=Math.min(100,m.qScore);
+    var dotCol=function(v){return v>65?'var(--green)':v>40?'var(--amber)':'var(--red)';};
+    return '<div class="prov-rank-item" onclick="filterByProv(\''+esc(m.name)+'\')">'
+      +'<div class="pri-top">'
+      +'<span class="pri-rank">'+(i+1)+'</span>'
+      +'<span class="pri-name">'+esc(m.name)+'</span>'
+      +'<span class="pri-arts">'+m.artCount+' art.</span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between">'
+      +'<div class="pri-stars">'
+      +'<div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted-l)">Atenc.<div class="star-dot" style="background:'+dotCol(at)+'"></div></div>'
+      +'<div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted-l)">Cal.<div class="star-dot" style="background:'+dotCol(cal)+'"></div></div>'
+      +'<div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--muted-l)">Dem.<div class="star-dot" style="background:'+dotCol(dem)+'"></div></div>'
+      +'</div>'
+      +'<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:'+(sc>=65?'var(--green)':sc>=45?'var(--amber)':'var(--red)')+'">Score: '+sc+'</span>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('prov-rank-list').innerHTML=html||'<div class="empty-td">Sin datos.</div>';
+}
+
+// ─── Más competidos ───────────────────────────────────────────
+function renderCompList(){
+  var withComp=ARTLIST.filter(function(a){return GROUPS[a].length>1;})
+    .sort(function(a,b){return GROUPS[b].length-GROUPS[a].length;})
+    .slice(0,12);
+  setText('comp-cnt-badge', withComp.length+' artículos');
+  var html=withComp.map(function(a){
+    var rows=GROUPS[a];
+    var validUSD=rows.map(function(r){return pn(r[PK.precioUSD]);}).filter(function(p){return p>0;});
+    var minUSD=validUSD.length?Math.min.apply(null,validUSD):0;
+    var maxUSD=validUSD.length?Math.max.apply(null,validUSD):0;
+    var spread=minUSD>0?Math.round((maxUSD-minUSD)/minUSD*100):0;
+    return '<div style="padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.03);'
+      +'border:1px solid var(--border);cursor:pointer;transition:border-color .15s" '
+      +'onclick="selectArt(\''+esc(a)+'\')" onmouseover="this.style.borderColor=\'rgba(249,115,22,.4)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">'
+      +'<span style="font-size:11px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.slice(0,32))+'</span>'
+      +'<span style="font-family:var(--mono);font-size:10px;color:var(--orange);white-space:nowrap">×'+rows.length+'</span>'
+      +'</div>'
+      +(spread>0?'<div style="font-size:10px;color:var(--muted-l);margin-top:2px;font-family:var(--mono)">Brecha: <span style="color:'+(spread>30?'var(--green)':'var(--muted-l)')+'">'+spread+'%</span> entre mejor y peor precio</div>':'')
+      +'</div>';
+  }).join('');
+  document.getElementById('comp-list').innerHTML=html||'<div class="empty-td">Sin artículos con competencia.</div>';
+}
+
+// ─── Populate filtros ─────────────────────────────────────────
+function populateFilters(){
+  var sel=document.getElementById('f-prov');
+  sel.innerHTML='<option value="">Todos los proveedores</option>'+
+    PROVLIST.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
+}
+
+function filterByProv(prov){
+  document.getElementById('f-prov').value=prov;
+  filterCatalog();
+  document.getElementById('cat-tbody').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ─── Export ───────────────────────────────────────────────────
+function exportCSV(){
+  var rows=CAT_FILT;
+  var cols=[PK.fecha,PK.codigo,PK.articulo,PK.proveedor,PK.precioUSD,PK.precioPSO,PK.atencion,PK.calidad,PK.demora,PK.pago];
+  var hdr=['Fecha','Código','Artículo','Proveedor','Precio USD s/IVA','Precio $ s/IVA','Atención','Calidad','Demora','Modalidad Pago'];
+  var csv='﻿'+hdr.join(',')+'\n'+rows.map(function(r){return cols.map(function(c){return '"'+String(r[c]||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  download(csv,'precios_subatir_'+new Date().toISOString().slice(0,10)+'.csv');
+  toast('CSV exportado ('+rows.length+' filas)','ok');
+}
+
+function exportCompCSV(){
+  if(!SEL_ART) return;
+  var rows=GROUPS[SEL_ART]||[];
+  var cols=[PK.proveedor,PK.codProv,PK.precioUSD,PK.precioPSO,PK.atencion,PK.calidad,PK.demora,PK.pago,PK.fecha];
+  var hdr=['Proveedor','Cód.Prov','USD s/IVA','$ s/IVA','Atención','Calidad','Demora','Pago','Fecha'];
+  var csv='﻿Artículo:,'+SEL_ART+'\n'+hdr.join(',')+'\n'+rows.map(function(r){return cols.map(function(c){return '"'+String(r[c]||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  download(csv,'comparativa_'+SEL_ART.slice(0,20).replace(/[^a-z0-9]/gi,'_')+'_'+new Date().toISOString().slice(0,10)+'.csv');
+  toast('Comparativa exportada','ok');
+}
+
+function download(csv, name){
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=name; a.click();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+function ratingVal(v){
+  var s=String(v||'').toUpperCase().trim();
+  return s==='BUENA'?3:s==='REGULAR'?2:s==='MALA'?1:2;
+}
+function ratingPill(v){
+  var s=String(v||'').toUpperCase().trim();
+  if(s==='BUENA')   return '<span class="rp rp-b">✓ Buena</span>';
+  if(s==='REGULAR') return '<span class="rp rp-r">~ Regular</span>';
+  if(s==='MALA')    return '<span class="rp rp-m">✗ Mala</span>';
+  return '<span class="rp rp-nd">—</span>';
+}
+function pn(v){if(!v&&v!==0)return 0;var s=String(v).replace(/[^\d.,-]/g,'').replace(',','.');return parseFloat(s)||0;}
+function fmtDate(d){
+  if(!d||d==='')return '—';
+  var p=String(d).split('-');
+  if(p.length===3&&p[0].length===4)return p[2]+'/'+p[1]+'/'+p[0];
+  return d;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+function toast(msg,type){
+  var c=document.getElementById('tc'),d=document.createElement('div');
+  d.className='toast t-'+(type||'inf');d.textContent=msg;c.appendChild(d);
+  setTimeout(function(){d.style.opacity='0';d.style.transition='opacity .35s';setTimeout(function(){d.remove();},350);},3600);
+}
+</script>
+</body>
+</html>

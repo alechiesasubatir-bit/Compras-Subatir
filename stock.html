@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Control de Stock — Subatir / Prolimpio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ═══ TOKENS ══════════════════════════════════════════════════ */
+:root{
+  --bg0:#040810;--bg1:#080f1c;--bg2:#0b1628;--bg3:#0e1d34;
+  --teal:#0e6b8a;--teal-l:#12a0cc;--teal-g:rgba(14,107,138,.18);
+  --orange:#f97316;--orange-d:#c2580a;
+  --glass:rgba(255,255,255,.035);--glass-b:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.07);--border-b:rgba(255,255,255,.12);
+  --text:#dde6f0;--muted:#4e6175;--muted-l:#6b7f93;
+  --red:#ef4444;--red-g:rgba(239,68,68,.18);--red-b:rgba(239,68,68,.35);
+  --amber:#f59e0b;--amber-g:rgba(245,158,11,.15);--amber-b:rgba(245,158,11,.3);
+  --green:#22c55e;--green-g:rgba(34,197,94,.12);--green-b:rgba(34,197,94,.25);
+  --mono:'IBM Plex Mono',monospace;
+  --r:13px;--shadow:0 12px 40px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scrollbar-gutter:stable;overflow-x:hidden}
+body{
+  background:var(--bg0);
+  min-height:100vh;color:var(--text);
+  font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 55% at 5% 10%,rgba(167,139,250,.12) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,rgba(14,138,170,.09) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 50%,rgba(249,115,22,.04) 0%,transparent 50%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity:.5;
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(14,107,138,.6);border-radius:3px}
+
+/* ── Glass ─────────────────────────────────────────────────── */
+.glass{
+  background:var(--glass);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);
+}
+
+/* ═══ HEADER ══════════════════════════════════════════════════ */
+header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:13px 22px;
+  background:linear-gradient(90deg,rgba(14,107,138,.2) 0%,rgba(4,8,16,.7) 100%);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(24px);
+}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-mark{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  object-fit:cover;display:block;
+  box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
+}
+.logo h1{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo p{font-size:10px;color:var(--muted-l);margin-top:1px}
+nav{display:flex;gap:3px;flex-wrap:wrap}
+.nl{
+  padding:5px 13px;border-radius:7px;font-size:12px;font-weight:600;
+  color:var(--muted-l);text-decoration:none;transition:all .18s;border:1px solid transparent;
+}
+.nl:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.nl.on{
+  color:#fff;
+  background:linear-gradient(135deg,rgba(14,138,170,.4),rgba(27,200,255,.25));
+  border-color:rgba(27,200,255,.3);box-shadow:0 0 10px rgba(14,138,170,.25);
+}
+.nl.dim{opacity:.35;cursor:not-allowed;pointer-events:none}
+.hdr-right{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ts{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.btn{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 13px;
+  border-radius:8px;border:none;cursor:pointer;
+  font-size:11px;font-weight:700;letter-spacing:.4px;transition:all .18s;
+}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.1)}
+.btn-teal{background:linear-gradient(135deg,var(--teal),var(--teal-l));color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text)}
+.btn-orange{background:linear-gradient(135deg,var(--orange-d),var(--orange));color:#fff}
+.btn-sm{padding:4px 10px;font-size:10px}
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.12);
+  border-top-color:var(--teal-l);border-radius:50%;animation:spin .65s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══ MAIN ════════════════════════════════════════════════════ */
+.main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
+
+/* ═══ ALERT BANNER ════════════════════════════════════════════ */
+.alert-bar{
+  display:none;padding:11px 16px;border-radius:10px;
+  background:linear-gradient(90deg,rgba(239,68,68,.12),rgba(239,68,68,.04));
+  border:1px solid var(--red-b);
+  display:flex;align-items:center;gap:10px;font-size:13px;
+}
+.alert-bar .pulse-dot{
+  width:10px;height:10px;border-radius:50%;background:var(--red);flex-shrink:0;
+  animation:pulse-red 1.2s ease-in-out infinite;
+}
+@keyframes pulse-red{
+  0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.6)}
+  50%{box-shadow:0 0 0 7px rgba(239,68,68,0)}
+}
+.alert-bar span{color:#fca5a5;flex:1}
+
+/* ═══ KPI ROW ══════════════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:13px}
+.kpi{
+  padding:18px 16px;position:relative;overflow:hidden;
+  transition:transform .2s;cursor:default;
+}
+.kpi:hover{transform:translateY(-3px)}
+.kpi::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  border-radius:0 0 var(--r) var(--r);
+}
+.kpi-total::after  {background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.kpi-crit::after   {background:linear-gradient(90deg,var(--red),#ff6b6b)}
+.kpi-medio::after  {background:linear-gradient(90deg,var(--amber),#fcd34d)}
+.kpi-optimo::after {background:linear-gradient(90deg,var(--green),#4ade80)}
+.kpi-valor::after  {background:linear-gradient(90deg,var(--orange-d),var(--orange))}
+
+.kpi-label{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:10px}
+.kpi-num{font-family:var(--mono);font-size:32px;font-weight:700;line-height:1;letter-spacing:-1px}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:5px;font-family:var(--mono)}
+.kpi-icon{position:absolute;right:14px;top:14px;font-size:20px;opacity:.4}
+.c-teal{color:var(--teal-l)}.c-red{color:var(--red)}.c-amber{color:var(--amber)}
+.c-green{color:var(--green)}.c-orange{color:var(--orange)}
+
+/* ═══ GRID PRINCIPAL ═══════════════════════════════════════════ */
+.main-grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
+@media(max-width:920px){.main-grid{grid-template-columns:1fr}}
+
+/* ── Section header ─────────────────────────────────────────── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sec-hdr h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;letter-spacing:.2px}
+.sec-hdr h2 em{
+  font-style:normal;
+  background:linear-gradient(90deg,var(--teal-l),#5dd8ff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.b-info{background:rgba(14,107,138,.2);color:var(--teal-l);border:1px solid rgba(14,107,138,.3)}
+.b-red {background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid var(--red-b)}
+.b-amb {background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid var(--amber-b)}
+
+/* ─── Filtros ───────────────────────────────────────────────── */
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.fi{
+  padding:6px 10px;border-radius:7px;font-size:11px;
+  background:#0c1119;border:1px solid var(--border);
+  color:var(--text);outline:none;cursor:pointer;
+  color-scheme:dark;
+}
+.fi option{background:#0c1119;color:var(--text)}
+.fi:focus{border-color:var(--teal-l)}
+.fi-search{
+  flex:1;min-width:180px;max-width:280px;
+  padding:6px 10px 6px 30px;border-radius:7px;font-size:11px;
+  background:rgba(255,255,255,.05);border:1px solid var(--border);
+  color:var(--text);outline:none;position:relative;
+}
+.fi-search:focus{border-color:var(--teal-l)}
+.fi-search::placeholder{color:var(--muted)}
+.search-wrap{position:relative;flex:1;min-width:180px;max-width:280px}
+.search-wrap::before{content:'⌕';position:absolute;left:9px;top:50%;
+  transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none}
+
+/* ─── Tabla ─────────────────────────────────────────────────── */
+.tbl-wrap{overflow:auto;max-height:480px}
+#tbl-sug .tbl-wrap{max-height:560px}
+.sug-row-critico td:first-child{border-left:3px solid var(--red)}
+.sug-row-bajo td:first-child{border-left:3px solid var(--amber)}
+.sug-row-ok td:first-child{border-left:3px solid var(--green)}
+.cob-chip{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:700}
+.cob-chip.crit{background:rgba(239,68,68,.14);color:var(--red)}
+.cob-chip.bajo{background:rgba(245,158,11,.14);color:var(--amber)}
+.cob-chip.ok{background:rgba(34,197,94,.12);color:var(--green)}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead{position:sticky;top:0;z-index:10}
+thead th{
+  padding:8px 10px;text-align:left;white-space:nowrap;
+  background:rgba(14,138,170,.15);color:var(--teal-l);
+  font-family:'Syne',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
+  border-bottom:1px solid var(--border);cursor:pointer;user-select:none;
+}
+thead th:hover{background:rgba(14,107,138,.25)}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.035);transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.04)}
+tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
+.num{font-family:var(--mono);text-align:right}
+.muted{color:var(--muted-l)}
+.empty-td{text-align:center;padding:28px;color:var(--muted);font-size:13px}
+
+/* Status dot */
+.sdot{
+  width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0;
+}
+.sdot.crit{background:var(--red);box-shadow:0 0 7px rgba(239,68,68,.8);animation:pulse-red 1.4s infinite}
+.sdot.medio{background:var(--amber);box-shadow:0 0 6px rgba(245,158,11,.6)}
+.sdot.optimo{background:var(--green);box-shadow:0 0 5px rgba(34,197,94,.4)}
+.sdot.sindato{background:var(--muted);opacity:.6}
+
+/* Mini cobertura bar in table */
+.cob-wrap{display:flex;align-items:center;gap:6px}
+.cob-bar{flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:2px;min-width:40px}
+.cob-fill{height:100%;border-radius:2px;transition:width .5s}
+.cob-val{font-family:var(--mono);font-size:10px;color:var(--muted-l);width:28px;text-align:right}
+
+/* Row actions */
+.ract{display:flex;gap:5px}
+.ibtn{border:none;cursor:pointer;padding:4px 9px;border-radius:7px;
+  font-size:12px;font-weight:600;transition:all .14s;
+  display:inline-flex;align-items:center;gap:3px;}
+.ibtn-view{background:rgba(14,138,170,.2);color:var(--teal-l);border:1px solid rgba(14,138,170,.35)}
+.ibtn-view:hover{background:rgba(14,138,170,.35);transform:translateY(-1px)}
+.ibtn-edit{background:rgba(249,115,22,.16);color:var(--orange);border:1px solid rgba(249,115,22,.3)}
+.ibtn-edit:hover{background:rgba(249,115,22,.3);transform:translateY(-1px)}
+
+/* ═══ COLUMNA DERECHA ══════════════════════════════════════════ */
+.right-col{display:flex;flex-direction:column;gap:14px}
+
+/* Donut chart */
+.chart-wrap{height:180px;display:flex;align-items:center;justify-content:center;
+  position:relative}
+.chart-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;
+}
+.chart-center .big{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--text)}
+.chart-center .sml{font-size:9px;color:var(--muted-l);text-transform:uppercase;letter-spacing:.8px}
+
+/* Top críticos list */
+.crit-list{display:flex;flex-direction:column;gap:6px;max-height:210px;overflow-y:auto}
+.crit-item{
+  padding:9px 11px;border-radius:9px;
+  background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);
+  display:flex;flex-direction:column;gap:4px;
+}
+.crit-item.medio{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.2)}
+.crit-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.crit-name{font-size:11px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crit-badge{font-family:var(--mono);font-size:9px;white-space:nowrap;color:var(--muted-l)}
+.crit-bar-bg{height:4px;background:rgba(255,255,255,.06);border-radius:2px}
+.crit-bar-fill{height:100%;border-radius:2px}
+
+/* Sugerencias */
+.sug-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.sug-item{
+  padding:9px 11px;border-radius:9px;
+  background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.sug-name{font-size:11px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sug-qty{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--orange);white-space:nowrap}
+.sug-prov{font-size:9px;color:var(--muted-l);margin-top:2px}
+
+/* ═══ SEMÁFORO GRID ════════════════════════════════════════════ */
+.sem-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:10px;
+}
+.sem-card{
+  padding:12px 13px;border-radius:11px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  transition:transform .18s,border-color .18s;cursor:default;
+  position:relative;overflow:hidden;
+}
+.sem-card:hover{transform:translateY(-2px)}
+.sem-card.crit{
+  background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.3);
+  box-shadow:0 0 0 1px rgba(239,68,68,.12);
+}
+.sem-card.medio{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.25)}
+.sem-card.optimo{background:rgba(34,197,94,.04);border-color:rgba(34,197,94,.15)}
+.sem-card.sindato{opacity:.55}
+
+.sem-top{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.sem-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sem-dot.crit{background:var(--red);box-shadow:0 0 8px rgba(239,68,68,.9);animation:pulse-red 1.3s infinite}
+.sem-dot.medio{background:var(--amber);box-shadow:0 0 6px rgba(245,158,11,.6)}
+.sem-dot.optimo{background:var(--green);box-shadow:0 0 5px rgba(34,197,94,.4)}
+.sem-dot.sindato{background:var(--muted)}
+
+.sem-name{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.sem-codigo{font-family:var(--mono);font-size:9px;color:var(--muted);position:absolute;top:10px;right:10px}
+
+.sem-stats{display:flex;justify-content:space-between;margin-bottom:6px}
+.sem-stat{font-size:10px;color:var(--muted-l)}
+.sem-stat strong{display:block;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);line-height:1.2}
+
+.sem-gauge-bg{height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden}
+.sem-gauge-fill{height:100%;border-radius:3px;transition:width .7s cubic-bezier(.34,1.56,.64,1)}
+.sem-months{font-family:var(--mono);font-size:9px;color:var(--muted-l);margin-top:4px;text-align:right}
+
+/* ═══ MODAL ═══════════════════════════════════════════════════ */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);
+  backdrop-filter:blur(5px);z-index:500;display:none;
+  align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.modal{
+  background:linear-gradient(150deg,#0d1b2e,#090f1b);
+  border:1px solid var(--border-b);border-radius:16px;
+  width:100%;max-width:560px;max-height:88vh;overflow-y:auto;
+  box-shadow:0 28px 90px rgba(0,0,0,.75);
+}
+.modal-hdr{padding:18px 22px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:15px;font-weight:700}
+.modal-x{background:none;border:none;color:var(--muted-l);font-size:18px;
+  cursor:pointer;padding:3px 7px;border-radius:5px;line-height:1}
+.modal-x:hover{color:var(--text);background:rgba(255,255,255,.07)}
+.modal-body{padding:18px 22px}
+.modal-ftr{padding:14px 22px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:9px}
+
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+.fg label{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:.7px;text-transform:uppercase}
+.fi2{
+  padding:8px 11px;border-radius:8px;font-size:12px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);
+  color:var(--text);outline:none;width:100%;transition:border .18s;
+}
+.fi2:focus{border-color:var(--teal-l)}
+.fi2::placeholder{color:var(--muted)}
+textarea.fi2{resize:vertical;min-height:65px;font-family:inherit}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Detail tiles in modal */
+.dtiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.dtile{padding:10px 12px;background:rgba(255,255,255,.03);border-radius:9px;border:1px solid var(--border)}
+.dtile-lbl{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px}
+.dtile-val{font-family:var(--mono);font-size:14px;font-weight:700}
+.dtile.s2{grid-column:1/-1}
+.dtile-div{grid-column:1/-1;height:1px;background:var(--border)}
+
+/* ═══ TOAST ═══════════════════════════════════════════════════ */
+#tc{position:fixed;bottom:22px;right:22px;z-index:999;
+  display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{
+  padding:10px 15px;border-radius:9px;font-size:12px;font-weight:600;
+  min-width:240px;animation:tin .22s ease;pointer-events:all;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);
+}
+.t-ok {background:rgba(34,197,94,.18);border:1px solid var(--green-b);color:#86efac}
+.t-err{background:rgba(239,68,68,.18);border:1px solid var(--red-b);color:#fca5a5}
+.t-inf{background:rgba(14,107,138,.22);border:1px solid rgba(14,107,138,.4);color:var(--teal-l)}
+@keyframes tin{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* Sync badge */
+.sync-b{
+  display:none;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;
+  background:rgba(249,115,22,.18);border:1px solid rgba(249,115,22,.38);color:var(--orange);
+}
+.sync-b.vis{display:flex}
+/* ─── Estado badge ──────────────────────────────────────────── */
+.est-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:2px 8px;border-radius:20px;
+  font-family:'Syne',sans-serif;font-size:9px;font-weight:700;
+  letter-spacing:.7px;text-transform:uppercase;white-space:nowrap;
+}
+.est-badge.crit{
+  background:var(--red-g);border:1px solid var(--red-b);color:#fca5a5;
+}
+.est-badge.medio{
+  background:var(--amber-g);border:1px solid var(--amber-b);color:#fcd34d;
+}
+.est-badge.optimo{
+  background:var(--green-g);border:1px solid var(--green-b);color:#86efac;
+}
+.est-badge.transito{
+  background:rgba(27,200,255,.12);border:1px solid rgba(27,200,255,.3);color:var(--teal-l);
+}
+
+/* ─── Cobertura coloreada ────────────────────────────────────── */
+.cob-text{font-family:var(--mono);font-size:10px;font-weight:600;white-space:nowrap}
+.cob-text.crit{color:var(--red)}
+.cob-text.medio{color:var(--amber)}
+.cob-text.optimo{color:var(--green)}
+.cob-text.muted{color:var(--muted-l)}
+
+/* ─── En tránsito ────────────────────────────────────────────── */
+.transit-cell{
+  display:inline-flex;align-items:center;gap:4px;
+  font-family:var(--mono);font-size:10px;
+  color:var(--teal-l);font-weight:600;
+}
+.transit-cell .icon{font-size:11px}
+
+/* ─── Alternating rows ───────────────────────────────────────── */
+tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
+
+/* ── Ticker ──────────────────────────────────────────────────── */
+.ticker-bar{overflow:hidden;background:linear-gradient(90deg,rgba(14,138,170,.18),rgba(167,139,250,.12),rgba(14,138,170,.18));border-bottom:1px solid rgba(27,200,255,.15);height:32px;display:flex;align-items:center;position:relative;z-index:100}
+.ticker-bar::before,.ticker-bar::after{content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
+.ticker-bar::before{left:0;background:linear-gradient(90deg,rgba(7,9,15,1),transparent)}
+.ticker-bar::after{right:0;background:linear-gradient(270deg,rgba(7,9,15,1),transparent)}
+.ticker-label{flex-shrink:0;font-family:'Syne',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--teal-l);background:rgba(14,138,170,.25);border-right:1px solid rgba(14,138,170,.3);padding:0 12px;height:100%;display:flex;align-items:center;text-transform:uppercase;z-index:3;white-space:nowrap}
+.ticker-track{display:flex;white-space:nowrap;animation:ticker-scroll 28s linear infinite}
+.ticker-item{display:inline-flex;align-items:center;gap:8px;padding:0 32px;font-size:11px;color:rgba(200,220,255,.7);font-family:'DM Sans',sans-serif}
+.ticker-item b{color:var(--teal-l)}
+.ti-dot{width:5px;height:5px;border-radius:50%;background:var(--orange);flex-shrink:0}
+@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ════════════════════════════════════════════════ -->
+<header>
+  <a class="logo" href="index.html" style="text-decoration:none">
+    <img class="logo-mark" src="logo.jpg" alt="Subatir"/>
+    <div>
+      <h1>Subatir</h1>
+      <p>Control de Stock</p>
+    </div>
+  </a>
+  <nav>
+    <a href="index.html"   class="nl">⬡ Dashboard</a>
+    <a href="pedidos.html" class="nl">📦 Pedidos</a>
+    <a href="stock.html"   class="nl on">📊 Stock</a>
+    <a href="precios.html" class="nl">💲 Precios</a>
+    <a href="proveedores.html"  class="nl">🏭 Proveedores</a>
+    <a href="contingencia.html" class="nl">🛡 Contingencia</a>
+    <a href="copiloto.html"     class="nl">🤖 Copiloto IA</a>
+  </nav>
+  <div class="hdr-right">
+    <div class="sync-b" id="sync-badge">⚡ <span id="sync-cnt">0</span> pendientes</div>
+    <span class="ts" id="ts">—</span>
+    <button class="btn btn-ghost btn-sm" id="btn-ref" onclick="refresh()">
+      <span id="spin" style="display:none" class="spin"></span>
+      <span id="ref-lbl">⟳ Actualizar</span>
+    </button>
+    <button class="btn btn-orange btn-sm" id="btn-sync" style="display:none" onclick="syncAll()">☁ Sync</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+</header>
+
+<!-- ── Ticker banner ─────────────────────────────────────────── -->
+<div class="ticker-bar">
+  <span class="ticker-label">⬡ STOCK</span>
+  <div class="ticker-track">
+    <span class="ticker-item"><span class="ti-dot"></span>Control de Stock — <b>Subatir S.A. / Prolimpio</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Inventario actualizado desde hoja COMPRAS</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Alertas automáticas por stock mínimo y compra sugerida</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Seguimiento de órdenes en tránsito y cobertura mensual</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Control de Stock — <b>Subatir S.A. / Prolimpio</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Inventario actualizado desde hoja COMPRAS</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Alertas automáticas por stock mínimo y compra sugerida</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Seguimiento de órdenes en tránsito y cobertura mensual</span>
+  </div>
+</div>
+
+<!-- ══ MAIN ══════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- Alert banner -->
+  <div class="alert-bar" id="alert-bar" style="display:none">
+    <div class="pulse-dot"></div>
+    <span id="alert-txt"></span>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="glass kpi kpi-total">
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-label">Artículos monitoreados</div>
+      <div class="kpi-num c-teal" id="k-total">—</div>
+      <div class="kpi-sub" id="k-total-sub">—</div>
+    </div>
+    <div class="glass kpi kpi-crit">
+      <div class="kpi-icon">🔴</div>
+      <div class="kpi-label">Stock Crítico</div>
+      <div class="kpi-num c-red" id="k-crit">—</div>
+      <div class="kpi-sub">solicitar urgente</div>
+    </div>
+    <div class="glass kpi kpi-medio">
+      <div class="kpi-icon">🟡</div>
+      <div class="kpi-label">Nivel Medio</div>
+      <div class="kpi-num c-amber" id="k-medio">—</div>
+      <div class="kpi-sub">vigilar cobertura</div>
+    </div>
+    <div class="glass kpi kpi-optimo">
+      <div class="kpi-icon">🟢</div>
+      <div class="kpi-label">Stock Óptimo</div>
+      <div class="kpi-num c-green" id="k-opt">—</div>
+      <div class="kpi-sub">cobertura adecuada</div>
+    </div>
+    <div class="glass kpi kpi-valor">
+      <div class="kpi-icon">💵</div>
+      <div class="kpi-label">Cobertura prom.</div>
+      <div class="kpi-num c-orange" id="k-cob">—</div>
+      <div class="kpi-sub">meses de stock promedio</div>
+    </div>
+    <div class="glass kpi kpi-total" style="--accent:var(--teal-l)">
+      <div class="kpi-icon">✈</div>
+      <div class="kpi-label">Valor en tránsito</div>
+      <div class="kpi-num c-teal" id="k-transit">—</div>
+      <div class="kpi-sub" id="k-transit-sub">artículos en camino</div>
+    </div>
+  </div>
+
+  <!-- Grilla principal -->
+  <div class="main-grid">
+
+    <!-- Izquierda: tabla -->
+    <div class="glass" style="padding:18px">
+      <div class="sec-hdr">
+        <h2>📋 <em>Inventario de Materia Prima</em></h2>
+        <div style="display:flex;gap:7px">
+          <span class="badge b-info" id="tbl-cnt">—</span>
+        </div>
+      </div>
+      <div class="filters">
+        <div class="search-wrap">
+          <input class="fi fi-search" id="f-q" placeholder="Buscar artículo, código…" oninput="applyFilters()"/>
+        </div>
+        <select class="fi" id="f-est" onchange="applyFilters()">
+          <option value="">Estado</option>
+          <option value="CRITICO">🔴 Crítico</option>
+          <option value="MEDIO">🟡 Medio</option>
+          <option value="OPTIMO">🟢 Óptimo</option>
+          <option value="TRANSITO">✈ Solo en tránsito</option>
+        </select>
+        <select class="fi" id="f-prov" onchange="applyFilters()">
+          <option value="">Todos los proveedores</option>
+        </select>
+        <select class="fi" id="f-cob" onchange="applyFilters()">
+          <option value="">Cobertura</option>
+          <option value="lt1">Menos de 1 mes</option>
+          <option value="lt3">Menos de 3 meses</option>
+          <option value="gt3">Más de 3 meses</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Est.</th>
+              <th onclick="sortBy('codigo')">Código</th>
+              <th onclick="sortBy('desc')">Descripción</th>
+              <th onclick="sortBy('stock')" class="num">Stock</th>
+              <th onclick="sortBy('minimo')" class="num">Mínimo</th>
+              <th onclick="sortBy('consumo')" class="num">Cons./mes</th>
+              <th onclick="sortBy('cobertura')">Cobertura</th>
+              <th onclick="sortBy('pendiente')" class="num">En tránsito</th>
+              <th onclick="sortBy('sugerida')" class="num">Compra sug.</th>
+              <th>Último proveedor</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="12" class="empty-td">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Derecha -->
+    <div class="right-col">
+
+      <!-- Donut semáforo -->
+      <div class="glass" style="padding:16px">
+        <div class="sec-hdr"><h2>🚦 <em>Semáforo de Stock</em></h2></div>
+        <div class="chart-wrap">
+          <canvas id="chart-sem" width="180" height="180"></canvas>
+          <div class="chart-center">
+            <div class="big" id="chart-pct">—</div>
+            <div class="sml">Óptimos</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top críticos -->
+      <div class="glass" style="padding:16px">
+        <div class="sec-hdr">
+          <h2>⚠ <em>Más Críticos</em></h2>
+          <span class="badge b-red" id="crit-cnt">—</span>
+        </div>
+        <div class="crit-list" id="crit-list">
+          <div class="empty-td">Sin datos</div>
+        </div>
+      </div>
+
+      <!-- Sugerencias de compra -->
+      <div class="glass" style="padding:16px">
+        <div class="sec-hdr">
+          <h2>🛒 <em>Compras Sugeridas</em></h2>
+          <span class="badge b-amb" id="sug-cnt">—</span>
+        </div>
+        <div class="sug-list" id="sug-list">
+          <div class="empty-td">Sin sugerencias</div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /main-grid -->
+
+  <!-- ══ PANEL SUGERENCIA DE COMPRA ══════════════════════════ -->
+  <div class="glass" id="panel-sug-compra" style="padding:20px">
+    <div class="sec-hdr" style="flex-wrap:wrap;gap:10px">
+      <h2>🛒 <em>Sugerencia de Compra por Meses de Stock</em></h2>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label style="font-size:11px;color:var(--muted-l)">Target cobertura:</label>
+        <select id="sug-meses" class="fi" style="width:auto" onchange="renderPanelSugerencia()">
+          <option value="1">1 mes</option>
+          <option value="2">2 meses</option>
+          <option value="3" selected>3 meses</option>
+          <option value="4">4 meses</option>
+          <option value="6">6 meses</option>
+          <option value="9">9 meses</option>
+          <option value="12">12 meses</option>
+        </select>
+        <label style="font-size:11px;color:var(--muted-l)">Mostrar:</label>
+        <select id="sug-filtro" class="fi" style="width:auto" onchange="renderPanelSugerencia()">
+          <option value="todos">Todos los artículos</option>
+          <option value="comprar" selected>Solo los que hay que comprar</option>
+          <option value="critico">Solo críticos</option>
+        </select>
+        <span class="badge b-amb" id="sug-panel-cnt">—</span>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table id="tbl-sug">
+        <thead>
+          <tr>
+            <th>Artículo</th>
+            <th class="num">Stock Actual</th>
+            <th class="num">Mínimo</th>
+            <th class="num">Cons./mes</th>
+            <th>Cobertura Actual</th>
+            <th class="num">En Tránsito</th>
+            <th>Cobertura c/Tránsito</th>
+            <th onclick="sortSug('sugerida')" class="num" style="cursor:pointer">Compra Sugerida ↕</th>
+            <th>Unidad</th>
+            <th>Proveedor Sugerido</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-sug">
+          <tr><td colspan="10" class="empty-td">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
+      <div style="font-size:11px;color:var(--muted-l)">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:4px;vertical-align:middle"></span>Crítico (stock ≤ mínimo)
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--amber);margin-right:4px;margin-left:12px;vertical-align:middle"></span>Bajo (stock ≤ 1.5× mínimo)
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);margin-right:4px;margin-left:12px;vertical-align:middle"></span>Óptimo
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="exportSugCSV()">⬇ Exportar CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Semáforo cards grid -->
+  <div class="glass" style="padding:18px">
+    <div class="sec-hdr">
+      <h2>📟 <em>Vista Semáforo — Todos los Artículos</em></h2>
+      <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:var(--muted-l)">
+        <span><span class="sdot crit" style="display:inline-block"></span> Crítico</span>
+        <span><span class="sdot medio" style="display:inline-block"></span> Medio</span>
+        <span><span class="sdot optimo" style="display:inline-block"></span> Óptimo</span>
+      </div>
+    </div>
+    <div class="sem-grid" id="sem-grid">
+      <div class="empty-td">Cargando…</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══ MODAL DETALLE / EDITAR ════════════════════════════════ -->
+<div class="overlay" id="ov-edit">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modal-title">Detalle de Artículo</div>
+      <button class="modal-x" onclick="closeOv('ov-edit')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="detail-tiles" class="dtiles"></div>
+      <div id="edit-form" style="display:none">
+        <div class="fg-row">
+          <div class="fg">
+            <label>Stock Mínimo ajustado</label>
+            <input type="number" class="fi2" id="ed-min" step="0.01" placeholder="0"/>
+          </div>
+          <div class="fg">
+            <label>Consumo mensual ajustado</label>
+            <input type="number" class="fi2" id="ed-cons" step="0.01" placeholder="0"/>
+          </div>
+        </div>
+        <div class="fg">
+          <label>Proveedor sugerido</label>
+          <input type="text" class="fi2" id="ed-prov" placeholder="Nombre del proveedor"/>
+        </div>
+        <div class="fg">
+          <label>Observaciones</label>
+          <textarea class="fi2" id="ed-obs" placeholder="Notas internas…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost btn-sm" id="btn-tog" onclick="toggleEdit()">✏ Editar</button>
+      <button class="btn btn-teal" id="btn-save" style="display:none" onclick="saveEdit()">💾 Guardar local</button>
+      <button class="btn btn-ghost" onclick="closeOv('ov-edit')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="tc"></div>
+
+<!-- ══ SCRIPT ═════════════════════════════════════════════════ -->
+<script>
+// ─── Estado ──────────────────────────────────────────────────
+var URL_AS  = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+var RAW_INV = [], RAW_STK = [], RAW_PED = [];
+var MERGED  = [];
+var FILT    = [];
+var SORT_K  = 'estado', SORT_D = 'asc';
+var CUR     = null;
+var CHART   = null;
+var LOCAL   = JSON.parse(localStorage.getItem('subatir_stock_local') ||
+              '{"overrides":{},"pendingSync":[]}');
+
+// Keys detectadas
+var IK = {}, SK = {}, PK = {}; // PK = keys de pedidos (para en-tránsito / proveedor sugerido)
+
+// ─── Init ─────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  if (!URL_AS){
+    toast('Sin URL de Apps Script. Configurá desde el Dashboard.','err');
+    document.getElementById('tbody').innerHTML =
+      '<tr><td colspan="12" class="empty-td">⚠ <a href="index.html" style="color:var(--teal-l)">Configurar URL →</a></td></tr>';
+  } else { load(); }
+  updateSyncUI();
+});
+
+// ─── Fetch con fallback JSONP ─────────────────────────────────
+function smartFetch(url, ok, err){
+  fetch(url)
+    .then(function(r){ return r.json(); }).then(ok)
+    .catch(function(){
+      var cb = '__sb_' + Date.now(), s = document.createElement('script');
+      window[cb] = function(d){ delete window[cb]; s.parentNode && s.parentNode.removeChild(s); ok(d); };
+      var sep = url.indexOf('?')>=0?'&':'?';
+      s.src = url + sep + 'callback=' + cb + '&_t=' + Date.now();
+      s.onerror = function(){ delete window[cb]; err(new Error('JSONP falló. Verificá URL y permisos.')); };
+      document.head.appendChild(s);
+    });
+}
+
+// ─── Carga ────────────────────────────────────────────────────
+function load(){
+  setLoading(true);
+  smartFetch(
+    URL_AS + '?action=getData&t=' + Date.now(),
+    function(d){
+      if(d.error){ setLoading(false); toast('Error: '+d.error,'err'); return; }
+      RAW_INV = d.inventario || []; // hoja COMPRAS
+      RAW_STK = d.stock      || []; // hoja INVENTARIO (secundaria)
+      RAW_PED = d.pedidos    || []; // hoja OC/Recepción para en-tránsito y proveedor sugerido
+      console.log('[Stock] COMPRAS:', RAW_INV.length, '| INVENTARIO:', RAW_STK.length, '| OC:', RAW_PED.length);
+      if(RAW_INV.length) console.log('[Stock] Cols COMPRAS:', Object.keys(RAW_INV[0]).join(' | '));
+      if(RAW_INV.length===0) toast('⚠ Hoja COMPRAS vacía. Hojas: '+(d.sheetNames||[]).join(', '),'err');
+      detectKeys();
+      buildMerged();
+      renderAll();
+      setLoading(false);
+      if(d.timestamp){
+        var dt = new Date(d.timestamp);
+        document.getElementById('ts').textContent =
+          'Act.: ' + dt.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+      }
+    },
+    function(e){ setLoading(false); toast('Error de conexión: '+e.message,'err'); }
+  );
+}
+function refresh(){ load(); }
+function setLoading(on){
+  document.getElementById('spin').style.display = on?'inline-block':'none';
+  document.getElementById('ref-lbl').textContent = on?'Cargando…':'⟳ Actualizar';
+}
+
+// ─── Detección de columnas ────────────────────────────────────
+function detectKeys(){
+  if(RAW_INV.length>0){
+    var k = Object.keys(RAW_INV[0]);
+    IK.codigo      = fk(k,['CODIGO','Código','codigo','COD','Cod.']);
+    // Artículo/Descripción: incluye variantes con/sin tilde, doble O y nombres alternativos
+    IK.desc        = fk(k,['DESCRIPCIÓN','DESCRIPCION','Descripción','Descripcion','Artículo','Articulo','ARTICULO','MATERIA PRIMA','MATERIAL','PRODUCTO','INSUMO']);
+    IK.consumo     = fk(k,['CONSUMO MENSUAL','Consumo mensual','consumo mensual','CONSUMO/MES','CONSUMO / MES','CONS MENSUAL','CONS.MES','CONS/MES','CONSUMO','CONSUMO PROM','PROMEDIO MENSUAL','PROM MENSUAL']);
+    IK.min         = fk(k,['STOCK MÍNIMO','STOCK MINIMO','Mínimo','Minimo','MINIMO','STOCK MIN']);
+    IK.stock       = fk(k,['INVENTARIO','inventario','Stock actual','STOCK ACTUAL','STOCK','EXISTENCIA','CANTIDAD ACTUAL']);
+    IK.solicitar   = fk(k,['SOLICITAR','solicitar','A SOLICITAR']);
+    // Proveedor sugerido en hoja COMPRAS: acepta typo original "PROOVEDOR" (doble O)
+    IK.provSugerido= fk(k,['PROOVEDOR SUGERIDO','PROVEEDOR SUGERIDO','Proveedor sugerido','PROOVEDOR','PROVEEDOR SUGE']);
+  }
+  if(RAW_PED.length>0){
+    var p = Object.keys(RAW_PED[0]);
+    PK.desc     = fk(p,['Descripción','Descripcion','DESCRIPCION','DESCRIPCIÓN','Artículo','Articulo','ARTICULO','MATERIAL']);
+    PK.prov     = fk(p,['Proveedor','PROVEEDOR','proveedor']);
+    PK.fecha    = fk(p,['Fecha','FECHA','F. OC','FECHA OC','Fecha OC']);
+    PK.recep    = fk(p,['F.Recepción','F. Recepción','F.Recepcion','F. Recepcion','Recepcion','RECEPCION','FECHA RECEPCION','Fecha Recepción','Recibido','RECIBIDO','Fecha entrega','FECHA ENTREGA']);
+    PK.cantidad = fk(p,['Cantidad','CANTIDAD','CANT']);
+    PK.precio   = fk(p,['Precio un','precio un','PRECIO UN','PRECIO UNIT','PRECIO','Precio']);
+  }
+  console.log('[Stock] IK detectado:', JSON.stringify(IK));
+  console.log('[Stock] PK detectado:', JSON.stringify(PK));
+  if(RAW_INV.length) console.log('[Stock] Cols COMPRAS:', Object.keys(RAW_INV[0]).join(' | '));
+  if(RAW_PED.length) console.log('[Stock] Cols OC:', Object.keys(RAW_PED[0]).join(' | '));
+}
+
+// fk: busca la primera columna real que coincida con algún candidato.
+// Estrategia: 1° exacta, 2° el candidato está contenido en la clave (mín 5 chars),
+//             3° la clave está contenida en el candidato (mín 5 chars).
+// El mínimo de 5 caracteres evita falsos positivos con claves cortas (ej: 'A','OC','CANT').
+function fk(keys,cands){
+  var MIN_SUBSTR = 5; // longitud mínima para match por substring
+  // Pasada 1: coincidencia exacta (case-sensitive)
+  for(var c=0;c<cands.length;c++)
+    for(var k=0;k<keys.length;k++)
+      if(keys[k]===cands[c]) return keys[k];
+  // Pasada 2: coincidencia exacta ignorando case y tildes (norm)
+  for(var c=0;c<cands.length;c++)
+    for(var k=0;k<keys.length;k++)
+      if(norm(keys[k])===norm(cands[c])) return keys[k];
+  // Pasada 3: substring contenido (solo si candidato tiene >= MIN_SUBSTR chars)
+  for(var c=0;c<cands.length;c++){
+    if(cands[c].length < MIN_SUBSTR) continue;
+    for(var k=0;k<keys.length;k++){
+      var nk = norm(keys[k]), nc = norm(cands[c]);
+      if(nk.indexOf(nc)>=0 || nc.indexOf(nk)>=0) return keys[k];
+    }
+  }
+  return cands[0]; // fallback al primer candidato si no hay match real
+}
+
+// ─── norm: normaliza texto para comparación (sin tildes, mayúsc, sin espacios extra) ─
+// IMPORTANTE: definida antes de buildOCIndex() para que esté disponible en su ejecución
+function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase(); }
+
+// ─── Construye índice de OCs por artículo (en-tránsito + último proveedor) ───
+function buildOCIndex(){
+  var idx = {}; // normalizedDesc → { pendiente, valorPendiente, lastProv, lastFecha, lastPrecio }
+  RAW_PED.forEach(function(oc){
+    var desc = norm(String(oc[PK.desc]||''));
+    if(!desc || desc.length < 3) return;
+    if(!idx[desc]) idx[desc] = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', origDesc: String(oc[PK.desc]||'').trim() };
+
+    var recibido = String(oc[PK.recep]||'').trim();
+    var cant     = pn(oc[PK.cantidad]);
+    var precio   = pn(oc[PK.precio]);
+
+    // Sin fecha de recepción → en tránsito
+    var sinRecibir = !recibido || recibido==='—' || recibido==='-' || recibido.toUpperCase()==='N/A' || recibido==='0';
+    if(sinRecibir && cant > 0){
+      idx[desc].pendiente      += cant;
+      idx[desc].valorPendiente += cant * precio;
+    }
+
+    // Último proveedor: OC con fecha más reciente
+    var fecha = String(oc[PK.fecha]||'');
+    if(fecha > idx[desc].lastFecha){
+      idx[desc].lastFecha  = fecha;
+      idx[desc].lastProv   = String(oc[PK.prov]||'').trim();
+      idx[desc].lastPrecio = precio > 0 ? precio : idx[desc].lastPrecio;
+    }
+  });
+  return idx;
+}
+
+// ─── Tokeniza: quita separadores y tokens que empiezan con dígito ────────────
+// "TAPAS ALCOA AZUL ROSCA 28/400" → ["TAPAS","ALCOA","AZUL","ROSCA"]
+// "ACIDO CLORHIDRICO 33%"         → ["ACIDO","CLORHIDRICO"]
+function tokenize(s){
+  return norm(s)
+    .replace(/\([^)]*\)/g,' ')   // elimina (Materia Prima), (MP), (x KG), etc.
+    .split(/[\s\/\-\.°\(\)]+/)
+    .filter(function(w){ return w.length >= 2 && !/^\d/.test(w); });
+}
+
+// ─── Fuzzy match OC ↔ COMPRAS por palabras ───────────────────────────────────
+// Reglas:
+//  1. Exact match (directo al índice).
+//  2. ≥80% de las palabras del string MÁS CORTO deben estar en el más largo.
+//  3. Las palabras EXTRA del más largo (las que no están en el corto) solo
+//     invalidan el match si tienen longitud ≥ 3 — palabras cortas como "AL",
+//     "DE", "LA" son preposiciones inocuas. Palabras como "AZUL", "CORTA",
+//     "DURA" son discriminadoras y rechazan el match.
+//
+// Ejemplo correcto:  "ACIDO CLORHIDRICO" ↔ "ACIDO CLORHIDRICO AL 33%"  → MATCH
+//                    ("AL" = 2 chars, "33%" filtrado como numérico)
+// Ejemplo rechazado: "TAPAS ALCOA ROSCA" ↔ "TAPAS ALCOA AZUL ROSCA"    → NO MATCH
+//                    ("AZUL" = 4 chars, es discriminador)
+function findOCMatch(desc, ocIdx){
+  var nd = norm(desc);
+  if(!nd || nd.length < 4) return {};
+
+  // 1. Coincidencia exacta
+  if(ocIdx[nd]) return ocIdx[nd];
+
+  var ndToks = tokenize(desc);
+  if(!ndToks.length) return {};
+  var ndSet = {};
+  ndToks.forEach(function(t){ ndSet[t] = 1; });
+
+  var matches = [];
+
+  Object.keys(ocIdx).forEach(function(k){
+    var kToks = tokenize(k);
+    if(!kToks.length) return;
+    var kSet = {};
+    kToks.forEach(function(t){ kSet[t] = 1; });
+
+    var shorter    = ndToks.length <= kToks.length ? ndToks : kToks;
+    var shorterSet = ndToks.length <= kToks.length ? ndSet  : kSet;
+    var longer     = ndToks.length <= kToks.length ? kToks  : ndToks;
+    var longerSet  = ndToks.length <= kToks.length ? kSet   : ndSet;
+
+    var fwd = shorter.filter(function(t){ return longerSet[t]; }).length / shorter.length;
+    if(fwd < 0.8) return;
+
+    var hasMeaningfulExtra = longer.some(function(t){
+      return !shorterSet[t] && t.length >= 3;
+    });
+    if(hasMeaningfulExtra) return;
+
+    matches.push(ocIdx[k]);
+  });
+
+  if(!matches.length) return {};
+
+  // Sumar pendiente de TODAS las claves que coincidan
+  // (un mismo artículo puede estar con descripción levemente distinta en varias OC)
+  var result = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'' };
+  matches.forEach(function(m){
+    result.pendiente      += m.pendiente;
+    result.valorPendiente += m.valorPendiente;
+    if(m.lastFecha > result.lastFecha){
+      result.lastFecha  = m.lastFecha;
+      result.lastProv   = m.lastProv;
+      result.lastPrecio = m.lastPrecio || result.lastPrecio;
+    }
+  });
+  return result;
+}
+
+// ─── Merge COMPRAS + OC para calcular stock real ──────────────
+function buildMerged(){
+  MERGED = [];
+  var ocIdx = buildOCIndex();
+
+  RAW_INV.forEach(function(item){
+    var codigo  = String(item[IK.codigo]||'').trim();
+    var desc    = String(item[IK.desc]  ||'').trim();
+    if(!desc) return;
+
+    var stock   = pn(item[IK.stock]);
+    var minimo  = pn(item[IK.min]);
+    var consumo = pn(item[IK.consumo]);
+
+    // En tránsito: fuzzy match contra OC/Recepción pendientes
+    var ocData        = findOCMatch(desc, ocIdx);
+    var pendiente     = ocData.pendiente      || 0;
+    var valorPendiente= ocData.valorPendiente || 0;
+
+    // Cobertura = (stock + en tránsito) / consumo mensual
+    // null cuando consumo=0 (sin dato), para distinguir de cobertura real = 0
+    var cobertura = (consumo > 0) ? (stock + pendiente) / consumo : null;
+
+    // % para barra visual (respecto a 6 meses como referencia)
+    var pct = minimo > 0
+      ? Math.min(100, (stock / (minimo * 2)) * 100)
+      : (cobertura !== null ? Math.min(100, (cobertura / 6) * 100) : 0);
+
+    // Estado basado en stock vs mínimo
+    var sol    = String(item[IK.solicitar]||'').toUpperCase();
+    var estado;
+    if(sol.indexOf('SOLICITAR')>=0)        estado='CRITICO';
+    else if(minimo>0 && stock<=minimo)     estado='CRITICO';
+    else if(minimo>0 && stock<=minimo*1.5) estado='MEDIO';
+    else                                   estado='OPTIMO';
+
+    // Compra sugerida: 2 meses de consumo cuando:
+    // - stock = 0 (sin existencia), o
+    // - stock ≤ mínimo (si hay mínimo), o
+    // - estado CRITICO (columna SOLICITAR)
+    var sugerida = 0;
+    if(consumo > 0){
+      if(stock === 0)                              sugerida = consumo * 2;
+      else if(minimo > 0 && stock <= minimo)       sugerida = consumo * 2;
+      else if(estado === 'CRITICO')                sugerida = consumo * 2;
+    }
+
+    // Proveedor sugerido: prioridad override local → OC más reciente → hoja COMPRAS
+    var ov = LOCAL.overrides[desc] || {};
+    var provSugeridoHoja = IK.provSugerido ? String(item[IK.provSugerido]||'').trim() : '';
+    var proveedor = ov.proveedor || ocData.lastProv || provSugeridoHoja || '';
+    var precio    = ocData.lastPrecio || '';
+
+    MERGED.push({
+      codigo:        codigo,
+      desc:          desc,
+      stock:         stock,
+      minimo:        ov.minimo   !== undefined ? ov.minimo   : minimo,
+      consumo:       ov.consumo  !== undefined ? ov.consumo  : consumo,
+      pendiente:     pendiente,
+      valorPendiente:valorPendiente,
+      sugerida:      sugerida,
+      proveedor:     proveedor,
+      precio:        precio,
+      cobertura:     cobertura,
+      pct:           pct,
+      obs:           ov.obs || '',
+      estado:        estado,
+      _mod:          !!(ov.minimo || ov.consumo || ov.proveedor)
+    });
+  });
+
+  // ── Agregar artículos de OC que no tienen fila en COMPRAS ──────
+  // (p.ej. Acido Clorhídrico, No Iónico — están pedidos pero aún no ingresaron al inventario)
+  var descEnMerged = {};
+  MERGED.forEach(function(m){ descEnMerged[norm(m.desc)] = true; });
+
+  Object.keys(ocIdx).forEach(function(normKey){
+    // Verificar si ya está cubierto por alguna fila de COMPRAS (fuzzy)
+    var yaEsta = false;
+    Object.keys(descEnMerged).forEach(function(normDesc){
+      var minLen = Math.min(normDesc.length, normKey.length);
+      if(minLen >= 6){
+        var prefix = normDesc.slice(0, Math.min(normDesc.length, 12));
+        if(normKey.indexOf(prefix) >= 0 || normDesc.indexOf(normKey.slice(0,12)) >= 0) yaEsta = true;
+      }
+      if(normDesc === normKey) yaEsta = true;
+    });
+    if(yaEsta) return;
+
+    var ocData = ocIdx[normKey];
+    if(!ocData || ocData.pendiente <= 0) return; // solo mostrar si hay algo en tránsito
+
+    MERGED.push({
+      codigo:        '',
+      desc:          ocData.origDesc || normKey, // preferir descripción original de OC
+      stock:         0,
+      minimo:        0,
+      consumo:       0,
+      pendiente:     ocData.pendiente,
+      valorPendiente:ocData.valorPendiente,
+      sugerida:      0,
+      proveedor:     ocData.lastProv || '',
+      precio:        ocData.lastPrecio || '',
+      cobertura:     null,
+      pct:           0,
+      unidad:        '',
+      obs:           '',
+      estado:        'TRANSITO', // estado especial: solo en tránsito, sin stock en COMPRAS
+      _mod:          false
+    });
+  });
+}
+
+// ─── Render all ───────────────────────────────────────────────
+function renderAll(){
+  applyFilters();
+  renderTopCrit();
+  renderSugerencias();
+  renderPanelSugerencia();
+  renderSemGrid();
+  renderChart();
+  renderAlertBar();
+  populateProvFilter();
+  updateKPIs();
+}
+
+// ─── KPIs ─────────────────────────────────────────────────────
+function updateKPIs(){
+  var all   = MERGED;
+  var crit  = all.filter(function(x){return x.estado==='CRITICO'});
+  var medio = all.filter(function(x){return x.estado==='MEDIO'});
+  var opt   = all.filter(function(x){return x.estado==='OPTIMO'});
+
+  // Cobertura promedio: solo artículos con consumo conocido (cobertura !== null)
+  var cobItems = all.filter(function(x){return x.cobertura !== null && x.cobertura > 0});
+  var cobProm  = cobItems.length > 0
+    ? cobItems.reduce(function(s,x){return s + x.cobertura;}, 0) / cobItems.length
+    : 0;
+
+  // Valor en tránsito: suma de precio×cantidad de OCs pendientes
+  var valorTransit  = all.reduce(function(s,x){return s + (x.valorPendiente||0);}, 0);
+  var artTransit    = all.filter(function(x){return x.pendiente > 0}).length;
+
+  setText('k-total',    all.length);
+  setText('k-total-sub',all.length + ' artículos en inventario');
+  setText('k-crit',     crit.length);
+  setText('k-medio',    medio.length);
+  setText('k-opt',      opt.length);
+  setText('k-cob',      cobProm.toFixed(1) + ' m');
+
+  // KPI valor en tránsito
+  var elTransit = document.getElementById('k-transit');
+  if(elTransit){
+    if(valorTransit > 0){
+      elTransit.textContent = '$ ' + fmtN(Math.round(valorTransit));
+    } else {
+      elTransit.textContent = artTransit > 0 ? artTransit + ' art.' : '—';
+    }
+  }
+  setText('k-transit-sub', artTransit + ' artículo' + (artTransit!==1?'s':'') + ' en camino');
+}
+
+// ─── Alert banner ─────────────────────────────────────────────
+function renderAlertBar(){
+  var c = MERGED.filter(function(x){return x.estado==='CRITICO'});
+  var bar = document.getElementById('alert-bar');
+  if(c.length){
+    var names = c.slice(0,3).map(function(x){return x.desc.slice(0,20);}).join(', ');
+    var extra = c.length>3?' y '+(c.length-3)+' más.':'.';
+    setText('alert-txt','STOCK CRÍTICO: '+c.length+' artículo(s) requieren reposición urgente — '+names+extra);
+    bar.style.display='flex';
+  } else bar.style.display='none';
+}
+
+// ─── Filtros ──────────────────────────────────────────────────
+function applyFilters(){
+  var q    = (document.getElementById('f-q').value||'').toLowerCase();
+  var est  = document.getElementById('f-est').value;
+  var prov = document.getElementById('f-prov').value;
+  var cob  = document.getElementById('f-cob').value;
+
+  FILT = MERGED.filter(function(x){
+    if(q && (x.desc+' '+x.codigo).toLowerCase().indexOf(q)<0) return false;
+    if(est && x.estado!==est) return false;
+    if(prov && x.proveedor!==prov) return false;
+    // cobertura puede ser null (consumo desconocido): tratarlo como sin dato
+    var cob_v = x.cobertura !== null ? x.cobertura : 999;
+    if(cob==='lt1' && cob_v>=1) return false;
+    if(cob==='lt3' && cob_v>=3) return false;
+    if(cob==='gt3' && cob_v<3)  return false;
+    return true;
+  });
+
+  FILT.sort(function(a,b){
+    var order = {CRITICO:0,TRANSITO:1,SINDATO:2,MEDIO:3,OPTIMO:4};
+    var oa = order[a.estado]!==undefined?order[a.estado]:4;
+    var ob = order[b.estado]!==undefined?order[b.estado]:4;
+    if(SORT_K!=='estado'){ return sortVal(a,b); }
+    return oa-ob;
+  });
+
+  renderTable();
+  setText('tbl-cnt', FILT.length+' / '+MERGED.length);
+}
+
+function sortVal(a,b){
+  var va,vb;
+  if(SORT_K==='codigo')         {va=a.codigo;    vb=b.codigo;}
+  else if(SORT_K==='desc')      {va=a.desc;      vb=b.desc;}
+  else if(SORT_K==='stock')     {va=a.stock;     vb=b.stock;}
+  else if(SORT_K==='minimo')    {va=a.minimo;    vb=b.minimo;}
+  else if(SORT_K==='consumo')   {va=a.consumo;   vb=b.consumo;}
+  // cobertura null → -1 para que queden al fondo al ordenar asc
+  else if(SORT_K==='cobertura') {va=a.cobertura!==null?a.cobertura:-1; vb=b.cobertura!==null?b.cobertura:-1;}
+  else if(SORT_K==='pendiente') {va=a.pendiente; vb=b.pendiente;}
+  else if(SORT_K==='sugerida'||SORT_K==='compra') {va=a.sugerida; vb=b.sugerida;}
+  else {va=a.desc; vb=b.desc;}
+  var d = SORT_D==='asc'?1:-1;
+  if(va<vb) return -1*d; if(va>vb) return 1*d; return 0;
+}
+
+function sortBy(k){
+  SORT_D = SORT_K===k && SORT_D==='asc'?'desc':'asc'; SORT_K=k;
+  applyFilters();
+}
+
+function clearFilters(){
+  document.getElementById('f-q').value='';
+  document.getElementById('f-est').value='';
+  document.getElementById('f-prov').value='';
+  document.getElementById('f-cob').value='';
+  applyFilters();
+}
+
+// ─── Tabla principal ──────────────────────────────────────────
+function renderTable(){
+  if(!FILT.length){
+    document.getElementById('tbody').innerHTML='<tr><td colspan="11" class="empty-td">Sin resultados.</td></tr>';
+    return;
+  }
+  var html='';
+  FILT.forEach(function(x){
+    var estCls   = x.estado==='CRITICO'?'crit':x.estado==='MEDIO'?'medio':x.estado==='TRANSITO'?'transito':'optimo';
+    var estLabel = x.estado==='CRITICO'?'CRÍTICO':x.estado==='MEDIO'?'BAJO':x.estado==='TRANSITO'?'✈ TRÁNSITO':'OK';
+
+    // Cobertura: null cuando consumo=0, puede ser Infinity si stock>0 y consumo→0
+    var cobVal   = x.cobertura !== null ? x.cobertura : null;
+    var cobCls, cobLabel;
+    if(cobVal === null){
+      cobCls   = 'muted'; cobLabel = '—';
+    } else if(cobVal < 1){
+      cobCls   = 'crit';  cobLabel = cobVal.toFixed(1) + ' meses';
+    } else if(cobVal < 2){
+      cobCls   = 'medio'; cobLabel = cobVal.toFixed(1) + ' meses';
+    } else {
+      cobCls   = 'optimo'; cobLabel = cobVal.toFixed(1) + ' meses';
+    }
+
+    var stockClr = (x.minimo>0 && x.stock<=x.minimo) ? 'var(--red)' : (x.minimo>0 && x.stock<=x.minimo*1.5) ? 'var(--amber)' : 'var(--text)';
+
+    // Compra sugerida en naranja bold
+    var sugHtml  = x.sugerida>0
+      ? '<span style="color:var(--orange);font-family:var(--mono);font-weight:700">'+fmtN(x.sugerida)+'</span>'
+      : '<span class="muted">—</span>';
+
+    // En tránsito: ícono avión cuando >0
+    var transitHtml = x.pendiente > 0
+      ? '<span class="transit-cell"><span class="icon">✈</span>'+fmtN(x.pendiente)+'</span>'
+      : '<span class="muted">—</span>';
+
+    html += '<tr data-desc="'+esc(x.desc)+'">';
+    // Estado: badge con texto
+    html += '<td><span class="est-badge '+estCls+'">'+estLabel+'</span></td>';
+    html += '<td style="font-family:var(--mono);font-size:10px;color:var(--muted-l)">'+(x.codigo||'—')+'</td>';
+    html += '<td style="max-width:210px;overflow:hidden;text-overflow:ellipsis" title="'+esc(x.desc)+'">'+esc(x.desc)+(x._mod?'<span class="badge b-info" style="margin-left:4px;font-size:8px">⚙</span>':'')+'</td>';
+    html += '<td class="num" style="color:'+stockClr+';font-weight:700">'+fmtN(x.stock)+'</td>';
+    html += '<td class="num" style="color:var(--muted-l)">'+( x.minimo>0?fmtN(x.minimo):'—')+'</td>';
+    html += '<td class="num" style="color:var(--muted-l)">'+( x.consumo>0?fmtN(x.consumo):'—')+'</td>';
+    // Cobertura: texto coloreado con clase semáforo
+    html += '<td><span class="cob-text '+cobCls+'">'+cobLabel+'</span></td>';
+    // En tránsito: con ícono ✈
+    html += '<td>'+transitHtml+'</td>';
+    html += '<td>'+sugHtml+'</td>';
+    html += '<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--muted-l)">'+esc(x.proveedor||'—')+'</td>';
+    html += '<td><div class="ract">';
+    html += '<button class="ibtn ibtn-view" title="Ver detalle" onclick="openDetail(\''+esc(x.desc)+'\')">👁 Ver</button>';
+    html += '<button class="ibtn ibtn-edit" title="Ajustar" onclick="openEdit(\''+esc(x.desc)+'\')">✏</button>';
+    html += '</div></td></tr>';
+  });
+  document.getElementById('tbody').innerHTML = html;
+}
+
+// ─── Semáforo cards ───────────────────────────────────────────
+function renderSemGrid(){
+  var ordered = MERGED.slice().sort(function(a,b){
+    var o={CRITICO:0,SINDATO:1,MEDIO:2,OPTIMO:3};
+    return (o[a.estado]||3)-(o[b.estado]||3);
+  });
+  var html = ordered.map(function(x){
+    var cls = x.estado==='CRITICO'?'crit':x.estado==='MEDIO'?'medio':x.estado==='OPTIMO'?'optimo':'sindato';
+    // cobertura null → sin dato de consumo
+    var cob = x.cobertura !== null ? x.cobertura : null;
+    var cobPct   = cob !== null ? Math.min(100, (cob/6)*100) : (x.pct||0);
+    var cobColor = cobPct<20?'var(--red)':cobPct<50?'var(--amber)':'var(--green)';
+    var cobLabel = cob !== null ? cob.toFixed(1)+' meses' : '—';
+    var stLabel  = x.stock>0?fmtN(x.stock)+(x.unidad?' '+x.unidad:''):'—';
+    var minLabel = x.minimo>0?fmtN(x.minimo)+(x.unidad?' '+x.unidad:''):'—';
+
+    return '<div class="sem-card '+cls+'" onclick="openDetail(\''+esc(x.desc)+'\')" title="'+esc(x.desc)+'">'
+      +'<div class="sem-codigo">'+esc(x.codigo||'')+'</div>'
+      +'<div class="sem-top"><div class="sem-dot '+cls+'"></div><div class="sem-name">'+esc(x.desc.slice(0,32))+'</div></div>'
+      +'<div class="sem-stats">'
+      +'<div class="sem-stat"><strong>'+stLabel+'</strong>Stock</div>'
+      +'<div class="sem-stat"><strong>'+minLabel+'</strong>Mínimo</div>'
+      +'<div class="sem-stat"><strong style="color:'+cobColor+'">'+cobLabel+'</strong>Cobertura</div>'
+      +'</div>'
+      +'<div class="sem-gauge-bg"><div class="sem-gauge-fill" style="width:'+cobPct+'%;background:'+cobColor+'"></div></div>'
+      +'<div class="sem-months">'+(x.proveedor?'✈ '+x.proveedor.slice(0,22):'')+'</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('sem-grid').innerHTML = html || '<div class="empty-td">Sin datos de inventario.</div>';
+}
+
+// ─── Top críticos ─────────────────────────────────────────────
+function renderTopCrit(){
+  var items = MERGED.filter(function(x){return x.estado==='CRITICO'||x.estado==='MEDIO'})
+    // sort: null cobertura al fondo, luego de menor a mayor cobertura
+    .sort(function(a,b){
+      var ca = a.cobertura !== null ? a.cobertura : 9999;
+      var cb = b.cobertura !== null ? b.cobertura : 9999;
+      return ca - cb;
+    }).slice(0,8);
+  setText('crit-cnt', items.length + ' alertas');
+  if(!items.length){document.getElementById('crit-list').innerHTML='<div class="empty-td" style="padding:12px">✅ Sin alertas críticas</div>';return;}
+  var html = items.map(function(x){
+    var cls = x.estado==='CRITICO'?'':'medio';
+    var cob = x.cobertura !== null ? x.cobertura : null;
+    var cobPct   = cob !== null ? Math.min(100,(cob/6)*100) : (x.pct||0);
+    var cobColor = cobPct<20?'var(--red)':cobPct<50?'var(--amber)':'var(--green)';
+    var cobLabel = cob !== null ? cob.toFixed(1)+' m' : '—';
+    return '<div class="crit-item '+cls+'">'
+      +'<div class="crit-top"><span class="crit-name">'+esc(x.desc.slice(0,30))+'</span>'
+      +'<span class="crit-badge">'+cobLabel+'</span></div>'
+      +'<div class="crit-bar-bg"><div class="crit-bar-fill" style="width:'+cobPct+'%;background:'+cobColor+'"></div></div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('crit-list').innerHTML = html;
+}
+
+// ─── Sugerencias ──────────────────────────────────────────────
+function renderSugerencias(){
+  var items = MERGED.filter(function(x){return x.sugerida>0 && x.estado!=='OPTIMO'})
+    .sort(function(a,b){return b.sugerida-a.sugerida;}).slice(0,10);
+  setText('sug-cnt', items.length + ' artículos');
+  if(!items.length){document.getElementById('sug-list').innerHTML='<div class="empty-td" style="padding:12px">Sin sugerencias activas.</div>';return;}
+  var html = items.map(function(x){
+    return '<div class="sug-item">'
+      +'<div><div class="sug-name">'+esc(x.desc.slice(0,28))+'</div>'
+      +'<div class="sug-prov">'+esc(x.proveedor||'Sin proveedor asignado')+'</div></div>'
+      +'<div class="sug-qty">'+fmtN(x.sugerida)+'<br><span style="font-size:9px;color:var(--muted-l)">'+esc(x.unidad||'')+'</span></div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('sug-list').innerHTML = html;
+}
+
+// ─── Chart ────────────────────────────────────────────────────
+function renderChart(){
+  var crit  = MERGED.filter(function(x){return x.estado==='CRITICO'}).length;
+  var medio = MERGED.filter(function(x){return x.estado==='MEDIO'}).length;
+  var opt   = MERGED.filter(function(x){return x.estado==='OPTIMO'}).length;
+  var sd    = MERGED.filter(function(x){return x.estado==='SINDATO'}).length;
+  var total = crit+medio+opt+sd;
+  var optPct = total>0?Math.round(opt/total*100):0;
+
+  setText('chart-pct', optPct+'%');
+  var ctx = document.getElementById('chart-sem').getContext('2d');
+  if(CHART) CHART.destroy();
+  CHART = new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels:['Crítico','Medio','Óptimo','Sin dato'],
+      datasets:[{
+        data:[crit,medio,opt,sd],
+        backgroundColor:['rgba(239,68,68,.8)','rgba(245,158,11,.8)','rgba(34,197,94,.8)','rgba(78,97,117,.5)'],
+        borderWidth:2,borderColor:'#080f1c'
+      }]
+    },
+    options:{
+      cutout:'68%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(c){return c.label+': '+c.raw+' artículos';}}}
+      }
+    }
+  });
+}
+
+// ─── Populate filter de proveedor ─────────────────────────────
+function populateProvFilter(){
+  var provs = [...new Set(MERGED.map(function(x){return x.proveedor;}).filter(Boolean))].sort();
+  var sel = document.getElementById('f-prov');
+  sel.innerHTML = '<option value="">Todos los proveedores</option>' +
+    provs.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
+}
+
+// ─── Modal detalle ────────────────────────────────────────────
+function openDetail(desc){
+  var x = MERGED.find(function(m){return m.desc===desc;});
+  if(!x) return;
+  CUR = x;
+  setText('modal-title', x.desc.slice(0,40));
+  document.getElementById('edit-form').style.display='none';
+  document.getElementById('btn-save').style.display='none';
+  setText('btn-tog','✏ Editar');
+
+  var estLabel = x.estado==='CRITICO'?'🔴 CRÍTICO':x.estado==='MEDIO'?'🟡 MEDIO':x.estado==='OPTIMO'?'🟢 ÓPTIMO':'⚪ Sin dato';
+  var cobStr   = x.cobertura !== null ? x.cobertura.toFixed(1)+' meses' : '—';
+  var tiles = [
+    {l:'Estado',     v:estLabel,              cls:''},
+    {l:'Código',     v:x.codigo||'—',         cls:''},
+    {l:'Unidad',     v:x.unidad||'—',         cls:''},
+    {l:'Presentación',v:x.pres||'—',          cls:''},
+    {l:'Stock actual',v:fmtN(x.stock)+' '+x.unidad, cls:''},
+    {l:'Stock mínimo',v:x.minimo>0?fmtN(x.minimo)+' '+x.unidad:'—', cls:''},
+    {l:'Consumo/mes', v:x.consumo>0?fmtN(x.consumo)+' '+x.unidad:'—', cls:''},
+    {l:'En tránsito', v:x.pendiente>0?fmtN(x.pendiente)+' '+x.unidad:'—', cls:''},
+    {l:'Cobertura',   v:cobStr,               cls:''},
+    {l:'Compra sug.', v:x.sugerida>0?fmtN(x.sugerida)+' '+x.unidad:'—', cls:''},
+    {l:'Precio ref.', v:x.precio||'—',        cls:''},
+    {l:'Proveedor',   v:x.proveedor||'—',     cls:'s2'},
+    {l:'',            v:'',                   cls:'div'},
+    {l:'Observaciones',v:x.obs||'—',          cls:'s2'},
+  ];
+  var html = tiles.map(function(t){
+    if(t.cls==='div') return '<div class="dtile-div"></div>';
+    return '<div class="dtile '+t.cls+'"><div class="dtile-lbl">'+t.l+'</div><div class="dtile-val">'+esc(String(t.v))+'</div></div>';
+  }).join('');
+  document.getElementById('detail-tiles').innerHTML = html;
+  openOv('ov-edit');
+}
+
+function openEdit(desc){ openDetail(desc); toggleEdit(); }
+
+function toggleEdit(){
+  var shown = document.getElementById('edit-form').style.display!=='none';
+  if(shown){
+    document.getElementById('edit-form').style.display='none';
+    document.getElementById('btn-save').style.display='none';
+    document.getElementById('detail-tiles').style.display='';
+    setText('btn-tog','✏ Editar');
+  } else {
+    document.getElementById('edit-form').style.display='block';
+    document.getElementById('btn-save').style.display='inline-flex';
+    document.getElementById('detail-tiles').style.display='none';
+    setText('btn-tog','← Ver detalle');
+    if(CUR){
+      document.getElementById('ed-min').value  = CUR.minimo||'';
+      document.getElementById('ed-cons').value = CUR.consumo||'';
+      document.getElementById('ed-prov').value = CUR.proveedor||'';
+      document.getElementById('ed-obs').value  = CUR.obs||'';
+    }
+  }
+}
+
+function saveEdit(){
+  if(!CUR) return;
+  var desc = CUR.desc;
+  var ov = {
+    minimo:    parseFloat(document.getElementById('ed-min').value)||undefined,
+    consumo:   parseFloat(document.getElementById('ed-cons').value)||undefined,
+    proveedor: document.getElementById('ed-prov').value.trim()||undefined,
+    obs:       document.getElementById('ed-obs').value.trim()||undefined
+  };
+  // Limpiar undefined
+  Object.keys(ov).forEach(function(k){ if(ov[k]===undefined) delete ov[k]; });
+  LOCAL.overrides[desc] = Object.assign(LOCAL.overrides[desc]||{}, ov);
+  LOCAL.pendingSync = LOCAL.pendingSync||[];
+  var existing = LOCAL.pendingSync.findIndex(function(p){return p.action==='updateInventario'&&p.desc===desc;});
+  var entry = Object.assign({action:'updateInventario',desc:desc},ov);
+  if(existing>=0) LOCAL.pendingSync[existing]=entry;
+  else LOCAL.pendingSync.push(entry);
+
+  saveLocal();
+  buildMerged();
+  renderAll();
+  closeOv('ov-edit');
+  toast('Ajuste guardado localmente para "'+desc.slice(0,25)+'".','info');
+}
+
+// ─── Sync ─────────────────────────────────────────────────────
+function syncAll(){
+  var pending = LOCAL.pendingSync||[];
+  if(!pending.length){toast('Sin cambios pendientes.','info');return;}
+  toast('Sync de stock aún no implementado en el servidor. Cambios conservados localmente.','inf');
+}
+
+function updateSyncUI(){
+  var n = (LOCAL.pendingSync||[]).length;
+  var b = document.getElementById('sync-badge');
+  var s = document.getElementById('btn-sync');
+  setText('sync-cnt',n);
+  if(n>0){b.classList.add('vis');s.style.display='inline-flex';}
+  else{b.classList.remove('vis');s.style.display='none';}
+}
+
+// ─── Export CSV ───────────────────────────────────────────────
+function exportCSV(){
+  var hdr = ['Código','Descripción','Stock','Mínimo','Consumo/mes','Cobertura (meses)','En tránsito','Valor en tránsito','Compra sugerida','Proveedor','Estado','Precio ref.','Observaciones'];
+  var rows = (FILT.length ? FILT : MERGED).map(function(x){
+    var cob = x.cobertura !== null ? x.cobertura.toFixed(2) : '';
+    return [
+      x.codigo, x.desc, x.stock, x.minimo, x.consumo,
+      cob, x.pendiente, x.valorPendiente||0,
+      x.sugerida, x.proveedor, x.estado, x.precio, x.obs
+    ].map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(',');
+  });
+  var csv = '﻿'+hdr.join(',')+'\n'+rows.join('\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = 'stock_subatir_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  toast('CSV exportado ('+(FILT.length||MERGED.length)+' artículos)','ok');
+}
+
+// ═══ PANEL SUGERENCIA DE COMPRA ══════════════════════════════
+
+var SUG_SORT_K = 'sugerida', SUG_SORT_D = 'desc';
+
+function sortSug(k){
+  if(SUG_SORT_K===k) SUG_SORT_D=SUG_SORT_D==='asc'?'desc':'asc';
+  else{SUG_SORT_K=k;SUG_SORT_D='desc';}
+  renderPanelSugerencia();
+}
+
+function renderPanelSugerencia(){
+  var targetMeses = parseInt(document.getElementById('sug-meses').value)||3;
+  var filtro      = document.getElementById('sug-filtro').value;
+
+  var items = MERGED.filter(function(x){ return x.desc && x.consumo > 0; }).map(function(x){
+    // Con tránsito incluido
+    var stockTotal  = x.stock + (x.pendiente||0);
+    var cobActual   = x.consumo > 0 ? x.stock / x.consumo : null;
+    var cobConTrans = x.consumo > 0 ? stockTotal / x.consumo : null;
+    // Cuánto comprar para llegar al target desde el stock total
+    var necesario   = Math.max(0, (targetMeses * x.consumo) - stockTotal);
+    // Estado semáforo
+    var est;
+    if(x.minimo>0 && x.stock<=x.minimo)         est='CRITICO';
+    else if(x.minimo>0 && x.stock<=x.minimo*1.5) est='BAJO';
+    else                                          est='OK';
+    return {
+      desc:x.desc, codigo:x.codigo||'', stock:x.stock, minimo:x.minimo,
+      consumo:x.consumo, cobActual:cobActual, cobConTrans:cobConTrans,
+      pendiente:x.pendiente||0, sugerida:necesario,
+      unidad:x.unidad||'', proveedor:x.proveedor||'—', est:est,
+      estado:x.estado, x:x
+    };
+  });
+
+  // Filtrar
+  if(filtro==='comprar')  items=items.filter(function(r){return r.sugerida>0;});
+  if(filtro==='critico')  items=items.filter(function(r){return r.est==='CRITICO';});
+
+  // Sort
+  items.sort(function(a,b){
+    var va,vb;
+    if(SUG_SORT_K==='sugerida'){ va=a.sugerida; vb=b.sugerida; }
+    else { va=(a.desc||'').toLowerCase(); vb=(b.desc||'').toLowerCase(); }
+    var d = SUG_SORT_D==='asc'?1:-1;
+    return va<vb?-d:va>vb?d:0;
+  });
+
+  setText('sug-panel-cnt', items.length+' artículos');
+
+  if(!items.length){
+    document.getElementById('tbody-sug').innerHTML=
+      '<tr><td colspan="10" class="empty-td">✅ Sin artículos que requieran compra con el filtro seleccionado.</td></tr>';
+    return;
+  }
+
+  function cobChip(meses){
+    if(meses===null) return '<span class="cob-chip" style="color:var(--muted-l)">—</span>';
+    var cls = meses<1?'crit':meses<3?'bajo':'ok';
+    return '<span class="cob-chip '+cls+'">'+meses.toFixed(1)+' m</span>';
+  }
+
+  var html='';
+  items.forEach(function(r){
+    var rowCls = r.est==='CRITICO'?'sug-row-critico':r.est==='BAJO'?'sug-row-bajo':'sug-row-ok';
+    var dot    = r.est==='CRITICO'?'crit':r.est==='BAJO'?'medio':'optimo';
+    var sugStr = r.sugerida>0
+      ? '<span style="color:var(--orange);font-family:var(--mono);font-weight:700">'+fmtN(r.sugerida)+'</span>'
+      : '<span class="muted">—</span>';
+    html+='<tr class="'+rowCls+'">';
+    html+='<td><span class="sdot '+dot+'" style="margin-right:6px"></span>'+esc(r.desc.slice(0,36))+'</td>';
+    html+='<td class="num" style="font-family:var(--mono)">'+fmtN(r.stock)+'</td>';
+    html+='<td class="num" style="font-family:var(--mono);color:var(--muted-l)">'+( r.minimo>0?fmtN(r.minimo):'—')+'</td>';
+    html+='<td class="num" style="font-family:var(--mono);color:var(--teal-l)">'+fmtN(r.consumo)+'</td>';
+    html+='<td style="text-align:center">'+cobChip(r.cobActual)+'</td>';
+    html+='<td class="num" style="font-family:var(--mono);color:var(--teal-l)">'+( r.pendiente>0?'✈ '+fmtN(r.pendiente):'—')+'</td>';
+    html+='<td style="text-align:center">'+cobChip(r.cobConTrans)+'</td>';
+    html+='<td class="num">'+sugStr+'</td>';
+    html+='<td style="color:var(--muted-l);font-size:10px">'+esc(r.unidad)+'</td>';
+    html+='<td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis">'+esc(r.proveedor)+'</td>';
+    html+='</tr>';
+  });
+  document.getElementById('tbody-sug').innerHTML=html;
+}
+
+function exportSugCSV(){
+  var targetMeses = parseInt(document.getElementById('sug-meses').value)||3;
+  var hdr=['Código','Artículo','Stock Actual','Mínimo','Consumo/mes','Cobertura actual (m)','En tránsito','Cobertura c/tránsito (m)','Compra Sugerida ('+targetMeses+'m)','Unidad','Proveedor','Estado'];
+  var rows=[];
+  document.querySelectorAll('#tbody-sug tr').forEach(function(tr){
+    if(tr.querySelector('.empty-td')) return;
+    var tds=tr.querySelectorAll('td');
+    if(tds.length<10) return;
+    rows.push([
+      tds[0].textContent.trim(),tds[1].textContent.trim(),tds[2].textContent.trim(),
+      tds[3].textContent.trim(),tds[4].textContent.trim(),tds[5].textContent.trim(),
+      tds[6].textContent.trim(),tds[7].textContent.trim(),tds[8].textContent.trim(),
+      tds[9].textContent.trim()
+    ].map(function(v){return '"'+v.replace(/"/g,'""')+'"';}).join(','));
+  });
+  var csv='﻿'+hdr.join(',')+'\n'+rows.join('\n');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='sugerencia_compra_'+targetMeses+'m_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  toast('CSV exportado','ok');
+}
+
+// ─── Modal helpers ────────────────────────────────────────────
+function openOv(id){document.getElementById(id).classList.add('open')}
+function closeOv(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.overlay').forEach(function(el){
+  el.addEventListener('click',function(e){if(e.target===el)closeOv(el.id);});
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(function(el){closeOv(el.id);});
+});
+
+// ─── Helpers ──────────────────────────────────────────────────
+function pn(v){if(!v&&v!==0)return 0;var s=String(v).replace(/[^\d.,-]/g,'').replace(',','.');return parseFloat(s)||0;}
+function fmtN(n){if(!n&&n!==0)return '—';return n%1===0?n.toLocaleString('es-UY'):(+n).toLocaleString('es-UY',{minimumFractionDigits:1,maximumFractionDigits:1});}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+function saveLocal(){localStorage.setItem('subatir_stock_local',JSON.stringify(LOCAL));updateSyncUI();}
+function toast(msg,type){
+  var c=document.getElementById('tc'),d=document.createElement('div');
+  d.className='toast t-'+(type||'inf');d.textContent=msg;c.appendChild(d);
+  setTimeout(function(){d.style.opacity='0';d.style.transition='opacity .35s';setTimeout(function(){d.remove();},350);},3600);
+}
+</script>
+</body>
+</html>

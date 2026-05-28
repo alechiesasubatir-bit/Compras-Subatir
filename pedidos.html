@@ -898,8 +898,8 @@ function applyFilters(){
     if (estado === 'recibido'  &&  isPendiente(r)) return false;
     if (prov && String(r[K.proveedor]||'').toLowerCase() !== prov.toLowerCase()) return false;
     var coaVal = String(r[K.coa]||'').toUpperCase().trim();
-    if (coa === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== '1' && coaVal !== 'TRUE') return false;
-    if (coa === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === '1' || coaVal === 'TRUE')) return false;
+    if (coa === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== '1' && coaVal !== 'TRUE' && coaVal !== 'NO NECESARIO' && coaVal !== 'NO APLICA' && coaVal !== 'NO REQUERIDO' && coaVal !== 'N/A' && coaVal !== 'NA') return false;
+    if (coa === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === '1' || coaVal === 'TRUE' || coaVal === 'NO NECESARIO' || coaVal === 'NO APLICA' || coaVal === 'NO REQUERIDO' || coaVal === 'N/A' || coaVal === 'NA')) return false;
     if (lote === 'si' && (!r[K.lote] || String(r[K.lote]).trim()==='')) return false;
     if (lote === 'no' && r[K.lote] && String(r[K.lote]).trim()!=='') return false;
     if (desde && r[K.fecha] && r[K.fecha] < desde) return false;
@@ -959,7 +959,7 @@ function renderTable(){
       var sinLote  = !r[K.lote] || String(r[K.lote]).trim() === '';
       var coaUp    = String(r[K.coa]||'').toUpperCase().trim();
       var confUp   = String(r[K.conforme]||'').toUpperCase().trim();
-      var hasCOA   = coaUp === 'SI' || coaUp === 'S' || coaUp === '1' || coaUp === 'TRUE';
+      var hasCOA   = coaUp === 'SI' || coaUp === 'S' || coaUp === '1' || coaUp === 'TRUE' || coaUp === 'NO NECESARIO' || coaUp === 'NO APLICA' || coaUp === 'NO REQUERIDO' || coaUp === 'N/A' || coaUp === 'NA';
       var hasConf  = confUp === 'SI' || confUp === 'S' || confUp === '1' || confUp === 'TRUE';
       var rowClass  = r.__local ? 'local-row' : r.__modified ? 'modified-row' : '';
       var moneda  = ocMoneda(r);
@@ -1088,7 +1088,7 @@ function openDetail(orden){
       return {l:'Atraso', v: atr>0 ? '+'+atr+' días de atraso' : (pend ? 'En plazo' : '—')};
     }()),
     {l:'Lote',        v: row[K.lote] || 'Sin lote'},
-    {l:'COA',         v: (['SI','S','1','TRUE'].indexOf(String(row[K.coa]||'').toUpperCase().trim())>=0) ? '✓ Recibido' : '✗ Pendiente'},
+    {l:'COA',         v: (['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(row[K.coa]||'').toUpperCase().trim())>=0) ? '✓ Recibido' : '✗ Pendiente'},
     {l:'Conforme',    v: (['SI','S','1','TRUE'].indexOf(String(row[K.conforme]||'').toUpperCase().trim())>=0) ? '✓ Conforme' : '✗ Pendiente'},
     {l:'Observaciones',v: row[K.obs] || '—', span:true},
   ];

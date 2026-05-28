@@ -759,7 +759,7 @@ function buildProvs(){
       var c=norm(fk(r,['Conforme','CONFORME'])||'');
       var co=norm(fk(r,['COA','coa','Coa'])||'');
       if(c==='SI'||c==='S'||c==='OK'||c==='X'||c==='1'||c==='TRUE') confOk++;
-      if(co==='SI'||co==='S'||co==='OK'||co==='X'||co==='1'||co==='TRUE') coaOk++;
+      if(co==='SI'||co==='S'||co==='OK'||co==='X'||co==='1'||co==='TRUE'||co==='NO NECESARIO'||co==='NO APLICA'||co==='NO REQUERIDO'||co==='N/A'||co==='NA') coaOk++;
     });
     p.confRate = p.pedidos.length?Math.round(confOk/p.pedidos.length*100):null;
     p.coaRate  = p.pedidos.length?Math.round(coaOk/p.pedidos.length*100):null;
@@ -792,7 +792,7 @@ function renderKPIs(){
     var c=norm(fk(r,['Conforme','CONFORME'])||'');
     var co=norm(fk(r,['COA','coa'])||'');
     if(c==='SI'||c==='S'||c==='OK'||c==='X'||c==='1'||c==='TRUE') confPed++;
-    if(co==='SI'||co==='S'||co==='OK'||co==='X'||co==='1'||co==='TRUE') coaPed++;
+    if(co==='SI'||co==='S'||co==='OK'||co==='X'||co==='1'||co==='TRUE'||co==='NO NECESARIO'||co==='NO APLICA'||co==='NO REQUERIDO'||co==='N/A'||co==='NA') coaPed++;
   });
   var confPct=totPed?Math.round(Math.min(confPed,coaPed)/totPed*100):0;
 
@@ -971,7 +971,7 @@ function renderDetail(p){
       var coaR =norm(fk(r,['COA','coa'])||'');
       var confR=norm(fk(r,['Conforme','CONFORME'])||'');
       var lote =fk(r,['Lote','LOTE']);
-      var coaOk =coaR==='SI'||coaR==='OK'||coaR==='S'||coaR==='X'||coaR==='1'||coaR==='TRUE';
+      var coaOk =coaR==='SI'||coaR==='OK'||coaR==='S'||coaR==='X'||coaR==='1'||coaR==='TRUE'||coaR==='NO NECESARIO'||coaR==='NO APLICA'||coaR==='NO REQUERIDO'||coaR==='N/A'||coaR==='NA';
       var confOk=confR==='SI'||confR==='OK'||confR==='S'||confR==='X'||confR==='1'||confR==='TRUE';
       html+='<tr>'
         +'<td class="mono">'+esc(String(orden||'—'))+'</td>'

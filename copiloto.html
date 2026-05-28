@@ -375,6 +375,19 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
       <div class="ksub">Score Proveedores</div>
     </div>
   </div>
+  <!-- KPI financiero — totales OC por moneda -->
+  <div class="kpi-strip" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi" style="border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.05)">
+      <div style="font-size:10px;color:var(--mut2);font-family:'Syne',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">OC Pendientes · U$S</div>
+      <div class="knum" id="kpi-oc-usd" style="font-size:22px;color:var(--grn)">—</div>
+      <div class="ksub">pedidos activos en dólares</div>
+    </div>
+    <div class="kpi" style="border-color:rgba(27,200,255,.25);background:rgba(27,200,255,.05)">
+      <div style="font-size:10px;color:var(--mut2);font-family:'Syne',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">OC Pendientes · $</div>
+      <div class="knum" id="kpi-oc-pso" style="font-size:22px;color:var(--tl)">—</div>
+      <div class="ksub">pedidos activos en pesos</div>
+    </div>
+  </div>
 
   <!-- NO DATA -->
   <div id="no-data-state" style="display:none">
@@ -859,6 +872,8 @@ function detectKeys(){
     OK.estado    =fk(op,['Estado','ESTADO','estado','Status','STATUS']);
     OK.cantidad  =fk(op,['Cantidad','CANTIDAD','cantidad','QTY']);
     OK.precioUn  =fk(op,['Precio un','PRECIO UN','precio un','P.Unit','PRECIO UNITARIO','Precio unitario']);
+    OK.moneda    =fk(op,['Moneda','MONEDA','moneda','Currency','CURRENCY','USD/UYU']);
+    OK.siva      =fk(op,['s/iva','S/IVA','s/IVA','SIVA','Total sin iva','TOTAL S/IVA','S / IVA']);
   }
   if(RAW_CONT.length){
     var ck=Object.keys(RAW_CONT[0]);
@@ -912,24 +927,25 @@ function analyzePriceSpreads(){
   Object.keys(GROUPS).forEach(function(art){
     var rows=GROUPS[art];
     if(rows.length<2) return;
-    var prices=rows.map(function(r){
-      var p=parseNum(r[PK.precioUSD]);
-      if(!p) p=parseNum(r[PK.precioPSO]);
-      return {prov:String(r[PK.proveedor]||'').trim(), precio:p, row:r};
-    }).filter(function(p){return p.precio>0;});
-    if(prices.length<2) return;
-    prices.sort(function(a,b){return a.precio-b.precio;});
-    var min=prices[0].precio, max=prices[prices.length-1].precio;
-    if(max>min*1.25){
-      var diffPct=((max/min)-1)*100;
-      alerts.push({
-        type:'price_spread',
-        priority:diffPct>60?'alto':diffPct>40?'medio':'bajo',
-        title:'Dispersión de precios: '+capFirst(rows[0][PK.articulo]),
-        detail:prices[prices.length-1].prov+' cotiza '+diffPct.toFixed(0)+'% sobre el mínimo del mercado ('+prices[0].prov+').',
-        action:'Evaluar cotización del proveedor más caro o negociar mejora.'
-      });
-    }
+    // Analizar cada moneda por separado — nunca comparar U$S con $ directamente
+    var usdP=rows.map(function(r){var p=parseNum(r[PK.precioUSD]);return p>0?{prov:String(r[PK.proveedor]||'').trim(),precio:p}:null;}).filter(Boolean);
+    var psoP=rows.map(function(r){var p=parseNum(r[PK.precioPSO]);return p>0?{prov:String(r[PK.proveedor]||'').trim(),precio:p}:null;}).filter(Boolean);
+    [[usdP,'U$S'],[psoP,'$']].forEach(function(pair){
+      var prices=pair[0], mon=pair[1];
+      if(prices.length<2) return;
+      prices.sort(function(a,b){return a.precio-b.precio;});
+      var min=prices[0].precio, max=prices[prices.length-1].precio;
+      if(max>min*1.25){
+        var diffPct=((max/min)-1)*100;
+        alerts.push({
+          type:'price_spread',
+          priority:diffPct>60?'alto':diffPct>40?'medio':'bajo',
+          title:'Dispersión de precios: '+capFirst(rows[0][PK.articulo]),
+          detail:prices[prices.length-1].prov+' cotiza '+diffPct.toFixed(0)+'% sobre el mínimo ('+prices[0].prov+') en '+mon+'.',
+          action:'Evaluar cotización del proveedor más caro o negociar mejora.'
+        });
+      }
+    });
   });
   return alerts;
 }
@@ -1018,7 +1034,10 @@ function analyzeContingency(){
       var overlap=wordOverlap(descCont,descPrec);
       if(overlap<0.35) return;
 
-      var precio=parseNum(p[PK.precioUSD])||parseNum(p[PK.precioPSO]);
+      var priceUSD=parseNum(p[PK.precioUSD]);
+      var pricePSO=parseNum(p[PK.precioPSO]);
+      var precio=priceUSD>0?priceUSD:pricePSO;
+      var monedaPrec=priceUSD>0?'U$S':'$';
       if(precio<=0||refVal<=0) return;
       var diffPct=((precio/refVal)-1)*100;
       if(diffPct>15){
@@ -1030,6 +1049,7 @@ function analyzeContingency(){
             qty:qty,
             unit:cont[CK.unidad]||'',
             currentPrice:precio,
+            monedaPrec:monedaPrec,
             refValue:refVal,
             diffPct:diffPct,
             proveedor:p[PK.proveedor]
@@ -1057,15 +1077,18 @@ function generateRecommendations(){
     var rows=GROUPS[art];
     if(rows.length<1) return;
 
+    // Usar moneda dominante: si algún proveedor cotiza en USD, comparar solo USD vs USD
+    var dominaUSD=rows.some(function(r){return parseNum(r[PK.precioUSD])>0;});
     var scored=rows.map(function(r){
       var priceUSD=parseNum(r[PK.precioUSD]);
       var pricePSO=parseNum(r[PK.precioPSO]);
-      var price=priceUSD||pricePSO;
+      var price=dominaUSD?(priceUSD>0?priceUSD:0):(pricePSO>0?pricePSO:0);
       return {
         proveedor:r[PK.proveedor]||'—',
         precioUSD:priceUSD,
         precioPSO:pricePSO,
         precio:price,
+        moneda:dominaUSD?'USD':'PSO',
         calScore:scoreCalidad(r[PK.calidad]),
         demScore:scoreDemora(r[PK.demora]),
         pagScore:scorePago(r[PK.pago]),
@@ -1126,8 +1149,11 @@ function scoreProviders(){
   var priceScoresByProv={};
   Object.keys(GROUPS).forEach(function(art){
     var rows=GROUPS[art];
+    // Usar moneda dominante del artículo — no mezclar U$S y $ en el puntaje de precio
+    var domUSD=rows.some(function(r){return parseNum(r[PK.precioUSD])>0;});
     var prices=rows.map(function(r){
-      return {prov:String(r[PK.proveedor]||'').trim(),price:parseNum(r[PK.precioUSD])||parseNum(r[PK.precioPSO])};
+      var p=domUSD?parseNum(r[PK.precioUSD]):(parseNum(r[PK.precioPSO]));
+      return {prov:String(r[PK.proveedor]||'').trim(),price:p};
     }).filter(function(p){return p.price>0;});
     if(!prices.length) return;
     var minP=Math.min.apply(null,prices.map(function(p){return p.price;}));
@@ -1186,6 +1212,29 @@ function renderKPIs(){
   document.getElementById('kpi-dep').textContent=deps||'0';
   document.getElementById('kpi-cont').textContent=CONT_OPPS.length||'0';
   document.getElementById('kpi-score').textContent=avgScore?avgScore:'—';
+
+  // Totales OC por moneda (solo pedidos pendientes)
+  var ocUSD=0, ocPSO=0;
+  RAW_PED.forEach(function(r){
+    var est=normText(r[OK.estado]||'');
+    var isPend=!est||/pendiente|proceso|espera|curso|abierto/.test(est);
+    if(!isPend) return;
+    var mon=String(r[OK.moneda]||'').trim().toUpperCase();
+    var val=parseNum(r[OK.siva]||0)||parseNum(r[OK.precioUn]||0);
+    if(!val) return;
+    if(mon==='USD'||mon.indexOf('U$')>=0||mon==='DOLAR'||mon==='DOLARES'||mon==='US') ocUSD+=val;
+    else ocPSO+=val;
+  });
+  var fmtMon=function(n,sym){
+    if(!n) return '—';
+    if(n>=1000000) return sym+(n/1000000).toFixed(1)+'M';
+    if(n>=1000) return sym+(n/1000).toFixed(1)+'K';
+    return sym+n.toFixed(0);
+  };
+  var usdEl=document.getElementById('kpi-oc-usd');
+  var psoEl=document.getElementById('kpi-oc-pso');
+  if(usdEl) usdEl.textContent=fmtMon(ocUSD,'U$S ');
+  if(psoEl) psoEl.textContent=fmtMon(ocPSO,'$ ');
 }
 
 function renderExecutiveSummary(){
@@ -1202,7 +1251,23 @@ function renderExecutiveSummary(){
   if(RECS.length>0) parts.push('<strong>'+RECS.length+' recomendación'+(RECS.length>1?'es':'')+' de compra</strong>');
   if(CONT_OPPS.length>0) parts.push(CONT_OPPS.length+' oportunidad'+(CONT_OPPS.length>1?'es':'')+' de usar contingencia');
 
-  var intro='Analicé <strong>'+products+' productos</strong> con <strong>'+RAW_PREC.length+' cotizaciones</strong> de <strong>'+provs+' proveedores</strong>. ';
+  // Totales OC para el resumen
+  var sumUSD=0, sumPSO=0;
+  RAW_PED.forEach(function(r){
+    var est=normText(r[OK.estado]||'');
+    if(est&&!/pendiente|proceso|espera|curso|abierto/.test(est)) return;
+    var mon=String(r[OK.moneda]||'').trim().toUpperCase();
+    var val=parseNum(r[OK.siva]||0)||parseNum(r[OK.precioUn]||0);
+    if(!val) return;
+    if(mon==='USD'||mon.indexOf('U$')>=0||mon==='DOLAR'||mon==='DOLARES'||mon==='US') sumUSD+=val;
+    else sumPSO+=val;
+  });
+  var fmtS=function(n,s){return n>=1000?s+(n/1000).toFixed(1)+'K':s+n.toFixed(0);};
+  var monStr=[];
+  if(sumUSD>0) monStr.push('<strong>'+fmtS(sumUSD,'U$S ')+'</strong>');
+  if(sumPSO>0) monStr.push('<strong>'+fmtS(sumPSO,'$ ')+'</strong>');
+
+  var intro='Analicé <strong>'+products+' productos</strong> con <strong>'+RAW_PREC.length+' cotizaciones</strong> de <strong>'+provs+' proveedores</strong>'+(monStr.length?' · OC pendientes: '+monStr.join(' + '):'')+'. ';
 
   var body;
   if(parts.length===0){
@@ -1336,8 +1401,9 @@ function renderContingency(){
   }
 
   list.innerHTML=CONT_OPPS.map(function(op){
-    var priceLabel=op.currentPrice?'U$S '+op.currentPrice.toFixed(2):'—';
-    var refLabel=op.refValue?'U$S '+op.refValue.toFixed(2):'—';
+    var mon=op.monedaPrec||'U$S';
+    var priceLabel=op.currentPrice?mon+' '+op.currentPrice.toFixed(2):'—';
+    var refLabel=op.refValue?'ref: '+op.refValue.toFixed(2):'—';
     return '<div class="cont-item">'
       +'<div class="cont-product">'+esc(op.product)+'</div>'
       +'<div class="cont-detail">'

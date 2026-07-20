@@ -502,8 +502,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
             <th style="text-align:right">c/IVA</th>
             <th onclick="sortBy('recepcion')">Recepción</th>
             <th>Lote</th>
-            <th>COA</th>
-            <th>Conforme</th>
+            <th style="text-align:center">COA / Conf.</th>
             <th style="text-align:center">Acciones</th>
           </tr>
         </thead>
@@ -1087,8 +1086,10 @@ function renderTable(){
       html += '<td>' + (sinLote
         ? '<span class="pill pill-warn">Sin lote</span>'
         : '<span style="font-size:11px;color:var(--muted)">'+esc(String(r[K.lote]))+'</span>') + '</td>';
-      html += '<td>' + (hasCOA ? '<span class="pill pill-ok">✓ COA</span>' : '<span class="muted-cell">—</span>') + '</td>';
-      html += '<td>' + (hasConf? '<span class="pill pill-ok">✓</span>'     : '<span class="muted-cell">—</span>') + '</td>';
+      html += '<td><div style="display:flex;gap:4px;justify-content:center;white-space:nowrap">'
+            + (hasCOA ? '<span class="pill pill-ok">✓COA</span>'  : '<span class="pill pill-warn" style="opacity:.55">COA</span>')
+            + (hasConf? '<span class="pill pill-ok">✓Conf</span>' : '<span class="pill pill-warn" style="opacity:.55">Conf</span>')
+            + '</div></td>';
       html += '<td><div class="row-actions">'
             + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(orden))+'\')">👁 Ver</button>'
             + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(orden))+'\')">✏ Editar</button>'

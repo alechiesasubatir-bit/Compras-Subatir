@@ -350,6 +350,8 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="supabase-config.js?v=2"></script>
 <script src="subatir-app.js?v=2"></script>
 </head>
@@ -575,6 +577,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-toggle-edit" onclick="toggleEditForm()">✏ Editar</button>
+      <button class="btn btn-ghost btn-sm" id="btn-pdf-row" onclick="pdfForOrder(String(CURRENT_ROW[K.orden]))">📄 PDF</button>
       <button class="btn btn-danger btn-sm" id="btn-delete-row" onclick="confirmDelete()">🗑 Eliminar</button>
       <button class="btn btn-primary" id="btn-save-edit" style="display:none" onclick="saveEdit()">💾 Guardar</button>
       <button class="btn btn-ghost" onclick="closeModal('edit-overlay')">Cerrar</button>
@@ -1046,7 +1049,7 @@ function renderTable(){
       html += '<td class="money-cell">'
             + (precioUn > 0
                ? '<span style="color:'+(moneda==='USD'?'var(--grn)':'var(--teal-l)')+'">'+
-                 (moneda==='USD'?fmtUSD(precioUn):fmtPSO(precioUn))+'</span>'
+                 (moneda==='USD'?fmtUSD(precioUn,2):fmtPSO(precioUn,2))+'</span>'
                : '<span class="muted-cell">—</span>')
             + '</td>';
       html += '<td class="money-cell">'
@@ -1131,7 +1134,7 @@ function openDetail(orden){
     {l:'Proveedor',   v: row[K.proveedor]},
     {l:'Descripción', v: row[K.desc], span:true},
     {l:'Cantidad',    v: row[K.cantidad]},
-    {l:'Precio u.',   v: row[K.precio] ? fmtUSD(pNum(row[K.precio])) : '—'},
+    {l:'Precio u.',   v: row[K.precio] ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.precio]),2) : '—'},
     {l:'Moneda', v: ocMoneda(row)==='USD' ? 'U$S (Dólares)' : '$ (Pesos UY)'},
     {l:'s/IVA',  v: pNum(row[K.siva])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.siva])) : '—'},
     {l:'c/IVA',  v: pNum(row[K.civa])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.civa])) : '—'},
@@ -1521,6 +1524,8 @@ function saveNew(){
   closeModal('new-overlay');
   clearNewForm();
   toast('Orden #'+newOrden+' creada con '+lines.length+' producto'+(lines.length===1?'':'s')+'. ☁ Sincronizá para guardar en la base de datos.', 'info');
+  // Generar el PDF de la orden con todos los datos
+  buildOCPdf({ orden:newOrden, fecha:fecha, proveedor:prov, obs:obs, lines:lines });
 }
 
 function clearNewForm(){
@@ -1684,8 +1689,102 @@ function pNum(v){
   s = s.replace(/[^\d.-]/g,'');
   return parseFloat(s) || 0;
 }
-function fmtUSD(n){ return 'U$S ' + n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
-function fmtPSO(n){ return '$ '   + n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtUSD(n,dec){ dec=dec||0; return 'U$S ' + n.toLocaleString('es-UY',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function fmtPSO(n,dec){ dec=dec||0; return '$ '   + n.toLocaleString('es-UY',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function fmtNum(n,dec){ dec=dec||0; n=parseFloat(n)||0; return n.toLocaleString('es-UY',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+
+// ── PDF de la Orden de Compra ──────────────────────────────────
+// oc = {orden, fecha, proveedor, obs, lines:[{desc,cant,prec,moneda('U$S'|'$')}]}
+function buildOCPdf(oc){
+  if(!window.jspdf || !window.jspdf.jsPDF){ toast('No se pudo cargar el generador de PDF (revisá tu conexión).','err'); return; }
+  var doc = new window.jspdf.jsPDF({unit:'pt', format:'a4'});
+  var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 40, y = 48;
+
+  // Encabezado
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(18,28,42);
+  doc.text('SUBATIR S.A. / Prolimpio', M, y);
+  doc.setFontSize(13); doc.setTextColor(230,120,30);
+  doc.text('ORDEN DE COMPRA', W - M, y, {align:'right'});
+  y += 10; doc.setDrawColor(230,120,30); doc.setLineWidth(1.5); doc.line(M, y, W - M, y); y += 26;
+
+  // Datos de la OC
+  doc.setFontSize(11); doc.setTextColor(40,40,40); doc.setFont('helvetica','normal');
+  doc.text('N° Orden: ' + oc.orden, M, y);
+  doc.text('Fecha: ' + (fmtDate(oc.fecha||'')||'—'), W - M, y, {align:'right'}); y += 20;
+  doc.setFont('helvetica','bold'); doc.text('Proveedor: ', M, y);
+  doc.setFont('helvetica','normal'); doc.text(String(oc.proveedor||'—'), M + 62, y); y += 16;
+
+  // Contacto / pago del proveedor (si hay catálogo)
+  try{
+    var c = (typeof PROV_CONTACT!=='undefined' ? PROV_CONTACT[normP(oc.proveedor||'')] : null) || {};
+    var info = [];
+    if(c.pago) info.push('Pago: ' + c.pago);
+    if(c.contacto) info.push('Contacto: ' + c.contacto);
+    if(c.cel) info.push('Cel: ' + c.cel); else if(c.tel) info.push('Tel: ' + c.tel);
+    if(c.email) info.push(c.email);
+    if(info.length){ doc.setFontSize(9); doc.setTextColor(90,90,90); doc.text(info.join('   ·   '), M, y); y += 14; doc.setFontSize(11); doc.setTextColor(40,40,40); }
+  }catch(e){}
+  y += 6;
+
+  // Tabla de líneas
+  var body = (oc.lines||[]).map(function(l){
+    var sym = l.moneda==='$' ? '$' : 'U$S';
+    var sub = (parseFloat(l.cant)||0) * (parseFloat(l.prec)||0);
+    return [ String(l.desc||''), fmtNum(l.cant), sym+' '+fmtNum(l.prec,2), sym+' '+fmtNum(sub,2) ];
+  });
+  doc.autoTable({
+    startY: y,
+    head: [['Producto','Cantidad','P. Unit s/IVA','Subtotal s/IVA']],
+    body: body,
+    margin: {left:M, right:M},
+    styles: {fontSize:9, cellPadding:5, lineColor:[220,220,220], lineWidth:0.5},
+    headStyles: {fillColor:[14,107,138], textColor:255, halign:'left'},
+    columnStyles: {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}},
+    alternateRowStyles: {fillColor:[245,248,250]}
+  });
+  var yy = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 20;
+
+  // Totales por moneda
+  var tot = {'U$S':0, '$':0};
+  (oc.lines||[]).forEach(function(l){ tot[l.moneda==='$'?'$':'U$S'] += (parseFloat(l.cant)||0)*(parseFloat(l.prec)||0); });
+  doc.setFontSize(10); doc.setTextColor(40,40,40);
+  ['U$S','$'].forEach(function(sym){
+    if(tot[sym] > 0){
+      var siva = tot[sym], iva = siva*0.22, tiva = siva*1.22;
+      doc.setFont('helvetica','normal');
+      doc.text('Subtotal s/IVA: ' + sym + ' ' + fmtNum(siva,2), W - M, yy, {align:'right'}); yy += 15;
+      doc.text('IVA 22%: ' + sym + ' ' + fmtNum(iva,2), W - M, yy, {align:'right'}); yy += 15;
+      doc.setFont('helvetica','bold');
+      doc.text('TOTAL c/IVA: ' + sym + ' ' + fmtNum(tiva,2), W - M, yy, {align:'right'}); yy += 22;
+    }
+  });
+
+  // Observaciones
+  if(oc.obs){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+    doc.text('Observaciones:', M, yy); yy += 13;
+    doc.setFont('helvetica','normal'); doc.setTextColor(90,90,90);
+    doc.text(doc.splitTextToSize(String(oc.obs), W - 2*M), M, yy);
+  }
+
+  // Pie
+  doc.setFontSize(8); doc.setTextColor(150,150,150);
+  doc.text('Generado el ' + new Date().toLocaleString('es-UY'), M, H - 24);
+
+  doc.save('OC-' + oc.orden + '.pdf');
+}
+
+// Genera el PDF de una OC existente juntando todas sus líneas
+function pdfForOrder(orden){
+  var rows = (DATA_DISPLAY||[]).filter(function(r){ return String(r[K.orden])===String(orden); });
+  if(!rows.length){ toast('No se encontró la orden','err'); return; }
+  var first = rows[0];
+  var lines = rows.map(function(r){
+    return { desc:String(r[K.desc]||''), cant:pNum(r[K.cantidad]), prec:pNum(r[K.precio]),
+             moneda: ocMoneda(r)==='USD' ? 'U$S' : '$' };
+  });
+  buildOCPdf({ orden:orden, fecha:first[K.fecha], proveedor:first[K.proveedor], obs:first[K.obs], lines:lines });
+}
 function fmtDate(d){
   if (!d || d==='' || d==='0000-00-00') return '—';
   var p = String(d).split('-');

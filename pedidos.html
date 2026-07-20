@@ -377,14 +377,10 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   </nav>
   <div class="header-right">
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
-    <div class="sync-badge" id="sync-badge">⚡ <span id="sync-count">0</span> cambios pendientes</div>
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" onclick="refresh()" id="btn-refresh">
       <span id="spin-icon" style="display:none" class="spin"></span>
       <span id="refresh-label">⟳ Actualizar</span>
-    </button>
-    <button class="btn btn-orange btn-sm" onclick="syncPending()" id="btn-sync" style="display:none">
-      ☁ Sincronizar
     </button>
     <button class="btn btn-orange" onclick="openNewModal()" style="font-size:13px;padding:8px 16px">+ Nueva OC</button>
   </div>
@@ -706,6 +702,9 @@ var K = {};
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
+  // Cloud-only: se escribe directo a la base. Limpiar cualquier estado local viejo.
+  LOCAL = {overrides:{}, new:[], deleted:[], pendingSync:[]};
+  saveLocal();
   if (!SCRIPT_URL){
     toast('No hay URL de Apps Script configurada. Volvé al Dashboard para configurarla.','err');
     document.getElementById('tbody').innerHTML =
@@ -746,6 +745,17 @@ function smartFetch(url, onOk, onErr) {
       };
       document.head.appendChild(script);
     });
+}
+
+// ── Escritura directa a la base de datos (sin paso de "Sincronizar") ──
+function apiWrite(params, onDone){
+  var url = SCRIPT_URL + '?' + Object.keys(params).map(function(k){
+    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]==null?'':params[k]);
+  }).join('&') + '&t=' + Date.now();
+  smartFetch(url, function(d){
+    if(d && d.error){ toast('Error: ' + d.error, 'err'); onDone && onDone(null); return; }
+    onDone && onDone(d || {});
+  }, function(e){ toast('Error de conexión: ' + (e && e.message || e), 'err'); onDone && onDone(null); });
 }
 
 // ── Carga de datos ────────────────────────────────────────────
@@ -1190,32 +1200,21 @@ function toggleEditForm(){
 }
 
 function saveEdit(){
-  var row   = CURRENT_ROW;
-  var orden = String(row[K.orden]);
-  var ov = {
-    [K.recepcion]: document.getElementById('ed-recepcion').value,
-    [K.lote]:      document.getElementById('ed-lote').value,
-    [K.coa]:       document.getElementById('ed-coa').checked    ? 'SI' : '',
-    [K.conforme]:  document.getElementById('ed-conforme').checked ? 'SI' : '',
-    [K.obs]:       document.getElementById('ed-obs').value
-  };
-
-  // Guardar en estado local
-  LOCAL.overrides[orden] = ov;
-  // Agregar a cola de sync si no está ya
-  var pending = LOCAL.pendingSync = LOCAL.pendingSync || [];
-  var existing = pending.findIndex(function(p){ return p.action==='updatePedido' && p.orden===orden; });
-  var syncEntry = { action:'updatePedido', orden: orden,
-    recepcion: ov[K.recepcion], lote: ov[K.lote],
-    coa: ov[K.coa], conforme: ov[K.conforme], obs: ov[K.obs] };
-  if (existing >= 0) pending[existing] = syncEntry;
-  else pending.push(syncEntry);
-
-  saveLocal();
-  applyLocalOverrides();
-  renderAll();
-  closeModal('edit-overlay');
-  toast('Orden #' + orden + ' guardada localmente. ☁ Sincronizá para actualizar la base de datos.', 'info');
+  var orden = String(CURRENT_ROW[K.orden]);
+  toast('Guardando…','info');
+  apiWrite({
+    action:'updatePedido', orden:orden,
+    recepcion: document.getElementById('ed-recepcion').value,
+    lote:      document.getElementById('ed-lote').value,
+    coa:       document.getElementById('ed-coa').checked    ? 'SI' : '',
+    conforme:  document.getElementById('ed-conforme').checked ? 'SI' : '',
+    obs:       document.getElementById('ed-obs').value
+  }, function(d){
+    if(!d) return;
+    closeModal('edit-overlay');
+    toast('Orden #' + orden + ' actualizada ✓', 'ok');
+    load();
+  });
 }
 
 // ── Modal: nuevo pedido ───────────────────────────────────────
@@ -1479,53 +1478,21 @@ function saveNew(){
 
   if(!lines.length){ toast('Tildá al menos un producto o cargá uno manualmente.','err'); return; }
 
-  // Próximo N° Orden local (compartido por todas las líneas de esta OC)
-  var maxOrden = Math.max.apply(null,
-    DATA_DISPLAY.map(function(r){ return pNum(r[K.orden]); }).filter(function(n){ return n > 0; }).concat([500])
-  );
-  var newOrden = maxOrden + 1;
-  var fecha    = document.getElementById('nw-fecha').value;
-  var obs      = document.getElementById('nw-obs').value.trim();
+  var fecha = document.getElementById('nw-fecha').value;
+  var obs   = document.getElementById('nw-obs').value.trim();
+  var items = lines.map(function(l){ return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda}; });
 
-  LOCAL.new = LOCAL.new || [];
-  lines.forEach(function(l){
-    var siva=l.cant*l.prec, civa=siva*IVA;
-    var newRow={};
-    newRow[K.orden]     = newOrden;
-    newRow[K.fecha]     = fecha;
-    newRow[K.proveedor] = prov;
-    newRow[K.desc]      = l.desc;
-    newRow[K.cantidad]  = l.cant;
-    newRow[K.precio]    = l.prec;
-    if(K.moneda) newRow[K.moneda] = l.moneda;
-    newRow[K.siva]      = siva.toFixed(2);
-    newRow[K.civa]      = civa.toFixed(2);
-    newRow[K.recepcion] = '';
-    newRow[K.lote]      = '';
-    newRow[K.coa]       = '';
-    newRow[K.conforme]  = '';
-    newRow[K.obs]       = obs;
-    newRow.__local      = true;
-    LOCAL.new.push(newRow);
+  toast('Creando orden…','info');
+  apiWrite({ action:'addPedidoMulti', fecha:fecha, proveedor:prov, obs:obs, items:JSON.stringify(items) }, function(d){
+    if(!d) return;
+    var orden = d.orden || '?';
+    closeModal('new-overlay');
+    clearNewForm();
+    toast('Orden #'+orden+' creada con '+lines.length+' producto'+(lines.length===1?'':'s')+' ✓', 'ok');
+    // PDF con el N° de orden definitivo que asignó la base de datos
+    buildOCPdf({ orden:orden, fecha:fecha, proveedor:prov, obs:obs, lines:lines });
+    load();
   });
-
-  LOCAL.pendingSync = LOCAL.pendingSync || [];
-  LOCAL.pendingSync.push({
-    action:'addPedidoMulti', fecha:fecha, proveedor:prov, obs:obs,
-    items:JSON.stringify(lines.map(function(l){
-      return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda};
-    })),
-    _localOrden:newOrden
-  });
-
-  saveLocal();
-  applyLocalOverrides();
-  renderAll();
-  closeModal('new-overlay');
-  clearNewForm();
-  toast('Orden #'+newOrden+' creada con '+lines.length+' producto'+(lines.length===1?'':'s')+'. ☁ Sincronizá para guardar en la base de datos.', 'info');
-  // Generar el PDF de la orden con todos los datos
-  buildOCPdf({ orden:newOrden, fecha:fecha, proveedor:prov, obs:obs, lines:lines });
 }
 
 function clearNewForm(){
@@ -1552,29 +1519,14 @@ function confirmDelete(){
 
 function doDelete(){
   var orden = String(CURRENT_ROW[K.orden]);
-  if (CURRENT_ROW.__local){
-    // Eliminar de la lista local y limpiar su entrada pendiente de sync
-    LOCAL.new = (LOCAL.new||[]).filter(function(r){ return String(r[K.orden])!==orden; });
-    // Quitar la entrada addPedido correspondiente comparando descripción y proveedor
-    var delProv = String(CURRENT_ROW[K.proveedor]||'');
-    var delDesc = String(CURRENT_ROW[K.desc]||'');
-    LOCAL.pendingSync = (LOCAL.pendingSync||[]).filter(function(p){
-      if(p.action==='addPedido' && p.proveedor===delProv && p.descripcion===delDesc) return false;
-      if(p.action==='addPedidoMulti' && String(p._localOrden)===orden) return false;
-      return true;
-    });
-  } else {
-    LOCAL.deleted = LOCAL.deleted || [];
-    if (LOCAL.deleted.indexOf(orden) < 0) LOCAL.deleted.push(orden);
-    LOCAL.pendingSync = LOCAL.pendingSync || [];
-    LOCAL.pendingSync.push({ action:'deletePedido', orden:orden });
-  }
-  saveLocal();
-  applyLocalOverrides();
-  renderAll();
-  closeModal('confirm-overlay');
-  closeModal('edit-overlay');
-  toast('Orden #' + orden + ' marcada para eliminar. ☁ Sincronizá para aplicar en la base de datos.', 'info');
+  toast('Eliminando…','info');
+  apiWrite({ action:'deletePedido', orden:orden }, function(d){
+    if(!d) return;
+    closeModal('confirm-overlay');
+    closeModal('edit-overlay');
+    toast('Orden #' + orden + ' eliminada ✓', 'ok');
+    load();
+  });
 }
 
 // ── Sincronización con Google Sheets ─────────────────────────
@@ -1623,19 +1575,8 @@ function syncPending(){
   doNext();
 }
 
-function updateSyncUI(){
-  var count  = (LOCAL.pendingSync || []).length;
-  var badge  = document.getElementById('sync-badge');
-  var btnSync= document.getElementById('btn-sync');
-  if (count > 0){
-    document.getElementById('sync-count').textContent = count;
-    badge.classList.add('visible');
-    btnSync.style.display = 'inline-flex';
-  } else {
-    badge.classList.remove('visible');
-    btnSync.style.display = 'none';
-  }
-}
+// Los cambios se guardan directo en la base de datos: ya no hay cola de sync.
+function updateSyncUI(){}
 
 // ── Export CSV ────────────────────────────────────────────────
 function exportCSV(){

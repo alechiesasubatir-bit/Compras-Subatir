@@ -422,8 +422,8 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="subatir-app.js"></script>
+<script src="supabase-config.js?v=2"></script>
+<script src="subatir-app.js?v=2"></script>
 </head>
 <body>
 
@@ -814,6 +814,7 @@ window.addEventListener('DOMContentLoaded', function(){
     document.getElementById('tbody').innerHTML =
       '<tr><td colspan="12" class="empty-td">⚠ <a href="index.html" style="color:var(--teal-l)">Configurar URL →</a></td></tr>';
   } else { load(); }
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['inventario','pedidos'], load);
   updateSyncUI();
 });
 

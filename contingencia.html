@@ -321,8 +321,8 @@ tbody td{padding:4px 5px;vertical-align:middle;color:var(--txt);white-space:nowr
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="subatir-app.js"></script>
+<script src="supabase-config.js?v=2"></script>
+<script src="subatir-app.js?v=2"></script>
 </head>
 <body>
 <div class="app">
@@ -1157,6 +1157,7 @@ function exportCSV(){
 window.addEventListener('DOMContentLoaded', function(){
   if(!SCRIPT_URL){ openSetup(); return; }
   load();
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['contingencia'], load);
 });
 </script>
 </body>

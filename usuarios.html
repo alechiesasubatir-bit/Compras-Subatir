@@ -70,8 +70,8 @@ td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13p
 .toast.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="subatir-app.js"></script>
+<script src="supabase-config.js?v=2"></script>
+<script src="subatir-app.js?v=2"></script>
 </head>
 <body>
 <header>
@@ -83,16 +83,19 @@ td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13p
     <a href="index.html" class="nl">⬡ Dashboard</a>
     <a href="usuarios.html" class="nl on">👥 Usuarios</a>
   </nav>
-  <div class="hdr-r"></div>
+  <div class="hdr-r">
+    <button class="btn or" onclick="openNew()">➕ Registrar usuario</button>
+  </div>
 </header>
 
 <main>
   <h2>Usuarios y permisos</h2>
-  <div class="sub">Asigná rol y módulos a cada persona. Los cambios se aplican al instante.</div>
+  <div class="sub">Registrá personas, asigná rol y módulos. Los cambios se aplican al instante y en tiempo real.</div>
 
   <div class="note">
-    ℹ Para <b>crear</b> un usuario nuevo: en Supabase → <b>Authentication → Users → Add user</b> (email + contraseña).
-    Aparecerá acá automáticamente y le asignás los módulos.
+    ℹ Con <b>Registrar usuario</b> creás la cuenta (email + contraseña) directo desde acá y le asignás los módulos.
+    Para que pueda entrar enseguida, en Supabase → Authentication → Providers → Email debe estar <b>desactivada</b> la confirmación por email;
+    si está activada, el usuario recibe un mail para confirmar antes de poder ingresar.
   </div>
 
   <div class="glass">
@@ -127,6 +130,29 @@ td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13p
   </div>
 </div>
 
+<!-- Modal registrar -->
+<div class="ovl" id="ovl-new">
+  <div class="modal">
+    <h3>➕ Registrar usuario</h3>
+    <div class="fg"><label>Email *</label><input id="n-email" type="email" placeholder="persona@empresa.com" autocomplete="off"/></div>
+    <div class="fg"><label>Contraseña *</label><input id="n-pass" type="text" placeholder="Mínimo 6 caracteres" autocomplete="new-password"/></div>
+    <div class="fg"><label>Nombre</label><input id="n-name" placeholder="Nombre y apellido"/></div>
+    <div class="fg"><label>Rol</label>
+      <select id="n-role"><option value="user">Usuario</option><option value="admin">Administrador</option></select>
+    </div>
+    <div class="fg"><label>Módulos habilitados</label>
+      <div class="modgrid" id="n-mods"></div>
+    </div>
+    <div class="fg"><label>Estado</label>
+      <select id="n-activo"><option value="true">Activo</option><option value="false">Desactivado</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeNew()">Cancelar</button>
+      <button class="btn or" id="n-save" onclick="register()">Crear usuario</button>
+    </div>
+  </div>
+</div>
+
 <div class="tc" id="tc"></div>
 
 <script>
@@ -141,6 +167,8 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 SubatirApp.ready.then(function(profile){
   if(!profile || profile.role!=='admin'){ location.replace('index.html'); return; }
   loadUsers();
+  // Tiempo real: la lista se actualiza sola cuando cambian los perfiles
+  if(SubatirApp.live) SubatirApp.live(['profiles'], loadUsers);
 });
 
 function loadUsers(){
@@ -180,6 +208,63 @@ function openM(id){
   document.getElementById('ovl').classList.add('open');
 }
 function closeM(){ document.getElementById('ovl').classList.remove('open'); CUR=null; }
+
+// ── Registrar usuario nuevo (signUp con cliente temporal) ──────────
+function openNew(){
+  document.getElementById('n-email').value='';
+  document.getElementById('n-pass').value='';
+  document.getElementById('n-name').value='';
+  document.getElementById('n-role').value='user';
+  document.getElementById('n-activo').value='true';
+  document.getElementById('n-mods').innerHTML = MODULES.map(function(m){
+    return '<label class="modchk"><input type="checkbox" value="'+m+'"/>'+esc(MODLABEL[m])+'</label>';
+  }).join('');
+  document.getElementById('ovl-new').classList.add('open');
+}
+function closeNew(){ document.getElementById('ovl-new').classList.remove('open'); }
+
+// Cliente temporal: NO persiste sesión ni pisa la del admin (window.SB)
+function tempClient(){
+  return window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+    auth: { persistSession:false, autoRefreshToken:false, storageKey:'subatir_signup_tmp' }
+  });
+}
+
+function register(){
+  var email = document.getElementById('n-email').value.trim().toLowerCase();
+  var pass  = document.getElementById('n-pass').value;
+  var name  = document.getElementById('n-name').value.trim();
+  var role  = document.getElementById('n-role').value;
+  var activo= document.getElementById('n-activo').value==='true';
+  var mods  = Array.prototype.map.call(document.querySelectorAll('#n-mods input:checked'),function(c){return c.value;});
+  if(!email || !/.+@.+\..+/.test(email)){ toast('Email inválido','err'); return; }
+  if(!pass || pass.length<6){ toast('La contraseña debe tener al menos 6 caracteres','err'); return; }
+
+  var btn=document.getElementById('n-save'); btn.disabled=true; btn.textContent='Creando…';
+  var tmp = tempClient();
+  tmp.auth.signUp({ email:email, password:pass, options:{ data:{ full_name:name } } })
+    .then(function(res){
+      if(res.error){ throw res.error; }
+      var newId = res.data && res.data.user && res.data.user.id;
+      var needsConfirm = !(res.data && res.data.session); // sin sesión = requiere confirmar email
+      if(!newId){ throw new Error('No se pudo crear el usuario'); }
+      // El trigger crea el perfil; lo actualizamos con rol/módulos (RLS admin lo permite)
+      return new Promise(function(r){ setTimeout(r,500); }).then(function(){
+        return SB.from('profiles').upsert({ id:newId, email:email, full_name:name, role:role, modules:mods, activo:activo });
+      }).then(function(up){
+        if(up.error) throw up.error;
+        try{ tmp.auth.signOut(); }catch(e){}
+        toast(needsConfirm ? 'Usuario creado. Debe confirmar su email antes de entrar.' : 'Usuario creado ✓', 'ok');
+        closeNew(); loadUsers();
+      });
+    })
+    .catch(function(e){
+      var msg = (e && e.message) || 'Error al crear';
+      if(/already registered|already been/i.test(msg)) msg='Ese email ya está registrado';
+      toast(msg,'err');
+    })
+    .then(function(){ btn.disabled=false; btn.textContent='Crear usuario'; });
+}
 
 function saveM(){
   if(!CUR) return;

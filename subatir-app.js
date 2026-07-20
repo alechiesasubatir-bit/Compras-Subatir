@@ -331,6 +331,36 @@
     }
   }
 
+  // ── Tiempo real ────────────────────────────────────────────
+  // Suscribe a cambios de las tablas indicadas y llama a fn() (con debounce)
+  // cuando algo cambia. Respaldo: también recarga al volver a la pestaña.
+  function live(tables, fn, opts) {
+    opts = opts || {};
+    tables = Array.isArray(tables) ? tables : [tables];
+    var delay = opts.delay || 600, timer = null, lastRun = 0;
+    function trigger() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () { timer = null; lastRun = Date.now(); try { fn(); } catch (e) { console.error('live()', e); } }, delay);
+    }
+    try {
+      var ch = SB.channel('rt-' + tables.join('_') + '-' + Math.random().toString(36).slice(2));
+      tables.forEach(function (t) {
+        ch.on('postgres_changes', { event: '*', schema: 'public', table: t }, trigger);
+      });
+      ch.subscribe(function (status) {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[Realtime] ' + status + ' en ' + tables.join(', ') + ' — ¿tablas agregadas a la publicación supabase_realtime?');
+        }
+      });
+    } catch (e) { console.warn('[Realtime] no disponible:', e); }
+    // Respaldo: al volver a la pestaña, refrescá (evita quedar con datos viejos
+    // si Realtime aún no está habilitado). Se ignora si recién se recargó.
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && Date.now() - lastRun > 1500) trigger();
+    });
+    return { reload: trigger };
+  }
+
   // ── Export ─────────────────────────────────────────────────
   window.SubatirApp = {
     ready: _ready,
@@ -338,6 +368,7 @@
     getData: getData,
     updateRow: updateRow, addRow: addRow, deleteRow: deleteRow,
     legacyFetch: legacyFetch,
+    live: live,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule
   };

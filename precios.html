@@ -356,8 +356,8 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="subatir-app.js"></script>
+<script src="supabase-config.js?v=2"></script>
+<script src="subatir-app.js?v=2"></script>
 </head>
 <body>
 
@@ -632,6 +632,7 @@ window.addEventListener('DOMContentLoaded', function(){
     document.getElementById('cat-tbody').innerHTML =
       '<tr><td colspan="11" class="empty-td">⚠ <a href="index.html" style="color:var(--orange)">Configurar URL →</a></td></tr>';
   } else { load(); }
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['precios'], load);
   updateSyncUI();
   document.addEventListener('click', function(e){
     if (!e.target.closest('.search-wrap')) closeSuggestions();

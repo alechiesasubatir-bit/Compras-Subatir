@@ -25,7 +25,13 @@
       "PowerShell(gh api *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://api.github.com/repos/alechiesasubatir-bit/Compras-Subatir)",
       "Bash(curl -s https://api.github.com/repos/alechiesasubatir-bit/Compras-Subatir)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git credential *)",
+      "Bash(curl -s https://api.github.com/repos/alechiesasubatir-bit/Compras-Subatir/pages)"
     ]
   }
 }

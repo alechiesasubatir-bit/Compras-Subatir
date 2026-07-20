@@ -453,6 +453,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
       <span id="ref-lbl">⟳ Actualizar</span>
     </button>
     <button class="btn btn-orange btn-sm" id="btn-sync" style="display:none" onclick="syncAll()">☁ Sync</button>
+    <button class="btn btn-teal btn-sm" onclick="openNewArt()">➕ Nuevo artículo</button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
   </div>
 </header>
@@ -732,6 +733,58 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
       <button class="btn btn-ghost btn-sm" id="btn-tog" onclick="toggleEdit()">✏ Editar</button>
       <button class="btn btn-teal" id="btn-save" style="display:none" onclick="saveEdit()">💾 Guardar local</button>
       <button class="btn btn-ghost" onclick="closeOv('ov-edit')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo artículo (inserta en la tabla inventario) -->
+<div class="overlay" id="ov-new">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">➕ Nuevo artículo de inventario</div>
+      <button class="modal-x" onclick="closeOv('ov-new')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label>Descripción / Artículo *</label>
+        <input type="text" class="fi2" id="nw-art-desc" list="nw-art-list" autocomplete="off" placeholder="Ej: Hipoclorito de Sodio 100 grs/Lt (Materia Prima)"/>
+        <datalist id="nw-art-list"></datalist>
+      </div>
+      <div class="fg-row">
+        <div class="fg">
+          <label>Stock actual</label>
+          <input type="number" class="fi2" id="nw-art-stock" step="0.01" placeholder="0"/>
+        </div>
+        <div class="fg">
+          <label>Stock mínimo</label>
+          <input type="number" class="fi2" id="nw-art-min" step="0.01" placeholder="0"/>
+        </div>
+      </div>
+      <div class="fg-row">
+        <div class="fg">
+          <label>Consumo mensual</label>
+          <input type="number" class="fi2" id="nw-art-cons" step="0.01" placeholder="0"/>
+        </div>
+        <div class="fg">
+          <label>Proveedor sugerido</label>
+          <input type="text" class="fi2" id="nw-art-prov" placeholder="Nombre del proveedor"/>
+        </div>
+      </div>
+      <div class="fg-row">
+        <div class="fg">
+          <label>Código (opcional)</label>
+          <input type="text" class="fi2" id="nw-art-cod" placeholder="—"/>
+        </div>
+        <div class="fg">
+          <label>Unidad (opcional)</label>
+          <input type="text" class="fi2" id="nw-art-unid" placeholder="Ej: KG, L, UN"/>
+        </div>
+      </div>
+      <div id="nw-art-hint" style="display:none;font-size:12px;margin-top:4px;color:var(--orange-l,#fb923c)"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-teal" id="nw-art-save" onclick="saveNewArt()">💾 Crear artículo</button>
+      <button class="btn btn-ghost" onclick="closeOv('ov-new')">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1465,6 +1518,59 @@ function saveEdit(){
   updateSyncUI();
   closeOv('ov-edit');
   toast('Ajuste guardado localmente. ☁ Sincronizá para actualizar la base de datos.','info');
+}
+
+// ─── Alta de artículo nuevo (inserta en la tabla inventario) ──────────
+function openNewArt(){
+  ['nw-art-desc','nw-art-stock','nw-art-min','nw-art-cons','nw-art-prov','nw-art-cod','nw-art-unid'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.value='';
+  });
+  var hint=document.getElementById('nw-art-hint'); if(hint){ hint.style.display='none'; hint.textContent=''; }
+  // Datalist: productos que aparecen en OC pero aún no están en inventario
+  var invSet={}; (MERGED||[]).forEach(function(m){ if(m.__row) invSet[norm(m.desc)]=1; });
+  var opts={};
+  (RAW_PED||[]).forEach(function(r){ var d=String(r[PK.desc]||'').trim(); if(d && !invSet[norm(d)]) opts[d]=1; });
+  var dl=document.getElementById('nw-art-list');
+  if(dl) dl.innerHTML=Object.keys(opts).sort().map(function(d){ return '<option value="'+d.replace(/"/g,'&quot;')+'"></option>'; }).join('');
+  openOv('ov-new');
+  setTimeout(function(){ var e=document.getElementById('nw-art-desc'); if(e) e.focus(); }, 60);
+}
+
+function saveNewArt(){
+  var desc = document.getElementById('nw-art-desc').value.trim();
+  var hint = document.getElementById('nw-art-hint');
+  function warn(msg){ if(hint){ hint.textContent=msg; hint.style.display='block'; } }
+  if(!desc){ warn('⚠ La descripción es obligatoria.'); return; }
+  // Evitar duplicado con inventario existente
+  var dup=(MERGED||[]).some(function(m){ return m.__row && norm(m.desc)===norm(desc); });
+  if(dup){ warn('⚠ Ya existe un artículo con esa descripción en inventario.'); return; }
+
+  var num=function(id){ var v=document.getElementById(id).value; return v!==''?(parseFloat(v)||0):''; };
+  // Campos con los NOMBRES DE HEADER que espera la capa de datos (MAPS.inventario)
+  var fields={};
+  fields['DESCRIPCIÓN']       = desc;
+  var stock=num('nw-art-stock'); if(stock!=='') fields['INVENTARIO']        = stock;
+  var min  =num('nw-art-min');   if(min  !=='') fields['STOCK MÍNIMO']      = min;
+  var cons =num('nw-art-cons');  if(cons !=='') fields['CONSUMO MENSUAL']   = cons;
+  var prov =document.getElementById('nw-art-prov').value.trim(); if(prov) fields['PROOVEDOR SUGERIDO']=prov;
+  var cod  =document.getElementById('nw-art-cod').value.trim();  if(cod)  fields['CODIGO']=cod;
+  var unid =document.getElementById('nw-art-unid').value.trim(); if(unid) fields['Unid.']=unid;
+
+  var btn=document.getElementById('nw-art-save'); if(btn){ btn.disabled=true; btn.textContent='Creando…'; }
+  var url=URL_AS+'?action=addRow&sheetKey=inventario&fields='+encodeURIComponent(JSON.stringify(fields))+'&t='+Date.now();
+  smartFetch(url,
+    function(d){
+      if(btn){ btn.disabled=false; btn.textContent='💾 Crear artículo'; }
+      if(d && d.error){ warn('⚠ Error al crear: '+d.error); return; }
+      closeOv('ov-new');
+      toast('✓ Artículo "'+desc+'" creado en la base de datos.','ok');
+      load(); // recarga para que aparezca en la lista
+    },
+    function(e){
+      if(btn){ btn.disabled=false; btn.textContent='💾 Crear artículo'; }
+      warn('⚠ No se pudo crear (revisá conexión). '+(e&&e.message?e.message:''));
+    }
+  );
 }
 
 // Cuenta de artículos con cambios pendientes de sincronizar

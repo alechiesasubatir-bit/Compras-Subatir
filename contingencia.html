@@ -240,6 +240,34 @@ tbody td{padding:4px 5px;vertical-align:middle;color:var(--txt);white-space:nowr
 .edit-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 #edit-saving{display:none;align-items:center;gap:8px;color:var(--mut2);font-size:12px}
 
+/* ── Botones de acción por fila (migrar / borrar) ─────────────── */
+.btn-mig{
+  background:linear-gradient(135deg,rgba(27,200,255,.22),rgba(14,107,138,.2));
+  border:1px solid rgba(27,200,255,.5);color:var(--tl);
+  border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;transition:all .18s;line-height:1;
+}
+.btn-mig:hover{background:linear-gradient(135deg,rgba(27,200,255,.5),rgba(14,107,138,.4));border-color:var(--tl);color:#fff;transform:scale(1.1)}
+.btn-del{
+  background:linear-gradient(135deg,rgba(239,68,68,.22),rgba(220,38,38,.2));
+  border:1px solid rgba(239,68,68,.5);color:#fca5a5;
+  border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;transition:all .18s;line-height:1;
+}
+.btn-del:hover{background:linear-gradient(135deg,rgba(239,68,68,.5),rgba(220,38,38,.4));border-color:#ef4444;color:#fff;transform:scale(1.1)}
+.row-acts{display:flex;gap:4px;justify-content:center;align-items:center}
+
+/* ── Modales genéricos (migrar / confirmar) — reusa estética edit ── */
+.ovm{display:none;position:fixed;inset:0;z-index:650;background:rgba(0,0,0,.85);
+  backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:24px 16px;overflow-y:auto}
+.ovm.open{display:flex}
+.mig-note{font-size:13px;color:var(--mut2);line-height:1.7;margin-bottom:16px}
+.mig-note b{color:var(--txt)}
+.mig-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt);margin-bottom:20px;cursor:pointer}
+.mig-check input{width:16px;height:16px;accent-color:var(--tl);cursor:pointer}
+.mig-summary{background:var(--bg3);border:1px solid var(--bdr2);border-radius:10px;
+  padding:12px 14px;margin-bottom:16px;font-size:12px;line-height:1.9}
+.mig-summary .ms-k{color:var(--mut2)}
+.mig-summary .ms-v{color:var(--txt);font-weight:600;float:right;font-family:'IBM Plex Mono',monospace}
+
 /* ── Setup modal ───────────────────────────────────────────── */
 #setup-modal{
   display:none;position:fixed;inset:0;z-index:500;
@@ -323,7 +351,7 @@ tbody td{padding:4px 5px;vertical-align:middle;color:var(--txt);white-space:nowr
         <span id="spin-icon" style="display:none" class="spin"></span>
         <span id="refresh-label">⟳ Actualizar</span>
       </button>
-      <button class="btn btn-setup" onclick="openSetup()">⚙ Reconfigurar</button>
+      <button class="btn btn-primary" onclick="openNewModal()">➕ Nuevo artículo</button>
     </div>
   </header>
 
@@ -409,13 +437,43 @@ tbody td{padding:4px 5px;vertical-align:middle;color:var(--txt);white-space:nowr
 <!-- ── EDIT MODAL ──────────────────────────────────────────── -->
 <div id="edit-modal">
   <div class="edit-box">
-    <div class="edit-title">✏ Editar registro</div>
+    <div class="edit-title" id="edit-modal-title">✏ Editar registro</div>
     <div class="edit-sub" id="edit-sub">Registro #—</div>
     <div class="edit-grid" id="edit-fields"></div>
     <div class="edit-actions">
       <div id="edit-saving"><span class="spin"></span> Guardando…</div>
       <button class="btn btn-setup" onclick="closeEditModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveEdit()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MIGRATE MODAL ───────────────────────────────────────── -->
+<div id="migrate-modal" class="ovm">
+  <div class="edit-box" style="max-width:480px">
+    <div class="edit-title">📦 Migrar a stock general</div>
+    <div class="edit-sub" id="mig-sub">—</div>
+    <div class="mig-note">Se creará este artículo en el <b>inventario general (Stock)</b> con los datos de contingencia:</div>
+    <div class="mig-summary" id="mig-summary"></div>
+    <label class="mig-check"><input type="checkbox" id="mig-remove" checked> Quitar de contingencia después de migrar (mover)</label>
+    <div class="edit-actions">
+      <div id="mig-saving" style="display:none;align-items:center;gap:8px;color:var(--mut2);font-size:12px"><span class="spin"></span> Migrando…</div>
+      <button class="btn btn-setup" onclick="closeMigrate()">Cancelar</button>
+      <button class="btn btn-primary" id="mig-go" onclick="doMigrate()">📦 Migrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONFIRM DELETE MODAL ────────────────────────────────── -->
+<div id="confirm-modal" class="ovm">
+  <div class="edit-box" style="max-width:440px">
+    <div class="edit-title" style="color:#fca5a5">🗑 Quitar de contingencia</div>
+    <div class="edit-sub" id="cfm-sub">—</div>
+    <div class="mig-note" id="cfm-msg">¿Seguro que querés eliminar este artículo de contingencia? Esta acción se aplica directo en la base de datos y no se puede deshacer.</div>
+    <div class="edit-actions">
+      <div id="cfm-saving" style="display:none;align-items:center;gap:8px;color:var(--mut2);font-size:12px"><span class="spin"></span> Eliminando…</div>
+      <button class="btn btn-setup" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn btn-primary" style="background:linear-gradient(135deg,#ef4444,#dc2626);border-color:#ef4444" id="cfm-go" onclick="doDeleteCont()">🗑 Sí, eliminar</button>
     </div>
   </div>
 </div>
@@ -759,7 +817,11 @@ function renderTabla(){
       else if(est.indexOf('criti')>=0||est.indexOf('críti')>=0||est.indexOf('bajo')>=0||est.indexOf('alerta')>=0) estCls='est-critico';
     }
     html += '<tr class="'+estCls+'">';
-    html += '<td style="padding:2px 4px;text-align:center;max-width:30px"><button class="btn-edit" onclick="openEditModal('+rawIdx+')">✏</button></td>';
+    html += '<td style="padding:2px 4px;text-align:center;white-space:nowrap"><div class="row-acts">'
+          + '<button class="btn-edit" title="Editar" onclick="openEditModal('+rawIdx+')">✏</button>'
+          + '<button class="btn-mig" title="Migrar a stock general" onclick="openMigrate('+rawIdx+')">→📦</button>'
+          + '<button class="btn-del" title="Quitar de contingencia" onclick="confirmDeleteCont('+rawIdx+')">🗑</button>'
+          + '</div></td>';
     COLS.forEach(function(c){
       var v = r[c.key];
       var s = String(v===null||v===undefined?'':v).trim();
@@ -855,47 +917,65 @@ function renderTabla(){
 
 /* ── Edit modal ──────────────────────────────────────────────── */
 var EDIT_IDX = -1;
+var MODE = 'edit';   // 'edit' | 'new'
 
-function openEditModal(rawIdx){
-  EDIT_IDX = rawIdx;
-  var r = RAW[rawIdx];
-  document.getElementById('edit-sub').textContent = 'Registro #' + (r.__row || '—');
+// Lista completa de headers de contingencia (incluye Unidad, que en la tabla está oculta)
+var CONT_FALLBACK = ['Artículo (Materia Prima)','Unidad','Stock Inicial (KG/UN)','Consumido hasta hoy',
+  'Stock Disponible','% Restante','Precio Compra USD/KG','Consumo Mensual Est.','Meses Cobertura',
+  'Estado','Motivo','Observaciones'];
+function contHeaders(){
+  return (RAW && RAW.length) ? Object.keys(RAW[0]).filter(function(k){ return k!=='__row'; }) : CONT_FALLBACK.slice();
+}
 
+// Construye los campos del formulario a partir de un objeto fila (header→valor)
+function buildContFields(r){
   var html = '';
-  COLS.forEach(function(c){
-    var raw  = r[c.key]===null||r[c.key]===undefined ? '' : r[c.key];
+  contHeaders().forEach(function(key){
+    var raw  = r[key]===null||r[key]===undefined ? '' : r[key];
     var v    = String(raw).trim();
-    var isPct  = K.pct && K.pct.indexOf(c.key) >= 0;
+    var isPct  = K.pct && K.pct.indexOf(key) >= 0;
     var isLong = !isPct && v.length > 60;
-    var isDate = c.key === K.fecha || /fecha|date/i.test(c.key);
+    var isDate = key === K.fecha || /fecha|date/i.test(key);
     var dateVal = isDate ? isoDate(v) : '';
-
-    /* % restante: mostrar como 67.00, guardar como decimal */
-    var dispVal = v;
-    var dataType = '';
+    var dispVal = v, dataType = '';
     if(isPct){
       var pv = parseFloat(v.replace(',','.'));
       if(!isNaN(pv) && pv >= 0 && pv <= 1) pv = pv * 100;
       dispVal  = isNaN(pv) ? v : pv.toFixed(2);
       dataType = 'pct';
     }
-
     html += '<div class="edit-field">';
-    html += '<label class="edit-label" for="ef-'+safeId(c.key)+'">'
-          + c.label + (isPct ? ' (%)' : '') + '</label>';
+    html += '<label class="edit-label" for="ef-'+safeId(key)+'">'+escHtml(key)+(isPct ? ' (%)' : '')+'</label>';
     if(isLong){
-      html += '<textarea id="ef-'+safeId(c.key)+'" class="edit-input long" data-col="'+escHtml(c.key)+'" data-type="'+dataType+'">'+escHtml(dispVal)+'</textarea>';
+      html += '<textarea id="ef-'+safeId(key)+'" class="edit-input long" data-col="'+escHtml(key)+'" data-type="'+dataType+'">'+escHtml(dispVal)+'</textarea>';
     } else if(isDate){
-      html += '<input id="ef-'+safeId(c.key)+'" class="edit-input" type="date" data-col="'+escHtml(c.key)+'" data-type="" value="'+(dateVal||v)+'">';
+      html += '<input id="ef-'+safeId(key)+'" class="edit-input" type="date" data-col="'+escHtml(key)+'" data-type="" value="'+(dateVal||v)+'">';
     } else {
-      html += '<input id="ef-'+safeId(c.key)+'" class="edit-input" type="text" data-col="'+escHtml(c.key)+'" data-type="'+dataType+'" value="'+escHtml(dispVal)+'">';
+      html += '<input id="ef-'+safeId(key)+'" class="edit-input" type="text" data-col="'+escHtml(key)+'" data-type="'+dataType+'" value="'+escHtml(dispVal)+'">';
     }
     html += '</div>';
   });
+  return html;
+}
 
-  document.getElementById('edit-fields').innerHTML = html;
+function openEditModal(rawIdx){
+  MODE = 'edit'; EDIT_IDX = rawIdx;
+  var r = RAW[rawIdx];
+  document.getElementById('edit-modal-title').textContent = '✏ Editar registro';
+  document.getElementById('edit-sub').textContent = 'Registro #' + (r.__row || '—');
+  document.getElementById('edit-fields').innerHTML = buildContFields(r);
   document.getElementById('edit-modal').classList.add('open');
-  /* foco en primer input */
+  var first = document.querySelector('#edit-fields input, #edit-fields textarea');
+  if(first) setTimeout(function(){ first.focus(); }, 80);
+}
+
+function openNewModal(){
+  MODE = 'new'; EDIT_IDX = -1;
+  var blank = {}; contHeaders().forEach(function(k){ blank[k] = ''; });
+  document.getElementById('edit-modal-title').textContent = '➕ Nuevo artículo de contingencia';
+  document.getElementById('edit-sub').textContent = 'Se creará directo en la base de datos';
+  document.getElementById('edit-fields').innerHTML = buildContFields(blank);
+  document.getElementById('edit-modal').classList.add('open');
   var first = document.querySelector('#edit-fields input, #edit-fields textarea');
   if(first) setTimeout(function(){ first.focus(); }, 80);
 }
@@ -905,41 +985,132 @@ function closeEditModal(){
   EDIT_IDX = -1;
 }
 
-function saveEdit(){
-  if(EDIT_IDX < 0) return;
-  var r      = RAW[EDIT_IDX];
-  var rowNum = r.__row;
-  if(!rowNum){ toast('Sin número de fila — no se puede guardar','err'); return; }
+// Autocompleta derivados (disponible, % restante, meses) si quedaron vacíos
+function autoCalcCont(f){
+  var iniStr = f['Stock Inicial (KG/UN)'];
+  var ini = pNum(iniStr), cons = pNum(f['Consumido hasta hoy']);
+  if((f['Stock Disponible']===''||f['Stock Disponible']==null) && iniStr!=='' && iniStr!=null){
+    f['Stock Disponible'] = String(ini - cons);
+  }
+  var disp = pNum(f['Stock Disponible']);
+  if((f['% Restante']===''||f['% Restante']==null) && ini>0){ f['% Restante'] = String(disp/ini); }
+  var cm = pNum(f['Consumo Mensual Est.']);
+  if((f['Meses Cobertura']===''||f['Meses Cobertura']==null) && cm>0){ f['Meses Cobertura'] = String(+(disp/cm).toFixed(2)); }
+}
 
-  /* recopilar todos los campos — convertir % de vuelta a decimal */
+function saveEdit(){
+  /* recopilar campos — convertir % de vuelta a decimal */
   var fields = {};
   document.querySelectorAll('#edit-fields [data-col]').forEach(function(el){
     var val = el.value;
     if(el.getAttribute('data-type') === 'pct'){
-      var n = parseFloat(val.replace('%','').replace(',','.'));
+      var n = parseFloat(String(val).replace('%','').replace(',','.'));
       val = isNaN(n) ? val : String(n / 100);
     }
     fields[el.getAttribute('data-col')] = val;
   });
 
-  document.getElementById('edit-saving').style.display = 'flex';
+  var descKey = K.desc || 'Artículo (Materia Prima)';
+  if(!String(fields[descKey]||'').trim()){ toast('El artículo (materia prima) es obligatorio','err'); return; }
+  autoCalcCont(fields);
 
-  var url = SCRIPT_URL + '?action=updateContingencia&row=' + rowNum +
-            '&fields=' + encodeURIComponent(JSON.stringify(fields));
+  document.getElementById('edit-saving').style.display = 'flex';
+  var url;
+  if(MODE === 'new'){
+    url = SCRIPT_URL + '?action=addRow&sheetKey=contingencia&fields=' + encodeURIComponent(JSON.stringify(fields)) + '&t=' + Date.now();
+  } else {
+    var r = RAW[EDIT_IDX];
+    if(!r || !r.__row){ document.getElementById('edit-saving').style.display='none'; toast('Sin fila — no se puede guardar','err'); return; }
+    url = SCRIPT_URL + '?action=updateContingencia&row=' + r.__row + '&fields=' + encodeURIComponent(JSON.stringify(fields)) + '&t=' + Date.now();
+  }
 
   smartFetch(url, function(data){
     document.getElementById('edit-saving').style.display = 'none';
-    if(data.error){ toast('Error: ' + data.error, 'err'); return; }
-    /* actualizar RAW en memoria */
-    Object.keys(fields).forEach(function(k){ r[k] = fields[k]; });
-    renderTabla();
-    renderKPIs();
-    renderTicker();
+    if(data && data.error){ toast('Error: ' + data.error, 'err'); return; }
     closeEditModal();
-    toast('Guardado (' + (data.updated ? data.updated.length : '?') + ' campos)', 'ok');
+    toast(MODE==='new' ? '✓ Artículo agregado a contingencia' : '✓ Cambios guardados', 'ok');
+    load(); // recarga desde la base de datos (trae el nuevo __row)
   }, function(err){
     document.getElementById('edit-saving').style.display = 'none';
     toast('Error de conexión: ' + err, 'err');
+  });
+}
+
+/* ── Migrar a stock general (tabla inventario) ─────────────────── */
+var MIG_IDX = -1;
+function openMigrate(rawIdx){
+  MIG_IDX = rawIdx; var r = RAW[rawIdx];
+  var art = String(r[K.desc]||'').trim();
+  document.getElementById('mig-sub').textContent = art || 'Registro #' + (r.__row||'—');
+  var disp = r['Stock Disponible'], unidad = r['Unidad']||'', cm = r['Consumo Mensual Est.']||'';
+  document.getElementById('mig-summary').innerHTML =
+    '<div><span class="ms-k">Descripción</span><span class="ms-v">'+escHtml(art)+'</span></div>'+
+    '<div><span class="ms-k">Unidad</span><span class="ms-v">'+escHtml(String(unidad)||'—')+'</span></div>'+
+    '<div><span class="ms-k">Stock actual</span><span class="ms-v">'+escHtml(String(disp)||'0')+'</span></div>'+
+    '<div><span class="ms-k">Consumo mensual</span><span class="ms-v">'+escHtml(String(cm)||'—')+'</span></div>';
+  document.getElementById('mig-remove').checked = true;
+  document.getElementById('migrate-modal').classList.add('open');
+}
+function closeMigrate(){ document.getElementById('migrate-modal').classList.remove('open'); MIG_IDX = -1; }
+function migBusy(on){ document.getElementById('mig-saving').style.display = on?'flex':'none'; document.getElementById('mig-go').disabled = on; }
+function doMigrate(){
+  if(MIG_IDX < 0) return; var r = RAW[MIG_IDX];
+  var art = String(r[K.desc]||'').trim();
+  if(!art){ toast('Sin artículo','err'); return; }
+  var remove = document.getElementById('mig-remove').checked;
+
+  var invFields = {};
+  invFields['DESCRIPCIÓN'] = art;
+  if(r['Unidad']) invFields['Unid.'] = r['Unidad'];
+  var disp = r['Stock Disponible']; if(disp!==''&&disp!=null) invFields['INVENTARIO'] = disp;
+  var cm = r['Consumo Mensual Est.']; if(cm!==''&&cm!=null) invFields['CONSUMO MENSUAL'] = cm;
+
+  migBusy(true);
+  // Evitar duplicado en inventario general
+  window.SB.from('inventario').select('descripcion').then(function(res){
+    var exists = (res.data||[]).some(function(x){ return String(x.descripcion||'').trim().toLowerCase() === art.toLowerCase(); });
+    if(exists){ migBusy(false); toast('Ya existe "'+art+'" en stock general — no se duplicó.','err'); return; }
+
+    var addUrl = SCRIPT_URL + '?action=addRow&sheetKey=inventario&fields=' + encodeURIComponent(JSON.stringify(invFields)) + '&t=' + Date.now();
+    smartFetch(addUrl, function(d){
+      if(d && d.error){ migBusy(false); toast('Error al migrar: '+d.error,'err'); return; }
+      if(remove){
+        var delUrl = SCRIPT_URL + '?action=deleteRow&sheetKey=contingencia&row=' + r.__row + '&t=' + Date.now();
+        smartFetch(delUrl, function(d2){
+          migBusy(false); closeMigrate();
+          toast(d2&&d2.error ? '✓ Migrado, pero no se pudo quitar de contingencia' : '✓ "'+art+'" migrado a stock general y quitado de contingencia', d2&&d2.error?'err':'ok');
+          load();
+        }, function(){ migBusy(false); closeMigrate(); toast('✓ Migrado, pero error al quitar de contingencia','err'); load(); });
+      } else {
+        migBusy(false); closeMigrate(); toast('✓ "'+art+'" copiado a stock general','ok'); load();
+      }
+    }, function(){ migBusy(false); toast('Error de conexión al migrar','err'); });
+  }, function(){ migBusy(false); toast('No se pudo verificar duplicados (conexión)','err'); });
+}
+
+/* ── Quitar de contingencia ────────────────────────────────────── */
+var DEL_IDX = -1;
+function confirmDeleteCont(rawIdx){
+  DEL_IDX = rawIdx; var r = RAW[rawIdx];
+  document.getElementById('cfm-sub').textContent = String(r[K.desc]||'') || ('Registro #' + (r.__row||'—'));
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeConfirm(){ document.getElementById('confirm-modal').classList.remove('open'); DEL_IDX = -1; }
+function doDeleteCont(){
+  if(DEL_IDX < 0) return; var r = RAW[DEL_IDX];
+  if(!r.__row){ toast('Sin fila — no se puede eliminar','err'); return; }
+  document.getElementById('cfm-saving').style.display = 'flex';
+  document.getElementById('cfm-go').disabled = true;
+  var url = SCRIPT_URL + '?action=deleteRow&sheetKey=contingencia&row=' + r.__row + '&t=' + Date.now();
+  smartFetch(url, function(d){
+    document.getElementById('cfm-saving').style.display = 'none';
+    document.getElementById('cfm-go').disabled = false;
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    closeConfirm(); toast('✓ Artículo eliminado de contingencia','ok'); load();
+  }, function(err){
+    document.getElementById('cfm-saving').style.display = 'none';
+    document.getElementById('cfm-go').disabled = false;
+    toast('Error de conexión: '+err,'err');
   });
 }
 

@@ -1251,12 +1251,13 @@ function buildOCCatalog(){
     var CT=fk(ck,['Tel','TELEFONO','Teléfono','Telefono']);
     var CP=fk(ck,['Pago','PAGO','Condicion','Condición']);
     var CD=fk(ck,['Direccion','DIRECCION','Dirección','Domicilio','DIR','Dir']);
+    var CR=fk(ck,['RUT','Rut','rut','RUC','R.U.T.','R.U.T']);
     RAW_CTT.forEach(function(r){
       var emp=String(r[CE]||'').trim(); if(!emp) return;
       PROV_CONTACT[normP(emp)]={
         contacto:String(r[CN]||'').trim(), cel:String(r[CC]||'').trim(),
         email:String(r[CM]||'').trim(), tel:String(r[CT]||'').trim(), pago:String(r[CP]||'').trim(),
-        direccion:CD?String(r[CD]||'').trim():''
+        direccion:CD?String(r[CD]||'').trim():'', rut:CR?String(r[CR]||'').trim():''
       };
     });
   }
@@ -1710,29 +1711,42 @@ function buildDocPdf(oc, mode){
   var c = {};
   try{ c = (typeof PROV_CONTACT!=='undefined' ? PROV_CONTACT[normP(oc.proveedor||'')] : null) || {}; }catch(e){}
 
-  // Caja de datos (derecha)
-  var bx=W-352, by=30, bw=W-M-bx, bh=140, bottom=by+bh;
-  var leftW=120, rightX=bx+leftW, rightW=bw-leftW;
+  // Caja de datos (derecha): 3 filas izq (Fecha, N° Orden, RUC) + 3 der (Proveedor, Dirección, Contacto|Celular)
+  var bx=W-352, by=30, bw=W-M-bx, bh=150, bottom=by+bh;
+  var leftW=120, rightX=bx+leftW, rightW=bw-leftW, splitX=rightX+rightW/2;
+  var r1=by+50, r2=by+100; // divisores horizontales (filas de 50)
   doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1.1); doc.roundedRect(bx,by,bw,bh,7,7,'S');
   doc.setLineWidth(0.9);
-  doc.line(rightX,by,rightX,bottom);
-  doc.line(bx,by+bh/2,rightX,by+bh/2);
-  var ry1=by+46, ry2=by+94, splitX=rightX+rightW/2;
-  doc.line(rightX,ry1,bx+bw,ry1); doc.line(rightX,ry2,bx+bw,ry2); doc.line(splitX,ry2,splitX,bottom);
+  doc.line(rightX,by,rightX,bottom);                 // divisor vertical principal
+  doc.line(bx,r1,rightX,r1); doc.line(bx,r2,rightX,r2);        // filas izquierda
+  doc.line(rightX,r1,bx+bw,r1); doc.line(rightX,r2,bx+bw,r2);  // filas derecha
+  doc.line(splitX,r2,splitX,bottom);                 // divisor Contacto|Celular
 
   function lbl(t,x,y){ doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(OR[0],OR[1],OR[2]); doc.text(t,x,y); }
-  function val(t,x,y,size){ doc.setFont('helvetica','bold'); doc.setFontSize(size||12); doc.setTextColor(BK[0],BK[1],BK[2]); doc.text(String(t==null||t===''?'—':t),x,y); }
-  lbl('Fecha', bx+10, by+18);            val(fmtDate(oc.fecha||'')||'—', bx+10, by+40, 12);
-  lbl('N° Orden', bx+10, by+bh/2+18);    val(oc.orden, bx+10, by+bh/2+42, 15);
-  lbl('Proveedor', rightX+10, by+16);    val(clipStr(oc.proveedor,26), rightX+10, by+37, 12);
-  lbl('Dirección', rightX+10, ry1+15);
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(BK[0],BK[1],BK[2]);
-  doc.text(doc.splitTextToSize(String(c.direccion||'—'), rightW-16).slice(0,2), rightX+10, ry1+31);
-  lbl('Contacto vendedor', rightX+10, ry2+15);  val(clipStr(c.contacto||'—',18), rightX+10, ry2+34, 11);
-  lbl('Celular vendedor', splitX+10, ry2+15);   val(c.cel||c.tel||'—', splitX+10, ry2+34, 11);
+  // Escribe el valor autoajustando el tamaño (y truncando) para que NO se salga de la celda
+  function fit(t,x,y,maxW,size){
+    t=String(t==null||t===''?'—':t);
+    doc.setFont('helvetica','bold'); doc.setTextColor(BK[0],BK[1],BK[2]);
+    var s=size||12; doc.setFontSize(s);
+    while(s>7 && doc.getTextWidth(t)>maxW){ s-=0.5; doc.setFontSize(s); }
+    if(doc.getTextWidth(t)>maxW){ while(t.length>1 && doc.getTextWidth(t+'…')>maxW){ t=t.slice(0,-1); } t+='…'; }
+    doc.text(t,x,y);
+  }
+  var lw=leftW-16, hw=rightW/2-14;
+  // Izquierda
+  lbl('Fecha', bx+10, by+17);    fit(fmtDate(oc.fecha||'')||'—', bx+10, by+39, lw, 12);
+  lbl('N° Orden', bx+10, r1+17); fit(oc.orden, bx+10, r1+40, lw, 15);
+  lbl('RUC', bx+10, r2+17);      fit(c.rut||'—', bx+10, r2+39, lw, 12);
+  // Derecha
+  lbl('Proveedor', rightX+10, by+17); fit(oc.proveedor, rightX+10, by+40, rightW-16, 13);
+  lbl('Dirección', rightX+10, r1+16);
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(BK[0],BK[1],BK[2]);
+  doc.text(doc.splitTextToSize(String(c.direccion||'—'), rightW-16).slice(0,2), rightX+10, r1+32);
+  lbl('Contacto vendedor', rightX+10, r2+16); fit(c.contacto||'—', rightX+10, r2+39, hw, 11);
+  lbl('Celular vendedor', splitX+10, r2+16);  fit(c.cel||c.tel||'—', splitX+10, r2+39, hw, 11);
 
   // Tabla
-  var startY = Math.max(bottom, 176) + 16, head, body, colStyles;
+  var startY = Math.max(bottom, 184) + 16, head, body, colStyles;
   if(esRecep){
     head=[['ÍTEM','DESCRIPCIÓN','CANTIDAD']];
     body=(oc.lines||[]).map(function(l,i){ return [String(i+1), String(l.desc||''), fmtNum(l.cant)]; });

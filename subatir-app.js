@@ -361,13 +361,26 @@
     return { reload: trigger };
   }
 
+  // ── Escritura directa a la base (unificada para todos los módulos) ──
+  // Devuelve una promesa con el resultado {success|error|...}. Sin cola de sync.
+  function write(params) {
+    var qs = Object.keys(params).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]);
+    }).join('&');
+    return new Promise(function (resolve) {
+      legacyFetch('https://sb.local/?' + qs,
+        function (d) { resolve(d || {}); },
+        function (e) { resolve({ error: (e && e.message) || String(e) }); });
+    });
+  }
+
   // ── Export ─────────────────────────────────────────────────
   window.SubatirApp = {
     ready: _ready,
     getProfile: function () { return _profile; },
     getData: getData,
     updateRow: updateRow, addRow: addRow, deleteRow: deleteRow,
-    legacyFetch: legacyFetch,
+    legacyFetch: legacyFetch, write: write,
     live: live,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule

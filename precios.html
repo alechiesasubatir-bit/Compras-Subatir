@@ -356,8 +356,8 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2"></script>
-<script src="subatir-app.js?v=2"></script>
+<script src="supabase-config.js?v=3"></script>
+<script src="subatir-app.js?v=3"></script>
 </head>
 <body>
 
@@ -387,10 +387,6 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
     </button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()" id="btn-csv" style="display:none">⬇ CSV</button>
     <button class="btn btn-orange btn-sm" onclick="openNew()" id="btn-new">＋ Nuevo precio</button>
-    <span class="sync-wrap">
-      <button class="btn btn-orange btn-sm" onclick="syncPending()" id="btn-sync" style="display:none">☁ Sincronizar</button>
-      <span class="sync-badge" id="sync-badge"><span id="sync-count">0</span></span>
-    </span>
   </div>
 </header>
 
@@ -622,7 +618,9 @@ var RAW_PED = []; // OC/Recepción — fuente para evolución de precios
 
 // ── Edición local (offline-first) ────────────────────────────
 var RAW_SERVER = [];  // datos crudos del Sheet (sin overrides)
-var PLOCAL = JSON.parse(localStorage.getItem('subatir_precios_local') || '{"overrides":{},"new":[],"deleted":[]}');
+// Cloud-only: se escribe directo a la base. El estado local ya no se usa.
+var PLOCAL = {overrides:{}, new:[], deleted:[]};
+try{ localStorage.removeItem('subatir_precios_local'); }catch(e){}
 var ED_REF = null;    // referencia de la fila abierta en el modal
 
 // ─── Init ─────────────────────────────────────────────────────
@@ -1394,45 +1392,32 @@ function saveEdit(){
   var prov=document.getElementById('ed-proveedor').value.trim();
   if(!art||!prov){ toast('Artículo y Proveedor son obligatorios.','err'); return; }
   var f=readForm();
+  var clean={}; Object.keys(f).forEach(function(k){ if(k.indexOf('__')!==0) clean[k]=f[k]; });
+  var isNew = (ED_REF===null), ref = ED_REF;
 
-  if(ED_REF===null){
-    // Alta nueva
-    f.__localId='new_'+Date.now()+'_'+Math.floor(Math.random()*1000);
-    PLOCAL.new.push(f);
-    toast('Precio agregado localmente. ☁ Sincronizá para guardarlo en la base de datos.','info');
-  } else {
-    var rec=findRec(ED_REF);
-    if(rec && rec.__localId){
-      // Editar un alta local todavía no sincronizada
-      var i=PLOCAL.new.findIndex(function(n){return n.__localId===rec.__localId;});
-      if(i>=0){ f.__localId=rec.__localId; PLOCAL.new[i]=f; }
-    } else {
-      // Editar fila del servidor → override por __row
-      PLOCAL.overrides[ED_REF]=f;
-    }
-    toast('Cambios guardados localmente. ☁ Sincronizá para actualizar la base de datos.','info');
-  }
-  savePLocal();
-  RAW=applyLocal(RAW_SERVER);
-  buildGroups(); renderAll(); fillProvDatalist(); updateSyncUI();
-  closeEdit();
+  toast('Guardando…','info');
+  var op = isNew
+    ? SubatirApp.write({action:'addRow',    sheetKey:'precios', fields:JSON.stringify(clean)})
+    : SubatirApp.write({action:'updateRow', sheetKey:'precios', row:ref, fields:JSON.stringify(clean)});
+  op.then(function(d){
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    closeEdit();
+    toast(isNew ? 'Precio agregado ✓' : 'Cambios guardados ✓','ok');
+    load(); // recarga desde la base de datos
+  });
 }
 
 function deleteCurrent(){
-  var rec=findRec(ED_REF);
-  if(!rec){ closeEdit(); return; }
-  if(!confirm('¿Eliminar este precio? Se quitará de la base de datos al Sincronizar.')) return;
-  if(rec.__localId){
-    PLOCAL.new=PLOCAL.new.filter(function(n){return n.__localId!==rec.__localId;});
-  } else {
-    delete PLOCAL.overrides[ED_REF];
-    if(PLOCAL.deleted.map(String).indexOf(String(ED_REF))<0) PLOCAL.deleted.push(ED_REF);
-  }
-  savePLocal();
-  RAW=applyLocal(RAW_SERVER);
-  buildGroups(); renderAll(); updateSyncUI();
-  closeEdit();
-  toast('Precio marcado para eliminar. ☁ Sincronizá para aplicar en la base de datos.','info');
+  if(ED_REF===null){ closeEdit(); return; }
+  if(!confirm('¿Eliminar este precio de la base de datos? No se puede deshacer.')) return;
+  var ref=ED_REF;
+  toast('Eliminando…','info');
+  SubatirApp.write({action:'deleteRow', sheetKey:'precios', row:ref}).then(function(d){
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    closeEdit();
+    toast('Precio eliminado ✓','ok');
+    load();
+  });
 }
 
 function buildPending(){
@@ -1450,13 +1435,8 @@ function buildPending(){
   return p;
 }
 
-function updateSyncUI(){
-  var n=pendingCount();
-  var badge=document.getElementById('sync-badge');
-  var btn=document.getElementById('btn-sync');
-  if(n>0){ document.getElementById('sync-count').textContent=n; badge.classList.add('visible'); btn.style.display='inline-flex'; }
-  else { badge.classList.remove('visible'); btn.style.display='none'; }
-}
+// Cloud-only: se escribe directo a la base de datos, sin cola de sincronización.
+function updateSyncUI(){}
 
 function syncPending(){
   var pending=buildPending();

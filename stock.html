@@ -422,8 +422,8 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2"></script>
-<script src="subatir-app.js?v=2"></script>
+<script src="supabase-config.js?v=3"></script>
+<script src="subatir-app.js?v=3"></script>
 </head>
 <body>
 
@@ -446,13 +446,11 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
     <a href="copiloto.html"     class="nl">🤖 Copiloto IA</a>
   </nav>
   <div class="hdr-right">
-    <div class="sync-b" id="sync-badge">⚡ <span id="sync-cnt">0</span> pendientes</div>
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-ref" onclick="refresh()">
       <span id="spin" style="display:none" class="spin"></span>
       <span id="ref-lbl">⟳ Actualizar</span>
     </button>
-    <button class="btn btn-orange btn-sm" id="btn-sync" style="display:none" onclick="syncAll()">☁ Sync</button>
     <button class="btn btn-teal btn-sm" onclick="openNewArt()">➕ Nuevo artículo</button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
   </div>
@@ -801,8 +799,9 @@ var FILT    = [];
 var SORT_K  = 'estado', SORT_D = 'asc';
 var CUR     = null;
 var CHART   = null;
-var LOCAL   = JSON.parse(localStorage.getItem('subatir_stock_local') ||
-              '{"overrides":{},"pendingSync":[]}');
+// Cloud-only: se escribe directo a la base. El estado local ya no se usa.
+var LOCAL   = {overrides:{}, pendingSync:[]};
+try{ localStorage.removeItem('subatir_stock_local'); }catch(e){}
 
 // Keys detectadas
 var IK = {}, SK = {}, PK = {}; // PK = keys de pedidos (para en-tránsito / proveedor sugerido)
@@ -1511,27 +1510,25 @@ function toggleEdit(){
 
 function saveEdit(){
   if(!CUR) return;
-  var desc = CUR.desc;
+  if(!CUR.__row){ toast('Este artículo no tiene ficha en inventario. Usá "➕ Nuevo artículo".','err'); return; }
+  var fields = {};
   var sVal = document.getElementById('ed-stock').value;
-  var ov = {
-    stock:     sVal!==''? (parseFloat(sVal)||0) : undefined,
-    minimo:    document.getElementById('ed-min').value!=='' ? (parseFloat(document.getElementById('ed-min').value)||0) : undefined,
-    consumo:   document.getElementById('ed-cons').value!==''? (parseFloat(document.getElementById('ed-cons').value)||0) : undefined,
-    proveedor: document.getElementById('ed-prov').value.trim()||undefined,
-    obs:       document.getElementById('ed-obs').value.trim()||undefined
-  };
-  // Limpiar undefined
-  Object.keys(ov).forEach(function(k){ if(ov[k]===undefined) delete ov[k]; });
-  LOCAL.overrides[desc] = Object.assign(LOCAL.overrides[desc]||{}, ov);
-  // Guardar la fila de origen para la escritura a la base de datos
-  if(CUR.__row) LOCAL.overrides[desc].__row = CUR.__row;
+  if(sVal!=='' && IK.stock)   fields[IK.stock]   = parseFloat(sVal)||0;
+  var mVal = document.getElementById('ed-min').value;
+  if(mVal!=='' && IK.min)     fields[IK.min]     = parseFloat(mVal)||0;
+  var cVal = document.getElementById('ed-cons').value;
+  if(cVal!=='' && IK.consumo) fields[IK.consumo] = parseFloat(cVal)||0;
+  var pVal = document.getElementById('ed-prov').value.trim();
+  if(pVal && IK.provSugerido) fields[IK.provSugerido] = pVal;
+  if(!Object.keys(fields).length){ closeOv('ov-edit'); return; }
 
-  saveLocal();
-  buildMerged();
-  renderAll();
-  updateSyncUI();
-  closeOv('ov-edit');
-  toast('Ajuste guardado localmente. ☁ Sincronizá para actualizar la base de datos.','info');
+  toast('Guardando…','info');
+  SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:CUR.__row, fields:JSON.stringify(fields)}).then(function(d){
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    closeOv('ov-edit');
+    toast('Artículo actualizado ✓','ok');
+    load(); // recarga desde la base de datos
+  });
 }
 
 // ─── Alta de artículo nuevo (inserta en la tabla inventario) ──────────
@@ -1644,14 +1641,8 @@ function syncAll(){
   next();
 }
 
-function updateSyncUI(){
-  var n = pendingList().length;
-  var b = document.getElementById('sync-badge');
-  var s = document.getElementById('btn-sync');
-  setText('sync-cnt',n);
-  if(n>0){b.classList.add('vis');s.style.display='inline-flex';}
-  else{b.classList.remove('vis');s.style.display='none';}
-}
+// Cloud-only: se escribe directo a la base de datos, sin cola de sincronización.
+function updateSyncUI(){}
 
 // ─── Export CSV ───────────────────────────────────────────────
 function exportCSV(){

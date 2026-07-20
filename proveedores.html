@@ -356,8 +356,8 @@ select option{background:#0d1420}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2"></script>
-<script src="subatir-app.js?v=2"></script>
+<script src="supabase-config.js?v=3"></script>
+<script src="subatir-app.js?v=3"></script>
 </head>
 <body>
 <div class="app">
@@ -379,10 +379,6 @@ select option{background:#0d1420}
   </nav>
   <div class="hdr-r">
     <button class="btn btn-sm pri" onclick="openModal()">+ Proveedor</button>
-    <span class="sync-wrap" style="position:relative;display:inline-flex">
-      <button class="btn btn-sm pri" onclick="syncPending()" id="btn-sync" style="display:none">☁ Sincronizar</button>
-      <span class="sync-badge" id="sync-badge"><span id="sync-count">0</span></span>
-    </span>
     <button class="btn btn-sm sec" onclick="exportCSV()">⬇ CSV</button>
     <span class="ts" id="ts">—</span>
   </div>
@@ -532,7 +528,9 @@ var ACTIVE_TAB = 'directorio';
 var EDIT_ID    = null;
 
 // ── Local overrides ───────────────────────────────────────────────
-var LOCAL = JSON.parse(localStorage.getItem(LOCAL_KEY) || '{"fichas":{}}');
+// Cloud-only: se escribe directo a la base. El estado local ya no se usa.
+var LOCAL = {fichas:{}, pendingSync:[]};
+try{ localStorage.removeItem(LOCAL_KEY); }catch(e){}
 function saveLocal(){ localStorage.setItem(LOCAL_KEY, JSON.stringify(LOCAL)); }
 
 // ── norm: strips accents + uppercase ─────────────────────────────
@@ -1143,9 +1141,7 @@ function saveProveedor(){
     dir:     document.getElementById('m-dir').value.trim(),
     obs:     document.getElementById('m-obs').value.trim(),
   };
-  LOCAL.fichas[key]=ficha;
-
-  // ── Encolar escritura a la hoja CONTACTOS de la base de datos ──
+  // ── Escritura directa a la hoja CONTACTOS de la base de datos ──
   var existing = PROVS[key];
   var cttRow   = existing ? existing.__cttRow : null;
   var fields   = {};
@@ -1161,39 +1157,21 @@ function saveProveedor(){
   fields[CK.obs]     = ficha.obs;
   fields[CK.calidad] = qualWord(ficha.calidad);
 
-  LOCAL.pendingSync = LOCAL.pendingSync || [];
-  // Reemplazar cualquier cambio pendiente previo del mismo proveedor
-  LOCAL.pendingSync = LOCAL.pendingSync.filter(function(op){ return op._key!==key; });
-  if(cttRow){
-    LOCAL.pendingSync.push({_key:key, action:'updateRow', sheetKey:'contactos', row:cttRow, fields:JSON.stringify(fields)});
-  } else {
-    LOCAL.pendingSync.push({_key:key, action:'addRow', sheetKey:'contactos', fields:JSON.stringify(fields)});
-  }
-  saveLocal();
-
-  if(!PROVS[key]) PROVS[key]=newProv(key);
-  Object.assign(PROVS[key],ficha);
-  var qScore=ficha.calidad==='B'?100:ficha.calidad==='R'?50:ficha.calidad==='M'?10:0;
-  PROVS[key].qScore=qScore;
-  PROVS[key].score=Math.round(0.55*qScore+0.45*Math.min(100,PROVS[key].pedidos.length*8+PROVS[key].articulos.length*5));
-  closeModal();
-  renderList();
-  renderKPIs();
-  if(ACTIVE_TAB==='ranking') renderRanking();
-  if(SEL===key) renderDetail(PROVS[key]);
-  updateSyncUI();
-  toast('Proveedor guardado localmente. ☁ Sincronizá para actualizar la base de datos.','ok');
+  toast('Guardando…','ok');
+  var op = cttRow
+    ? SubatirApp.write({action:'updateRow', sheetKey:'contactos', row:cttRow, fields:JSON.stringify(fields)})
+    : SubatirApp.write({action:'addRow',    sheetKey:'contactos', fields:JSON.stringify(fields)});
+  op.then(function(d){
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    closeModal();
+    toast('Proveedor guardado ✓','ok');
+    load(); // recarga desde la base de datos
+  });
 }
 
 // ── Sync con la hoja CONTACTOS de la base de datos ──────────────────────────
-function updateSyncUI(){
-  var n=(LOCAL.pendingSync||[]).length;
-  var badge=document.getElementById('sync-badge');
-  var btn=document.getElementById('btn-sync');
-  if(!badge||!btn) return;
-  if(n>0){ document.getElementById('sync-count').textContent=n; badge.classList.add('visible'); btn.style.display='inline-flex'; }
-  else { badge.classList.remove('visible'); btn.style.display='none'; }
-}
+// Cloud-only: se escribe directo a la base de datos, sin cola de sincronización.
+function updateSyncUI(){}
 
 function syncPending(){
   var pending=(LOCAL.pendingSync||[]).slice();

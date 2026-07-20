@@ -311,6 +311,9 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .sem-naranja::before{content:'🟠 '}
 .sem-rojo::before{content:'🔴 '}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="subatir-app.js"></script>
 </head>
 <body>
 <div class="app">
@@ -781,6 +784,7 @@ async function testApiKey(){
 
 /* ── Fetch con fallback JSONP ─────────────────────────────── */
 function smartFetch(url,ok,err){
+  return SubatirApp.legacyFetch(url, ok, err); // datos → Supabase (subatir-app.js)
   fetch(url).then(function(r){return r.json();}).then(ok)
     .catch(function(){
       var cb='__cp_'+Date.now(),s=document.createElement('script');
@@ -1821,7 +1825,7 @@ function respAyuda(){
 }
 
 function noDataMsg(){
-  return '<h3>Sin datos</h3><p>No hay datos cargados. Hacé clic en <strong>⟳ Analizar</strong> para conectar con el Apps Script, o configurá la URL desde el Dashboard.</p>';
+  return '<h3>Sin datos</h3><p>No hay datos cargados. Hacé clic en <strong>⟳ Analizar</strong> para cargar los datos desde la base de datos.</p>';
 }
 
 function findProductInQuestion(q){

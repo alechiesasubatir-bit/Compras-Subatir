@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Usuarios · Subatir</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#07090f;--bg2:#0c1119;--bg3:#111926;--teal:#0e8aaa;--tl:#1bc8ff;--or:#f97316;--orl:#fb923c;
+  --grn:#22c55e;--amb:#f59e0b;--red:#ef4444;--txt:#e2e8f0;--mut:#5a6a80;--mut2:#7a8fa8;
+  --bdr:rgba(255,255,255,.08);--gl:rgba(255,255,255,.04)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 55% at 5% 10%,rgba(14,138,170,.12) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,rgba(249,115,22,.09) 0%,transparent 55%)}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:13px 22px;
+  background:rgba(7,9,15,.9);border-bottom:1px solid var(--bdr);position:sticky;top:0;z-index:200;backdrop-filter:blur(24px)}
+.logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
+.logo-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-family:'Syne';font-weight:800;color:#fff;background:linear-gradient(135deg,var(--teal),var(--or))}
+.logo h1{font-family:'Syne';font-size:15px;font-weight:800}
+.logo p{font-size:10px;color:var(--mut2)}
+nav{display:flex;gap:3px;flex-wrap:wrap}
+.nl{padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;color:var(--mut2);text-decoration:none;
+  font-family:'Syne';border:1px solid transparent}
+.nl:hover{color:#fff;background:rgba(255,255,255,.07);border-color:var(--bdr)}
+.nl.on{color:#fff;background:linear-gradient(135deg,rgba(14,138,170,.4),rgba(27,200,255,.25));border-color:rgba(27,200,255,.3)}
+.hdr-r{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:24px 20px}
+h2{font-family:'Syne';font-size:20px;font-weight:800;margin-bottom:4px}
+.sub{color:var(--mut2);font-size:12px;margin-bottom:20px}
+.glass{background:var(--gl);backdrop-filter:blur(16px);border:1px solid var(--bdr);border-radius:14px;padding:18px}
+.note{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;
+  padding:11px 14px;font-size:12px;color:#fcd34d;margin-bottom:18px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-family:'Syne';font-size:11px;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--mut2);padding:9px 10px;border-bottom:1px solid var(--bdr)}
+td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;vertical-align:middle}
+.email{font-family:'IBM Plex Mono';font-size:12px}
+.chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono'}
+.chip.admin{background:rgba(249,115,22,.15);color:var(--orl);border:1px solid rgba(249,115,22,.35)}
+.chip.user{background:rgba(27,200,255,.12);color:var(--tl);border:1px solid rgba(27,200,255,.3)}
+.chip.off{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.35)}
+.mods{display:flex;flex-wrap:wrap;gap:5px}
+.modtag{padding:2px 7px;border-radius:6px;font-size:10px;background:rgba(255,255,255,.06);border:1px solid var(--bdr);color:var(--mut2)}
+.btn{cursor:pointer;font-family:'DM Sans';font-weight:700;font-size:11px;padding:6px 12px;border-radius:8px;
+  border:1px solid var(--bdr);background:rgba(255,255,255,.06);color:var(--txt)}
+.btn:hover{filter:brightness(1.12)}
+.btn.or{background:linear-gradient(135deg,var(--or),var(--orl));border-color:transparent;color:#fff}
+/* Modal */
+.ovl{position:fixed;inset:0;z-index:500;background:rgba(4,6,11,.72);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:18px}
+.ovl.open{display:flex}
+.modal{width:100%;max-width:460px;background:linear-gradient(160deg,var(--bg2),var(--bg3));
+  border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.modal h3{font-family:'Syne';font-size:16px;font-weight:800;margin-bottom:14px}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mut2);margin-bottom:6px}
+.fg select,.fg input{width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--bdr);
+  background:rgba(255,255,255,.04);color:var(--txt);font-size:13px;font-family:'DM Sans'}
+.modgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.modchk{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:8px;border:1px solid var(--bdr);
+  background:rgba(255,255,255,.03);cursor:pointer;font-size:12px}
+.modchk input{width:auto}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
+.tc{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px}
+.toast{padding:11px 15px;border-radius:9px;font-size:12px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#86efac}
+.toast.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="subatir-app.js"></script>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html">
+    <div class="logo-icon">SB</div>
+    <div><h1>Subatir</h1><p>Administración de Usuarios</p></div>
+  </a>
+  <nav>
+    <a href="index.html" class="nl">⬡ Dashboard</a>
+    <a href="usuarios.html" class="nl on">👥 Usuarios</a>
+  </nav>
+  <div class="hdr-r"></div>
+</header>
+
+<main>
+  <h2>Usuarios y permisos</h2>
+  <div class="sub">Asigná rol y módulos a cada persona. Los cambios se aplican al instante.</div>
+
+  <div class="note">
+    ℹ Para <b>crear</b> un usuario nuevo: en Supabase → <b>Authentication → Users → Add user</b> (email + contraseña).
+    Aparecerá acá automáticamente y le asignás los módulos.
+  </div>
+
+  <div class="glass">
+    <table>
+      <thead>
+        <tr><th>Email</th><th>Nombre</th><th>Rol</th><th>Módulos</th><th>Estado</th><th></th></tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="6" style="text-align:center;color:var(--mut2);padding:24px">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Modal editar -->
+<div class="ovl" id="ovl">
+  <div class="modal">
+    <h3 id="m-title">Editar usuario</h3>
+    <div class="fg"><label>Email</label><input id="m-email" disabled/></div>
+    <div class="fg"><label>Nombre</label><input id="m-name" placeholder="Nombre y apellido"/></div>
+    <div class="fg"><label>Rol</label>
+      <select id="m-role"><option value="user">Usuario</option><option value="admin">Administrador</option></select>
+    </div>
+    <div class="fg"><label>Módulos habilitados</label>
+      <div class="modgrid" id="m-mods"></div>
+    </div>
+    <div class="fg"><label>Estado</label>
+      <select id="m-activo"><option value="true">Activo</option><option value="false">Desactivado</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeM()">Cancelar</button>
+      <button class="btn or" onclick="saveM()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="tc" id="tc"></div>
+
+<script>
+var MODULES = ['precios','proveedores','pedidos','stock','contingencia'];
+var MODLABEL = {precios:'Precios',proveedores:'Proveedores',pedidos:'Pedidos',stock:'Stock',contingencia:'Contingencia'};
+var USERS = [], CUR = null;
+
+function toast(t,type){ var e=document.createElement('div'); e.className='toast '+(type||'ok'); e.textContent=t;
+  document.getElementById('tc').appendChild(e); setTimeout(function(){e.remove();},3200); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+SubatirApp.ready.then(function(profile){
+  if(!profile || profile.role!=='admin'){ location.replace('index.html'); return; }
+  loadUsers();
+});
+
+function loadUsers(){
+  SB.from('profiles').select('*').order('created_at',{ascending:true}).then(function(r){
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    USERS = r.data||[];
+    render();
+  });
+}
+
+function render(){
+  if(!USERS.length){ document.getElementById('tbody').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--mut2);padding:24px">Sin usuarios.</td></tr>'; return; }
+  document.getElementById('tbody').innerHTML = USERS.map(function(u){
+    var mods = u.role==='admin' ? '<span class="modtag">Todos</span>'
+      : (u.modules&&u.modules.length ? u.modules.map(function(m){return '<span class="modtag">'+esc(MODLABEL[m]||m)+'</span>';}).join('') : '<span class="modtag">—</span>');
+    return '<tr>'
+      +'<td class="email">'+esc(u.email)+'</td>'
+      +'<td>'+esc(u.full_name||'—')+'</td>'
+      +'<td><span class="chip '+(u.role==='admin'?'admin':'user')+'">'+(u.role==='admin'?'ADMIN':'USUARIO')+'</span></td>'
+      +'<td><div class="mods">'+mods+'</div></td>'
+      +'<td>'+(u.activo?'<span class="chip user">Activo</span>':'<span class="chip off">Off</span>')+'</td>'
+      +'<td style="text-align:right"><button class="btn" onclick="openM(\''+u.id+'\')">Editar</button></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function openM(id){
+  CUR = USERS.find(function(u){return u.id===id;}); if(!CUR) return;
+  document.getElementById('m-email').value = CUR.email||'';
+  document.getElementById('m-name').value  = CUR.full_name||'';
+  document.getElementById('m-role').value  = CUR.role||'user';
+  document.getElementById('m-activo').value= String(CUR.activo!==false);
+  document.getElementById('m-mods').innerHTML = MODULES.map(function(m){
+    var on = (CUR.modules||[]).indexOf(m)>=0;
+    return '<label class="modchk"><input type="checkbox" value="'+m+'" '+(on?'checked':'')+'/>'+esc(MODLABEL[m])+'</label>';
+  }).join('');
+  document.getElementById('ovl').classList.add('open');
+}
+function closeM(){ document.getElementById('ovl').classList.remove('open'); CUR=null; }
+
+function saveM(){
+  if(!CUR) return;
+  var mods = Array.prototype.map.call(document.querySelectorAll('#m-mods input:checked'),function(c){return c.value;});
+  var patch = {
+    full_name: document.getElementById('m-name').value.trim(),
+    role: document.getElementById('m-role').value,
+    modules: mods,
+    activo: document.getElementById('m-activo').value==='true'
+  };
+  SB.from('profiles').update(patch).eq('id',CUR.id).then(function(r){
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    toast('Usuario actualizado','ok');
+    closeM(); loadUsers();
+  });
+}
+</script>
+</body>
+</html>

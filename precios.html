@@ -96,6 +96,36 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
   border-top-color:var(--teal-l);border-radius:50%;animation:spin .65s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ═══ EDICIÓN: badge sync, botón fila, modal ══════════════════ */
+.sync-wrap{position:relative;display:inline-flex}
+.sync-badge{position:absolute;top:-7px;right:-7px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:9px;background:var(--orange);color:#fff;font-size:9px;font-weight:800;
+  font-family:var(--mono);display:none;align-items:center;justify-content:center;line-height:16px}
+.sync-badge.visible{display:flex}
+.row-edit{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted-l);
+  width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:12px;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
+.row-edit:hover{color:var(--orange);border-color:rgba(249,115,22,.4);background:rgba(249,115,22,.1)}
+.ovl{position:fixed;inset:0;z-index:500;background:rgba(4,6,11,.72);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:18px}
+.ovl.open{display:flex}
+.modal{width:100%;max-width:520px;max-height:90vh;overflow-y:auto;
+  background:linear-gradient(160deg,var(--bg2,#0c1119),var(--bg3,#111926));
+  border:1px solid var(--border-b);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.6);padding:22px}
+.modal h3{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;margin-bottom:3px}
+.modal .msub{font-size:11px;color:var(--muted-l);margin-bottom:16px}
+.frm{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg.full{grid-column:1/-1}
+.fg label{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted-l)}
+.fg input,.fg select{padding:9px 11px;border-radius:8px;border:1px solid var(--border);
+  background:rgba(255,255,255,.04);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none}
+.fg input:focus,.fg select:focus{border-color:rgba(249,115,22,.5);background:rgba(255,255,255,.06)}
+.modal-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:20px}
+.modal-actions .right{display:flex;gap:9px}
+.btn-danger{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:var(--red)}
+.btn-danger:hover{background:rgba(239,68,68,.2)}
+
 /* ═══ MAIN ════════════════════════════════════════════════════ */
 .main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
 
@@ -325,6 +355,9 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 .ti-dot{width:5px;height:5px;border-radius:50%;background:var(--orange);flex-shrink:0}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="subatir-app.js"></script>
 </head>
 <body>
 
@@ -353,6 +386,11 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
       <span id="ref-lbl">⟳ Actualizar</span>
     </button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()" id="btn-csv" style="display:none">⬇ CSV</button>
+    <button class="btn btn-orange btn-sm" onclick="openNew()" id="btn-new">＋ Nuevo precio</button>
+    <span class="sync-wrap">
+      <button class="btn btn-orange btn-sm" onclick="syncPending()" id="btn-sync" style="display:none">☁ Sincronizar</button>
+      <span class="sync-badge" id="sync-badge"><span id="sync-count">0</span></span>
+    </span>
   </div>
 </header>
 
@@ -489,10 +527,11 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
               <th>Demora</th>
               <th onclick="catSort('pago')">Pago</th>
               <th onclick="catSort('fecha')">Actualizado</th>
+              <th style="text-align:center">✎</th>
             </tr>
           </thead>
           <tbody id="cat-tbody">
-            <tr><td colspan="10" class="empty-td">Cargando datos…</td></tr>
+            <tr><td colspan="11" class="empty-td">Cargando datos…</td></tr>
           </tbody>
         </table>
       </div>
@@ -528,6 +567,37 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 
 </div><!-- /main -->
 
+<!-- ══ MODAL EDICIÓN / ALTA DE PRECIO ═══════════════════════════ -->
+<div class="ovl" id="edit-ovl">
+  <div class="modal">
+    <h3 id="ed-title">Editar precio</h3>
+    <div class="msub" id="ed-sub">Los cambios se guardan localmente y se envían a la base de datos al Sincronizar.</div>
+    <div class="frm">
+      <div class="fg full"><label>Artículo *</label><input id="ed-articulo" placeholder="Nombre del artículo"/></div>
+      <div class="fg"><label>Código</label><input id="ed-codigo" placeholder="Código interno"/></div>
+      <div class="fg"><label>Proveedor *</label><input id="ed-proveedor" list="prov-datalist" placeholder="Proveedor"/></div>
+      <div class="fg"><label>Precio s/IVA U$S</label><input id="ed-usd" type="number" step="0.01" placeholder="0.00"/></div>
+      <div class="fg"><label>Precio s/IVA $</label><input id="ed-pso" type="number" step="0.01" placeholder="0.00"/></div>
+      <div class="fg"><label>Calidad</label>
+        <select id="ed-calidad"><option value="">—</option><option>BUENA</option><option>MUY BUENA</option><option>REGULAR</option><option>MALA</option></select></div>
+      <div class="fg"><label>Atención</label>
+        <select id="ed-atencion"><option value="">—</option><option>BUENA</option><option>MUY BUENA</option><option>REGULAR</option><option>MALA</option></select></div>
+      <div class="fg"><label>Demora entrega</label>
+        <select id="ed-demora"><option value="">—</option><option>BUENA</option><option>NORMAL</option><option>REGULAR</option><option>MALA</option></select></div>
+      <div class="fg"><label>Modalidad de pago</label><input id="ed-pago" placeholder="30 días / Contado…"/></div>
+      <div class="fg"><label>Fecha actualizado</label><input id="ed-fecha" type="date"/></div>
+    </div>
+    <datalist id="prov-datalist"></datalist>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="ed-del" onclick="deleteCurrent()" style="display:none">🗑 Eliminar</button>
+      <div class="right" style="margin-left:auto">
+        <button class="btn btn-ghost btn-sm" onclick="closeEdit()">Cancelar</button>
+        <button class="btn btn-orange btn-sm" onclick="saveEdit()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="tc"></div>
 
 <!-- ══ SCRIPT ═════════════════════════════════════════════════ -->
@@ -550,13 +620,19 @@ var HIST_DATA = { labels:[], pricesUSD:[], pricesPSO:[], provs:[], cantidades:[]
 var PK = {}, HK = {}, OC_PK = {};
 var RAW_PED = []; // OC/Recepción — fuente para evolución de precios
 
+// ── Edición local (offline-first) ────────────────────────────
+var RAW_SERVER = [];  // datos crudos del Sheet (sin overrides)
+var PLOCAL = JSON.parse(localStorage.getItem('subatir_precios_local') || '{"overrides":{},"new":[],"deleted":[]}');
+var ED_REF = null;    // referencia de la fila abierta en el modal
+
 // ─── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
   if (!URL_AS){
     toast('Sin URL de Apps Script configurada. Configurá desde el Dashboard.','err');
     document.getElementById('cat-tbody').innerHTML =
-      '<tr><td colspan="10" class="empty-td">⚠ <a href="index.html" style="color:var(--orange)">Configurar URL →</a></td></tr>';
+      '<tr><td colspan="11" class="empty-td">⚠ <a href="index.html" style="color:var(--orange)">Configurar URL →</a></td></tr>';
   } else { load(); }
+  updateSyncUI();
   document.addEventListener('click', function(e){
     if (!e.target.closest('.search-wrap')) closeSuggestions();
   });
@@ -564,6 +640,7 @@ window.addEventListener('DOMContentLoaded', function(){
 
 // ─── Fetch + JSONP fallback ───────────────────────────────────
 function smartFetch(url, ok, err){
+  return SubatirApp.legacyFetch(url, ok, err); // datos → Supabase (subatir-app.js)
   fetch(url).then(function(r){return r.json();}).then(ok)
     .catch(function(){
       var cb='__sb_'+Date.now(), s=document.createElement('script');
@@ -581,7 +658,8 @@ function load(){
   smartFetch(URL_AS + '?action=getData&t=' + Date.now(),
     function(d){
       if(d.error){setLoading(false);toast('Error: '+d.error,'err');return;}
-      RAW     = d.precios  || [];
+      RAW_SERVER = d.precios  || [];
+      RAW     = applyLocal(RAW_SERVER);
       HIST    = d.historial|| [];
       RAW_PED = d.pedidos  || [];
       console.log('[Precios] OC/Recepción filas:', RAW_PED.length, RAW_PED.length?Object.keys(RAW_PED[0]).join(' | '):'(vacío)');
@@ -605,6 +683,8 @@ function load(){
       if(RAW.length===0) toast('⚠ Hoja de Precios vacía o no encontrada. Hojas: '+(d.sheetNames||[]).join(', '),'err');
       buildGroups();
       renderAll();
+      fillProvDatalist();
+      updateSyncUI();
       setLoading(false);
       if(d.timestamp){
         var dt=new Date(d.timestamp);
@@ -1087,7 +1167,7 @@ function catSortApply(){
 
 function renderCatTable(){
   if(!CAT_FILT.length){
-    document.getElementById('cat-tbody').innerHTML='<tr><td colspan="10" class="empty-td">Sin resultados.</td></tr>';
+    document.getElementById('cat-tbody').innerHTML='<tr><td colspan="11" class="empty-td">Sin resultados.</td></tr>';
     return;
   }
   // Calcular mínimos por artículo para resaltar
@@ -1112,7 +1192,10 @@ function renderCatTable(){
       +'<td>'+ratingPill(r[PK.atencion])+'</td>'
       +'<td>'+ratingPill(r[PK.demora])+'</td>'
       +'<td class="muted">'+esc(String(r[PK.pago]||'—'))+'</td>'
-      +'<td class="muted" style="font-family:var(--mono);font-size:10px">'+fmtDate(String(r[PK.fecha]||''))+'</td>'
+      +'<td class="muted" style="font-family:var(--mono);font-size:10px">'+fmtDate(String(r[PK.fecha]||''))
+        +(r.__localId?' <span style="color:var(--orange)" title="Sin sincronizar">●</span>':'')+'</td>'
+      +'<td style="text-align:center" onclick="event.stopPropagation()">'
+        +'<button class="row-edit" title="Editar / eliminar" onclick="openEdit(\''+esc(String(r.__row||r.__localId||''))+'\')">✎</button></td>'
       +'</tr>';
   }).join('');
   document.getElementById('cat-tbody').innerHTML=html;
@@ -1201,6 +1284,206 @@ function filterByProv(prov){
   document.getElementById('f-prov').value=prov;
   filterCatalog();
   document.getElementById('cat-tbody').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ═══ EDICIÓN LOCAL + SYNC AL EXCEL ════════════════════════════
+function savePLocal(){ localStorage.setItem('subatir_precios_local', JSON.stringify(PLOCAL)); }
+
+// Aplica overrides/nuevos/eliminados sobre los datos del servidor
+function applyLocal(server){
+  PLOCAL.overrides = PLOCAL.overrides || {};
+  PLOCAL.new       = PLOCAL.new || [];
+  PLOCAL.deleted   = PLOCAL.deleted || [];
+  var del = PLOCAL.deleted.map(String);
+  var out = server.filter(function(r){ return del.indexOf(String(r.__row))<0; })
+                  .map(function(r){
+                    var ov = PLOCAL.overrides[r.__row];
+                    return ov ? Object.assign({}, r, ov) : r;
+                  });
+  PLOCAL.new.forEach(function(nr){ out.push(nr); });
+  return out;
+}
+
+function pendingCount(){
+  return Object.keys(PLOCAL.overrides||{}).length + (PLOCAL.new||[]).length + (PLOCAL.deleted||[]).length;
+}
+
+function fillProvDatalist(){
+  var dl=document.getElementById('prov-datalist');
+  if(dl) dl.innerHTML=PROVLIST.map(function(p){return '<option value="'+esc(p)+'">';}).join('');
+}
+
+// Busca un registro por su referencia (__row del Sheet o __localId de una alta local)
+function findRec(ref){
+  ref=String(ref);
+  return RAW.find(function(r){ return String(r.__row)===ref || String(r.__localId)===ref; });
+}
+
+function openNew(){
+  ED_REF=null;
+  document.getElementById('ed-title').textContent='Nuevo precio';
+  document.getElementById('ed-sub').textContent='Se agrega a la base de datos al Sincronizar.';
+  document.getElementById('ed-del').style.display='none';
+  ['ed-articulo','ed-codigo','ed-proveedor','ed-usd','ed-pso','ed-pago'].forEach(function(id){document.getElementById(id).value='';});
+  ['ed-calidad','ed-atencion','ed-demora'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('ed-fecha').value=new Date().toISOString().slice(0,10);
+  fillProvDatalist();
+  document.getElementById('edit-ovl').classList.add('open');
+}
+
+function openEdit(ref){
+  var r=findRec(ref);
+  if(!r){ toast('No se encontró el registro.','err'); return; }
+  ED_REF=ref;
+  document.getElementById('ed-title').textContent='Editar precio';
+  document.getElementById('ed-sub').textContent='Los cambios se envían a la base de datos al Sincronizar.';
+  document.getElementById('ed-del').style.display='inline-flex';
+  document.getElementById('ed-articulo').value = PK.articulo ? (r[PK.articulo]||'') : '';
+  document.getElementById('ed-codigo').value   = PK.codigo   ? (r[PK.codigo]||'')   : '';
+  document.getElementById('ed-proveedor').value= PK.proveedor? (r[PK.proveedor]||''): '';
+  document.getElementById('ed-usd').value      = PK.precioUSD? (r[PK.precioUSD]||''): '';
+  document.getElementById('ed-pso').value      = PK.precioPSO? (r[PK.precioPSO]||''): '';
+  setSelect('ed-calidad',  PK.calidad  ? String(r[PK.calidad]||'').toUpperCase()  : '');
+  setSelect('ed-atencion', PK.atencion ? String(r[PK.atencion]||'').toUpperCase() : '');
+  setSelect('ed-demora',   PK.demora   ? String(r[PK.demora]||'').toUpperCase()   : '');
+  document.getElementById('ed-pago').value     = PK.pago     ? (r[PK.pago]||'')     : '';
+  document.getElementById('ed-fecha').value    = PK.fecha ? isoDate(r[PK.fecha]) : '';
+  fillProvDatalist();
+  document.getElementById('edit-ovl').classList.add('open');
+}
+
+function closeEdit(){ document.getElementById('edit-ovl').classList.remove('open'); ED_REF=null; }
+
+// Setea un <select> preservando valores fuera de la lista (evita borrar datos existentes)
+function setSelect(id,val){
+  var sel=document.getElementById(id);
+  if(!sel) return;
+  val=val||'';
+  if(val && !Array.prototype.some.call(sel.options,function(o){return o.value===val;})){
+    var op=document.createElement('option'); op.value=val; op.textContent=val; sel.appendChild(op);
+  }
+  sel.value=val;
+}
+
+function isoDate(v){
+  if(!v) return '';
+  var s=String(v);
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  var d=new Date(s); return isNaN(d)?'':d.toISOString().slice(0,10);
+}
+
+// Construye el objeto de campos {columna:valor} a partir del formulario
+function readForm(){
+  var f={};
+  if(PK.articulo) f[PK.articulo]=document.getElementById('ed-articulo').value.trim();
+  if(PK.codigo)   f[PK.codigo]  =document.getElementById('ed-codigo').value.trim();
+  if(PK.proveedor)f[PK.proveedor]=document.getElementById('ed-proveedor').value.trim();
+  if(PK.precioUSD)f[PK.precioUSD]=document.getElementById('ed-usd').value.trim();
+  if(PK.precioPSO)f[PK.precioPSO]=document.getElementById('ed-pso').value.trim();
+  if(PK.calidad)  f[PK.calidad] =document.getElementById('ed-calidad').value;
+  if(PK.atencion) f[PK.atencion]=document.getElementById('ed-atencion').value;
+  if(PK.demora)   f[PK.demora]  =document.getElementById('ed-demora').value;
+  if(PK.pago)     f[PK.pago]    =document.getElementById('ed-pago').value.trim();
+  if(PK.fecha)    f[PK.fecha]   =document.getElementById('ed-fecha').value;
+  return f;
+}
+
+function saveEdit(){
+  var art=document.getElementById('ed-articulo').value.trim();
+  var prov=document.getElementById('ed-proveedor').value.trim();
+  if(!art||!prov){ toast('Artículo y Proveedor son obligatorios.','err'); return; }
+  var f=readForm();
+
+  if(ED_REF===null){
+    // Alta nueva
+    f.__localId='new_'+Date.now()+'_'+Math.floor(Math.random()*1000);
+    PLOCAL.new.push(f);
+    toast('Precio agregado localmente. ☁ Sincronizá para guardarlo en la base de datos.','info');
+  } else {
+    var rec=findRec(ED_REF);
+    if(rec && rec.__localId){
+      // Editar un alta local todavía no sincronizada
+      var i=PLOCAL.new.findIndex(function(n){return n.__localId===rec.__localId;});
+      if(i>=0){ f.__localId=rec.__localId; PLOCAL.new[i]=f; }
+    } else {
+      // Editar fila del servidor → override por __row
+      PLOCAL.overrides[ED_REF]=f;
+    }
+    toast('Cambios guardados localmente. ☁ Sincronizá para actualizar la base de datos.','info');
+  }
+  savePLocal();
+  RAW=applyLocal(RAW_SERVER);
+  buildGroups(); renderAll(); fillProvDatalist(); updateSyncUI();
+  closeEdit();
+}
+
+function deleteCurrent(){
+  var rec=findRec(ED_REF);
+  if(!rec){ closeEdit(); return; }
+  if(!confirm('¿Eliminar este precio? Se quitará de la base de datos al Sincronizar.')) return;
+  if(rec.__localId){
+    PLOCAL.new=PLOCAL.new.filter(function(n){return n.__localId!==rec.__localId;});
+  } else {
+    delete PLOCAL.overrides[ED_REF];
+    if(PLOCAL.deleted.map(String).indexOf(String(ED_REF))<0) PLOCAL.deleted.push(ED_REF);
+  }
+  savePLocal();
+  RAW=applyLocal(RAW_SERVER);
+  buildGroups(); renderAll(); updateSyncUI();
+  closeEdit();
+  toast('Precio marcado para eliminar. ☁ Sincronizá para aplicar en la base de datos.','info');
+}
+
+function buildPending(){
+  var p=[];
+  Object.keys(PLOCAL.overrides||{}).forEach(function(row){
+    p.push({action:'updateRow', sheetKey:'precios', row:row, fields:JSON.stringify(PLOCAL.overrides[row])});
+  });
+  (PLOCAL.new||[]).forEach(function(nr){
+    var f={}; Object.keys(nr).forEach(function(k){ if(k.indexOf('__')!==0) f[k]=nr[k]; });
+    p.push({action:'addRow', sheetKey:'precios', fields:JSON.stringify(f)});
+  });
+  (PLOCAL.deleted||[]).forEach(function(row){
+    p.push({action:'deleteRow', sheetKey:'precios', row:row});
+  });
+  return p;
+}
+
+function updateSyncUI(){
+  var n=pendingCount();
+  var badge=document.getElementById('sync-badge');
+  var btn=document.getElementById('btn-sync');
+  if(n>0){ document.getElementById('sync-count').textContent=n; badge.classList.add('visible'); btn.style.display='inline-flex'; }
+  else { badge.classList.remove('visible'); btn.style.display='none'; }
+}
+
+function syncPending(){
+  var pending=buildPending();
+  if(!pending.length){ toast('No hay cambios pendientes.','info'); return; }
+  if(!URL_AS){ toast('Sin URL de Apps Script configurada.','err'); return; }
+  toast('Sincronizando '+pending.length+' cambio(s)…','info');
+  var i=0, errors=0;
+  function next(){
+    if(i>=pending.length){
+      if(errors===0){
+        PLOCAL={overrides:{},new:[],deleted:[]};
+        savePLocal();
+        load(); // recarga desde la base de datos
+        toast('✓ Sincronizado con la base de datos.','ok');
+      } else {
+        toast(errors+' error(es) al sincronizar. Revisá la consola.','err');
+        updateSyncUI();
+      }
+      return;
+    }
+    var item=pending[i];
+    var url=URL_AS+'?'+Object.keys(item).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(item[k]||'');}).join('&')+'&t='+Date.now();
+    smartFetch(url,
+      function(d){ if(d&&d.error){console.error('Sync error:',d.error);errors++;} i++; next(); },
+      function(e){ console.error('Fetch error:',e); errors++; i++; next(); }
+    );
+  }
+  next();
 }
 
 // ─── Export ───────────────────────────────────────────────────

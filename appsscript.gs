@@ -22,6 +22,10 @@ function doGet(e) {
     else if (action === 'updatePedido')         result = updatePedido(ss, params);
     else if (action === 'addPedido')            result = addPedido(ss, params);
     else if (action === 'deletePedido')         result = deletePedido(ss, params);
+    // ── Acciones genéricas de escritura (Precios, Proveedores, Stock, Contingencia) ──
+    else if (action === 'updateRow')            result = updateRow(ss, params);
+    else if (action === 'addRow')               result = addRow(ss, params);
+    else if (action === 'deleteRow')            result = deleteRow(ss, params);
     else result = { error: 'Acción desconocida: ' + action };
 
     var jsonStr = JSON.stringify(result);
@@ -257,6 +261,122 @@ function deletePedido(ss, params) {
     }
   }
   return { error: 'Orden ' + params.orden + ' no encontrada' };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ESCRITURA GENÉRICA — por hoja + fila (Precios, Proveedores, Stock…)
+//  Reutilizable por cualquier módulo. La hoja se identifica con
+//  sheetKey (mismas palabras clave que buildPayload) o nombre exacto.
+// ══════════════════════════════════════════════════════════════
+
+// Mismas palabras clave que usa buildPayload para localizar cada hoja,
+// así la escritura apunta EXACTAMENTE a la hoja de la que se leyó.
+function sheetKeywords(key) {
+  var map = {
+    pedidos      : ['OC', 'RECEPC', 'PEDIDO', 'ORDEN'],
+    inventario   : ['COMPRA', 'INVENTARIO', 'GESTI'],
+    stock        : ['INVENTAR', 'CONTROL', 'STOCK'],
+    precios      : ['PRECIO', 'COMPARATIV', 'LISTA', 'CATALOGO'],
+    historial    : ['AVANCE', 'HISTOR', 'TRACKING'],
+    contactos    : ['CONTACT', 'DIREC'],
+    proveedores  : ['CONTACT', 'DIREC', 'PROVEEDOR']
+  };
+  return map[String(key).toLowerCase()] || null;
+}
+
+function resolveSheet(ss, sheetKey) {
+  if (!sheetKey) return null;
+  if (String(sheetKey).toUpperCase() === 'CONTINGENCIA')
+    return ss.getSheetByName('CONTINGENCIA');
+  var kws = sheetKeywords(sheetKey);
+  if (kws) return findSheet(ss.getSheets(), kws);
+  return ss.getSheetByName(sheetKey); // fallback: nombre exacto
+}
+
+// Devuelve {sheet, headers, headerIdx} o null
+function sheetHeaders(sheet) {
+  var data      = sheet.getDataRange().getValues();
+  var headerIdx = findHeaderRow(data);
+  var headers   = data[headerIdx].map(function(h){
+    return String(h).trim().replace(/\r?\n/g,' ').replace(/\s+/g,' ');
+  });
+  return { data: data, headers: headers, headerIdx: headerIdx };
+}
+
+// Localiza el índice de una columna: exacto primero, luego difuso (colIdx)
+function headerIndex(headers, col) {
+  var idx = headers.indexOf(col);
+  if (idx < 0) idx = colIdx(headers, [col]);
+  return idx;
+}
+
+// ── Actualizar celdas de una fila existente ──────────────────────
+// params: sheetKey, row (nº fila en Sheets, 1-indexed), fields (JSON {columna:valor})
+function updateRow(ss, params) {
+  var sheet = resolveSheet(ss, params.sheetKey);
+  if (!sheet) return { error: 'Hoja no encontrada: ' + params.sheetKey };
+
+  var rowNum = parseInt(params.row);
+  if (!rowNum || isNaN(rowNum)) return { error: 'Número de fila inválido' };
+
+  var fields;
+  try { fields = JSON.parse(params.fields || '{}'); }
+  catch(e) { return { error: 'JSON inválido: ' + e.message }; }
+
+  var h = sheetHeaders(sheet);
+  var updated = [], missing = [];
+  Object.keys(fields).forEach(function(col) {
+    var idx = headerIndex(h.headers, col);
+    if (idx >= 0) { sheet.getRange(rowNum, idx + 1).setValue(fields[col]); updated.push(col); }
+    else missing.push(col);
+  });
+
+  if (updated.length > 0) SpreadsheetApp.flush();
+  return { success: true, sheet: sheet.getName(), row: rowNum, updated: updated, missing: missing };
+}
+
+// ── Agregar una fila nueva ───────────────────────────────────────
+// params: sheetKey, fields (JSON {columna:valor})
+function addRow(ss, params) {
+  var sheet = resolveSheet(ss, params.sheetKey);
+  if (!sheet) return { error: 'Hoja no encontrada: ' + params.sheetKey };
+
+  var fields;
+  try { fields = JSON.parse(params.fields || '{}'); }
+  catch(e) { return { error: 'JSON inválido: ' + e.message }; }
+
+  var h = sheetHeaders(sheet);
+  var newRow = new Array(h.headers.length).fill('');
+  var setCols = [], missing = [];
+  Object.keys(fields).forEach(function(col) {
+    var idx = headerIndex(h.headers, col);
+    if (idx >= 0) { newRow[idx] = fields[col]; setCols.push(col); }
+    else missing.push(col);
+  });
+
+  var lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow + 1, 1, 1, newRow.length).setValues([newRow]);
+  SpreadsheetApp.flush();
+  return { success: true, sheet: sheet.getName(), row: lastRow + 1, set: setCols, missing: missing };
+}
+
+// ── Eliminar una fila ────────────────────────────────────────────
+// params: sheetKey, row (nº fila en Sheets)
+// Vacía las celdas en lugar de borrar la fila físicamente: así los
+// números de fila de otros cambios pendientes del MISMO lote no se
+// desplazan. parseSheet ignora las filas totalmente vacías, por lo
+// que desaparece de la app y de los cálculos.
+function deleteRow(ss, params) {
+  var sheet = resolveSheet(ss, params.sheetKey);
+  if (!sheet) return { error: 'Hoja no encontrada: ' + params.sheetKey };
+
+  var rowNum = parseInt(params.row);
+  if (!rowNum || isNaN(rowNum)) return { error: 'Número de fila inválido' };
+
+  var lastCol = sheet.getLastColumn();
+  if (lastCol > 0) sheet.getRange(rowNum, 1, 1, lastCol).clearContent();
+  SpreadsheetApp.flush();
+  return { success: true, sheet: sheet.getName(), row: rowNum };
 }
 
 // ══════════════════════════════════════════════════════════════

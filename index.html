@@ -446,6 +446,9 @@ footer{
   .kpi-value{font-size:24px}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="subatir-app.js"></script>
 </head>
 <body>
 
@@ -481,53 +484,6 @@ footer{
 <!-- ══════════════════════════════════════════
      SETUP SCREEN
 ══════════════════════════════════════════ -->
-<div id="setup-screen" style="position:relative;z-index:1">
-
-  <!-- Minimal header for setup -->
-  <div class="hdr">
-    <a class="logo" href="#">
-      <img class="logo-icon" src="logo.jpg" alt="Subatir"/>
-      <div class="logo-txt">
-        <div class="logo-name">Subatir</div>
-        <div class="logo-sub">Compras · Materia Prima</div>
-      </div>
-    </a>
-  </div>
-
-  <div style="max-width:660px;margin:60px auto;padding:0 20px">
-    <div class="card setup-card" style="padding:36px 40px;text-align:center">
-      <div style="font-size:44px;margin-bottom:14px">🔗</div>
-      <h2>Conectar con Google Sheets</h2>
-      <p>Para mostrar datos en vivo del Excel, necesitás desplegar el Apps Script una sola vez.<br>Solo lleva 3 minutos.</p>
-
-      <div class="steps">
-        <div class="step">
-          <div class="step-num">1</div>
-          <div class="step-text">Abrí <a href="https://script.google.com" target="_blank">script.google.com</a>, hacé clic en <strong>Nuevo proyecto</strong>.</div>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <div class="step-text">Eliminá el contenido de <code>Code.gs</code> y pegá el contenido del archivo <code>apps-script/Code.gs</code> que está en la carpeta del proyecto.</div>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <div class="step-text">Hacé clic en <strong>Implementar → Nueva implementación</strong>. Tipo: <em>Aplicación web</em>. Ejecutar como: <em>Yo</em>. Acceso: <em>Cualquier usuario</em>. Autorizá y copiá la URL.</div>
-        </div>
-        <div class="step">
-          <div class="step-num">4</div>
-          <div class="step-text">Pegá la URL aquí abajo y hacé clic en <strong>Conectar</strong>.</div>
-        </div>
-      </div>
-
-      <div class="url-input-row">
-        <input type="url" class="url-input" id="url-input" placeholder="https://script.google.com/macros/s/.../exec"/>
-        <button class="btn btn-primary" onclick="connect()">Conectar</button>
-      </div>
-      <div id="setup-error" style="margin-top:12px;color:var(--red);font-size:12px;display:none"></div>
-    </div>
-  </div>
-</div>
-
 <!-- ══════════════════════════════════════════
      DASHBOARD
 ══════════════════════════════════════════ -->
@@ -557,7 +513,6 @@ footer{
         <span id="spin-icon" style="display:none" class="spin"></span>
         <span id="refresh-label">⟳ Actualizar</span>
       </button>
-      <button class="btn btn-setup" onclick="resetSetup()">⚙ Reconfigurar</button>
     </div>
   </div>
 
@@ -783,7 +738,7 @@ footer{
   </div><!-- /main -->
 
   <footer>
-    Dashboard Compras · Subatir S.A. / Prolimpio · Datos en vivo desde Google Sheets · Auto-actualiza cada 5 min
+    Dashboard Compras · Subatir S.A. / Prolimpio · Datos en vivo desde la base de datos en la nube
   </footer>
 
 </div><!-- /dashboard -->
@@ -812,35 +767,11 @@ var CURR_MAP = {};
   showDashboard(); load();
 })();
 
-function showSetup()    { document.getElementById('setup-screen').style.display='block'; document.getElementById('dashboard').style.display='none'; }
-function showDashboard(){ document.getElementById('setup-screen').style.display='none';  document.getElementById('dashboard').style.display='flex'; }
-
-function resetSetup(){
-  localStorage.removeItem('subatir_script_url');
-  clearInterval(REFRESH_INTERVAL);
-  showSetup();
-}
-
-function connect(){
-  var url = document.getElementById('url-input').value.trim();
-  if (!url || !url.startsWith('https://script.google.com')){
-    showSetupError('URL inválida. Debe comenzar con https://script.google.com');
-    return;
-  }
-  SCRIPT_URL = url;
-  localStorage.setItem('subatir_script_url', url);
-  showDashboard();
-  load();
-}
-
-function showSetupError(msg){
-  var el = document.getElementById('setup-error');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
+function showDashboard(){ var d=document.getElementById('dashboard'); if(d) d.style.display='flex'; }
 
 // ── Fetch con fallback JSONP (funciona desde file:// y localhost) ──
 function smartFetch(url, onOk, onErr) {
+  return SubatirApp.legacyFetch(url, onOk, onErr); // datos → Supabase (subatir-app.js)
   fetch(url)
     .then(function(r) { return r.json(); })
     .then(onOk)

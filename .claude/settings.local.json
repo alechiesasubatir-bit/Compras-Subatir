@@ -2,7 +2,30 @@
   "permissions": {
     "allow": [
       "Bash(cat \"C:\\\\\\\\Users\\\\\\\\alech\\\\\\\\.claude\\\\\\\\projects\\\\\\\\C--SubatirApps-SistemaComprasSubatir\\\\\\\\cd6c1ef9-42ba-40b0-9771-967adc019d89\\\\\\\\tool-results\\\\\\\\mcp-claude_ai_Google_Drive-read_file_content-1779242555145.txt\")",
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "Bash(node -e ' *)",
+      "Bash(node --check appsscript.gs)",
+      "Bash(cp appsscript.gs /tmp/as_check.js)",
+      "Bash(node --check /tmp/as_check.js)",
+      "Bash(rm /tmp/as_check.js)",
+      "Bash(curl -sL --max-time 30 \"https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec?action=deleteRow\")",
+      "Bash(mkdir -p migracion)",
+      "Bash(curl -sL --max-time 120 \"https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec?action=getData&t=$\\(date +%s\\)\" -o migracion/sheet_backup.json)",
+      "Bash(node migracion/generar_seed.mjs)",
+      "Bash(node --check subatir-app.js)",
+      "Bash(node --check supabase-config.js)",
+      "Bash(node -e \"new Function\\(require\\('fs'\\).readFileSync\\('subatir-app.js','utf8'\\)\\);console.log\\('subatir-app.js OK'\\)\")",
+      "Bash(curl -s -o /dev/null -w \"server HTTP %{http_code}\\\\n\" --max-time 8 http://localhost:8099/login.html)",
+      "Bash(node -e \"new Function\\(require\\('fs'\\).readFileSync\\('index.html','utf8'\\).match\\(/<script>\\([\\\\s\\\\S]*?\\)<\\\\/script>/g\\).map\\(s=>s.replace\\(/<\\\\/?script>/g,''\\)\\).join\\('\\\\n'\\)\\);console.log\\('index.html JS OK'\\)\")",
+      "Bash(node migracion/generar_normalizacion.mjs)",
+      "Bash(node -e \"const d=require\\('./migracion/sheet_backup.json'\\); const p=d.pedidos||d.Pedidos||Object.values\\(d\\).find\\(v=>Array.isArray\\(v\\)\\); console.log\\(Object.keys\\(\\(d.pedidos||[]\\)[0]||{}\\).join\\(' | '\\)\\);\")",
+      "Bash(node *)",
+      "Bash(gh repo *)",
+      "Bash(gh api *)",
+      "PowerShell(gh api *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://api.github.com/repos/alechiesasubatir-bit/Compras-Subatir)",
+      "Bash(curl -s https://api.github.com/repos/alechiesasubatir-bit/Compras-Subatir)",
+      "Bash(git add *)"
     ]
   }
 }

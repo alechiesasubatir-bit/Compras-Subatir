@@ -274,6 +274,34 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .calc-item{font-size:12px;color:var(--muted)}
 .calc-item strong{display:block;font-size:15px;font-weight:700;color:var(--teal-l)}
 
+/* ═══ PICKER de productos (multi-selección OC) ═══ */
+.pick-list{max-height:280px;overflow-y:auto;border:1px solid var(--border);
+  border-radius:10px;background:rgba(255,255,255,.02);padding:4px}
+.pick-list::-webkit-scrollbar{width:8px}
+.pick-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px}
+.pick-empty{padding:16px;text-align:center;font-size:12px;color:var(--muted)}
+.pick-row{display:grid;grid-template-columns:20px 1fr 78px 108px;align-items:center;
+  gap:8px;padding:7px 9px;border-radius:8px;transition:background .12s}
+.pick-row:hover{background:rgba(27,200,255,.06)}
+.pick-row.on{background:rgba(27,200,255,.1)}
+.pick-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal-l);cursor:pointer;margin:0}
+.pick-name{font-size:12.5px;color:var(--text);line-height:1.3;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.pick-name .pick-mon{font-size:10px;color:var(--muted);margin-left:6px}
+.pick-qty,.pick-price-inp{width:100%;padding:5px 7px;font-size:12px;border-radius:7px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text)}
+.pick-qty:focus,.pick-price-inp:focus{outline:none;border-color:var(--teal-l)}
+.pick-price-wrap{display:flex;align-items:center;gap:3px}
+.pick-price-wrap .pick-sym{font-size:11px;color:var(--muted);white-space:nowrap}
+.pick-head{display:grid;grid-template-columns:20px 1fr 78px 108px;gap:8px;
+  padding:2px 9px 6px;font-size:10px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;color:var(--muted)}
+.pick-bar{display:flex;justify-content:space-between;align-items:center;
+  margin:8px 0 4px;font-size:11px}
+.pick-bar .pick-count{color:var(--teal-l);font-weight:700}
+.pick-bar button{background:none;border:none;color:var(--muted);font-size:11px;
+  cursor:pointer;text-decoration:underline}
+
 /* Detail view */
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .detail-item{padding:10px 12px;background:rgba(255,255,255,.03);border-radius:9px;
@@ -321,6 +349,9 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   .muted-cell{color:#555!important}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="subatir-app.js"></script>
 </head>
 <body>
 
@@ -568,20 +599,36 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
         </div>
         <div class="form-group span2">
           <label>Proveedor *</label>
-          <select class="form-select" id="nw-proveedor">
+          <select class="form-select" id="nw-proveedor" onchange="onProvChange()">
             <option value="">— Seleccionar proveedor —</option>
           </select>
         </div>
-        <div class="form-group span2">
-          <label>Descripción del Artículo *</label>
-          <input type="text" class="form-input" id="nw-desc" placeholder="Nombre completo del producto"/>
+        <div class="form-group span2" id="nw-prov-info" style="display:none;font-size:12px;line-height:1.6;color:var(--teal-l);background:rgba(27,200,255,.06);border:1px solid rgba(27,200,255,.18);border-radius:8px;padding:9px 12px"></div>
+
+        <!-- PICKER multi-producto: aparece al elegir proveedor -->
+        <div class="form-group span2" id="nw-picker" style="display:none">
+          <label>Productos del proveedor — tildá los que querés agregar</label>
+          <input type="text" class="form-input" id="nw-pick-search" placeholder="🔍 Filtrar productos…" autocomplete="off" oninput="renderProdPicker()" style="margin-bottom:8px"/>
+          <div class="pick-head"><span></span><span>Producto</span><span>Cantidad</span><span>Precio unit.</span></div>
+          <div class="pick-list" id="nw-pick-list"></div>
+          <div class="pick-bar">
+            <span class="pick-count" id="nw-pick-count">0 productos seleccionados</span>
+            <button type="button" onclick="clearPicker()">Destildar todo</button>
+          </div>
         </div>
+
+        <div class="form-group span2">
+          <label id="nw-desc-label">Producto *</label>
+          <input type="text" class="form-input" id="nw-desc" list="nw-prod-list" autocomplete="off" placeholder="Elegí de la lista o escribí el producto…" oninput="onProdChange()" onchange="onProdChange()"/>
+          <datalist id="nw-prod-list"></datalist>
+        </div>
+        <div class="form-group span2" id="nw-hint" style="display:none;font-size:12px;color:var(--orange-l,#fb923c);background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:8px 12px"></div>
         <div class="form-group">
           <label>Cantidad *</label>
           <input type="number" class="form-input" id="nw-cantidad" min="0" step="0.01" placeholder="0" oninput="calcIVA()"/>
         </div>
         <div class="form-group">
-          <label>Precio Unitario USD s/IVA *</label>
+          <label id="nw-precio-label">Precio Unitario USD s/IVA *</label>
           <input type="number" class="form-input" id="nw-precio" min="0" step="0.001" placeholder="0.000" oninput="calcIVA()"/>
         </div>
         <div class="form-group span2">
@@ -614,7 +661,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
     </div>
     <div class="modal-body">
       <p class="confirm-msg" id="confirm-msg">¿Estás seguro de que querés eliminar esta orden?</p>
-      <p class="confirm-warn">Esta acción la eliminará del Google Sheets. No se puede deshacer.</p>
+      <p class="confirm-warn">Esta acción la eliminará de la base de datos. No se puede deshacer.</p>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('confirm-overlay')">Cancelar</button>
@@ -632,10 +679,18 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 <script>
 // ── Estado global ─────────────────────────────────────────────
 var SCRIPT_URL   = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
-var DATA_RAW     = [];   // datos originales del Sheet
+var DATA_RAW     = [];   // datos originales de la base de datos
 var DATA_DISPLAY = [];   // datos con overrides locales aplicados
-var RAW_PREC     = [];   // hoja PRECIOS para detectar moneda
+var RAW_PREC     = [];   // tabla PRECIOS para detectar moneda y armar catálogo
+var RAW_CTT      = [];   // tabla PROVEEDORES/CONTACTOS (pago y contacto del vendedor)
 var CURR_MAP_P   = {};   // norm(artículo) → 'USD'|'PSO'
+// ── Catálogo cruzado para la carga inteligente de OC ──
+var PROV_PRODS   = {};   // proveedor → [{art,usd,pso,pago,moneda}]
+var PROD_PROVS   = {};   // norm(art) → [{prov,usd,pso,pago,moneda}]
+var PROV_CONTACT = {};   // norm(proveedor) → {contacto,cel,email,tel,pago}
+var PROV_LIST_OC = [];   // lista de proveedores para el selector de OC
+var NW_MONEDA    = 'U$S';// moneda del precio actual en el modal Nueva OC
+var PICK_STATE   = [];   // productos del proveedor elegido: [{art,checked,qty,price,moneda}]
 var FILTERED     = [];   // datos filtrados para tabla
 var SORT_KEY     = 'orden';
 var SORT_DIR     = 'desc';
@@ -666,6 +721,7 @@ function setTodayDate(){
 
 // ── Fetch con fallback JSONP (funciona desde file:// y localhost) ──
 function smartFetch(url, onOk, onErr) {
+  return SubatirApp.legacyFetch(url, onOk, onErr); // datos → Supabase (subatir-app.js)
   fetch(url)
     .then(function(r) { return r.json(); })
     .then(onOk)
@@ -697,6 +753,7 @@ function load(){
       if (d.error) { setLoading(false); toast('Error del script: ' + d.error, 'err'); return; }
       DATA_RAW  = d.pedidos || [];
       RAW_PREC  = d.precios || [];
+      RAW_CTT   = d.contactos || [];
       console.log('[Pedidos] Hojas:', d.sheetNames);
       console.log('[Pedidos] Filas pedidos:', DATA_RAW.length);
       if(DATA_RAW.length) console.log('[Pedidos] Columnas:', Object.keys(DATA_RAW[0]).join(' | '));
@@ -706,6 +763,7 @@ function load(){
       buildCurrencyMapP();
       applyLocalOverrides();
       renderAll();
+      buildOCCatalog();
       setLoading(false);
       if (d.timestamp){
         var dt = new Date(d.timestamp);
@@ -1051,10 +1109,8 @@ function populateProveedorFilter(){
   var cur = sel.value;
   sel.innerHTML = '<option value="">Todos los proveedores</option>' +
     provs.map(function(p){ return '<option value="'+esc(p)+'"'+(p===cur?' selected':'')+'>'+esc(p)+'</option>'; }).join('');
-
-  var newSel = document.getElementById('nw-proveedor');
-  newSel.innerHTML = '<option value="">— Seleccionar proveedor —</option>' +
-    provs.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('');
+  // El selector de Nueva OC (nw-proveedor) lo maneja buildOCCatalog/openNewModal
+  // con la lista completa (proveedores con precios + de OC).
 }
 
 // ── Modal: detalle ────────────────────────────────────────────
@@ -1155,62 +1211,307 @@ function saveEdit(){
   applyLocalOverrides();
   renderAll();
   closeModal('edit-overlay');
-  toast('Orden #' + orden + ' guardada localmente. ☁ Sincronizá para actualizar el Sheet.', 'info');
+  toast('Orden #' + orden + ' guardada localmente. ☁ Sincronizá para actualizar la base de datos.', 'info');
 }
 
 // ── Modal: nuevo pedido ───────────────────────────────────────
-function openNewModal(){ openModal('new-overlay'); calcIVA(); }
+// ═══ CATÁLOGO INTELIGENTE PARA NUEVA OC ═══════════════════════
+function normP(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase(); }
+
+function buildOCCatalog(){
+  PROV_PRODS={}; PROD_PROVS={}; PROV_CONTACT={};
+  // Columnas de la tabla de precios
+  if(RAW_PREC.length){
+    var pkk=Object.keys(RAW_PREC[0]);
+    var PA=fk(pkk,['ARTICULO','Artículo','ARTÍCULO','Descripción','DESCRIPCION','Producto']);
+    var PP=fk(pkk,['PROVEEDOR','Proveedor']);
+    var PU=fk(pkk,['PRECIO S/IVA U$S','U$S','USD','PRECIO USD','PRECIO U$S']);
+    var PS=fk(pkk,['PRECIO S/IVA $','PRECIO $','PESOS','UYU']);
+    var PG=fk(pkk,['MODALIDAD DE PAGO','PAGO','Pago','Modalidad']);
+    RAW_PREC.forEach(function(r){
+      var art=String(r[PA]||'').trim(), prov=String(r[PP]||'').trim();
+      if(!art||!prov) return;
+      var usd=pNum(r[PU]), pso=pNum(r[PS]);
+      var rec={art:art, prov:prov, usd:usd, pso:pso, pago:String(r[PG]||'').trim(), moneda:(usd>0?'U$S':(pso>0?'$':''))};
+      (PROV_PRODS[prov]=PROV_PRODS[prov]||[]).push(rec);
+      (PROD_PROVS[normP(art)]=PROD_PROVS[normP(art)]||[]).push(rec);
+    });
+  }
+  // Contacto y pago por proveedor
+  if(RAW_CTT.length){
+    var ck=Object.keys(RAW_CTT[0]);
+    var CE=fk(ck,['EMPRESA','Empresa','PROVEEDOR','Proveedor']);
+    var CN=fk(ck,['Contacto','CONTACTO','NOMBRE','Nombre','Persona']);
+    var CC=fk(ck,['Celular','CELULAR','Cel','Whatsapp']);
+    var CM=fk(ck,['Email','EMAIL','Mail','Correo']);
+    var CT=fk(ck,['Tel','TELEFONO','Teléfono','Telefono']);
+    var CP=fk(ck,['Pago','PAGO','Condicion','Condición']);
+    RAW_CTT.forEach(function(r){
+      var emp=String(r[CE]||'').trim(); if(!emp) return;
+      PROV_CONTACT[normP(emp)]={
+        contacto:String(r[CN]||'').trim(), cel:String(r[CC]||'').trim(),
+        email:String(r[CM]||'').trim(), tel:String(r[CT]||'').trim(), pago:String(r[CP]||'').trim()
+      };
+    });
+  }
+  // Lista de proveedores: los que tienen precios + los que aparecen en OC
+  var set={};
+  Object.keys(PROV_PRODS).forEach(function(p){ set[p]=1; });
+  (DATA_DISPLAY||[]).forEach(function(r){ var p=String(r[K.proveedor]||'').trim(); if(p) set[p]=1; });
+  PROV_LIST_OC=Object.keys(set).sort(function(a,b){return a.localeCompare(b);});
+  populateNewProvSelect();
+  populateProdDatalist(null);
+}
+
+function populateNewProvSelect(sel){
+  var el=document.getElementById('nw-proveedor'); if(!el) return;
+  var cur=sel!==undefined?sel:el.value;
+  el.innerHTML='<option value="">— Seleccionar proveedor —</option>'+
+    PROV_LIST_OC.map(function(p){ return '<option value="'+esc(p)+'"'+(p===cur?' selected':'')+'>'+esc(p)+'</option>'; }).join('');
+}
+
+function populateProdDatalist(prov){
+  var dl=document.getElementById('nw-prod-list'); if(!dl) return;
+  var list;
+  if(prov && PROV_PRODS[prov]) list=PROV_PRODS[prov].map(function(x){return x.art;});
+  else { var s={}; Object.keys(PROD_PROVS).forEach(function(k){ PROD_PROVS[k].forEach(function(x){ s[x.art]=1; }); }); list=Object.keys(s); }
+  list=[...new Set(list)].sort();
+  dl.innerHTML=list.map(function(a){ return '<option value="'+esc(a)+'"></option>'; }).join('');
+}
+
+// Al elegir proveedor: cargar sus productos + info de pago/contacto + picker
+function onProvChange(){
+  var prov=document.getElementById('nw-proveedor').value.trim();
+  populateProdDatalist(prov||null);
+  updateProvInfo(prov);
+  buildPickState(prov);
+  var desc=document.getElementById('nw-desc').value.trim();
+  if(prov && desc) fillPrice(prov, desc);
+}
+
+// ── Picker multi-producto ────────────────────────────────────
+// Arma la lista de productos del proveedor (dedup por artículo) con precio prellenado
+function buildPickState(prov){
+  PICK_STATE=[];
+  var picker=document.getElementById('nw-picker');
+  var descBlock=document.getElementById('nw-desc-label');
+  if(prov && PROV_PRODS[prov] && PROV_PRODS[prov].length){
+    var seen={};
+    PROV_PRODS[prov].forEach(function(r){
+      var key=normP(r.art); if(seen[key]) return; seen[key]=1;
+      var price=r.usd>0?r.usd:(r.pso>0?r.pso:0);
+      var mon=r.usd>0?'U$S':(r.pso>0?'$':'U$S');
+      PICK_STATE.push({art:r.art, checked:false, qty:'', price:price>0?price:'', moneda:mon});
+    });
+    PICK_STATE.sort(function(a,b){return a.art.localeCompare(b.art);});
+    picker.style.display='block';
+    if(descBlock) descBlock.textContent='Agregar otro producto (opcional)';
+    document.getElementById('nw-pick-search').value='';
+    renderProdPicker();
+  } else {
+    picker.style.display='none';
+    if(descBlock) descBlock.textContent='Producto *';
+  }
+}
+
+function renderProdPicker(){
+  var box=document.getElementById('nw-pick-list'); if(!box) return;
+  var q=normP(document.getElementById('nw-pick-search').value||'');
+  var rows=PICK_STATE.map(function(it,idx){ return {it:it,idx:idx}; })
+    .filter(function(o){ return !q || normP(o.it.art).indexOf(q)>=0; });
+  if(!rows.length){
+    box.innerHTML='<div class="pick-empty">'+(PICK_STATE.length?'Sin coincidencias.':'Este proveedor no tiene productos con precio cargado.')+'</div>';
+    updatePickCount(); return;
+  }
+  box.innerHTML=rows.map(function(o){
+    var it=o.it, sym=it.moneda==='$'?'$':'U$S';
+    return '<div class="pick-row'+(it.checked?' on':'')+'">'+
+        '<input type="checkbox" data-idx="'+o.idx+'"'+(it.checked?' checked':'')+' onchange="onPickToggle(this)">'+
+        '<span class="pick-name" onclick="togglePick('+o.idx+')" title="'+esc(it.art)+'">'+esc(it.art)+'<span class="pick-mon">'+sym+'</span></span>'+
+        '<input type="number" class="pick-qty" min="0" step="0.01" placeholder="Cant" data-idx="'+o.idx+'" value="'+(it.qty!==''?it.qty:'')+'" oninput="onPickQty(this)">'+
+        '<span class="pick-price-wrap"><span class="pick-sym">'+sym+'</span>'+
+          '<input type="number" class="pick-price-inp" min="0" step="0.001" placeholder="0.000" data-idx="'+o.idx+'" value="'+(it.price!==''?it.price:'')+'" oninput="onPickPrice(this)"></span>'+
+      '</div>';
+  }).join('');
+  updatePickCount();
+}
+
+function onPickToggle(cb){
+  var it=PICK_STATE[+cb.dataset.idx]; if(!it) return;
+  it.checked=cb.checked;
+  cb.closest('.pick-row').classList.toggle('on', cb.checked);
+  updatePickCount(); calcIVA();
+}
+function togglePick(idx){
+  var it=PICK_STATE[idx]; if(!it) return;
+  it.checked=!it.checked;
+  renderProdPicker(); calcIVA();
+}
+function onPickQty(inp){ var it=PICK_STATE[+inp.dataset.idx]; if(it){ it.qty=inp.value; calcIVA(); } }
+function onPickPrice(inp){ var it=PICK_STATE[+inp.dataset.idx]; if(it){ it.price=inp.value; calcIVA(); } }
+
+function clearPicker(){
+  PICK_STATE.forEach(function(it){ it.checked=false; });
+  renderProdPicker(); calcIVA();
+}
+
+function pickedItems(){
+  return PICK_STATE.filter(function(it){ return it.checked; })
+    .map(function(it){ return {desc:it.art, cant:parseFloat(it.qty)||0, prec:parseFloat(it.price)||0, moneda:it.moneda}; });
+}
+
+function updatePickCount(){
+  var el=document.getElementById('nw-pick-count'); if(!el) return;
+  var n=PICK_STATE.filter(function(it){return it.checked;}).length;
+  el.textContent=n+' producto'+(n===1?'':'s')+' seleccionado'+(n===1?'':'s');
+}
+
+// Al elegir producto: si hay proveedor, cargar precio; si no, mostrar proveedores que lo tienen
+function onProdChange(){
+  var prov=document.getElementById('nw-proveedor').value.trim();
+  var desc=document.getElementById('nw-desc').value.trim();
+  if(!desc){ return; }
+  if(prov){ fillPrice(prov, desc); return; }
+  var provs=PROD_PROVS[normP(desc)]||[];
+  if(provs.length){
+    var uniq=[...new Set(provs.map(function(x){return x.prov;}))].sort();
+    var el=document.getElementById('nw-proveedor');
+    el.innerHTML='<option value="">— '+uniq.length+' proveedor(es) tienen este producto —</option>'+
+      uniq.map(function(p){
+        var rec=provs.filter(function(x){return x.prov===p;})[0];
+        var pr=rec.usd>0?('U$S '+rec.usd.toFixed(2)):(rec.pso>0?('$ '+rec.pso.toFixed(2)):'s/precio');
+        return '<option value="'+esc(p)+'">'+esc(p)+'  ·  '+pr+'</option>';
+      }).join('');
+    showOCHint('🔽 Este producto lo tienen '+uniq.length+' proveedor(es). Elegí uno y se carga el precio.');
+  } else {
+    showOCHint('');
+  }
+}
+
+function fillPrice(prov, art){
+  var recs=(PROV_PRODS[prov]||[]).filter(function(x){ return normP(x.art)===normP(art); });
+  if(!recs.length){ showOCHint('⚠ Este proveedor no tiene precio cargado para ese producto. Podés escribir el precio manualmente.'); return; }
+  var r=recs[0];
+  var price=r.usd>0?r.usd:(r.pso>0?r.pso:0);
+  NW_MONEDA=r.usd>0?'U$S':(r.pso>0?'$':'U$S');
+  if(price>0) document.getElementById('nw-precio').value=price;
+  updateCurrencyUI();
+  calcIVA();
+  showOCHint(r.pago?('💳 Pago sugerido para este producto: '+r.pago):'');
+}
+
+function updateProvInfo(prov){
+  var info=document.getElementById('nw-prov-info'); if(!info) return;
+  if(!prov){ info.style.display='none'; info.innerHTML=''; return; }
+  var c=PROV_CONTACT[normP(prov)]||{};
+  var prods=PROV_PRODS[prov]||[];
+  var pago=c.pago || (prods[0]?prods[0].pago:'');
+  var parts=['📦 <strong>'+prods.length+'</strong> producto(s) con precio cargado'];
+  if(pago) parts.push('💳 Pago: '+esc(pago));
+  var cont=[];
+  if(c.contacto) cont.push('👤 '+esc(c.contacto));
+  if(c.cel) cont.push('📱 '+esc(c.cel)); else if(c.tel) cont.push('📞 '+esc(c.tel));
+  if(c.email) cont.push('✉ '+esc(c.email));
+  if(cont.length) parts.push(cont.join(' · '));
+  info.innerHTML=parts.join('<br>');
+  info.style.display='block';
+}
+
+function updateCurrencyUI(){
+  var lbl=document.getElementById('nw-precio-label'); if(lbl) lbl.textContent='Precio Unitario '+NW_MONEDA+' s/IVA *';
+}
+
+function showOCHint(msg){
+  var h=document.getElementById('nw-hint'); if(!h) return;
+  h.innerHTML=msg||''; h.style.display=msg?'block':'none';
+}
+
+function openNewModal(){ openModal('new-overlay'); populateNewProvSelect(''); populateProdDatalist(null); updateProvInfo(''); showOCHint(''); PICK_STATE=[]; document.getElementById('nw-picker').style.display='none'; NW_MONEDA='U$S'; updateCurrencyUI(); calcIVA(); }
 
 function calcIVA(){
+  // Suma todas las líneas (picker tildado + producto manual), agrupadas por moneda
+  var siva={'U$S':0,'$':0};
+  pickedItems().forEach(function(l){ if(l.cant>0&&l.prec>0){ siva[l.moneda==='$'?'$':'U$S']+=l.cant*l.prec; } });
   var cant   = parseFloat(document.getElementById('nw-cantidad').value) || 0;
   var precio = parseFloat(document.getElementById('nw-precio').value)   || 0;
-  var siva   = cant * precio;
-  var civa   = siva * IVA;
-  document.getElementById('calc-siva').textContent = cant > 0 && precio > 0 ? fmtUSD(siva) : '—';
-  document.getElementById('calc-civa').textContent = cant > 0 && precio > 0 ? fmtUSD(civa) : '—';
+  if(cant>0&&precio>0){ siva[NW_MONEDA==='$'?'$':'U$S']+=cant*precio; }
+
+  var fmt=function(v,sym){ return sym+' '+v.toLocaleString('es-UY',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var parts=function(mult){
+    var out=[];
+    if(siva['U$S']>0) out.push(fmt(siva['U$S']*mult,'U$S'));
+    if(siva['$']>0)   out.push(fmt(siva['$']*mult,'$'));
+    return out.length?out.join('  +  '):'—';
+  };
+  document.getElementById('calc-siva').textContent = parts(1);
+  document.getElementById('calc-civa').textContent = parts(IVA);
 }
 
 function saveNew(){
   var prov = document.getElementById('nw-proveedor').value.trim();
-  var desc = document.getElementById('nw-desc').value.trim();
-  var cant = document.getElementById('nw-cantidad').value;
-  var prec = document.getElementById('nw-precio').value;
+  if(!prov){ toast('Elegí un proveedor.','err'); return; }
 
-  if (!prov || !desc || !cant || !prec){
-    toast('Completá todos los campos obligatorios (*)','err'); return;
+  // 1) Líneas tildadas en el picker
+  var lines = pickedItems();
+  // Validar que las tildadas tengan cantidad y precio
+  var faltan = lines.filter(function(l){ return !(l.cant>0) || !(l.prec>0); });
+  if(faltan.length){
+    toast('Completá cantidad y precio en: '+faltan.map(function(l){return l.desc;}).join(', '),'err'); return;
   }
 
-  var siva  = parseFloat(cant) * parseFloat(prec);
-  var civa  = siva * IVA;
-  // Calcular próximo N° Orden local
+  // 2) Línea manual (producto escrito abajo), opcional
+  var mdesc = document.getElementById('nw-desc').value.trim();
+  var mcant = document.getElementById('nw-cantidad').value;
+  var mprec = document.getElementById('nw-precio').value;
+  if(mdesc || mcant || mprec){
+    if(!mdesc || !(parseFloat(mcant)>0) || !(parseFloat(mprec)>0)){
+      toast('Completá producto, cantidad y precio de la línea manual (o dejala vacía).','err'); return;
+    }
+    // Evitar duplicar si ya está tildado el mismo producto
+    if(!lines.some(function(l){ return normP(l.desc)===normP(mdesc); })){
+      lines.push({desc:mdesc, cant:parseFloat(mcant), prec:parseFloat(mprec), moneda:NW_MONEDA});
+    }
+  }
+
+  if(!lines.length){ toast('Tildá al menos un producto o cargá uno manualmente.','err'); return; }
+
+  // Próximo N° Orden local (compartido por todas las líneas de esta OC)
   var maxOrden = Math.max.apply(null,
     DATA_DISPLAY.map(function(r){ return pNum(r[K.orden]); }).filter(function(n){ return n > 0; }).concat([500])
   );
   var newOrden = maxOrden + 1;
-
-  var newRow = {};
-  newRow[K.orden]     = newOrden;
-  newRow[K.fecha]     = document.getElementById('nw-fecha').value;
-  newRow[K.proveedor] = prov;
-  newRow[K.desc]      = desc;
-  newRow[K.cantidad]  = parseFloat(cant);
-  newRow[K.precio]    = parseFloat(prec);
-  newRow[K.siva]      = siva.toFixed(2);
-  newRow[K.civa]      = civa.toFixed(2);
-  newRow[K.recepcion] = '';
-  newRow[K.lote]      = '';
-  newRow[K.coa]       = '';
-  newRow[K.conforme]  = '';
-  newRow[K.obs]       = document.getElementById('nw-obs').value.trim();
-  newRow.__local      = true;
+  var fecha    = document.getElementById('nw-fecha').value;
+  var obs      = document.getElementById('nw-obs').value.trim();
 
   LOCAL.new = LOCAL.new || [];
-  LOCAL.new.push(newRow);
+  lines.forEach(function(l){
+    var siva=l.cant*l.prec, civa=siva*IVA;
+    var newRow={};
+    newRow[K.orden]     = newOrden;
+    newRow[K.fecha]     = fecha;
+    newRow[K.proveedor] = prov;
+    newRow[K.desc]      = l.desc;
+    newRow[K.cantidad]  = l.cant;
+    newRow[K.precio]    = l.prec;
+    if(K.moneda) newRow[K.moneda] = l.moneda;
+    newRow[K.siva]      = siva.toFixed(2);
+    newRow[K.civa]      = civa.toFixed(2);
+    newRow[K.recepcion] = '';
+    newRow[K.lote]      = '';
+    newRow[K.coa]       = '';
+    newRow[K.conforme]  = '';
+    newRow[K.obs]       = obs;
+    newRow.__local      = true;
+    LOCAL.new.push(newRow);
+  });
+
   LOCAL.pendingSync = LOCAL.pendingSync || [];
   LOCAL.pendingSync.push({
-    action:'addPedido', fecha:newRow[K.fecha], proveedor:prov,
-    descripcion:desc, cantidad:cant, precio:prec,
-    obs:newRow[K.obs]
+    action:'addPedidoMulti', fecha:fecha, proveedor:prov, obs:obs,
+    items:JSON.stringify(lines.map(function(l){
+      return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda};
+    })),
+    _localOrden:newOrden
   });
 
   saveLocal();
@@ -1218,15 +1519,20 @@ function saveNew(){
   renderAll();
   closeModal('new-overlay');
   clearNewForm();
-  toast('Orden #' + newOrden + ' creada localmente. ☁ Sincronizá para guardar en el Sheet.', 'info');
+  toast('Orden #'+newOrden+' creada con '+lines.length+' producto'+(lines.length===1?'':'s')+'. ☁ Sincronizá para guardar en la base de datos.', 'info');
 }
 
 function clearNewForm(){
-  ['nw-proveedor','nw-desc','nw-obs'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['nw-proveedor','nw-desc','nw-obs','nw-pick-search'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
   document.getElementById('nw-cantidad').value = '';
   document.getElementById('nw-precio').value = '';
   document.getElementById('calc-siva').textContent = '—';
   document.getElementById('calc-civa').textContent = '—';
+  NW_MONEDA='U$S'; updateCurrencyUI();
+  updateProvInfo(''); showOCHint('');
+  PICK_STATE=[]; document.getElementById('nw-picker').style.display='none';
+  var dl=document.getElementById('nw-desc-label'); if(dl) dl.textContent='Producto *';
+  populateNewProvSelect(''); populateProdDatalist(null);
   setTodayDate();
 }
 
@@ -1247,7 +1553,9 @@ function doDelete(){
     var delProv = String(CURRENT_ROW[K.proveedor]||'');
     var delDesc = String(CURRENT_ROW[K.desc]||'');
     LOCAL.pendingSync = (LOCAL.pendingSync||[]).filter(function(p){
-      return !(p.action==='addPedido' && p.proveedor===delProv && p.descripcion===delDesc);
+      if(p.action==='addPedido' && p.proveedor===delProv && p.descripcion===delDesc) return false;
+      if(p.action==='addPedidoMulti' && String(p._localOrden)===orden) return false;
+      return true;
     });
   } else {
     LOCAL.deleted = LOCAL.deleted || [];
@@ -1260,7 +1568,7 @@ function doDelete(){
   renderAll();
   closeModal('confirm-overlay');
   closeModal('edit-overlay');
-  toast('Orden #' + orden + ' marcada para eliminar. ☁ Sincronizá para aplicar en el Sheet.', 'info');
+  toast('Orden #' + orden + ' marcada para eliminar. ☁ Sincronizá para aplicar en la base de datos.', 'info');
 }
 
 // ── Sincronización con Google Sheets ─────────────────────────
@@ -1292,7 +1600,7 @@ function syncPending(){
       return;
     }
     var item = pending[processed + errors];
-    var url  = SCRIPT_URL + '?' + Object.keys(item).map(function(k){
+    var url  = SCRIPT_URL + '?' + Object.keys(item).filter(function(k){ return k.charAt(0)!=='_'; }).map(function(k){
       return encodeURIComponent(k) + '=' + encodeURIComponent(item[k]||'');
     }).join('&') + '&t=' + Date.now();
 

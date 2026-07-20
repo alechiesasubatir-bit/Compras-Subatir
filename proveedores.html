@@ -355,6 +355,9 @@ select option{background:#0d1420}
 .ti-dot{width:5px;height:5px;border-radius:50%;background:var(--or);flex-shrink:0}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="subatir-app.js"></script>
 </head>
 <body>
 <div class="app">
@@ -376,10 +379,20 @@ select option{background:#0d1420}
   </nav>
   <div class="hdr-r">
     <button class="btn btn-sm pri" onclick="openModal()">+ Proveedor</button>
+    <span class="sync-wrap" style="position:relative;display:inline-flex">
+      <button class="btn btn-sm pri" onclick="syncPending()" id="btn-sync" style="display:none">☁ Sincronizar</button>
+      <span class="sync-badge" id="sync-badge"><span id="sync-count">0</span></span>
+    </span>
     <button class="btn btn-sm sec" onclick="exportCSV()">⬇ CSV</button>
     <span class="ts" id="ts">—</span>
   </div>
 </header>
+<style>
+.sync-badge{position:absolute;top:-7px;right:-7px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;
+  background:var(--or,#f97316);color:#fff;font-size:9px;font-weight:800;font-family:var(--mono,monospace);
+  display:none;align-items:center;justify-content:center;line-height:16px}
+.sync-badge.visible{display:flex}
+</style>
 
 <!-- ── Ticker banner ─────────────────────────────────────────── -->
 <div class="ticker-bar">
@@ -548,6 +561,37 @@ function qual(q){
   if(n==='M'||n.indexOf('MAL')>=0)  return 'M';
   return 'N';
 }
+function qualWord(q){ return {B:'BUENA',R:'REGULAR',M:'MALA'}[q]||''; }
+
+// Devuelve el NOMBRE real de la columna que coincide (no el valor)
+function fkKey(keys, candidates){
+  for(var i=0;i<candidates.length;i++){
+    var c=norm(candidates[i]);
+    for(var j=0;j<keys.length;j++){
+      var k=norm(keys[j]);
+      if(k===c||k.indexOf(c)>=0||c.indexOf(k)>=0) return keys[j];
+    }
+  }
+  return null;
+}
+
+// Nombres reales de columna de la hoja CONTACTOS (para escribir de vuelta)
+var CK={};
+function detectCttKeys(){
+  var keys = RAW_CTT.length ? Object.keys(RAW_CTT[0]) : [];
+  function pick(cands, fb){ return fkKey(keys,cands) || fb; }
+  CK.empresa = pick(['Empresa','EMPRESA','Proveedor','PROVEEDOR','Nombre','Razon Social','Razón Social','Razon','RAZON'],'Empresa');
+  CK.rut     = pick(['RUT','Rut','CUIT','RUC','NIT'],'RUT');
+  CK.contacto= pick(['Contacto','CONTACTO','Persona','Responsable','Nombre Contacto'],'Contacto');
+  CK.tel     = pick(['Tel','TEL','Telefono','Teléfono','Fijo','Tel Fijo'],'Telefono');
+  CK.cel     = pick(['Cel','CEL','Celular','Whatsapp','Movil','Móvil'],'Celular');
+  CK.email   = pick(['Email','EMAIL','Mail','Correo','Correo Electronico'],'Email');
+  CK.pago    = pick(['Pago','PAGO','Condicion','Condición','Condicion Pago','Plazo','Credito','Crédito'],'Pago');
+  CK.rubro   = pick(['Rubro','RUBRO','Categoria','Categoría','Tipo','Actividad','Giro'],'Rubro');
+  CK.dir     = pick(['Direccion','Dirección','Dir','Domicilio','Domicilio Fiscal'],'Direccion');
+  CK.obs     = pick(['Obs','OBS','Observaciones','Notas','Comentarios'],'Observaciones');
+  CK.calidad = pick(['Calidad','CALIDAD','Calificacion','Calificación','Rating','Evaluacion'],'Calidad');
+}
 function qualLabel(q){ return {B:'BUENA',R:'REGULAR',M:'MALA',N:'—'}[q]||'—'; }
 
 function avatar(name){
@@ -574,11 +618,16 @@ function fmt(n,d){
 }
 function fmtUSD(n){ var v=parseFloat(n); if(isNaN(v)||v===0) return '—'; return '$ '+fmt(v,2); }
 function scoreColor(s){ return s>=70?'var(--grn)':s>=50?'var(--amb)':'var(--red)'; }
-function proper(s){ return String(s||'').toLowerCase().replace(/(?:^|\s)\S/g,function(a){return a.toUpperCase();}); }
+function proper(s){
+  var t=String(s||'').toLowerCase().replace(/(?:^|\s)\S/g,function(a){return a.toUpperCase();});
+  return t.replace(/\bS\.?a\.?(s\.?)?\b/gi,function(m){return m.toUpperCase();})
+          .replace(/\b(srl|ltda)\b/gi,function(m){return m.toUpperCase();});
+}
 
 // ── JSONP / Fetch ─────────────────────────────────────────────────
 var _cb=0;
 function smartFetch(url,ok,err){
+  return SubatirApp.legacyFetch(url, ok, err); // datos → Supabase (subatir-app.js)
   fetch(url).then(function(r){return r.json();}).then(ok).catch(function(){
     var cb='__p'+(++_cb);
     window[cb]=function(d){delete window[cb];s.remove();ok(d);};
@@ -606,9 +655,11 @@ function onData(d){
   RAW_PED = d.pedidos   || [];
   RAW_PRC = d.precios   || [];
   RAW_CTT = d.contactos || [];
+  detectCttKeys();
   document.getElementById('ts').textContent = new Date().toLocaleTimeString('es-UY');
   buildProvs();
   renderAll();
+  updateSyncUI();
 }
 
 // ── Date helpers ──────────────────────────────────────────────────
@@ -659,6 +710,7 @@ function buildProvs(){
     if(!PROVS[key]) PROVS[key]=newProv(key);
     var p=PROVS[key];
     if(!p.displayName) p.displayName=raw;
+    if(row.__row && !p.__cttRow) p.__cttRow=row.__row; // fila en la hoja CONTACTOS (para escribir)
     p.contacto = p.contacto || String(fk(row,['Contacto','CONTACTO','Persona','PERSONA','Nombre Contacto','NOMBRE CONTACTO','Responsable','RESPONSABLE'])||'');
     p.tel      = p.tel      || String(fk(row,['Tel','TEL','Telefono','TELEFONO','Teléfono','TELÉFONO','Telefono Fijo','Fijo','Tel Fijo'])||'');
     p.cel      = p.cel      || String(fk(row,['Cel','CEL','Celular','CELULAR','Whatsapp','WS','Movil','Móvil','MOVIL'])||'');
@@ -1092,7 +1144,33 @@ function saveProveedor(){
     obs:     document.getElementById('m-obs').value.trim(),
   };
   LOCAL.fichas[key]=ficha;
+
+  // ── Encolar escritura a la hoja CONTACTOS de la base de datos ──
+  var existing = PROVS[key];
+  var cttRow   = existing ? existing.__cttRow : null;
+  var fields   = {};
+  fields[CK.empresa] = ficha.displayName;
+  fields[CK.rut]     = ficha.rut;
+  fields[CK.contacto]= ficha.contacto;
+  fields[CK.tel]     = ficha.tel;
+  fields[CK.cel]     = ficha.cel;
+  fields[CK.email]   = ficha.email;
+  fields[CK.pago]    = ficha.pago;
+  fields[CK.rubro]   = ficha.rubro;
+  fields[CK.dir]     = ficha.dir;
+  fields[CK.obs]     = ficha.obs;
+  fields[CK.calidad] = qualWord(ficha.calidad);
+
+  LOCAL.pendingSync = LOCAL.pendingSync || [];
+  // Reemplazar cualquier cambio pendiente previo del mismo proveedor
+  LOCAL.pendingSync = LOCAL.pendingSync.filter(function(op){ return op._key!==key; });
+  if(cttRow){
+    LOCAL.pendingSync.push({_key:key, action:'updateRow', sheetKey:'contactos', row:cttRow, fields:JSON.stringify(fields)});
+  } else {
+    LOCAL.pendingSync.push({_key:key, action:'addRow', sheetKey:'contactos', fields:JSON.stringify(fields)});
+  }
   saveLocal();
+
   if(!PROVS[key]) PROVS[key]=newProv(key);
   Object.assign(PROVS[key],ficha);
   var qScore=ficha.calidad==='B'?100:ficha.calidad==='R'?50:ficha.calidad==='M'?10:0;
@@ -1103,7 +1181,50 @@ function saveProveedor(){
   renderKPIs();
   if(ACTIVE_TAB==='ranking') renderRanking();
   if(SEL===key) renderDetail(PROVS[key]);
-  toast('Proveedor guardado','ok');
+  updateSyncUI();
+  toast('Proveedor guardado localmente. ☁ Sincronizá para actualizar la base de datos.','ok');
+}
+
+// ── Sync con la hoja CONTACTOS de la base de datos ──────────────────────────
+function updateSyncUI(){
+  var n=(LOCAL.pendingSync||[]).length;
+  var badge=document.getElementById('sync-badge');
+  var btn=document.getElementById('btn-sync');
+  if(!badge||!btn) return;
+  if(n>0){ document.getElementById('sync-count').textContent=n; badge.classList.add('visible'); btn.style.display='inline-flex'; }
+  else { badge.classList.remove('visible'); btn.style.display='none'; }
+}
+
+function syncPending(){
+  var pending=(LOCAL.pendingSync||[]).slice();
+  if(!pending.length){ toast('No hay cambios pendientes.','tinf'); return; }
+  if(!URL_AS){ toast('Sin URL de Apps Script configurada.','err'); return; }
+  toast('Sincronizando '+pending.length+' cambio(s)…','tinf');
+  var i=0, errors=0;
+  function next(){
+    if(i>=pending.length){
+      if(errors===0){
+        LOCAL.pendingSync=[];
+        LOCAL.fichas={}; // la base de datos ya tiene los datos: vuelve a ser la fuente de verdad
+        saveLocal();
+        load(); // recarga desde la base de datos
+        toast('✓ Sincronizado con la base de datos.','ok');
+      } else {
+        toast(errors+' error(es) al sincronizar. Revisá la consola.','err');
+        updateSyncUI();
+      }
+      return;
+    }
+    var item=pending[i];
+    var qs=Object.keys(item).filter(function(k){return k!=='_key';})
+      .map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(item[k]||'');}).join('&');
+    var url=URL_AS+'?'+qs+'&_t='+Date.now();
+    smartFetch(url,
+      function(d){ if(d&&d.error){console.error('Sync error:',d.error);errors++;} i++; next(); },
+      function(e){ console.error('Fetch error:',e); errors++; i++; next(); }
+    );
+  }
+  next();
 }
 
 // ── CSV export ────────────────────────────────────────────────────
@@ -1157,6 +1278,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 // ── Init ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',function(){
   load();
+  updateSyncUI();
   setInterval(load,5*60*1000);
 });
 </script>

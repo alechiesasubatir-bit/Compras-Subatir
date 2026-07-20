@@ -292,6 +292,9 @@ tbody td{padding:4px 5px;vertical-align:middle;color:var(--txt);white-space:nowr
   .kpi-row{grid-template-columns:repeat(2,1fr)}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="subatir-app.js"></script>
 </head>
 <body>
 <div class="app">
@@ -407,7 +410,7 @@ tbody td{padding:4px 5px;vertical-align:middle;color:var(--txt);white-space:nowr
 <div id="edit-modal">
   <div class="edit-box">
     <div class="edit-title">✏ Editar registro</div>
-    <div class="edit-sub" id="edit-sub">Fila en Google Sheets: —</div>
+    <div class="edit-sub" id="edit-sub">Registro #—</div>
     <div class="edit-grid" id="edit-fields"></div>
     <div class="edit-actions">
       <div id="edit-saving"><span class="spin"></span> Guardando…</div>
@@ -483,6 +486,7 @@ function updateTimestamp(ts){
 
 /* ── Fetch con fallback JSONP ─────────────────────────────── */
 function smartFetch(url, onOk, onErr){
+  return SubatirApp.legacyFetch(url, onOk, onErr); // datos → Supabase (subatir-app.js)
   fetch(url)
     .then(function(r){ return r.json(); })
     .then(onOk)
@@ -855,7 +859,7 @@ var EDIT_IDX = -1;
 function openEditModal(rawIdx){
   EDIT_IDX = rawIdx;
   var r = RAW[rawIdx];
-  document.getElementById('edit-sub').textContent = 'Fila en Google Sheets: ' + (r.__row || '—');
+  document.getElementById('edit-sub').textContent = 'Registro #' + (r.__row || '—');
 
   var html = '';
   COLS.forEach(function(c){

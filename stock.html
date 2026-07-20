@@ -1038,9 +1038,11 @@ function buildMerged(){
     var desc    = String(item[IK.desc]  ||'').trim();
     if(!desc) return;
 
-    var stock   = pn(item[IK.stock]);
-    var minimo  = pn(item[IK.min]);
-    var consumo = pn(item[IK.consumo]);
+    // Valores efectivos: si hay edición local (override) se usa esa; si no, la de la base
+    var ov      = LOCAL.overrides[desc] || {};
+    var stock   = ov.stock   !== undefined ? ov.stock   : pn(item[IK.stock]);
+    var minimo  = ov.minimo  !== undefined ? ov.minimo  : pn(item[IK.min]);
+    var consumo = ov.consumo !== undefined ? ov.consumo : pn(item[IK.consumo]);
 
     // En tránsito: fuzzy match contra OC/Recepción pendientes
     var ocData        = findOCMatch(desc, ocIdx);
@@ -1056,27 +1058,38 @@ function buildMerged(){
       ? Math.min(100, (stock / (minimo * 2)) * 100)
       : (cobertura !== null ? Math.min(100, (cobertura / 6) * 100) : 0);
 
-    // Estado basado en stock vs mínimo
+    // Estado: PRIORIZA stock vs mínimo. La bandera SOLICITAR (heredada del
+    // Sheet) NO puede sobrescribir un mínimo válido; solo se usa como respaldo
+    // cuando no hay mínimo ni consumo para comparar.
     var sol    = String(item[IK.solicitar]||'').toUpperCase();
     var estado;
-    if(sol.indexOf('SOLICITAR')>=0)        estado='CRITICO';
-    else if(minimo>0 && stock<=minimo)     estado='CRITICO';
-    else if(minimo>0 && stock<=minimo*1.5) estado='MEDIO';
-    else                                   estado='OPTIMO';
+    if(minimo > 0){
+      if(stock <= minimo)          estado='CRITICO';
+      else if(stock <= minimo*1.5) estado='MEDIO';
+      else                         estado='OPTIMO';
+    } else if(cobertura !== null){
+      if(cobertura < 1)            estado='CRITICO';
+      else if(cobertura < 2)       estado='MEDIO';
+      else                         estado='OPTIMO';
+    } else if(sol.indexOf('SOLICITAR')>=0){
+      estado='CRITICO';
+    } else {
+      estado='OPTIMO';
+    }
 
-    // Compra sugerida: 2 meses de consumo cuando:
-    // - stock = 0 (sin existencia), o
-    // - stock ≤ mínimo (si hay mínimo), o
-    // - estado CRITICO (columna SOLICITAR)
+    // Compra sugerida (2 meses de consumo) solo cuando realmente falta stock:
+    // - con mínimo definido: cuando stock ≤ mínimo
+    // - sin mínimo: cuando stock = 0 o quedó CRÍTICO por cobertura/bandera
     var sugerida = 0;
     if(consumo > 0){
-      if(stock === 0)                              sugerida = consumo * 2;
-      else if(minimo > 0 && stock <= minimo)       sugerida = consumo * 2;
-      else if(estado === 'CRITICO')                sugerida = consumo * 2;
+      if(minimo > 0){
+        if(stock <= minimo) sugerida = consumo * 2;
+      } else if(stock === 0 || estado === 'CRITICO'){
+        sugerida = consumo * 2;
+      }
     }
 
     // Proveedor sugerido: prioridad override local → OC más reciente → hoja COMPRAS
-    var ov = LOCAL.overrides[desc] || {};
     var provSugeridoHoja = IK.provSugerido ? String(item[IK.provSugerido]||'').trim() : '';
     var proveedor = ov.proveedor || ocData.lastProv || provSugeridoHoja || '';
     var precio    = ocData.lastPrecio || '';
@@ -1085,9 +1098,9 @@ function buildMerged(){
       __row:         item.__row,   // fila en la hoja COMPRAS (para escribir de vuelta)
       codigo:        codigo,
       desc:          desc,
-      stock:         ov.stock    !== undefined ? ov.stock    : stock,
-      minimo:        ov.minimo   !== undefined ? ov.minimo   : minimo,
-      consumo:       ov.consumo  !== undefined ? ov.consumo  : consumo,
+      stock:         stock,
+      minimo:        minimo,
+      consumo:       consumo,
       pendiente:     pendiente,
       valorPendiente:valorPendiente,
       sugerida:      sugerida,

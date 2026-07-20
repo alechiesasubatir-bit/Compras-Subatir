@@ -352,8 +352,8 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=3"></script>
-<script src="subatir-app.js?v=3"></script>
+<script src="supabase-config.js?v=4"></script>
+<script src="subatir-app.js?v=4"></script>
 </head>
 <body>
 
@@ -553,6 +553,16 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
           <div class="form-group">
             <label>Número de Lote</label>
             <input type="text" class="form-input" id="ed-lote" placeholder="Ej: BB-2526-/32"/>
+          </div>
+          <div class="form-group">
+            <label>Fecha de Vencimiento</label>
+            <input type="date" class="form-input" id="ed-vto"/>
+          </div>
+          <div class="form-group" style="display:flex;flex-direction:column;justify-content:flex-end">
+            <div class="check-row">
+              <input type="checkbox" id="ed-vto-na" onchange="onVtoNA()"/>
+              <label for="ed-vto-na">Vencimiento no aplica</label>
+            </div>
           </div>
           <div class="form-group span2">
             <div class="check-row">
@@ -1151,11 +1161,12 @@ function openDetail(orden){
     {l:'c/IVA',  v: pNum(row[K.civa])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.civa])) : '—'},
     {l:'', v:'', divider:true},
     {l:'F. Recepción',v: fmtDate(row[K.recepcion]) || 'Pendiente'},
-    {l:'F. Vencim.',  v: fmtDate(row[K.vto]) || '—'},
+    {l:'F. Vencim.',  v: isVtoNA(row[K.vto]) ? 'No aplica' : (fmtDate(row[K.vto]) || '—')},
     (function(){
       var td=new Date(); td.setHours(0,0,0,0);
       var pend=isPendiente(row); var atr=0;
-      if(pend&&row[K.vto]){var vd=new Date(row[K.vto]);vd.setHours(0,0,0,0);var dif=(td-vd)/86400000;if(dif>0)atr=Math.round(dif);}
+      var vtoVal = String(K.vto?(row[K.vto]||''):'');
+      if(pend && /^\d{4}-\d{2}-\d{2}/.test(vtoVal)){var vd=new Date(vtoVal);vd.setHours(0,0,0,0);var dif=(td-vd)/86400000;if(dif>0)atr=Math.round(dif);}
       return {l:'Atraso', v: atr>0 ? '+'+atr+' días de atraso' : (pend ? 'En plazo' : '—')};
     }()),
     {l:'Lote',        v: row[K.lote] || 'Sin lote'},
@@ -1194,11 +1205,25 @@ function toggleEditForm(){
     // Poblar formulario
     document.getElementById('ed-recepcion').value = row[K.recepcion] || '';
     document.getElementById('ed-lote').value       = row[K.lote]     || '';
+    var vtoRaw = String(K.vto ? (row[K.vto]||'') : '').trim();
+    var vtoNA  = isVtoNA(vtoRaw);
+    document.getElementById('ed-vto-na').checked = vtoNA;
+    document.getElementById('ed-vto').value      = vtoNA ? '' : (/^\d{4}-\d{2}-\d{2}/.test(vtoRaw) ? vtoRaw.slice(0,10) : '');
+    document.getElementById('ed-vto').disabled   = vtoNA;
     document.getElementById('ed-coa').checked      = String(row[K.coa]||'').toUpperCase() === 'SI';
     document.getElementById('ed-conforme').checked = String(row[K.conforme]||'').toUpperCase() === 'SI';
     document.getElementById('ed-obs').value        = row[K.obs]      || '';
   }
 }
+
+// "No aplica" el vencimiento → deshabilita el campo de fecha
+function onVtoNA(){
+  var na = document.getElementById('ed-vto-na').checked;
+  var d  = document.getElementById('ed-vto');
+  d.disabled = na; if(na) d.value = '';
+}
+// Detecta valores de "vencimiento no aplica"
+function isVtoNA(v){ return /^(no aplica|no necesario|no requerido|n\/a|na)$/i.test(String(v||'').trim()); }
 
 function saveEdit(){
   var orden = String(CURRENT_ROW[K.orden]);
@@ -1206,6 +1231,7 @@ function saveEdit(){
   apiWrite({
     action:'updatePedido', orden:orden,
     recepcion: document.getElementById('ed-recepcion').value,
+    vto:       document.getElementById('ed-vto-na').checked ? 'NO APLICA' : document.getElementById('ed-vto').value,
     lote:      document.getElementById('ed-lote').value,
     coa:       document.getElementById('ed-coa').checked    ? 'SI' : '',
     conforme:  document.getElementById('ed-conforme').checked ? 'SI' : '',

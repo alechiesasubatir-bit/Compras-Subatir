@@ -58,7 +58,7 @@
         c_iva: 'c/iva', f_recepcion: 'F.Recepción', f_vto: 'F. Vto', lote: 'Lote',
         coa: 'COA', conforme: 'Conforme', observaciones: 'Observaciones'
       },
-      num: ['cantidad', 'precio_un', 's_iva', 'c_iva'], date: ['fecha', 'f_recepcion', 'f_vto']
+      num: ['cantidad', 'precio_un', 's_iva', 'c_iva'], date: ['fecha', 'f_recepcion']
     },
     inventario: {
       table: 'inventario', payloadKeys: ['inventario'],
@@ -247,6 +247,7 @@
     var orden = String(params.get('orden'));
     var patch = {
       f_recepcion:   coerce(MAPS.pedidos, 'f_recepcion', params.get('recepcion')),
+      f_vto:         params.get('vto') || null,   // fecha (texto) o "NO APLICA"
       lote:          params.get('lote') || null,
       coa:           params.get('coa') || null,
       conforme:      params.get('conforme') || null,

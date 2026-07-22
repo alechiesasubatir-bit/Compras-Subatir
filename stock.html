@@ -422,8 +422,8 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=4"></script>
-<script src="subatir-app.js?v=4"></script>
+<script src="supabase-config.js?v=5"></script>
+<script src="subatir-app.js?v=5"></script>
 </head>
 <body>
 
@@ -545,6 +545,12 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
         <select class="fi" id="f-prov" onchange="applyFilters()">
           <option value="">Todos los proveedores</option>
         </select>
+        <select class="fi" id="f-cat" onchange="applyFilters()">
+          <option value="">Todas las categorías</option>
+          <option value="Envases">📦 Envases</option>
+          <option value="Consumibles">🏷 Consumibles</option>
+          <option value="Materias Primas">⚗ Materias Primas</option>
+        </select>
         <select class="fi" id="f-cob" onchange="applyFilters()">
           <option value="">Cobertura</option>
           <option value="lt1">Menos de 1 mes</option>
@@ -560,6 +566,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
               <th>Est.</th>
               <th onclick="sortBy('codigo')">Código</th>
               <th onclick="sortBy('desc')">Descripción</th>
+              <th onclick="sortBy('categoria')">Categoría</th>
               <th onclick="sortBy('stock')" class="num">Stock</th>
               <th onclick="sortBy('minimo')" class="num">Mínimo</th>
               <th onclick="sortBy('consumo')" class="num">Cons./mes</th>
@@ -722,6 +729,15 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
           </div>
         </div>
         <div class="fg">
+          <label>Categoría</label>
+          <select class="fi2" id="ed-cat">
+            <option value="">— Sin categoría —</option>
+            <option value="Envases">Envases</option>
+            <option value="Consumibles">Consumibles</option>
+            <option value="Materias Primas">Materias Primas</option>
+          </select>
+        </div>
+        <div class="fg">
           <label>Observaciones</label>
           <textarea class="fi2" id="ed-obs" placeholder="Notas internas…"></textarea>
         </div>
@@ -778,6 +794,15 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
           <input type="text" class="fi2" id="nw-art-unid" placeholder="Ej: KG, L, UN"/>
         </div>
       </div>
+      <div class="fg">
+        <label>Categoría</label>
+        <select class="fi2" id="nw-art-cat">
+          <option value="">— Sin categoría —</option>
+          <option value="Envases">Envases</option>
+          <option value="Consumibles">Consumibles</option>
+          <option value="Materias Primas">Materias Primas</option>
+        </select>
+      </div>
       <div id="nw-art-hint" style="display:none;font-size:12px;margin-top:4px;color:var(--orange-l,#fb923c)"></div>
     </div>
     <div class="modal-ftr">
@@ -796,9 +821,17 @@ var URL_AS  = localStorage.getItem('subatir_script_url') || 'https://script.goog
 var RAW_INV = [], RAW_STK = [], RAW_PED = [];
 var MERGED  = [];
 var FILT    = [];
+var CAT_MAP = {};   // NORM(producto) → categoría
 var SORT_K  = 'estado', SORT_D = 'asc';
 var CUR     = null;
 var CHART   = null;
+// Chip visual de categoría
+function catChip(cat){
+  if(!cat) return '<span class="muted">—</span>';
+  var c = { 'Envases':['#1bc8ff','rgba(27,200,255,.13)'], 'Consumibles':['#f59e0b','rgba(245,158,11,.14)'], 'Materias Primas':['#a78bfa','rgba(167,139,250,.15)'] }[cat] || ['#7a8fa8','rgba(255,255,255,.06)'];
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;color:'+c[0]+';background:'+c[1]+';border:1px solid '+c[0]+'44">'+cat+'</span>';
+}
+function catOf(desc){ return CAT_MAP[ String(desc||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase().replace(/\s+/g,' ') ] || ''; }
 // Cloud-only: se escribe directo a la base. El estado local ya no se usa.
 var LOCAL   = {overrides:{}, pendingSync:[]};
 try{ localStorage.removeItem('subatir_stock_local'); }catch(e){}
@@ -846,8 +879,11 @@ function load(){
       if(RAW_INV.length) console.log('[Stock] Cols COMPRAS:', Object.keys(RAW_INV[0]).join(' | '));
       if(RAW_INV.length===0) toast('⚠ Hoja COMPRAS vacía. Hojas: '+(d.sheetNames||[]).join(', '),'err');
       detectKeys();
-      buildMerged();
-      renderAll();
+      // Cargar categorías y recién ahí construir la tabla
+      (window.SubatirApp && SubatirApp.categorias ? SubatirApp.categorias() : Promise.resolve({}))
+        .then(function(map){ CAT_MAP = map || {}; })
+        .catch(function(){ CAT_MAP = {}; })
+        .then(function(){ buildMerged(); renderAll(); });
       setLoading(false);
       if(d.timestamp){
         var dt = new Date(d.timestamp);
@@ -1110,6 +1146,7 @@ function buildMerged(){
       pct:           pct,
       obs:           ov.obs || '',
       estado:        estado,
+      categoria:     catOf(desc),
       _mod:          !!(ov.stock!==undefined || ov.minimo || ov.consumo || ov.proveedor)
     });
   });
@@ -1151,6 +1188,7 @@ function buildMerged(){
       unidad:        '',
       obs:           '',
       estado:        'TRANSITO', // estado especial: solo en tránsito, sin stock en COMPRAS
+      categoria:     catOf(ocData.origDesc || normKey),
       _mod:          false
     });
   });
@@ -1223,11 +1261,13 @@ function applyFilters(){
   var est  = document.getElementById('f-est').value;
   var prov = document.getElementById('f-prov').value;
   var cob  = document.getElementById('f-cob').value;
+  var cat  = (document.getElementById('f-cat')||{}).value || '';
 
   FILT = MERGED.filter(function(x){
     if(q && (x.desc+' '+x.codigo).toLowerCase().indexOf(q)<0) return false;
     if(est && x.estado!==est) return false;
     if(prov && x.proveedor!==prov) return false;
+    if(cat && x.categoria!==cat) return false;
     // cobertura puede ser null (consumo desconocido): tratarlo como sin dato
     var cob_v = x.cobertura !== null ? x.cobertura : 999;
     if(cob==='lt1' && cob_v>=1) return false;
@@ -1252,6 +1292,7 @@ function sortVal(a,b){
   var va,vb;
   if(SORT_K==='codigo')         {va=a.codigo;    vb=b.codigo;}
   else if(SORT_K==='desc')      {va=a.desc;      vb=b.desc;}
+  else if(SORT_K==='categoria') {va=a.categoria||''; vb=b.categoria||'';}
   else if(SORT_K==='stock')     {va=a.stock;     vb=b.stock;}
   else if(SORT_K==='minimo')    {va=a.minimo;    vb=b.minimo;}
   else if(SORT_K==='consumo')   {va=a.consumo;   vb=b.consumo;}
@@ -1274,6 +1315,7 @@ function clearFilters(){
   document.getElementById('f-est').value='';
   document.getElementById('f-prov').value='';
   document.getElementById('f-cob').value='';
+  var fc=document.getElementById('f-cat'); if(fc) fc.value='';
   applyFilters();
 }
 
@@ -1318,6 +1360,7 @@ function renderTable(){
     html += '<td><span class="est-badge '+estCls+'">'+estLabel+'</span></td>';
     html += '<td style="font-family:var(--mono);font-size:10px;color:var(--muted-l)">'+(x.codigo||'—')+'</td>';
     html += '<td style="max-width:210px;overflow:hidden;text-overflow:ellipsis" title="'+esc(x.desc)+'">'+esc(x.desc)+(x._mod?'<span class="badge b-info" style="margin-left:4px;font-size:8px">⚙</span>':'')+'</td>';
+    html += '<td>'+catChip(x.categoria)+'</td>';
     html += '<td class="num" style="color:'+stockClr+';font-weight:700">'+fmtN(x.stock)+'</td>';
     html += '<td class="num" style="color:var(--muted-l)">'+( x.minimo>0?fmtN(x.minimo):'—')+'</td>';
     html += '<td class="num" style="color:var(--muted-l)">'+( x.consumo>0?fmtN(x.consumo):'—')+'</td>';
@@ -1503,6 +1546,7 @@ function toggleEdit(){
       document.getElementById('ed-min').value  = CUR.minimo||'';
       document.getElementById('ed-cons').value = CUR.consumo||'';
       document.getElementById('ed-prov').value = CUR.proveedor||'';
+      document.getElementById('ed-cat').value  = CUR.categoria||'';
       document.getElementById('ed-obs').value  = CUR.obs||'';
     }
   }
@@ -1520,20 +1564,31 @@ function saveEdit(){
   if(cVal!=='' && IK.consumo) fields[IK.consumo] = parseFloat(cVal)||0;
   var pVal = document.getElementById('ed-prov').value.trim();
   if(pVal && IK.provSugerido) fields[IK.provSugerido] = pVal;
-  if(!Object.keys(fields).length){ closeOv('ov-edit'); return; }
+
+  var newCat = (document.getElementById('ed-cat')||{}).value || '';
+  var catChanged = newCat !== (CUR.categoria||'');
+  var hasFields = Object.keys(fields).length>0;
+  if(!hasFields && !catChanged){ closeOv('ov-edit'); return; }
 
   toast('Guardando…','info');
-  SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:CUR.__row, fields:JSON.stringify(fields)}).then(function(d){
-    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+  var ops=[];
+  if(hasFields) ops.push(SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:CUR.__row, fields:JSON.stringify(fields)}));
+  if(catChanged){
+    if(newCat) ops.push(SubatirApp.setCategoria(CUR.desc, newCat));
+    else ops.push(SB.from('categorias').delete().eq('producto', CUR.desc).then(function(r){ return r.error?{error:r.error.message}:{success:true}; }));
+  }
+  Promise.all(ops).then(function(res){
+    var err=(res||[]).filter(function(d){ return d && d.error; })[0];
+    if(err){ toast('Error: '+err.error,'err'); return; }
     closeOv('ov-edit');
     toast('Artículo actualizado ✓','ok');
-    load(); // recarga desde la base de datos
+    load();
   });
 }
 
 // ─── Alta de artículo nuevo (inserta en la tabla inventario) ──────────
 function openNewArt(){
-  ['nw-art-desc','nw-art-stock','nw-art-min','nw-art-cons','nw-art-prov','nw-art-cod','nw-art-unid'].forEach(function(id){
+  ['nw-art-desc','nw-art-stock','nw-art-min','nw-art-cons','nw-art-prov','nw-art-cod','nw-art-unid','nw-art-cat'].forEach(function(id){
     var e=document.getElementById(id); if(e) e.value='';
   });
   var hint=document.getElementById('nw-art-hint'); if(hint){ hint.style.display='none'; hint.textContent=''; }
@@ -1573,9 +1628,9 @@ function saveNewArt(){
     function(d){
       if(btn){ btn.disabled=false; btn.textContent='💾 Crear artículo'; }
       if(d && d.error){ warn('⚠ Error al crear: '+d.error); return; }
-      closeOv('ov-new');
-      toast('✓ Artículo "'+desc+'" creado en la base de datos.','ok');
-      load(); // recarga para que aparezca en la lista
+      var cat=(document.getElementById('nw-art-cat')||{}).value||'';
+      var done=function(){ closeOv('ov-new'); toast('✓ Artículo "'+desc+'" creado en la base de datos.','ok'); load(); };
+      if(cat && SubatirApp.setCategoria) SubatirApp.setCategoria(desc, cat).then(done); else done();
     },
     function(e){
       if(btn){ btn.disabled=false; btn.textContent='💾 Crear artículo'; }

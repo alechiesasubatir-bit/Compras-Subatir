@@ -375,6 +375,21 @@
     });
   }
 
+  // ── Categorías de productos (Envases / Consumibles / Materias Primas) ──
+  function _catNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase().replace(/\s+/g, ' '); }
+  // Devuelve un mapa { NORM(producto) : categoria }
+  function categorias() {
+    return SB.from('categorias').select('producto,categoria').then(function (r) {
+      var map = {};
+      (r.data || []).forEach(function (x) { map[_catNorm(x.producto)] = x.categoria; });
+      return map;
+    }, function () { return {}; });
+  }
+  function setCategoria(producto, categoria) {
+    return SB.from('categorias').upsert({ producto: producto, categoria: categoria, updated_at: new Date().toISOString() })
+      .then(function (r) { return r.error ? { error: r.error.message } : { success: true }; });
+  }
+
   // ── Export ─────────────────────────────────────────────────
   window.SubatirApp = {
     ready: _ready,
@@ -382,6 +397,7 @@
     getData: getData,
     updateRow: updateRow, addRow: addRow, deleteRow: deleteRow,
     legacyFetch: legacyFetch, write: write,
+    categorias: categorias, setCategoria: setCategoria,
     live: live,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule

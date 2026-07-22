@@ -31,7 +31,12 @@
       "Bash(git config *)",
       "Bash(git remote *)",
       "Bash(git credential *)",
-      "Bash(curl -s https://api.github.com/repos/alechiesasubatir-bit/Compras-Subatir/pages)"
+      "Bash(curl -s https://api.github.com/repos/alechiesasubatir-bit/Compras-Subatir/pages)",
+      "Bash(curl -s \"https://alechiesasubatir-bit.github.io/Compras-Subatir/pedidos.html\")",
+      "Bash([ -f \"$F\" ])",
+      "Bash(cmdkey /list)",
+      "Bash(git credential-manager *)",
+      "Bash(git commit -q -m ' *)"
     ]
   }
 }

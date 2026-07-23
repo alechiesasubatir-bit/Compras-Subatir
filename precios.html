@@ -507,6 +507,12 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
           <option value="BUENA">Buena</option>
           <option value="REGULAR">Regular</option>
         </select>
+        <select class="fi" id="f-cat" onchange="filterCatalog()">
+          <option value="">Todas las categorías</option>
+          <option value="Envases">📦 Envases</option>
+          <option value="Consumibles">🏷 Consumibles</option>
+          <option value="Materias Primas">⚗ Materias Primas</option>
+        </select>
         <button class="btn btn-ghost btn-sm" onclick="clearCatFilters()">✕</button>
       </div>
       <div class="tbl-wrap">
@@ -514,6 +520,7 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
           <thead>
             <tr>
               <th onclick="catSort('articulo')">Artículo</th>
+              <th>Categoría</th>
               <th onclick="catSort('codigo')">Código</th>
               <th onclick="catSort('proveedor')">Proveedor</th>
               <th onclick="catSort('precioUSD')" class="num">USD s/IVA</th>
@@ -527,7 +534,7 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
             </tr>
           </thead>
           <tbody id="cat-tbody">
-            <tr><td colspan="11" class="empty-td">Cargando datos…</td></tr>
+            <tr><td colspan="12" class="empty-td">Cargando datos…</td></tr>
           </tbody>
         </table>
       </div>
@@ -582,6 +589,8 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
         <select id="ed-demora"><option value="">—</option><option>BUENA</option><option>NORMAL</option><option>REGULAR</option><option>MALA</option></select></div>
       <div class="fg"><label>Modalidad de pago</label><input id="ed-pago" placeholder="30 días / Contado…"/></div>
       <div class="fg"><label>Fecha actualizado</label><input id="ed-fecha" type="date"/></div>
+      <div class="fg"><label>Categoría</label>
+        <select id="ed-cat"><option value="">— Sin categoría —</option><option>Envases</option><option>Consumibles</option><option>Materias Primas</option></select></div>
     </div>
     <datalist id="prov-datalist"></datalist>
     <div class="modal-actions">
@@ -602,7 +611,14 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 var URL_AS   = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
 var RAW      = [];   // todos los registros de precios
 var HIST     = [];   // histórico
+var CAT_MAP  = {};   // NORM(producto) → categoría
 var GROUPS   = {};   // { articulo: [rows] }
+function catOf(desc){ return CAT_MAP[ String(desc||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase().replace(/\s+/g,' ') ] || ''; }
+function catChip(cat){
+  if(!cat) return '<span class="muted">—</span>';
+  var c={ 'Envases':['#1bc8ff','rgba(27,200,255,.13)'], 'Consumibles':['#f59e0b','rgba(245,158,11,.14)'], 'Materias Primas':['#a78bfa','rgba(167,139,250,.15)'] }[cat]||['#7a8fa8','rgba(255,255,255,.06)'];
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;color:'+c[0]+';background:'+c[1]+';border:1px solid '+c[0]+'44">'+cat+'</span>';
+}
 var ARTLIST  = [];   // artículos únicos ordenados
 var PROVLIST = [];   // proveedores únicos
 var CAT_FILT = [];   // catálogo filtrado
@@ -628,7 +644,7 @@ window.addEventListener('DOMContentLoaded', function(){
   if (!URL_AS){
     toast('Sin URL de Apps Script configurada. Configurá desde el Dashboard.','err');
     document.getElementById('cat-tbody').innerHTML =
-      '<tr><td colspan="11" class="empty-td">⚠ <a href="index.html" style="color:var(--orange)">Configurar URL →</a></td></tr>';
+      '<tr><td colspan="12" class="empty-td">⚠ <a href="index.html" style="color:var(--orange)">Configurar URL →</a></td></tr>';
   } else { load(); }
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['precios'], load);
   updateSyncUI();
@@ -680,8 +696,9 @@ function load(){
           console.warn('[OC] ⚠ OC_PK.precioUn="'+OC_PK.precioUn+'" NO encontrada. Cols disponibles:', _op0.join(' | '));
       }
       if(RAW.length===0) toast('⚠ Hoja de Precios vacía o no encontrada. Hojas: '+(d.sheetNames||[]).join(', '),'err');
-      buildGroups();
-      renderAll();
+      (window.SubatirApp && SubatirApp.categorias ? SubatirApp.categorias() : Promise.resolve({}))
+        .then(function(map){ CAT_MAP=map||{}; }).catch(function(){ CAT_MAP={}; })
+        .then(function(){ buildGroups(); renderAll(); });
       fillProvDatalist();
       updateSyncUI();
       setLoading(false);
@@ -1107,12 +1124,14 @@ function filterCatalog(){
   var prov= document.getElementById('f-prov').value;
   var pago= document.getElementById('f-pago').value;
   var cal = document.getElementById('f-cal').value;
+  var cat = (document.getElementById('f-cat')||{}).value||'';
 
   CAT_FILT=RAW.filter(function(r){
     if(q){var h=(String(r[PK.articulo]||'')+' '+String(r[PK.codigo]||'')+' '+String(r[PK.proveedor]||'')).toLowerCase();if(h.indexOf(q)<0)return false;}
     if(prov && String(r[PK.proveedor]||'')!==prov) return false;
     if(pago && String(r[PK.pago]||'').indexOf(pago)<0) return false;
     if(cal  && String(r[PK.calidad]||'').toUpperCase()!==cal) return false;
+    if(cat  && catOf(r[PK.articulo])!==cat) return false;
     return true;
   });
   catSortApply();
@@ -1125,6 +1144,7 @@ function clearCatFilters(){
   document.getElementById('f-prov').value='';
   document.getElementById('f-pago').value='';
   document.getElementById('f-cal').value='';
+  var fc=document.getElementById('f-cat'); if(fc) fc.value='';
   filterCatalog();
 }
 
@@ -1166,7 +1186,7 @@ function catSortApply(){
 
 function renderCatTable(){
   if(!CAT_FILT.length){
-    document.getElementById('cat-tbody').innerHTML='<tr><td colspan="11" class="empty-td">Sin resultados.</td></tr>';
+    document.getElementById('cat-tbody').innerHTML='<tr><td colspan="12" class="empty-td">Sin resultados.</td></tr>';
     return;
   }
   // Calcular mínimos por artículo para resaltar
@@ -1183,6 +1203,7 @@ function renderCatTable(){
     var isMin=usd>0&&artMins[art]===usd;
     return '<tr onclick="selectArt(\''+esc(art)+'\')">'
       +'<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis" title="'+esc(art)+'">'+esc(art)+(GROUPS[art]&&GROUPS[art].length>1?'<span style="font-size:9px;color:var(--orange);margin-left:5px">×'+GROUPS[art].length+'</span>':'')+'</td>'
+      +'<td>'+catChip(catOf(art))+'</td>'
       +'<td class="muted" style="font-family:var(--mono);font-size:10px">'+esc(String(r[PK.codigo]||'—'))+'</td>'
       +'<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis">'+esc(String(r[PK.proveedor]||'—'))+'</td>'
       +'<td class="num" style="color:'+(isMin?'var(--green)':'var(--text)')+(isMin?';font-weight:700':'')+'">'+( usd>0?'U$S '+usd.toFixed(2):'—')+'</td>'
@@ -1324,7 +1345,7 @@ function openNew(){
   document.getElementById('ed-sub').textContent='Se agrega a la base de datos al Sincronizar.';
   document.getElementById('ed-del').style.display='none';
   ['ed-articulo','ed-codigo','ed-proveedor','ed-usd','ed-pso','ed-pago'].forEach(function(id){document.getElementById(id).value='';});
-  ['ed-calidad','ed-atencion','ed-demora'].forEach(function(id){document.getElementById(id).value='';});
+  ['ed-calidad','ed-atencion','ed-demora','ed-cat'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('ed-fecha').value=new Date().toISOString().slice(0,10);
   fillProvDatalist();
   document.getElementById('edit-ovl').classList.add('open');
@@ -1347,6 +1368,7 @@ function openEdit(ref){
   setSelect('ed-demora',   PK.demora   ? String(r[PK.demora]||'').toUpperCase()   : '');
   document.getElementById('ed-pago').value     = PK.pago     ? (r[PK.pago]||'')     : '';
   document.getElementById('ed-fecha').value    = PK.fecha ? isoDate(r[PK.fecha]) : '';
+  setSelect('ed-cat', catOf(PK.articulo ? r[PK.articulo] : ''));
   fillProvDatalist();
   document.getElementById('edit-ovl').classList.add('open');
 }
@@ -1399,11 +1421,16 @@ function saveEdit(){
   var op = isNew
     ? SubatirApp.write({action:'addRow',    sheetKey:'precios', fields:JSON.stringify(clean)})
     : SubatirApp.write({action:'updateRow', sheetKey:'precios', row:ref, fields:JSON.stringify(clean)});
+  var newCat=(document.getElementById('ed-cat')||{}).value||'';
+  var catChanged = newCat !== catOf(art);
   op.then(function(d){
     if(d && d.error){ toast('Error: '+d.error,'err'); return; }
-    closeEdit();
-    toast(isNew ? 'Precio agregado ✓' : 'Cambios guardados ✓','ok');
-    load(); // recarga desde la base de datos
+    var finish=function(){ closeEdit(); toast(isNew ? 'Precio agregado ✓' : 'Cambios guardados ✓','ok'); load(); };
+    if(catChanged && SubatirApp.setCategoria){
+      var catOp = newCat ? SubatirApp.setCategoria(art, newCat)
+        : SB.from('categorias').delete().eq('producto', art).then(function(r){ return r.error?{error:r.error.message}:{success:true}; });
+      catOp.then(finish);
+    } else finish();
   });
 }
 

@@ -36,7 +36,11 @@
       "Bash([ -f \"$F\" ])",
       "Bash(cmdkey /list)",
       "Bash(git credential-manager *)",
-      "Bash(git commit -q -m ' *)"
+      "Bash(git commit -q -m ' *)",
+      "Bash(git fetch *)",
+      "Bash(curl -s \"https://alechiesasubatir-bit.github.io/Compras-Subatir/stock.html\")",
+      "Bash(curl -s \"https://alechiesasubatir-bit.github.io/Compras-Subatir/precios.html\")",
+      "Bash(git checkout *)"
     ]
   }
 }

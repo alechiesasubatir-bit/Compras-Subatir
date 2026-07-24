@@ -13,6 +13,7 @@
   var PAGE_MODULE = {
     'index.html': 'dashboard',
     'pedidos.html': 'pedidos',
+    'recepcion.html': 'recepcion',
     'stock.html': 'stock',
     'precios.html': 'precios',
     'proveedores.html': 'proveedores',
@@ -22,6 +23,14 @@
   };
   // Módulos visibles/accesibles para cualquier usuario autenticado
   var OPEN_MODULES = ['dashboard', 'copiloto'];
+
+  // Operario de recepción: usuario cuyo ÚNICO módulo es "recepcion".
+  // Queda encerrado en recepcion.html (no ve costos ni otros módulos).
+  function isOperario(profile) {
+    return profile && profile.role === 'user' &&
+      (profile.modules || []).length > 0 &&
+      (profile.modules || []).every(function (m) { return m === 'recepcion'; });
+  }
 
   function currentPage() {
     var p = location.pathname.split('/').pop() || 'index.html';
@@ -56,7 +65,7 @@
         fecha: 'Fecha', n_orden: 'N° Orden', proveedor: 'Proveedor', cantidad: 'Cantidad',
         descripcion: 'Descripción', moneda: '$/U$S', precio_un: 'Precio un', s_iva: 's/iva',
         c_iva: 'c/iva', f_recepcion: 'F.Recepción', f_vto: 'F. Vto', lote: 'Lote',
-        coa: 'COA', conforme: 'Conforme', observaciones: 'Observaciones'
+        coa: 'COA', conforme: 'Conforme', observaciones: 'Observaciones', recibido_por: 'Recibido por'
       },
       num: ['cantidad', 'precio_un', 's_iva', 'c_iva'], date: ['fecha', 'f_recepcion']
     },
@@ -156,8 +165,10 @@
           SB.auth.signOut().then(function () { location.replace('login.html?inactivo=1'); });
           return;
         }
+        // El operario de recepción solo puede estar en recepcion.html
+        if (isOperario(profile) && page !== 'recepcion.html') { location.replace('recepcion.html'); return; }
         var mod = currentModule();
-        if (!canAccess(mod, profile)) { location.replace('index.html?denegado=' + mod); return; }
+        if (!canAccess(mod, profile)) { location.replace(isOperario(profile) ? 'recepcion.html' : ('index.html?denegado=' + mod)); return; }
         gateNav(profile);
         injectUserBar(profile);
         _readyResolve(profile);
@@ -168,18 +179,25 @@
 
   // Oculta links de nav a módulos sin acceso + agrega Usuarios (admin)
   function gateNav(profile) {
+    var operario = isOperario(profile);
     document.querySelectorAll('nav a, .nl').forEach(function (a) {
       var href = (a.getAttribute('href') || '').split('/').pop();
       var mod = PAGE_MODULE[href];
+      if (operario) { if (mod !== 'recepcion') a.style.display = 'none'; return; }
       if (mod && mod !== 'usuarios' && !canAccess(mod, profile)) a.style.display = 'none';
     });
-    if (profile.role === 'admin') {
-      var nav = document.querySelector('nav');
-      if (nav && !nav.querySelector('[href="usuarios.html"]')) {
-        var a = document.createElement('a');
-        a.href = 'usuarios.html'; a.className = 'nl'; a.textContent = '👥 Usuarios';
-        nav.appendChild(a);
-      }
+    var nav = document.querySelector('nav');
+    var navClass = (nav && nav.querySelector('a')) ? nav.querySelector('a').className : 'nl';
+    // Link a Recepción para quien tenga acceso (admin u operario)
+    if (nav && !operario && canAccess('recepcion', profile) && !nav.querySelector('[href="recepcion.html"]')) {
+      var r = document.createElement('a');
+      r.href = 'recepcion.html'; r.className = navClass; r.textContent = '📥 Recepción';
+      nav.appendChild(r);
+    }
+    if (profile.role === 'admin' && nav && !nav.querySelector('[href="usuarios.html"]')) {
+      var a = document.createElement('a');
+      a.href = 'usuarios.html'; a.className = navClass; a.textContent = '👥 Usuarios';
+      nav.appendChild(a);
     }
   }
 
@@ -253,6 +271,7 @@
       conforme:      params.get('conforme') || null,
       observaciones: params.get('obs') || null
     };
+    if (params.get('recibido_por')) patch.recibido_por = params.get('recibido_por');
     return SB.from('pedidos').update(patch).eq('n_orden', orden).then(function (r) {
       return r.error ? { error: r.error.message } : { success: true, orden: orden };
     });

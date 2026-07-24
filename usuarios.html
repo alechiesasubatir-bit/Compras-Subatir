@@ -70,8 +70,8 @@ td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13p
 .toast.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=5"></script>
-<script src="subatir-app.js?v=5"></script>
+<script src="supabase-config.js?v=6"></script>
+<script src="subatir-app.js?v=6"></script>
 </head>
 <body>
 <header>
@@ -156,8 +156,8 @@ td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13p
 <div class="tc" id="tc"></div>
 
 <script>
-var MODULES = ['precios','proveedores','pedidos','stock','contingencia'];
-var MODLABEL = {precios:'Precios',proveedores:'Proveedores',pedidos:'Pedidos',stock:'Stock',contingencia:'Contingencia'};
+var MODULES = ['recepcion','precios','proveedores','pedidos','stock','contingencia'];
+var MODLABEL = {recepcion:'Recepción (operario)',precios:'Precios',proveedores:'Proveedores',pedidos:'Pedidos',stock:'Stock',contingencia:'Contingencia'};
 var USERS = [], CUR = null;
 
 function toast(t,type){ var e=document.createElement('div'); e.className='toast '+(type||'ok'); e.textContent=t;

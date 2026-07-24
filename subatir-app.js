@@ -409,6 +409,19 @@
       .then(function (r) { return r.error ? { error: r.error.message } : { success: true }; });
   }
 
+  // ── Entregas parciales de recepción ────────────────────────
+  function getEntregas() {
+    return SB.from('entregas').select('*').then(function (r) { return r.data || []; }, function () { return []; });
+  }
+  function addEntrega(row) {
+    return SB.from('entregas').insert(row).select('id').single()
+      .then(function (r) { return r.error ? { error: r.error.message } : { success: true, id: r.data && r.data.id }; });
+  }
+  function deleteEntrega(id) {
+    return SB.from('entregas').delete().eq('id', id)
+      .then(function (r) { return r.error ? { error: r.error.message } : { success: true }; });
+  }
+
   // ── Export ─────────────────────────────────────────────────
   window.SubatirApp = {
     ready: _ready,
@@ -417,6 +430,7 @@
     updateRow: updateRow, addRow: addRow, deleteRow: deleteRow,
     legacyFetch: legacyFetch, write: write,
     categorias: categorias, setCategoria: setCategoria,
+    getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
     live: live,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule

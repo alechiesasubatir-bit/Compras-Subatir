@@ -352,8 +352,8 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=6"></script>
-<script src="subatir-app.js?v=6"></script>
+<script src="supabase-config.js?v=7"></script>
+<script src="subatir-app.js?v=7"></script>
 </head>
 <body>
 
@@ -392,14 +392,14 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   <div class="ticker-track" id="ticker-track">
     <span class="ticker-item"><span class="ti-dot"></span>Recepción de Mercadería — <b>Subatir S.A. / Prolimpio</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Pendientes de recibir: <b id="tk-pend">—</b></span>
-    <span class="ticker-item"><span class="ti-dot"></span>Recibidas: <b id="tk-recv">—</b></span>
-    <span class="ticker-item"><span class="ti-dot"></span>Sin COA/Conforme: <b id="tk-coa">—</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Completas: <b id="tk-recv">—</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Parciales: <b id="tk-coa">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Sin lote: <b id="tk-lote">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Control de lotes, COA y conformidades</span>
     <span class="ticker-item"><span class="ti-dot"></span>Recepción de Mercadería — <b>Subatir S.A. / Prolimpio</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Pendientes de recibir: <b id="tk-pend2">—</b></span>
-    <span class="ticker-item"><span class="ti-dot"></span>Recibidas: <b id="tk-recv2">—</b></span>
-    <span class="ticker-item"><span class="ti-dot"></span>Sin COA/Conforme: <b id="tk-coa2">—</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Completas: <b id="tk-recv2">—</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Parciales: <b id="tk-coa2">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Sin lote: <b id="tk-lote2">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Control de lotes, COA y conformidades</span>
   </div>
@@ -416,24 +416,24 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
       <div class="kpi-sub" id="kpi-total-sub">en el sistema</div>
     </div>
     <div class="card kpi">
+      <div class="kpi-label">Parciales</div>
+      <div class="kpi-val" style="color:#fcd34d" id="kpi-parc">—</div>
+      <div class="kpi-sub">entrega incompleta</div>
+    </div>
+    <div class="card kpi">
       <div class="kpi-label">Pendientes</div>
       <div class="kpi-val c-warn" id="kpi-pend">—</div>
-      <div class="kpi-sub">sin fecha de recepción</div>
+      <div class="kpi-sub">sin recibir</div>
     </div>
     <div class="card kpi">
-      <div class="kpi-label">Recibidas</div>
+      <div class="kpi-label">Completas</div>
       <div class="kpi-val c-ok" id="kpi-recv">—</div>
-      <div class="kpi-sub">con F. Recepción</div>
-    </div>
-    <div class="card kpi">
-      <div class="kpi-label">Sin COA / Conforme</div>
-      <div class="kpi-val c-danger" id="kpi-coa">—</div>
-      <div class="kpi-sub">pendientes de calidad</div>
+      <div class="kpi-sub">totalmente recibidas</div>
     </div>
     <div class="card kpi">
       <div class="kpi-label">Sin Lote</div>
-      <div class="kpi-val c-warn" id="kpi-lote">—</div>
-      <div class="kpi-sub">sin trazabilidad</div>
+      <div class="kpi-val c-danger" id="kpi-lote">—</div>
+      <div class="kpi-sub">recibido sin trazabilidad</div>
     </div>
   </div>
 
@@ -456,21 +456,12 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
       <div class="filter-group">
         <select class="fsel" id="f-estado" onchange="applyFilters()">
           <option value="">Estado</option>
-          <option value="pendiente">⏳ Pendiente</option>
-          <option value="recibido">✓ Recibido</option>
+          <option value="PARCIAL">🟡 Parcial</option>
+          <option value="PENDIENTE">⏳ Pendiente</option>
+          <option value="COMPLETA">✅ Completa</option>
         </select>
         <select class="fsel" id="f-proveedor" onchange="applyFilters()">
           <option value="">Todos los proveedores</option>
-        </select>
-        <select class="fsel" id="f-coa" onchange="applyFilters()">
-          <option value="">COA</option>
-          <option value="si">Con COA</option>
-          <option value="no">Sin COA</option>
-        </select>
-        <select class="fsel" id="f-lote" onchange="applyFilters()">
-          <option value="">Lote</option>
-          <option value="si">Con lote</option>
-          <option value="no">Sin lote</option>
         </select>
       </div>
       <div class="date-range">
@@ -490,17 +481,16 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
             <th onclick="sortBy('fecha')">Fecha</th>
             <th onclick="sortBy('proveedor')">Proveedor</th>
             <th>Producto</th>
-            <th onclick="sortBy('cantidad')" style="text-align:right">Cant.</th>
-            <th onclick="sortBy('recepcion')">Recepción</th>
-            <th>Lote</th>
-            <th style="text-align:center">COA / Conf.</th>
-            <th>Vencimiento</th>
+            <th onclick="sortBy('cantidad')" style="text-align:right">Pedido</th>
+            <th style="text-align:right">Recibido</th>
+            <th style="text-align:right">Saldo</th>
+            <th style="text-align:center">Estado</th>
             <th>Recibido por</th>
             <th style="text-align:center">Acción</th>
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr class="empty-row"><td colspan="11">Cargando datos…</td></tr>
+          <tr class="empty-row"><td colspan="10">Cargando datos…</td></tr>
         </tbody>
       </table>
     </div>
@@ -523,60 +513,52 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
      MODAL: DETALLE / EDITAR
 ════════════════════════════════════════════════ -->
 <div class="overlay" id="edit-overlay">
-  <div class="modal">
+  <div class="modal" style="max-width:660px">
     <div class="modal-header">
-      <div class="modal-title" id="edit-title">Detalle de Orden</div>
+      <div class="modal-title" id="edit-title">Recepción</div>
       <button class="modal-close" onclick="closeModal('edit-overlay')">✕</button>
     </div>
     <div class="modal-body">
+      <div class="detail-grid" id="entrega-info"></div>
 
-      <!-- Vista detalle -->
-      <div id="detail-view">
-        <div class="detail-grid" id="detail-grid"></div>
-      </div>
+      <div style="margin:16px 0 6px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)">Historial de entregas</div>
+      <div id="entrega-hist" style="margin-bottom:16px"></div>
 
-      <!-- Formulario de edición -->
-      <div id="edit-form" style="display:none">
+      <div id="entrega-form-wrap">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--orange-l);margin-bottom:9px">➕ Registrar nueva entrega</div>
         <div class="form-grid">
           <div class="form-group">
-            <label>Fecha de Recepción</label>
-            <input type="date" class="form-input" id="ed-recepcion"/>
+            <label>Cantidad recibida ahora *</label>
+            <input type="number" class="form-input" id="en-cant" min="0" step="0.01" placeholder="0"/>
           </div>
           <div class="form-group">
-            <label>Número de Lote</label>
-            <input type="text" class="form-input" id="ed-lote" placeholder="Ej: BB-2526-/32"/>
+            <label>Fecha de entrega</label>
+            <input type="date" class="form-input" id="en-fecha"/>
           </div>
           <div class="form-group">
-            <label>Fecha de Vencimiento</label>
-            <input type="date" class="form-input" id="ed-vto"/>
+            <label>Número de lote</label>
+            <input type="text" class="form-input" id="en-lote" placeholder="Ej: BB-2526-/32"/>
           </div>
-          <div class="form-group" style="display:flex;flex-direction:column;justify-content:flex-end">
-            <div class="check-row">
-              <input type="checkbox" id="ed-vto-na" onchange="onVtoNA()"/>
-              <label for="ed-vto-na">Vencimiento no aplica</label>
-            </div>
+          <div class="form-group">
+            <label>Vencimiento</label>
+            <input type="date" class="form-input" id="en-vto"/>
           </div>
           <div class="form-group span2">
-            <div class="check-row">
-              <input type="checkbox" id="ed-coa"/>
-              <label for="ed-coa">COA recibido (Certificado de Análisis)</label>
-            </div>
-            <div class="check-row">
-              <input type="checkbox" id="ed-conforme"/>
-              <label for="ed-conforme">Mercadería conforme con la orden</label>
-            </div>
+            <div class="check-row"><input type="checkbox" id="en-vto-na" onchange="onEnVtoNA()"/><label for="en-vto-na">Vencimiento no aplica</label></div>
+            <div class="check-row"><input type="checkbox" id="en-coa"/><label for="en-coa">COA recibido (Certificado de Análisis)</label></div>
+            <div class="check-row"><input type="checkbox" id="en-conforme"/><label for="en-conforme">Mercadería conforme</label></div>
           </div>
           <div class="form-group span2">
             <label>Observaciones</label>
-            <textarea class="form-textarea" id="ed-obs" placeholder="Anotaciones internas…"></textarea>
+            <textarea class="form-textarea" id="en-obs" placeholder="Anotaciones de la entrega…"></textarea>
           </div>
         </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted-l)">Recibe: <b id="en-who" style="color:var(--teal-l)">—</b></div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-orange" id="btn-toggle-edit" onclick="toggleEditForm()">📥 Registrar recepción</button>
-      <button class="btn btn-ghost btn-sm" id="btn-recep-row" onclick="receptionForOrder(String(CURRENT_ROW[K.orden]))">📄 Remito</button>
-      <button class="btn btn-primary" id="btn-save-edit" style="display:none" onclick="saveEdit()">💾 Registrar</button>
+      <button class="btn btn-ghost btn-sm" id="btn-remito" onclick="pdfEntregas()">📄 Remito</button>
+      <button class="btn btn-orange" id="btn-save-entrega" onclick="saveEntrega()">💾 Registrar entrega</button>
       <button class="btn btn-ghost" onclick="closeModal('edit-overlay')">Cerrar</button>
     </div>
   </div>
@@ -777,8 +759,11 @@ function load(){
       if(DATA_RAW.length===0) toast('⚠ Hoja OC/Pedidos vacía. Hojas disponibles: '+(d.sheetNames||[]).join(', '),'err');
       buildCurrencyMapP();
       applyLocalOverrides();
-      renderAll();
       buildOCCatalog();
+      // Cargar entregas parciales y recién ahí renderizar
+      (window.SubatirApp && SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
+        .then(function(list){ ENTREGAS = list || []; }).catch(function(){ ENTREGAS = []; })
+        .then(function(){ buildEntregasMap(); renderAll(); });
       setLoading(false);
       if (d.timestamp){
         var dt = new Date(d.timestamp);
@@ -929,26 +914,31 @@ function ocMoneda(row){
 // ── KPIs ──────────────────────────────────────────────────────
 function updateKPIs(){
   var all      = DATA_DISPLAY;
-  var pend     = all.filter(isPendiente);
-  var recv     = all.filter(function(r){ return !isPendiente(r); });
-  var sinCOA   = all.filter(function(r){ return !r[K.coa] || r[K.coa]==='' || !r[K.conforme] || r[K.conforme]===''; });
-  var sinLote  = all.filter(function(r){ return !r[K.lote] || r[K.lote]===''; });
-
+  var parc=0, pend=0, comp=0, sinLote=0;
+  all.forEach(function(r){
+    var st=lineStats(r);
+    if(st.estado==='PARCIAL') parc++; else if(st.estado==='PENDIENTE') pend++; else comp++;
+    // sin lote: recibido (parcial/completo) pero alguna entrega sin lote, o legacy completo sin lote
+    if(st.estado!=='PENDIENTE'){
+      var falta = st.legacy ? !String(r[K.lote]||'').trim() : st.entregas.some(function(e){ return !String(e.lote||'').trim(); });
+      if(falta) sinLote++;
+    }
+  });
   setText('kpi-total',      all.length);
-  setText('kpi-total-sub',  all.length + ' órdenes en el sistema');
-  setText('kpi-pend',       pend.length);
-  setText('kpi-recv',       recv.length);
-  setText('kpi-coa',        sinCOA.length);
-  setText('kpi-lote',       sinLote.length);
+  setText('kpi-total-sub',  all.length + ' líneas de OC');
+  setText('kpi-parc',       parc);
+  setText('kpi-pend',       pend);
+  setText('kpi-recv',       comp);
+  setText('kpi-lote',       sinLote);
   // Ticker animado con datos
-  ['tk-pend','tk-pend2'].forEach(function(id){ setText(id, pend.length); });
-  ['tk-recv','tk-recv2'].forEach(function(id){ setText(id, recv.length); });
-  ['tk-coa','tk-coa2'].forEach(function(id){ setText(id, sinCOA.length); });
-  ['tk-lote','tk-lote2'].forEach(function(id){ setText(id, sinLote.length); });
+  ['tk-pend','tk-pend2'].forEach(function(id){ setText(id, pend); });
+  ['tk-recv','tk-recv2'].forEach(function(id){ setText(id, comp); });
+  ['tk-coa','tk-coa2'].forEach(function(id){ setText(id, parc); });
+  ['tk-lote','tk-lote2'].forEach(function(id){ setText(id, sinLote); });
   // Actualizar contador en header
   var hdrCounter = document.getElementById('hdr-counter');
   if (hdrCounter && all.length > 0){
-    hdrCounter.textContent = pend.length + ' pend. / ' + all.length + ' total';
+    hdrCounter.textContent = (parc+pend) + ' por recibir / ' + all.length + ' total';
     hdrCounter.style.display = 'block';
   }
 }
@@ -958,25 +948,16 @@ function applyFilters(){
   var buscar  = (document.getElementById('f-buscar').value  || '').toLowerCase();
   var estado  = document.getElementById('f-estado').value;
   var prov    = document.getElementById('f-proveedor').value;
-  var coa     = document.getElementById('f-coa').value;
-  var lote    = document.getElementById('f-lote').value;
   var desde   = document.getElementById('f-desde').value;
   var hasta   = document.getElementById('f-hasta').value;
-  var today   = new Date(); today.setHours(0,0,0,0);
 
   FILTERED = DATA_DISPLAY.filter(function(r){
     if (buscar){
-      var haystack = [r[K.desc],r[K.proveedor],r[K.orden],r[K.lote]].join(' ').toLowerCase();
+      var haystack = [r[K.desc],r[K.proveedor],r[K.orden]].join(' ').toLowerCase();
       if (haystack.indexOf(buscar) < 0) return false;
     }
-    if (estado === 'pendiente' && !isPendiente(r)) return false;
-    if (estado === 'recibido'  &&  isPendiente(r)) return false;
+    if (estado && lineStats(r).estado !== estado) return false;
     if (prov && String(r[K.proveedor]||'').toLowerCase() !== prov.toLowerCase()) return false;
-    var coaVal = String(r[K.coa]||'').toUpperCase().trim();
-    if (coa === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== '1' && coaVal !== 'TRUE' && coaVal !== 'NO NECESARIO' && coaVal !== 'NO APLICA' && coaVal !== 'NO REQUERIDO' && coaVal !== 'N/A' && coaVal !== 'NA') return false;
-    if (coa === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === '1' || coaVal === 'TRUE' || coaVal === 'NO NECESARIO' || coaVal === 'NO APLICA' || coaVal === 'NO REQUERIDO' || coaVal === 'N/A' || coaVal === 'NA')) return false;
-    if (lote === 'si' && (!r[K.lote] || String(r[K.lote]).trim()==='')) return false;
-    if (lote === 'no' && r[K.lote] && String(r[K.lote]).trim()!=='') return false;
     if (desde && r[K.fecha] && r[K.fecha] < desde) return false;
     if (hasta && r[K.fecha] && r[K.fecha] > hasta) return false;
     return true;
@@ -988,8 +969,7 @@ function applyFilters(){
 }
 
 function clearFilters(){
-  ['f-buscar','f-desde','f-hasta'].forEach(function(id){ document.getElementById(id).value = ''; });
-  ['f-estado','f-proveedor','f-coa','f-lote'].forEach(function(id){ document.getElementById(id).value = ''; });
+  ['f-buscar','f-desde','f-hasta','f-estado','f-proveedor'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value = ''; });
   applyFilters();
 }
 
@@ -1008,9 +988,10 @@ function sortFiltered(){
   var dir = SORT_DIR === 'asc' ? 1 : -1;
   FILTERED.sort(function(a, b){
     var va, vb;
-    if (key === 'pendiente'){ // pendientes primero, luego por N° orden desc
-      var pa=isPendiente(a)?0:1, pb=isPendiente(b)?0:1;
-      if(pa!==pb) return pa-pb;
+    if (key === 'pendiente'){ // por defecto: Parcial → Pendiente → Completa, luego N° orden desc
+      var rank={PARCIAL:0, PENDIENTE:1, COMPLETA:2};
+      var ra=rank[lineStats(a).estado], rb=rank[lineStats(b).estado];
+      if(ra!==rb) return ra-rb;
       return pNum(b[K.orden]) - pNum(a[K.orden]);
     }
     if (key === 'orden')    { va = pNum(a[K.orden]);    vb = pNum(b[K.orden]); }
@@ -1026,83 +1007,183 @@ function sortFiltered(){
   });
 }
 
+// ── Entregas parciales ────────────────────────────────────────
+var ENTREGAS = [], ENTREGAS_BY_PID = {};
+function buildEntregasMap(){
+  ENTREGAS_BY_PID = {};
+  (ENTREGAS||[]).forEach(function(e){ (ENTREGAS_BY_PID[e.pedido_id] = ENTREGAS_BY_PID[e.pedido_id] || []).push(e); });
+  Object.keys(ENTREGAS_BY_PID).forEach(function(k){
+    ENTREGAS_BY_PID[k].sort(function(a,b){ return String(a.created_at||'').localeCompare(String(b.created_at||'')); });
+  });
+}
+// Estadística de recepción de una línea de OC
+function lineStats(r){
+  var pid = r.__row, pedida = pNum(r[K.cantidad]);
+  var ents = ENTREGAS_BY_PID[pid] || [];
+  var recEnt = ents.reduce(function(s,e){ return s + pNum(e.cantidad); }, 0);
+  var legacy = !isPendiente(r) && recEnt <= 0;           // recibida al viejo estilo (f_recepcion), sin entregas
+  var recibido = legacy ? pedida : recEnt;
+  var estado = legacy ? 'COMPLETA'
+    : (recibido <= 0 ? 'PENDIENTE' : (pedida > 0 && recibido >= pedida ? 'COMPLETA' : 'PARCIAL'));
+  var saldo = estado === 'COMPLETA' ? 0 : Math.max(0, pedida - recibido);
+  return { pid:pid, pedida:pedida, recibido:recibido, saldo:saldo, estado:estado, entregas:ents, legacy:legacy };
+}
+function estadoPill(est){
+  if(est==='COMPLETA') return '<span class="pill pill-recv">✅ Completa</span>';
+  if(est==='PARCIAL')  return '<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d;border:1px solid rgba(245,158,11,.4)">🟡 Parcial</span>';
+  return '<span class="pill pill-pend">⏳ Pendiente</span>';
+}
+
 // ── Render tabla ──────────────────────────────────────────────
 function renderTable(){
-  var html  = '';
-
+  var html = '';
   if (FILTERED.length === 0){
-    html = '<tr class="empty-row"><td colspan="11">Sin resultados con los filtros actuales.</td></tr>';
+    html = '<tr class="empty-row"><td colspan="10">Sin resultados con los filtros actuales.</td></tr>';
   } else {
     FILTERED.forEach(function(r){
-      var orden    = r[K.orden] || '—';
-      var pend     = isPendiente(r);
-      var sinLote  = !r[K.lote] || String(r[K.lote]).trim() === '';
-      var coaUp    = String(r[K.coa]||'').toUpperCase().trim();
-      var confUp   = String(r[K.conforme]||'').toUpperCase().trim();
-      var hasCOA   = coaUp === 'SI' || coaUp === 'S' || coaUp === '1' || coaUp === 'TRUE' || coaUp === 'NO NECESARIO' || coaUp === 'NO APLICA' || coaUp === 'NO REQUERIDO' || coaUp === 'N/A' || coaUp === 'NA';
-      var hasConf  = confUp === 'SI' || confUp === 'S' || confUp === '1' || confUp === 'TRUE';
-      var rowClass  = r.__local ? 'local-row' : r.__modified ? 'modified-row' : '';
-      var moneda  = ocMoneda(r);
-      var sivaUSD = moneda === 'USD' ? pNum(r[K.siva]) : 0;
-      var sivaPSO = moneda !== 'USD' ? pNum(r[K.siva]) : 0;
-      var civaUSD = moneda === 'USD' ? pNum(r[K.civa]) : 0;
-      var civaPSO = moneda !== 'USD' ? pNum(r[K.civa]) : 0;
-      var siva    = sivaUSD;
-
-      var recepBadge = !pend
-        ? '<span class="pill pill-recv">✓ ' + fmtDate(r[K.recepcion]) + '</span>'
-        : '<span class="pill pill-pend">⏳ Pendiente</span>';
-
-      html += '<tr class="' + rowClass + '" data-orden="' + esc(String(orden)) + '">';
-      html += '<td class="orden-cell">' + esc(String(orden));
-      if (r.__local)    html += ' <span class="pill pill-local">Local</span>';
-      if (r.__modified) html += ' <span class="pill pill-mod">Editado</span>';
-      html += '</td>';
-      html += '<td>' + fmtDate(r[K.fecha]) + '</td>';
-      html += '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + esc(String(r[K.proveedor]||'—')) + '</td>';
-      html += '<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(r[K.desc]||''))+'">'+esc(String(r[K.desc]||'—'))+'</td>';
-      html += '<td class="num-cell">' + (r[K.cantidad]||'—') + '</td>';
-      html += '<td>' + recepBadge + '</td>';
-      html += '<td>' + (sinLote
-        ? '<span class="pill pill-warn">Sin lote</span>'
-        : '<span style="font-size:11px;color:var(--muted)">'+esc(String(r[K.lote]))+'</span>') + '</td>';
-      html += '<td><div style="display:flex;gap:4px;justify-content:center;white-space:nowrap">'
-            + (hasCOA ? '<span class="pill pill-ok">✓COA</span>'  : '<span class="pill pill-warn" style="opacity:.55">COA</span>')
-            + (hasConf? '<span class="pill pill-ok">✓Conf</span>' : '<span class="pill pill-warn" style="opacity:.55">Conf</span>')
-            + '</div></td>';
-      var vtoTxt = isVtoNA(r[K.vto]) ? 'No aplica' : (fmtDate(r[K.vto])||'—');
-      html += '<td style="font-size:11px;color:var(--muted)">' + vtoTxt + '</td>';
-      html += '<td>' + (r[K.recibido] ? '<span class="pill pill-recv" style="font-family:var(--mono)">'+esc(String(r[K.recibido]))+'</span>' : '<span class="muted-cell">—</span>') + '</td>';
-      html += '<td style="text-align:center">'
-            + '<button class="btn btn-orange btn-sm" style="padding:5px 12px" onclick="openEdit(\''+esc(String(orden))+'\')">'+(pend?'📥 Recibir':'✎ Ver')+'</button>'
-            + '</td>';
+      var orden = r[K.orden] || '—';
+      var st = lineStats(r);
+      var ultWho = st.entregas.length ? st.entregas[st.entregas.length-1].recibido_por : (r[K.recibido]||'');
+      html += '<tr data-orden="'+esc(String(orden))+'">';
+      html += '<td class="orden-cell">'+esc(String(orden))+'</td>';
+      html += '<td>'+fmtDate(r[K.fecha])+'</td>';
+      html += '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">'+esc(String(r[K.proveedor]||'—'))+'</td>';
+      html += '<td style="max-width:230px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(r[K.desc]||''))+'">'+esc(String(r[K.desc]||'—'))+'</td>';
+      html += '<td class="num-cell">'+fmtNum(st.pedida)+'</td>';
+      html += '<td class="num-cell" style="color:'+(st.recibido>0?'var(--ok)':'var(--muted)')+'">'+(st.recibido>0?fmtNum(st.recibido):'—')+'</td>';
+      html += '<td class="num-cell" style="color:'+(st.saldo>0?'var(--orange-l)':'var(--muted)')+';font-weight:700">'+(st.saldo>0?fmtNum(st.saldo):'0')+'</td>';
+      html += '<td style="text-align:center">'+estadoPill(st.estado)+'</td>';
+      html += '<td>'+(ultWho ? '<span class="pill pill-recv" style="font-family:var(--mono)">'+esc(String(ultWho))+'</span>' : '<span class="muted-cell">—</span>')+'</td>';
+      html += '<td style="text-align:center"><button class="btn '+(st.estado==='COMPLETA'?'btn-ghost':'btn-orange')+' btn-sm" style="padding:5px 12px" onclick="openEntrega('+r.__row+')">'+(st.estado==='COMPLETA'?'✎ Ver':'📥 Recibir')+'</button></td>';
       html += '</tr>';
     });
   }
   document.getElementById('tbody').innerHTML = html;
 }
 
+// ── Modal de entregas ─────────────────────────────────────────
+var CUR_LINE=null;
+function findLine(pid){ return (DATA_DISPLAY||[]).filter(function(r){ return String(r.__row)===String(pid); })[0]; }
+function coaOkR(v){ return ['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(v||'').toUpperCase().trim())>=0; }
+function onEnVtoNA(){ var na=document.getElementById('en-vto-na').checked; var d=document.getElementById('en-vto'); d.disabled=na; if(na)d.value=''; }
+
+function openEntrega(pid){
+  var r=findLine(pid); if(!r) return; CUR_LINE=r;
+  var st=lineStats(r);
+  document.getElementById('edit-title').textContent='OC #'+String(r[K.orden])+' — '+String(r[K.desc]||'');
+  document.getElementById('entrega-info').innerHTML =
+    '<div class="detail-item"><div class="detail-label">Proveedor</div><div class="detail-value">'+esc(String(r[K.proveedor]||'—'))+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Estado</div><div class="detail-value">'+estadoPill(st.estado)+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Pedido</div><div class="detail-value">'+fmtNum(st.pedida)+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Recibido</div><div class="detail-value" style="color:var(--ok)">'+fmtNum(st.recibido)+'</div></div>'
+    +'<div class="detail-item span2"><div class="detail-label">Saldo pendiente</div><div class="detail-value" style="color:'+(st.saldo>0?'var(--orange-l)':'var(--ok)')+';font-size:17px">'+fmtNum(st.saldo)+'</div></div>';
+  renderHist(r, st);
+  var completa = st.estado==='COMPLETA';
+  document.getElementById('entrega-form-wrap').style.display = completa ? 'none' : 'block';
+  document.getElementById('btn-save-entrega').style.display = completa ? 'none' : 'inline-flex';
+  document.getElementById('en-cant').value = st.saldo>0 ? st.saldo : '';
+  document.getElementById('en-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('en-lote').value='';
+  document.getElementById('en-vto').value=''; document.getElementById('en-vto-na').checked=false; document.getElementById('en-vto').disabled=false;
+  document.getElementById('en-coa').checked=false; document.getElementById('en-conforme').checked=false;
+  document.getElementById('en-obs').value='';
+  document.getElementById('en-who').textContent=whoName();
+  openModal('edit-overlay');
+}
+
+function renderHist(r, st){
+  var host=document.getElementById('entrega-hist');
+  if(st.legacy){ host.innerHTML='<div style="font-size:12px;color:var(--muted-l)">Recibida en registro anterior (sin detalle de entregas). Recepción: '+fmtDate(r[K.recepcion])+(String(r[K.lote]||'').trim()?' · Lote '+esc(String(r[K.lote])):'')+'</div>'; return; }
+  if(!st.entregas.length){ host.innerHTML='<div style="font-size:12px;color:var(--muted-l)">Todavía no hay entregas registradas.</div>'; return; }
+  host.innerHTML = st.entregas.map(function(e){
+    var vto=isVtoNA(e.f_vto)?'No aplica':(fmtDate(e.f_vto)||'—');
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;font-size:12px;background:rgba(255,255,255,.02);flex-wrap:wrap">'
+      +'<span class="pill pill-recv" style="font-family:var(--mono)">'+fmtNum(e.cantidad)+'</span>'
+      +'<span style="color:var(--muted-l)">'+fmtDate(e.fecha)+'</span>'
+      +'<span>Lote: <b>'+esc(String(e.lote||'—'))+'</b></span>'
+      +'<span style="color:var(--muted-l)">Vto: '+vto+'</span>'
+      +(coaOkR(e.coa)?'<span class="pill pill-ok">COA</span>':'')
+      +(['SI','S','1','TRUE'].indexOf(String(e.conforme||'').toUpperCase())>=0?'<span class="pill pill-ok">Conf</span>':'')
+      +'<span style="margin-left:auto;color:var(--teal-l);font-family:var(--mono);font-size:11px">'+esc(String(e.recibido_por||''))+'</span>'
+      +'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Eliminar entrega" onclick="delEntrega('+e.id+')">🗑</button>'
+      +'</div>';
+  }).join('');
+}
+
+function saveEntrega(){
+  if(!CUR_LINE) return;
+  var r=CUR_LINE, pid=r.__row, st=lineStats(r);
+  var cant=parseFloat(document.getElementById('en-cant').value);
+  if(!(cant>0)){ toast('Ingresá la cantidad recibida (mayor a 0)','err'); return; }
+  var row={
+    pedido_id: pid, n_orden: String(r[K.orden]||''), descripcion: String(r[K.desc]||''),
+    cantidad: cant, fecha: document.getElementById('en-fecha').value || null,
+    lote: document.getElementById('en-lote').value.trim() || null,
+    f_vto: document.getElementById('en-vto-na').checked ? 'NO APLICA' : (document.getElementById('en-vto').value || null),
+    coa: document.getElementById('en-coa').checked ? 'SI' : null,
+    conforme: document.getElementById('en-conforme').checked ? 'SI' : null,
+    recibido_por: whoName(),
+    observaciones: document.getElementById('en-obs').value.trim() || null
+  };
+  document.getElementById('btn-save-entrega').disabled=true;
+  toast('Registrando entrega…','info');
+  SubatirApp.addEntrega(row).then(function(d){
+    document.getElementById('btn-save-entrega').disabled=false;
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    var nuevoRecibido = st.recibido + cant;
+    if(st.pedida>0 && nuevoRecibido >= st.pedida){
+      // Línea completa → marcar la fila de la OC (compatibilidad con Pedidos/Stock)
+      var lotes=st.entregas.map(function(e){return e.lote;}).concat([row.lote]).filter(Boolean);
+      var fields={};
+      fields[K.recepcion]=row.fecha || new Date().toISOString().slice(0,10);
+      fields[K.lote]=[...new Set(lotes)].join(' / ');
+      fields[K.coa]=row.coa||''; fields[K.conforme]=row.conforme||'';
+      if(row.f_vto) fields[K.vto]=row.f_vto;
+      fields[K.recibido]=row.recibido_por;
+      SubatirApp.updateRow('pedidos', pid, fields).then(function(){ afterEntrega(true); });
+    } else { afterEntrega(false); }
+  });
+}
+function afterEntrega(completa){
+  closeModal('edit-overlay');
+  toast(completa ? '✅ Producto recibido completo' : '🟡 Entrega parcial registrada','ok');
+  load();
+}
+
+function delEntrega(id){
+  if(!confirm('¿Eliminar esta entrega? Se recalcula el recibido.')) return;
+  var pid = CUR_LINE ? CUR_LINE.__row : null;
+  SubatirApp.deleteEntrega(id).then(function(d){
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    toast('Entrega eliminada','ok');
+    load();
+    if(pid) setTimeout(function(){ if(findLine(pid)) openEntrega(pid); }, 1600);
+  });
+}
+
+function pdfEntregas(){ if(CUR_LINE) receptionForOrder(String(CUR_LINE[K.orden])); }
+
 // ── Resumen por proveedor ─────────────────────────────────────
 function renderProveedores(){
   var map = {};
   DATA_DISPLAY.forEach(function(r){
     var p = String(r[K.proveedor]||'Desconocido');
-    if (!map[p]) map[p] = {total:0, pend:0, usd:0, ultima:''};
+    if (!map[p]) map[p] = {total:0, porRecibir:0, ultima:''};
     map[p].total++;
-    if (isPendiente(r)) { map[p].pend++; map[p].usd += pNum(r[K.siva]); }
+    var est = lineStats(r).estado;
+    if (est==='PENDIENTE' || est==='PARCIAL') map[p].porRecibir++;
     var f = r[K.fecha]||'';
     if (f > map[p].ultima) map[p].ultima = f;
   });
-  var sorted = Object.keys(map).sort(function(a,b){ return map[b].total - map[a].total; });
+  var sorted = Object.keys(map).sort(function(a,b){ return map[b].porRecibir - map[a].porRecibir || map[b].total - map[a].total; });
   var html = '';
   sorted.forEach(function(p){
     var m = map[p];
     html += '<div class="prov-card">'
           + '<div class="prov-name" title="'+esc(p)+'">'+esc(p)+'</div>'
           + '<div class="prov-stats">'
-          + '<div class="prov-stat"><strong>'+m.total+'</strong>órdenes</div>'
-          + '<div class="prov-stat"><strong style="color:var(--warn)">'+m.pend+'</strong>pendientes</div>'
-          + '<div class="prov-stat"><strong style="color:var(--ok)">'+fmtUSD(m.usd)+'</strong>USD pend.</div>'
+          + '<div class="prov-stat"><strong>'+m.total+'</strong>productos</div>'
+          + '<div class="prov-stat"><strong style="color:var(--warn)">'+m.porRecibir+'</strong>por recibir</div>'
           + '<div class="prov-stat"><strong style="font-size:12px">'+fmtDate(m.ultima)+'</strong>última OC</div>'
           + '</div></div>';
   });

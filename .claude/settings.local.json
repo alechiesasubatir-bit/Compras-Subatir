@@ -41,7 +41,12 @@
       "Bash(curl -s \"https://alechiesasubatir-bit.github.io/Compras-Subatir/stock.html\")",
       "Bash(curl -s \"https://alechiesasubatir-bit.github.io/Compras-Subatir/precios.html\")",
       "Bash(git checkout *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://alechiesasubatir-bit.github.io/Compras-Subatir/recepcion.html\")"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://alechiesasubatir-bit.github.io/Compras-Subatir/recepcion.html\")",
+      "Bash(git pull *)",
+      "Bash(python -c \"import openpyxl; print\\('openpyxl OK'\\)\")",
+      "Bash(python -m pip install openpyxl --quiet)",
+      "Bash(python -c \"import openpyxl; print\\('openpyxl OK now'\\)\")",
+      "Bash(python)"
     ]
   }
 }

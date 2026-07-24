@@ -18,6 +18,7 @@
     'precios.html': 'precios',
     'proveedores.html': 'proveedores',
     'contingencia.html': 'contingencia',
+    'importacion.html': 'importacion',
     'copiloto.html': 'copiloto',
     'usuarios.html': 'usuarios'
   };
@@ -193,6 +194,12 @@
       var r = document.createElement('a');
       r.href = 'recepcion.html'; r.className = navClass; r.textContent = '📥 Recepción';
       nav.appendChild(r);
+    }
+    // Link a Importación para quien tenga acceso
+    if (nav && !operario && canAccess('importacion', profile) && !nav.querySelector('[href="importacion.html"]')) {
+      var im = document.createElement('a');
+      im.href = 'importacion.html'; im.className = navClass; im.textContent = '🌐 Importación';
+      nav.appendChild(im);
     }
     if (profile.role === 'admin' && nav && !nav.querySelector('[href="usuarios.html"]')) {
       var a = document.createElement('a');

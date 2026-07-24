@@ -16,9 +16,10 @@
   --bg3:   #111926;
   --teal:  #0e8aaa;
   --teal-l:#1bc8ff;
-  --orange:#f97316;--orange-d:#c2580a;
+  --orange:#f97316;--orange-d:#c2580a;--orange-l:#fb923c;
   --glass: rgba(255,255,255,.04);--glass-b:rgba(255,255,255,.08);
-  --border:rgba(255,255,255,.07);--text:#e2e8f0;--muted:#5a6a80;
+  --mono:'IBM Plex Mono',monospace;
+  --border:rgba(255,255,255,.07);--text:#e2e8f0;--muted:#5a6a80;--muted-l:#94a3b8;
   --danger:#ef4444;--warn:#f59e0b;--ok:#22c55e;
   --radius:14px;--shadow:0 8px 32px rgba(0,0,0,.45);
 }
@@ -627,6 +628,61 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 </div>
 
 <!-- ════════════════════════════════════════════════
+     MODAL: ENTREGAS PARCIALES
+════════════════════════════════════════════════ -->
+<div class="overlay" id="entrega-overlay">
+  <div class="modal" style="max-width:660px">
+    <div class="modal-header">
+      <div class="modal-title" id="entrega-title">Entregas</div>
+      <button class="modal-close" onclick="closeModal('entrega-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="entrega-info"></div>
+
+      <div style="margin:16px 0 6px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)">Historial de entregas</div>
+      <div id="entrega-hist" style="margin-bottom:16px"></div>
+
+      <div id="entrega-form-wrap">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--orange-l);margin-bottom:9px">➕ Registrar nueva entrega</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Cantidad recibida ahora *</label>
+            <input type="number" class="form-input" id="en-cant" min="0" step="0.01" placeholder="0"/>
+          </div>
+          <div class="form-group">
+            <label>Fecha de entrega</label>
+            <input type="date" class="form-input" id="en-fecha"/>
+          </div>
+          <div class="form-group">
+            <label>Número de lote</label>
+            <input type="text" class="form-input" id="en-lote" placeholder="Ej: BB-2526-/32"/>
+          </div>
+          <div class="form-group">
+            <label>Vencimiento</label>
+            <input type="date" class="form-input" id="en-vto"/>
+          </div>
+          <div class="form-group span2">
+            <div class="check-row"><input type="checkbox" id="en-vto-na" onchange="onEnVtoNA()"/><label for="en-vto-na">Vencimiento no aplica</label></div>
+            <div class="check-row"><input type="checkbox" id="en-coa"/><label for="en-coa">COA recibido (Certificado de Análisis)</label></div>
+            <div class="check-row"><input type="checkbox" id="en-conforme"/><label for="en-conforme">Mercadería conforme</label></div>
+          </div>
+          <div class="form-group span2">
+            <label>Observaciones</label>
+            <textarea class="form-textarea" id="en-obs" placeholder="Anotaciones de la entrega…"></textarea>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted-l)">Recibe: <b id="en-who" style="color:var(--teal-l)">—</b></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" id="btn-remito" onclick="pdfEntregas()">📄 Remito</button>
+      <button class="btn btn-orange" id="btn-save-entrega" onclick="saveEntrega()">💾 Registrar entrega</button>
+      <button class="btn btn-ghost" onclick="closeModal('entrega-overlay')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
      MODAL: NUEVA ORDEN
 ════════════════════════════════════════════════ -->
 <div class="overlay" id="new-overlay">
@@ -757,7 +813,7 @@ window.addEventListener('DOMContentLoaded', function(){
   } else {
     load();
   }
-  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos'], load);
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','entregas'], load);
   setTodayDate();
   updateSyncUI();
 });
@@ -821,7 +877,8 @@ function load(){
       if(DATA_RAW.length===0) toast('⚠ Hoja OC/Pedidos vacía. Hojas disponibles: '+(d.sheetNames||[]).join(', '),'err');
       buildCurrencyMapP();
       applyLocalOverrides();
-      renderAll();
+      (window.SubatirApp && SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
+        .then(function(ents){ ENTREGAS = ents || []; buildEntregasMap(); renderAll(); });
       buildOCCatalog();
       setLoading(false);
       if (d.timestamp){
@@ -1086,9 +1143,12 @@ function renderTable(){
       var civaPSO = moneda !== 'USD' ? pNum(r[K.civa]) : 0;
       var siva    = sivaUSD;
 
-      var recepBadge = !pend
-        ? '<span class="pill pill-recv">✓ ' + fmtDate(r[K.recepcion]) + '</span>'
-        : '<span class="pill pill-pend">⏳ Pendiente</span>';
+      var st = lineStats(r);
+      var recepBadge = st.estado==='COMPLETA'
+        ? '<span class="pill pill-recv">✓ ' + (fmtDate(r[K.recepcion])||'Completa') + '</span>'
+        : st.estado==='PARCIAL'
+          ? '<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d;border:1px solid rgba(245,158,11,.4)">🟡 Parcial · saldo '+fmtNum(st.saldo)+'</span>'
+          : '<span class="pill pill-pend">⏳ Pendiente</span>';
 
       html += '<tr class="' + rowClass + '" data-orden="' + esc(String(orden)) + '">';
       html += '<td class="orden-cell">' + esc(String(orden));
@@ -1129,6 +1189,7 @@ function renderTable(){
       html += '<td><div class="row-actions">'
             + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(rid))+'\')">👁 Ver</button>'
             + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(rid))+'\')">✏ Editar</button>'
+            + (r.__row!=null ? '<button class="icon-btn" title="Entregas parciales" style="border-color:rgba(249,115,22,.35);color:var(--orange-l)" onclick="openEntrega('+r.__row+')">'+(st.estado==='COMPLETA'?'📦 Entregas':'📥 Recibir')+'</button>' : '')
             + '</div></td>';
       html += '</tr>';
     });
@@ -1724,6 +1785,117 @@ function findRow(orden){
 function findRowById(id){
   return DATA_DISPLAY.find(function(r){ return r.__row != null && String(r.__row) === String(id); }) || null;
 }
+
+// ══ Entregas parciales (misma tabla `entregas` + trigger que Recepción) ══
+var ENTREGAS = [], ENTREGAS_BY_PID = {}, CUR_LINE = null;
+function buildEntregasMap(){
+  ENTREGAS_BY_PID = {};
+  (ENTREGAS||[]).forEach(function(e){ (ENTREGAS_BY_PID[e.pedido_id] = ENTREGAS_BY_PID[e.pedido_id] || []).push(e); });
+  Object.keys(ENTREGAS_BY_PID).forEach(function(k){
+    ENTREGAS_BY_PID[k].sort(function(a,b){ return String(a.created_at||'').localeCompare(String(b.created_at||'')); });
+  });
+}
+// Estadística de recepción de una línea de OC (a partir de sus entregas)
+function lineStats(r){
+  var pid = r.__row, pedida = pNum(r[K.cantidad]);
+  var ents = ENTREGAS_BY_PID[pid] || [];
+  var recEnt = ents.reduce(function(s,e){ return s + pNum(e.cantidad); }, 0);
+  var legacy = !isPendiente(r) && recEnt <= 0;           // recibida al viejo estilo (f_recepcion), sin entregas
+  var recibido = legacy ? pedida : recEnt;
+  var estado = legacy ? 'COMPLETA'
+    : (recibido <= 0 ? 'PENDIENTE' : (pedida > 0 && recibido >= pedida ? 'COMPLETA' : 'PARCIAL'));
+  var saldo = estado === 'COMPLETA' ? 0 : Math.max(0, pedida - recibido);
+  return { pid:pid, pedida:pedida, recibido:recibido, saldo:saldo, estado:estado, entregas:ents, legacy:legacy };
+}
+function estadoPill(est){
+  if(est==='COMPLETA') return '<span class="pill pill-recv">✅ Completa</span>';
+  if(est==='PARCIAL')  return '<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d;border:1px solid rgba(245,158,11,.4)">🟡 Parcial</span>';
+  return '<span class="pill pill-pend">⏳ Pendiente</span>';
+}
+function coaOkR(v){ return ['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(v||'').toUpperCase().trim())>=0; }
+function onEnVtoNA(){ var na=document.getElementById('en-vto-na').checked; var d=document.getElementById('en-vto'); d.disabled=na; if(na)d.value=''; }
+function findLine(pid){ return (DATA_DISPLAY||[]).filter(function(r){ return String(r.__row)===String(pid); })[0]; }
+function whoName(){ var p=(window.SubatirApp&&SubatirApp.getProfile)?SubatirApp.getProfile():null; return p ? (p.full_name || (p.email||'').split('@')[0] || 'Admin') : 'Admin'; }
+
+function openEntrega(pid){
+  var r=findLine(pid); if(!r) return; CUR_LINE=r;
+  var st=lineStats(r);
+  document.getElementById('entrega-title').textContent='OC #'+String(r[K.orden])+' — '+String(r[K.desc]||'');
+  document.getElementById('entrega-info').innerHTML =
+    '<div class="detail-item"><div class="detail-label">Proveedor</div><div class="detail-value">'+esc(String(r[K.proveedor]||'—'))+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Estado</div><div class="detail-value">'+estadoPill(st.estado)+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Pedido</div><div class="detail-value">'+fmtNum(st.pedida)+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Recibido</div><div class="detail-value" style="color:var(--ok)">'+fmtNum(st.recibido)+'</div></div>'
+    +'<div class="detail-item span2"><div class="detail-label">Saldo pendiente</div><div class="detail-value" style="color:'+(st.saldo>0?'var(--orange-l)':'var(--ok)')+';font-size:17px">'+fmtNum(st.saldo)+'</div></div>';
+  renderHist(r, st);
+  var completa = st.estado==='COMPLETA';
+  document.getElementById('entrega-form-wrap').style.display = completa ? 'none' : 'block';
+  document.getElementById('btn-save-entrega').style.display = completa ? 'none' : 'inline-flex';
+  document.getElementById('en-cant').value = st.saldo>0 ? st.saldo : '';
+  document.getElementById('en-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('en-lote').value='';
+  document.getElementById('en-vto').value=''; document.getElementById('en-vto-na').checked=false; document.getElementById('en-vto').disabled=false;
+  document.getElementById('en-coa').checked=false; document.getElementById('en-conforme').checked=false;
+  document.getElementById('en-obs').value='';
+  document.getElementById('en-who').textContent=whoName();
+  openModal('entrega-overlay');
+}
+function renderHist(r, st){
+  var host=document.getElementById('entrega-hist');
+  if(st.legacy){ host.innerHTML='<div style="font-size:12px;color:var(--muted-l)">Recibida en registro anterior (sin detalle de entregas). Recepción: '+fmtDate(r[K.recepcion])+(String(r[K.lote]||'').trim()?' · Lote '+esc(String(r[K.lote])):'')+'</div>'; return; }
+  if(!st.entregas.length){ host.innerHTML='<div style="font-size:12px;color:var(--muted-l)">Todavía no hay entregas registradas.</div>'; return; }
+  host.innerHTML = st.entregas.map(function(e){
+    var vto=isVtoNA(e.f_vto)?'No aplica':(fmtDate(e.f_vto)||'—');
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;font-size:12px;background:rgba(255,255,255,.02);flex-wrap:wrap">'
+      +'<span class="pill pill-recv" style="font-family:var(--mono)">'+fmtNum(e.cantidad)+'</span>'
+      +'<span style="color:var(--muted-l)">'+fmtDate(e.fecha)+'</span>'
+      +'<span>Lote: <b>'+esc(String(e.lote||'—'))+'</b></span>'
+      +'<span style="color:var(--muted-l)">Vto: '+vto+'</span>'
+      +(coaOkR(e.coa)?'<span class="pill pill-ok">COA</span>':'')
+      +(['SI','S','1','TRUE'].indexOf(String(e.conforme||'').toUpperCase())>=0?'<span class="pill pill-ok">Conf</span>':'')
+      +'<span style="margin-left:auto;color:var(--teal-l);font-family:var(--mono);font-size:11px">'+esc(String(e.recibido_por||''))+'</span>'
+      +'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Eliminar entrega" onclick="delEntrega('+e.id+')">🗑</button>'
+      +'</div>';
+  }).join('');
+}
+function saveEntrega(){
+  if(!CUR_LINE) return;
+  var r=CUR_LINE, pid=r.__row, st=lineStats(r);
+  var cant=parseFloat(document.getElementById('en-cant').value);
+  if(!(cant>0)){ toast('Ingresá la cantidad recibida (mayor a 0)','err'); return; }
+  var row={
+    pedido_id: pid, n_orden: String(r[K.orden]||''), descripcion: String(r[K.desc]||''),
+    cantidad: cant, fecha: document.getElementById('en-fecha').value || null,
+    lote: document.getElementById('en-lote').value.trim() || null,
+    f_vto: document.getElementById('en-vto-na').checked ? 'NO APLICA' : (document.getElementById('en-vto').value || null),
+    coa: document.getElementById('en-coa').checked ? 'SI' : null,
+    conforme: document.getElementById('en-conforme').checked ? 'SI' : null,
+    recibido_por: whoName(),
+    observaciones: document.getElementById('en-obs').value.trim() || null
+  };
+  document.getElementById('btn-save-entrega').disabled=true;
+  toast('Registrando entrega…','info');
+  SubatirApp.addEntrega(row).then(function(d){
+    document.getElementById('btn-save-entrega').disabled=false;
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    // La sincronización con pedidos.f_recepcion la hace el trigger en la base.
+    var completa = st.pedida > 0 && (st.recibido + cant) >= st.pedida;
+    closeModal('entrega-overlay');
+    toast(completa ? '✅ Producto recibido completo' : '🟡 Entrega parcial registrada','ok');
+    load();
+  });
+}
+function delEntrega(id){
+  if(!confirm('¿Eliminar esta entrega? Se recalcula el recibido.')) return;
+  var pid = CUR_LINE ? CUR_LINE.__row : null;
+  SubatirApp.deleteEntrega(id).then(function(d){
+    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    toast('Entrega eliminada','ok');
+    load();
+    if(pid) setTimeout(function(){ if(findLine(pid)) openEntrega(pid); }, 1600);
+  });
+}
+function pdfEntregas(){ if(CUR_LINE) receptionForOrder(String(CUR_LINE[K.orden])); }
 function isPendiente(r){ var v = r[K.recepcion]; return !v || v === '' || v === '0000-00-00'; }
 function pNum(v){
   if (!v && v !== 0) return 0;

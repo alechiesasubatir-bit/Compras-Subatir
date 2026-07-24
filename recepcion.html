@@ -1130,18 +1130,10 @@ function saveEntrega(){
   SubatirApp.addEntrega(row).then(function(d){
     document.getElementById('btn-save-entrega').disabled=false;
     if(d && d.error){ toast('Error: '+d.error,'err'); return; }
-    var nuevoRecibido = st.recibido + cant;
-    if(st.pedida>0 && nuevoRecibido >= st.pedida){
-      // Línea completa → marcar la fila de la OC (compatibilidad con Pedidos/Stock)
-      var lotes=st.entregas.map(function(e){return e.lote;}).concat([row.lote]).filter(Boolean);
-      var fields={};
-      fields[K.recepcion]=row.fecha || new Date().toISOString().slice(0,10);
-      fields[K.lote]=[...new Set(lotes)].join(' / ');
-      fields[K.coa]=row.coa||''; fields[K.conforme]=row.conforme||'';
-      if(row.f_vto) fields[K.vto]=row.f_vto;
-      fields[K.recibido]=row.recibido_por;
-      SubatirApp.updateRow('pedidos', pid, fields).then(function(){ afterEntrega(true); });
-    } else { afterEntrega(false); }
+    // La sincronización con pedidos.f_recepcion la hace un trigger en la base
+    // (así el operario no necesita permiso de escritura sobre pedidos).
+    var completa = st.pedida > 0 && (st.recibido + cant) >= st.pedida;
+    afterEntrega(completa);
   });
 }
 function afterEntrega(completa){

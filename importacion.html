@@ -489,6 +489,20 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
     </div>
   </div>
 
+  <!-- Mapa del depósito (cuadrícula) -->
+  <div class="card" style="padding:20px">
+    <div class="section-title">
+      <h2>🗺 <span>Mapa del depósito</span></h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select class="fsel" id="g-dep" onchange="onGridDep()"></select>
+        <select class="fsel" id="g-est" onchange="renderGrid()"></select>
+      </div>
+    </div>
+    <div id="grid-legend" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--muted-l)"></div>
+    <div style="overflow-x:auto"><div id="grid-host"></div></div>
+    <div style="font-size:12px;color:var(--muted-l);margin-top:12px">Clic en una ranura <b style="color:var(--muted)">libre</b> para estacionar un pallet · clic en una <b style="color:var(--teal-l)">ocupada</b> para ver o gestionar el pallet.</div>
+  </div>
+
   <!-- Pallets -->
   <div class="card" style="padding:20px">
     <div class="section-title">
@@ -506,7 +520,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
             <th>Artículo</th>
             <th style="text-align:right">Cajas</th>
             <th style="text-align:right">Unidades</th>
-            <th style="text-align:center">Ruta</th>
+            <th style="text-align:center">Ubicación</th>
             <th style="text-align:center">Estado</th>
             <th>Fecha</th>
             <th style="text-align:center">Acción</th>
@@ -555,16 +569,19 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 
 <!-- ════════════════════════════════════════════════ MODAL: ARMAR PALLET ═══ -->
 <div class="overlay" id="pallet-overlay">
-  <div class="modal" style="max-width:540px">
+  <div class="modal" style="max-width:560px">
     <div class="modal-header">
       <div class="modal-title" id="pallet-title">Armar pallet</div>
       <button class="modal-close" onclick="closeModal('pallet-overlay')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="detail-grid" id="pallet-info"></div>
-      <div class="form-grid" style="margin-top:14px">
+      <div class="form-grid">
+        <div class="form-group span2">
+          <label>Artículo *</label>
+          <select class="form-input" id="pl-art" onchange="plArt()"></select>
+        </div>
         <div class="form-group">
-          <label>Cantidad de cajas *</label>
+          <label>Cantidad de cajas</label>
           <input type="number" class="form-input" id="pl-cajas" min="0" step="1" placeholder="0" oninput="plCalc()"/>
         </div>
         <div class="form-group">
@@ -573,19 +590,44 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
           <div id="pl-hint" style="font-size:12px;color:var(--muted-l);margin-top:5px">—</div>
         </div>
         <div class="form-group">
-          <label>Depósito origen *</label>
-          <select class="form-input" id="pl-origen" onchange="plUpd()"></select>
+          <label>Estantería *</label>
+          <select class="form-input" id="pl-est" onchange="plSlots()"></select>
         </div>
         <div class="form-group">
-          <label>Depósito destino *</label>
-          <select class="form-input" id="pl-destino"></select>
+          <label>Ranura (lugar) *</label>
+          <select class="form-input" id="pl-slot"></select>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--muted-l);margin-top:10px">Al armar el pallet se genera un <b style="color:var(--teal-l)">código QR</b>. El stock recién se mueve al escanear (sale del origen) y vuelve a escanearse al llegar al destino.</div>
+      <div style="font-size:12px;color:var(--muted-l);margin-top:10px">El pallet queda <b style="color:var(--teal-l)">estacionado</b> en esa ranura y se genera su <b style="color:var(--teal-l)">código QR</b>. Para trasladarlo a otro depósito, luego usá <b>Despachar</b> y escaneá el QR.</div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-orange" id="btn-save-pallet" onclick="savePallet()">🏷 Armar y generar QR</button>
+      <button class="btn btn-orange" id="btn-save-pallet" onclick="savePallet()">🏷 Estacionar y generar QR</button>
       <button class="btn btn-ghost" onclick="closeModal('pallet-overlay')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ MODAL: DETALLE PALLET ═══ -->
+<div class="overlay" id="paldet-overlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title" id="paldet-title">Pallet</div>
+      <button class="modal-close" onclick="closeModal('paldet-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="paldet-info"></div>
+      <div id="pd-despacho" style="margin-top:14px;display:none">
+        <div class="form-group">
+          <label>Despachar hacia *</label>
+          <select class="form-input" id="pd-destino"></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-sm" onclick="pdShowQR()">🔳 Ver QR</button>
+      <button class="btn btn-orange btn-sm" id="pd-btn-desp" onclick="pdDespachar()">🚚 Despachar</button>
+      <button class="btn btn-ghost btn-sm" id="pd-btn-unpark" onclick="pdUnpark()">↩ Quitar de ranura</button>
+      <button class="btn btn-ghost" onclick="closeModal('paldet-overlay')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -631,8 +673,13 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 // ══════════════════════════════════════════════════════════════
 //  MÓDULO IMPORTACIÓN — lógica
 // ══════════════════════════════════════════════════════════════
-var ART=[], STOCK={}, DEPS=[], PALLETS=[], SORT={key:'descripcion',dir:1};
-var CUR_ART=null, LAST_PALLET=null, H5=null, SCAN_BUSY=false;
+var ART=[], STOCK={}, DEPS=[], PALLETS=[], EST=[], SORT={key:'descripcion',dir:1};
+var CUR_ART=null, LAST_PALLET=null, CUR_PAL=null, H5=null, SCAN_BUSY=false;
+var GRID={dep:null, est:null};
+var TIPO_COLORS={'Consumo':{bg:'rgba(27,200,255,.18)',bd:'#1bc8ff',tx:'#7dd3fc'},'Venta':{bg:'rgba(34,197,94,.18)',bd:'#22c55e',tx:'#86efac'},'Infraestructura':{bg:'rgba(249,115,22,.18)',bd:'#f97316',tx:'#fdba74'},'':{bg:'rgba(100,116,139,.18)',bd:'#64748b',tx:'#cbd5e1'}};
+function letterOf(f){ return String.fromCharCode(64+(+f||0)); }
+function coordOf(p){ return p.fila&&p.columna ? (letterOf(p.fila)+p.columna) : '—'; }
+function tipoColor(t){ return TIPO_COLORS[t||'']||TIPO_COLORS['']; }
 
 function whoName(){ var p=(window.SubatirApp&&SubatirApp.getProfile)?SubatirApp.getProfile():null; return p?(p.full_name||(p.email||'').split('@')[0]||'Admin'):'Admin'; }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -667,19 +714,22 @@ function load(){
     SB.from('imp_articulos').select('*').order('descripcion'),
     SB.from('imp_stock').select('*'),
     SB.from('imp_depositos').select('*').eq('activo',true).order('nombre'),
-    SB.from('imp_pallets').select('*').order('created_at',{ascending:false})
+    SB.from('imp_pallets').select('*').order('created_at',{ascending:false}),
+    SB.from('imp_estanterias').select('*').eq('activo',true).order('nombre')
   ]).then(function(res){
     var e = res.find(function(r){ return r.error; });
     if(e){ setLoading(false); toast('Error: '+e.error.message,'err'); return; }
     ART = res[0].data||[];
     DEPS = res[2].data||[];
     PALLETS = res[3].data||[];
+    EST = res[4].data||[];
     STOCK = {};
     (res[1].data||[]).forEach(function(s){ (STOCK[s.articulo_id]=STOCK[s.articulo_id]||{})[s.deposito]=s.cantidad; });
     populateFilters();
     renderKPIs();
     renderArticles();
     renderPallets();
+    renderGridControls();
     setLoading(false);
     document.getElementById('last-update').textContent='Actualizado: '+new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
   }, function(err){ setLoading(false); toast('Error de conexión: '+(err&&err.message||err),'err'); });
@@ -771,7 +821,7 @@ function renderArticles(){
       +'<td style="text-align:right;font-family:var(--mono);font-weight:700">'+fmtNum(tot)+'</td>'
       +'<td style="text-align:center;white-space:nowrap">'
         +'<button class="btn btn-ghost btn-sm" onclick="openTransfer('+a.id+')" title="Transferir entre depósitos">🔁 Transferir</button> '
-        +'<button class="btn btn-orange btn-sm" onclick="openPallet('+a.id+')" title="Armar pallet con QR">🏷 Pallet</button>'
+        +'<button class="btn btn-orange btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet con QR">🏷 Pallet</button>'
       +'</td>'
     +'</tr>';
   }).join('');
@@ -782,7 +832,14 @@ function artById(id){ return ART.find(function(a){return String(a.id)===String(i
 function estadoPal(e){
   if(e==='RECIBIDO')    return '<span class="pill pill-recv">✅ Recibido</span>';
   if(e==='EN_TRANSITO') return '<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d;border:1px solid rgba(245,158,11,.4)">🚚 En tránsito</span>';
-  return '<span class="pill pill-pend">📦 Armado</span>';
+  return '<span class="pill pill-pend">📦 Estacionado</span>';
+}
+function estById(id){ return EST.find(function(e){return String(e.id)===String(id);}); }
+function palAt(estId,f,c){ return PALLETS.find(function(p){return String(p.estanteria_id)===String(estId)&&p.fila===f&&p.columna===c;}); }
+function palLoc(p){
+  if(p.estanteria_id){ var e=estById(p.estanteria_id); return (p.deposito||'')+' · '+(e?e.nombre:'Est?')+' · '+coordOf(p); }
+  if(p.estado==='EN_TRANSITO') return (p.origen||'')+' → '+(p.destino||'')+' (en tránsito)';
+  return (p.deposito||'—')+(p.estado==='ESTACIONADO'?' · sin ranura':'');
 }
 function renderPallets(){
   document.getElementById('pal-count').textContent=PALLETS.length+' pallets';
@@ -792,15 +849,63 @@ function renderPallets(){
     var f=p.created_at?new Date(p.created_at).toLocaleDateString('es-UY'):'—';
     return '<tr>'
       +'<td style="font-family:var(--mono);font-size:11px;color:var(--teal-l)">'+esc(p.codigo)+'</td>'
-      +'<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis" title="'+esc(a?a.descripcion:'')+'">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</td>'
+      +'<td style="max-width:190px;overflow:hidden;text-overflow:ellipsis" title="'+esc(a?a.descripcion:'')+'">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</td>'
       +'<td style="text-align:right">'+(p.cajas?fmtNum(p.cajas):'—')+'</td>'
       +'<td style="text-align:right;font-family:var(--mono)">'+fmtNum(p.unidades)+'</td>'
-      +'<td style="text-align:center;font-size:12px">'+esc(p.origen||'—')+' → '+esc(p.destino||'—')+'</td>'
+      +'<td style="text-align:center;font-size:12px">'+esc(palLoc(p))+'</td>'
       +'<td style="text-align:center">'+estadoPal(p.estado)+'</td>'
       +'<td style="font-size:12px;color:var(--muted-l)">'+f+'</td>'
-      +'<td style="text-align:center">'+(p.estado==='RECIBIDO'?'<span class="muted-cell">—</span>':'<button class="btn btn-ghost btn-sm" onclick="showQRById('+p.id+')">🔳 Ver QR</button>')+'</td>'
+      +'<td style="text-align:center"><button class="btn btn-ghost btn-sm" onclick="openPalletDetail('+p.id+')">⚙ Gestionar</button></td>'
     +'</tr>';
   }).join('');
+}
+
+// ── Cuadrícula (mapa del depósito) ─────────────────────────────
+function renderGridControls(){
+  var gd=document.getElementById('g-dep'); if(!gd) return;
+  var deps=DEPS.map(function(d){return d.nombre;});
+  GRID.dep = (GRID.dep && deps.indexOf(GRID.dep)>=0) ? GRID.dep : (deps[0]||'');
+  gd.innerHTML=deps.map(function(d){return '<option '+(d===GRID.dep?'selected':'')+'>'+esc(d)+'</option>';}).join('');
+  onGridDep();
+}
+function onGridDep(){
+  GRID.dep=document.getElementById('g-dep').value;
+  var ests=EST.filter(function(e){return e.deposito===GRID.dep;});
+  var ge=document.getElementById('g-est');
+  var cur=(GRID.est && ests.some(function(e){return String(e.id)===String(GRID.est);}))?GRID.est:(ests[0]?ests[0].id:'');
+  GRID.est=cur;
+  ge.innerHTML=(ests.length?ests:[{id:'',nombre:'Sin estanterías',filas:0,columnas:0}]).map(function(e){return '<option value="'+e.id+'" '+(String(e.id)===String(cur)?'selected':'')+'>'+esc(e.nombre)+(e.filas?(' ('+e.filas+'×'+e.columnas+')'):'')+'</option>';}).join('');
+  renderGrid();
+}
+function renderGrid(){
+  var estId=document.getElementById('g-est').value; GRID.est=estId;
+  var e=estById(estId);
+  document.getElementById('grid-legend').innerHTML=['Consumo','Venta','Infraestructura',''].map(function(t){
+    var c=tipoColor(t); return '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:13px;height:13px;border-radius:3px;background:'+c.bg+';border:1px solid '+c.bd+'"></span>'+(t||'Sin tipo (Enjoy/Intex)')+'</span>';
+  }).join('');
+  var host=document.getElementById('grid-host');
+  if(!e){ host.innerHTML='<div style="color:var(--muted);font-size:13px">No hay estantería en este depósito. Podés configurarlas en la tabla imp_estanterias.</div>'; return; }
+  var html='<div style="display:grid;grid-template-columns:34px repeat('+e.columnas+',minmax(96px,1fr));gap:8px;min-width:'+(40+e.columnas*104)+'px">';
+  html+='<div></div>';
+  for(var c=1;c<=e.columnas;c++) html+='<div style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted-l);font-weight:700">'+c+'</div>';
+  for(var f=1;f<=e.filas;f++){
+    html+='<div style="display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--muted-l);font-weight:700">'+letterOf(f)+'</div>';
+    for(var c2=1;c2<=e.columnas;c2++){
+      var p=palAt(estId,f,c2);
+      if(p){
+        var a=artById(p.articulo_id), col=tipoColor(a?a.tipo:'');
+        html+='<div onclick="openPalletDetail('+p.id+')" title="'+esc((a?a.descripcion:'')+' — '+fmtNum(p.unidades)+' u.')+'" style="cursor:pointer;min-height:80px;border-radius:11px;padding:8px;background:'+col.bg+';border:1px solid '+col.bd+';display:flex;flex-direction:column;gap:3px">'
+          +'<div style="font-family:var(--mono);font-size:10px;font-weight:700;color:'+col.tx+'">'+letterOf(f)+c2+' · 📦</div>'
+          +'<div style="font-size:11px;line-height:1.25;color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div>'
+          +'<div style="margin-top:auto;font-family:var(--mono);font-size:11px;color:'+col.tx+'">'+fmtNum(p.unidades)+' u.</div>'
+        +'</div>';
+      } else {
+        html+='<div onclick="openPallet({estId:'+estId+',fila:'+f+',col:'+c2+'})" title="Ranura libre '+letterOf(f)+c2+'" style="cursor:pointer;min-height:80px;border-radius:11px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:12px">'+letterOf(f)+c2+'</div>';
+      }
+    }
+  }
+  html+='</div>';
+  host.innerHTML=html;
 }
 
 // ── Transferencia ──────────────────────────────────────────────
@@ -840,46 +945,66 @@ function saveTransfer(){
   });
 }
 
-// ── Armar pallet ───────────────────────────────────────────────
-function openPallet(artId){
-  var a=artById(artId); if(!a) return; CUR_ART=a;
-  document.getElementById('pallet-title').textContent='Armar pallet — '+a.descripcion;
-  document.getElementById('pallet-info').innerHTML =
-    '<div class="detail-item"><div class="detail-label">Proveedor</div><div class="detail-value">'+esc(a.proveedor||'—')+'</div></div>'
-    +'<div class="detail-item"><div class="detail-label">UN × Caja</div><div class="detail-value">'+(a.un_x_caja?fmtNum(a.un_x_caja):'—')+'</div></div>';
+// ── Armar / estacionar pallet ──────────────────────────────────
+var PRESET_SLOT=null;
+function artOptions(sel){
+  return ART.slice().sort(function(a,b){return String(a.descripcion).localeCompare(String(b.descripcion));}).map(function(a){
+    return '<option value="'+a.id+'" '+(String(a.id)===String(sel)?'selected':'')+'>'+esc((a.proveedor?('['+a.proveedor+'] '):'')+a.descripcion)+'</option>';
+  }).join('');
+}
+function estOptions(sel){
+  return EST.map(function(e){ return '<option value="'+e.id+'" '+(String(e.id)===String(sel)?'selected':'')+'>'+esc(e.nombre+' — '+e.deposito)+'</option>'; }).join('');
+}
+function curPlArt(){ return artById(document.getElementById('pl-art').value); }
+function openPallet(opts){
+  opts=opts||{};
+  if(typeof opts==='number'||typeof opts==='string') opts={artId:opts};
+  document.getElementById('pallet-title').textContent = (opts.fila&&opts.col)?('Estacionar en '+'ranura'):'Armar pallet';
+  document.getElementById('pl-art').innerHTML=artOptions(opts.artId||'');
   document.getElementById('pl-cajas').value='';
   document.getElementById('pl-unid').value='';
-  document.getElementById('pl-origen').innerHTML=depOptions(DEPS[0]?DEPS[0].nombre:'');
-  document.getElementById('pl-destino').innerHTML=depOptions(DEPS[1]?DEPS[1].nombre:'');
-  plUpd();
+  document.getElementById('pl-est').innerHTML=estOptions(opts.estId||(EST[0]?EST[0].id:''));
+  PRESET_SLOT=(opts.fila&&opts.col)?{fila:opts.fila,col:opts.col}:null;
+  plSlots();
+  plArt();
   openModal('pallet-overlay');
 }
-function plCalc(){
-  if(!CUR_ART) return;
-  var cajas=num(document.getElementById('pl-cajas').value);
-  if(CUR_ART.un_x_caja>0){ document.getElementById('pl-unid').value = cajas*num(CUR_ART.un_x_caja); }
-  plUpd();
+function plArt(){
+  var a=curPlArt();
+  var uxc=(a&&a.un_x_caja>0)?(' · '+fmtNum(a.un_x_caja)+' u./caja'):' · sin UN×caja (cargá unidades a mano)';
+  document.getElementById('pl-hint').textContent='Artículo'+uxc;
+  plCalc();
 }
-function plUpd(){
-  if(!CUR_ART) return;
-  var o=document.getElementById('pl-origen').value;
-  var uxc=CUR_ART.un_x_caja>0?(' · '+fmtNum(CUR_ART.un_x_caja)+' u./caja'):'';
-  document.getElementById('pl-hint').textContent='Disponible en '+o+': '+fmtNum(stockOf(CUR_ART.id,o))+' u.'+uxc;
+function plCalc(){
+  var a=curPlArt(); var cajas=num(document.getElementById('pl-cajas').value);
+  if(a&&a.un_x_caja>0&&cajas>0){ document.getElementById('pl-unid').value=cajas*num(a.un_x_caja); }
+}
+function plSlots(){
+  var estId=document.getElementById('pl-est').value; var e=estById(estId);
+  var sel=document.getElementById('pl-slot');
+  if(!e){ sel.innerHTML='<option value="">—</option>'; return; }
+  var opts=[];
+  for(var f=1;f<=e.filas;f++) for(var c=1;c<=e.columnas;c++){ if(!palAt(estId,f,c)) opts.push({f:f,c:c}); }
+  var pv=PRESET_SLOT?(PRESET_SLOT.fila+'-'+PRESET_SLOT.col):'';
+  sel.innerHTML=opts.length?opts.map(function(o){ var v=o.f+'-'+o.c; return '<option value="'+v+'" '+(v===pv?'selected':'')+'>'+letterOf(o.f)+o.c+'</option>'; }).join(''):'<option value="">Estantería llena</option>';
 }
 function savePallet(){
-  if(!CUR_ART) return;
+  var a=curPlArt(); if(!a){ toast('Elegí un artículo','err'); return; }
   var cajas=num(document.getElementById('pl-cajas').value);
   var unid=num(document.getElementById('pl-unid').value);
-  var o=document.getElementById('pl-origen').value, d=document.getElementById('pl-destino').value;
+  var estId=document.getElementById('pl-est').value;
+  var slot=document.getElementById('pl-slot').value;
   if(!(unid>0)){ toast('Ingresá las unidades del pallet','err'); return; }
-  if(o===d){ toast('Origen y destino deben ser distintos','err'); return; }
-  if(unid>stockOf(CUR_ART.id,o)){ toast('El pallet ('+fmtNum(unid)+') supera el stock en '+o+' ('+fmtNum(stockOf(CUR_ART.id,o))+')','err'); return; }
+  if(!estId||!slot){ toast('Elegí estantería y ranura libre','err'); return; }
+  var e=estById(estId), parts=slot.split('-'), fila=+parts[0], col=+parts[1];
+  if(palAt(estId,fila,col)){ toast('Esa ranura ya está ocupada','err'); return; }
   var codigo='PLT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
   var btn=document.getElementById('btn-save-pallet'); btn.disabled=true;
-  toast('Armando pallet…','info');
+  toast('Estacionando pallet…','info');
   SB.from('imp_pallets').insert({
-    codigo:codigo, articulo_id:CUR_ART.id, cajas:cajas||null, unidades:unid,
-    origen:o, destino:d, estado:'ARMADO', created_by:whoName()
+    codigo:codigo, articulo_id:a.id, cajas:cajas||null, unidades:unid,
+    deposito:e.deposito, estanteria_id:e.id, fila:fila, columna:col,
+    origen:e.deposito, estado:'ESTACIONADO', created_by:whoName()
   }).select().single().then(function(r){
     btn.disabled=false;
     if(r.error){ toast('Error: '+r.error.message,'err'); return; }
@@ -887,6 +1012,48 @@ function savePallet(){
     LAST_PALLET=r.data;
     showQR(r.data);
     load();
+  });
+}
+
+// ── Detalle de pallet (ver QR / despachar / liberar ranura) ────
+function openPalletDetail(id){
+  var p=PALLETS.find(function(x){return String(x.id)===String(id);}); if(!p) return; CUR_PAL=p;
+  var a=artById(p.articulo_id);
+  document.getElementById('paldet-title').textContent='Pallet '+p.codigo;
+  document.getElementById('paldet-info').innerHTML=
+     '<div class="detail-item span2"><div class="detail-label">Artículo</div><div class="detail-value">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Estado</div><div class="detail-value">'+estadoPal(p.estado)+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Ubicación</div><div class="detail-value">📍 '+esc(palLoc(p))+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Unidades</div><div class="detail-value" style="font-family:var(--mono)">'+fmtNum(p.unidades)+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Cajas</div><div class="detail-value">'+(p.cajas?fmtNum(p.cajas):'—')+'</div></div>';
+  var parked=p.estado==='ESTACIONADO';
+  document.getElementById('pd-despacho').style.display='none';
+  document.getElementById('pd-btn-desp').textContent='🚚 Despachar';
+  document.getElementById('pd-btn-desp').style.display=parked?'inline-flex':'none';
+  document.getElementById('pd-btn-unpark').style.display=(parked&&p.estanteria_id)?'inline-flex':'none';
+  document.getElementById('pd-destino').innerHTML=DEPS.filter(function(d){return d.nombre!==p.deposito;}).map(function(d){return '<option>'+esc(d.nombre)+'</option>';}).join('');
+  openModal('paldet-overlay');
+}
+function pdShowQR(){ if(CUR_PAL) showQR(CUR_PAL); }
+function pdDespachar(){
+  if(!CUR_PAL) return;
+  var box=document.getElementById('pd-despacho');
+  if(box.style.display==='none'){ box.style.display='block'; document.getElementById('pd-btn-desp').textContent='✅ Confirmar destino'; return; }
+  var dest=document.getElementById('pd-destino').value;
+  if(!dest){ toast('Elegí destino','err'); return; }
+  SB.from('imp_pallets').update({destino:dest}).eq('id',CUR_PAL.id).then(function(r){
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    closeModal('paldet-overlay');
+    toast('🚚 Marcado para despacho a '+dest+'. Escaneá el QR para registrar la salida.','ok');
+    load();
+  });
+}
+function pdUnpark(){
+  if(!CUR_PAL) return;
+  if(!confirm('¿Quitar el pallet de su ranura? Queda en el depósito sin ubicación asignada.')) return;
+  SB.rpc('imp_pallet_ubicar',{p_pallet:CUR_PAL.id,p_est:null,p_fila:null,p_col:null,p_user:whoName()}).then(function(r){
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    closeModal('paldet-overlay'); toast('Ranura liberada','ok'); load();
   });
 }
 
@@ -900,7 +1067,8 @@ function showQR(p){
   document.getElementById('qr-meta').innerHTML =
     '<div style="font-family:var(--mono);color:var(--teal-l);font-size:14px;margin-bottom:4px">'+esc(p.codigo)+'</div>'
     +'<div>'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div>'
-    +'<div style="color:var(--muted-l);font-size:12px;margin-top:4px">'+fmtNum(p.unidades)+' u.'+(p.cajas?(' · '+fmtNum(p.cajas)+' cajas'):'')+' · '+esc(p.origen||'')+' → '+esc(p.destino||'')+'</div>';
+    +'<div style="color:var(--muted-l);font-size:12px;margin-top:4px">'+fmtNum(p.unidades)+' u.'+(p.cajas?(' · '+fmtNum(p.cajas)+' cajas'):'')+'</div>'
+    +'<div style="color:var(--teal-l);font-size:12px;margin-top:2px">📍 '+esc(palLoc(p))+'</div>';
   openModal('qr-overlay');
 }
 function pdfLabel(){
@@ -918,7 +1086,7 @@ function pdfLabel(){
     var desc=(a?a.descripcion:('#'+p.articulo_id)); if(desc.length>42)desc=desc.slice(0,41)+'…';
     doc.text(desc,50,92,{align:'center'});
     doc.text(fmtNum(p.unidades)+' u.'+(p.cajas?(' · '+fmtNum(p.cajas)+' cajas'):''),50,99,{align:'center'});
-    doc.text(String(p.origen||'')+'  →  '+String(p.destino||''),50,106,{align:'center'});
+    doc.setFont('helvetica','bold'); doc.text('Ubicacion: '+String(palLoc(p)),50,106,{align:'center'});
     doc.save('pallet_'+p.codigo+'.pdf');
   }catch(e){ toast('No se pudo generar el PDF: '+(e&&e.message||e),'err'); }
 }

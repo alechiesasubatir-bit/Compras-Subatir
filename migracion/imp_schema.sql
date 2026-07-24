@@ -14,6 +14,22 @@ create table if not exists public.imp_depositos (
 insert into public.imp_depositos(nombre) values ('Furriol'),('Artigas')
   on conflict (nombre) do nothing;
 
+-- ── Estanterías (cuadrícula de ranuras por depósito, configurable) ─
+create table if not exists public.imp_estanterias (
+  id          bigint generated always as identity primary key,
+  deposito    text not null references public.imp_depositos(nombre),
+  nombre      text not null,
+  filas       int  not null default 4,   -- A, B, C, D…
+  columnas    int  not null default 5,   -- 1..5
+  activo      boolean not null default true,
+  created_at  timestamptz not null default now(),
+  unique (deposito, nombre)
+);
+insert into public.imp_estanterias(deposito,nombre,filas,columnas) values
+  ('Furriol','Estantería 1',4,5),
+  ('Artigas','Estantería 1',4,5)
+  on conflict (deposito, nombre) do nothing;
+
 -- ── Artículos ────────────────────────────────────────────────
 create table if not exists public.imp_articulos (
   id          bigint generated always as identity primary key,
@@ -42,20 +58,29 @@ create index if not exists idx_imp_stock_art on public.imp_stock(articulo_id);
 
 -- ── Pallets (1 artículo, N cajas) con código QR único ────────
 create table if not exists public.imp_pallets (
-  id          bigint generated always as identity primary key,
-  codigo      text unique not null,          -- payload del QR
-  articulo_id bigint not null references public.imp_articulos(id) on delete restrict,
-  cajas       numeric,
-  unidades    numeric not null default 0,    -- unidades que mueve el pallet
-  origen      text references public.imp_depositos(nombre),
-  destino     text references public.imp_depositos(nombre),
-  estado      text not null default 'ARMADO' check (estado in ('ARMADO','EN_TRANSITO','RECIBIDO')),
-  created_at  timestamptz not null default now(),
-  created_by  text,
-  salida_at   timestamptz, salida_by  text,
-  llegada_at  timestamptz, llegada_by text
+  id            bigint generated always as identity primary key,
+  codigo        text unique not null,          -- payload del QR
+  articulo_id   bigint not null references public.imp_articulos(id) on delete restrict,
+  cajas         numeric,
+  unidades      numeric not null default 0,    -- unidades que contiene el pallet
+  deposito      text references public.imp_depositos(nombre),   -- dónde está estacionado (null si en tránsito)
+  estanteria_id bigint references public.imp_estanterias(id) on delete set null,
+  fila          int,                            -- 1..filas (se muestra como A,B,C…)
+  columna       int,                            -- 1..columnas
+  origen        text references public.imp_depositos(nombre),
+  destino       text references public.imp_depositos(nombre),
+  estado        text not null default 'ESTACIONADO' check (estado in ('ESTACIONADO','EN_TRANSITO','RECIBIDO')),
+  created_at    timestamptz not null default now(),
+  created_by    text,
+  salida_at     timestamptz, salida_by  text,
+  llegada_at    timestamptz, llegada_by text
 );
 create index if not exists idx_imp_pallets_estado on public.imp_pallets(estado);
+create index if not exists idx_imp_pallets_dep on public.imp_pallets(deposito);
+-- una ranura ocupada por un solo pallet
+create unique index if not exists uq_imp_pallets_slot
+  on public.imp_pallets(estanteria_id, fila, columna)
+  where estanteria_id is not null;
 
 -- ── Movimientos (bitácora de transferencias y escaneos) ──────
 create table if not exists public.imp_movimientos (
@@ -74,7 +99,7 @@ create index if not exists idx_imp_mov_pallet on public.imp_movimientos(pallet_i
 do $$
 declare t text;
 begin
-  foreach t in array array['imp_depositos','imp_articulos','imp_stock','imp_pallets','imp_movimientos'] loop
+  foreach t in array array['imp_depositos','imp_estanterias','imp_articulos','imp_stock','imp_pallets','imp_movimientos'] loop
     execute format('alter table public.%I enable row level security;', t);
     execute format('drop policy if exists p_%I_read on public.%I;', t, t);
     execute format('create policy p_%I_read on public.%I for select using (auth.role()=''authenticated'');', t, t);
@@ -110,8 +135,27 @@ begin
   return jsonb_build_object('ok',true);
 end $$;
 
--- ── Escaneo de pallet: 1º = SALIDA (sale del origen),
---    2º = ENTRADA (llega al destino). Mueve el stock atómicamente.
+-- ── Estacionar / mover un pallet a una ranura (o liberar si null) ─
+create or replace function public.imp_pallet_ubicar(p_pallet bigint, p_est bigint, p_fila int, p_col int, p_user text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_dep text;
+begin
+  if not public.has_module('importacion') then raise exception 'Sin permiso'; end if;
+  if p_est is not null then
+    select deposito into v_dep from public.imp_estanterias where id = p_est;
+    if v_dep is null then raise exception 'Estantería inválida'; end if;
+    if exists(select 1 from public.imp_pallets where estanteria_id=p_est and fila=p_fila and columna=p_col and id<>p_pallet) then
+      raise exception 'Esa ranura ya está ocupada'; end if;
+    update public.imp_pallets set estanteria_id=p_est, fila=p_fila, columna=p_col, deposito=v_dep where id=p_pallet;
+  else
+    update public.imp_pallets set estanteria_id=null, fila=null, columna=null where id=p_pallet;
+  end if;
+  return jsonb_build_object('ok',true);
+end $$;
+
+-- ── Escaneo de pallet: 1º = SALIDA (sale del depósito, libera la
+--    ranura y descuenta stock), 2º = ENTRADA (llega al destino y
+--    suma stock). Mueve todo atómicamente.
 create or replace function public.imp_pallet_scan(p_codigo text, p_user text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare p record;
@@ -120,15 +164,19 @@ begin
   select * into p from public.imp_pallets where codigo = p_codigo;
   if not found then return jsonb_build_object('ok',false,'error','QR no encontrado'); end if;
 
-  if p.estado = 'ARMADO' then
-    perform public.imp_stock_add(p.articulo_id, p.origen, -p.unidades);
-    update public.imp_pallets set estado='EN_TRANSITO', salida_at=now(), salida_by=p_user where id=p.id;
+  if p.estado = 'ESTACIONADO' then
+    if p.destino is null then
+      return jsonb_build_object('ok',false,'error','El pallet no tiene destino asignado (usá Despachar primero)','estado',p.estado);
+    end if;
+    perform public.imp_stock_add(p.articulo_id, p.deposito, -p.unidades);
+    update public.imp_pallets set estado='EN_TRANSITO', origen=p.deposito, deposito=null,
+      estanteria_id=null, fila=null, columna=null, salida_at=now(), salida_by=p_user where id=p.id;
     insert into public.imp_movimientos(pallet_id,articulo_id,tipo,origen,destino,deposito,unidades,usuario)
-      values (p.id,p.articulo_id,'SALIDA',p.origen,p.destino,p.origen,p.unidades,p_user);
-    return jsonb_build_object('ok',true,'estado','EN_TRANSITO','accion','salida','pallet',p.codigo,'origen',p.origen,'destino',p.destino);
+      values (p.id,p.articulo_id,'SALIDA',p.deposito,p.destino,p.deposito,p.unidades,p_user);
+    return jsonb_build_object('ok',true,'estado','EN_TRANSITO','accion','salida','pallet',p.codigo,'origen',p.deposito,'destino',p.destino);
   elsif p.estado = 'EN_TRANSITO' then
     perform public.imp_stock_add(p.articulo_id, p.destino, p.unidades);
-    update public.imp_pallets set estado='RECIBIDO', llegada_at=now(), llegada_by=p_user where id=p.id;
+    update public.imp_pallets set estado='RECIBIDO', deposito=p.destino, llegada_at=now(), llegada_by=p_user where id=p.id;
     insert into public.imp_movimientos(pallet_id,articulo_id,tipo,origen,destino,deposito,unidades,usuario)
       values (p.id,p.articulo_id,'ENTRADA',p.origen,p.destino,p.destino,p.unidades,p_user);
     return jsonb_build_object('ok',true,'estado','RECIBIDO','accion','entrada','pallet',p.codigo,'destino',p.destino);
@@ -141,7 +189,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['imp_articulos','imp_stock','imp_pallets','imp_movimientos'] loop
+  foreach t in array array['imp_estanterias','imp_articulos','imp_stock','imp_pallets','imp_movimientos'] loop
     begin execute format('alter publication supabase_realtime add table public.%I;', t);
     exception when duplicate_object then null; when others then null; end;
   end loop;

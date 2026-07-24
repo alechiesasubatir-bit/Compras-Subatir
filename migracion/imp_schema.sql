@@ -63,18 +63,36 @@ create table if not exists public.imp_pallets (
   articulo_id   bigint not null references public.imp_articulos(id) on delete restrict,
   cajas         numeric,
   unidades      numeric not null default 0,    -- unidades que contiene el pallet
-  deposito      text references public.imp_depositos(nombre),   -- dónde está estacionado (null si en tránsito)
-  estanteria_id bigint references public.imp_estanterias(id) on delete set null,
+  deposito      text,                           -- dónde está estacionado (null si en tránsito)
+  estanteria_id bigint,
   fila          int,                            -- 1..filas (se muestra como A,B,C…)
   columna       int,                            -- 1..columnas
   origen        text references public.imp_depositos(nombre),
   destino       text references public.imp_depositos(nombre),
-  estado        text not null default 'ESTACIONADO' check (estado in ('ESTACIONADO','EN_TRANSITO','RECIBIDO')),
+  estado        text not null default 'ESTACIONADO',
   created_at    timestamptz not null default now(),
   created_by    text,
   salida_at     timestamptz, salida_by  text,
   llegada_at    timestamptz, llegada_by text
 );
+-- Idempotente: si la tabla ya existía de una corrida anterior, agrega
+-- las columnas/constraints nuevas sin fallar.
+alter table public.imp_pallets add column if not exists deposito      text;
+alter table public.imp_pallets add column if not exists estanteria_id bigint;
+alter table public.imp_pallets add column if not exists fila          int;
+alter table public.imp_pallets add column if not exists columna       int;
+do $$ begin
+  alter table public.imp_pallets add constraint imp_pallets_deposito_fk
+    foreign key (deposito) references public.imp_depositos(nombre);
+exception when duplicate_object then null; when others then null; end $$;
+do $$ begin
+  alter table public.imp_pallets add constraint imp_pallets_estanteria_fk
+    foreign key (estanteria_id) references public.imp_estanterias(id) on delete set null;
+exception when duplicate_object then null; when others then null; end $$;
+update public.imp_pallets set estado='ESTACIONADO' where estado is null or estado not in ('ESTACIONADO','EN_TRANSITO','RECIBIDO');
+alter table public.imp_pallets alter column estado set default 'ESTACIONADO';
+alter table public.imp_pallets drop constraint if exists imp_pallets_estado_check;
+alter table public.imp_pallets add constraint imp_pallets_estado_check check (estado in ('ESTACIONADO','EN_TRANSITO','RECIBIDO'));
 create index if not exists idx_imp_pallets_estado on public.imp_pallets(estado);
 create index if not exists idx_imp_pallets_dep on public.imp_pallets(deposito);
 -- una ranura ocupada por un solo pallet

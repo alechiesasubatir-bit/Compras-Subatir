@@ -544,6 +544,41 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 
       <!-- Formulario de edición -->
       <div id="edit-form" style="display:none">
+        <div style="font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--teal-l);margin:2px 0 10px">📝 Datos de la orden</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Fecha de la orden</label>
+            <input type="date" class="form-input" id="ed-fecha"/>
+          </div>
+          <div class="form-group">
+            <label>Proveedor</label>
+            <input type="text" class="form-input" id="ed-prov" placeholder="Proveedor"/>
+          </div>
+          <div class="form-group span2">
+            <label>Descripción / Producto</label>
+            <input type="text" class="form-input" id="ed-desc" placeholder="Descripción del producto"/>
+          </div>
+          <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" step="any" min="0" class="form-input" id="ed-cant" oninput="calcEditTotals()"/>
+          </div>
+          <div class="form-group">
+            <label>Precio unitario</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="ed-precio" oninput="calcEditTotals()"/>
+          </div>
+          <div class="form-group">
+            <label>Moneda</label>
+            <select class="form-input" id="ed-moneda" onchange="calcEditTotals()">
+              <option value="U$S">U$S (Dólares)</option>
+              <option value="$">$ (Pesos UY)</option>
+            </select>
+          </div>
+          <div class="form-group" style="justify-content:flex-end">
+            <label>Totales (recalculados)</label>
+            <div id="ed-calc" style="font-size:12px;color:var(--muted);padding:6px 0">—</div>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--teal-l);margin:16px 0 10px">📦 Recepción y documentación</div>
         <div class="form-grid">
           <div class="form-group">
             <label>Fecha de Recepción</label>
@@ -1090,9 +1125,10 @@ function renderTable(){
             + (hasCOA ? '<span class="pill pill-ok">✓COA</span>'  : '<span class="pill pill-warn" style="opacity:.55">COA</span>')
             + (hasConf? '<span class="pill pill-ok">✓Conf</span>' : '<span class="pill pill-warn" style="opacity:.55">Conf</span>')
             + '</div></td>';
+      var rid = (r.__row != null ? r.__row : orden);
       html += '<td><div class="row-actions">'
-            + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(orden))+'\')">👁 Ver</button>'
-            + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(orden))+'\')">✏ Editar</button>'
+            + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(rid))+'\')">👁 Ver</button>'
+            + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(rid))+'\')">✏ Editar</button>'
             + '</div></td>';
       html += '</tr>';
     });
@@ -1140,10 +1176,11 @@ function populateProveedorFilter(){
 }
 
 // ── Modal: detalle ────────────────────────────────────────────
-function openDetail(orden){
-  var row = findRow(orden);
+function openDetail(id){
+  var row = findRowById(id) || findRow(id);
   if (!row) return;
   CURRENT_ROW = row;
+  var orden = row[K.orden] || '—';
   document.getElementById('edit-title').textContent = 'Detalle OC #' + orden;
   document.getElementById('detail-view').style.display = 'block';
   document.getElementById('edit-form').style.display   = 'none';
@@ -1203,7 +1240,15 @@ function toggleEditForm(){
     document.getElementById('detail-view').style.display = 'none';
     document.getElementById('btn-save-edit').style.display = 'inline-flex';
     document.getElementById('btn-toggle-edit').textContent = '← Ver detalle';
-    // Poblar formulario
+    // Poblar formulario — datos de la orden
+    document.getElementById('ed-fecha').value  = (/^\d{4}-\d{2}-\d{2}/.test(String(row[K.fecha]||'')) ? String(row[K.fecha]).slice(0,10) : '');
+    document.getElementById('ed-prov').value   = row[K.proveedor] || '';
+    document.getElementById('ed-desc').value   = row[K.desc] || '';
+    document.getElementById('ed-cant').value   = pNum(row[K.cantidad]) || '';
+    document.getElementById('ed-precio').value = pNum(row[K.precio]) || '';
+    document.getElementById('ed-moneda').value = (ocMoneda(row)==='USD' ? 'U$S' : '$');
+    calcEditTotals();
+    // Poblar formulario — recepción
     document.getElementById('ed-recepcion').value = row[K.recepcion] || '';
     document.getElementById('ed-lote').value       = row[K.lote]     || '';
     var vtoRaw = String(K.vto ? (row[K.vto]||'') : '').trim();
@@ -1226,21 +1271,49 @@ function onVtoNA(){
 // Detecta valores de "vencimiento no aplica"
 function isVtoNA(v){ return /^(no aplica|no necesario|no requerido|n\/a|na)$/i.test(String(v||'').trim()); }
 
+// Recalcula s/IVA y c/IVA en vivo mientras se edita la orden
+function calcEditTotals(){
+  var cant = pNum(document.getElementById('ed-cant').value);
+  var prec = pNum(document.getElementById('ed-precio').value);
+  var mon  = document.getElementById('ed-moneda').value;
+  var siva = cant*prec, civa = siva*1.22;
+  var f = (mon==='U$S') ? fmtUSD : fmtPSO;
+  document.getElementById('ed-calc').innerHTML = 's/IVA <b>'+f(siva,2)+'</b> · c/IVA <b>'+f(civa,2)+'</b>';
+}
+
 function saveEdit(){
-  var orden = String(CURRENT_ROW[K.orden]);
+  var row = CURRENT_ROW;
+  if(!row) return;
+  if(row.__row == null){ toast('No se puede editar esta línea (sin identificador). Recargá la página.','err'); return; }
+  var prov = document.getElementById('ed-prov').value.trim();
+  var desc = document.getElementById('ed-desc').value.trim();
+  if(!prov || !desc){ toast('Proveedor y Descripción son obligatorios.','err'); return; }
+  var cant  = pNum(document.getElementById('ed-cant').value);
+  var prec  = pNum(document.getElementById('ed-precio').value);
+  var mon   = document.getElementById('ed-moneda').value === 'U$S' ? 'U$S' : '$';
+  var siva  = +(cant*prec).toFixed(2), civa = +(siva*1.22).toFixed(2);
+  var vtoNA = document.getElementById('ed-vto-na').checked;
+  var fields = {
+    'Fecha':         document.getElementById('ed-fecha').value,
+    'Proveedor':     prov,
+    'Descripción':   desc,
+    'Cantidad':      cant,
+    'Precio un':     prec,
+    '$/U$S':         mon,
+    's/iva':         siva,
+    'c/iva':         civa,
+    'F.Recepción':   document.getElementById('ed-recepcion').value,
+    'F. Vto':        vtoNA ? 'NO APLICA' : document.getElementById('ed-vto').value,
+    'Lote':          document.getElementById('ed-lote').value,
+    'COA':           document.getElementById('ed-coa').checked      ? 'SI' : '',
+    'Conforme':      document.getElementById('ed-conforme').checked ? 'SI' : '',
+    'Observaciones': document.getElementById('ed-obs').value
+  };
   toast('Guardando…','info');
-  apiWrite({
-    action:'updatePedido', orden:orden,
-    recepcion: document.getElementById('ed-recepcion').value,
-    vto:       document.getElementById('ed-vto-na').checked ? 'NO APLICA' : document.getElementById('ed-vto').value,
-    lote:      document.getElementById('ed-lote').value,
-    coa:       document.getElementById('ed-coa').checked    ? 'SI' : '',
-    conforme:  document.getElementById('ed-conforme').checked ? 'SI' : '',
-    obs:       document.getElementById('ed-obs').value
-  }, function(d){
+  apiWrite({ action:'updateRow', sheetKey:'pedidos', row: row.__row, fields: JSON.stringify(fields) }, function(d){
     if(!d) return;
     closeModal('edit-overlay');
-    toast('Orden #' + orden + ' actualizada ✓', 'ok');
+    toast('OC #' + (row[K.orden]||'') + ' actualizada ✓', 'ok');
     load();
   });
 }
@@ -1542,20 +1615,25 @@ function clearNewForm(){
 
 // ── Eliminar ──────────────────────────────────────────────────
 function confirmDelete(){
-  var orden = String(CURRENT_ROW ? CURRENT_ROW[K.orden] : '?');
-  document.getElementById('confirm-msg').textContent =
-    '¿Eliminar la Orden #' + orden + ' de ' + (CURRENT_ROW[K.proveedor]||'?') + '?';
+  var orden  = String(CURRENT_ROW ? CURRENT_ROW[K.orden] : '?');
+  var nLines = DATA_DISPLAY.filter(function(r){ return String(r[K.orden])===orden; }).length;
+  var prod   = CURRENT_ROW[K.desc] || 'esta línea';
+  document.getElementById('confirm-msg').textContent = nLines>1
+    ? 'La OC #'+orden+' tiene '+nLines+' líneas. Se eliminará SOLO esta: '+prod+'.'
+    : '¿Eliminar la Orden #'+orden+' ('+prod+') de '+(CURRENT_ROW[K.proveedor]||'?')+'?';
   openModal('confirm-overlay');
 }
 
 function doDelete(){
-  var orden = String(CURRENT_ROW[K.orden]);
+  var row = CURRENT_ROW;
+  if(!row) return;
+  if(row.__row == null){ toast('No se puede eliminar esta línea (sin identificador). Recargá la página.','err'); return; }
   toast('Eliminando…','info');
-  apiWrite({ action:'deletePedido', orden:orden }, function(d){
+  apiWrite({ action:'deleteRow', sheetKey:'pedidos', row: row.__row }, function(d){
     if(!d) return;
     closeModal('confirm-overlay');
     closeModal('edit-overlay');
-    toast('Orden #' + orden + ' eliminada ✓', 'ok');
+    toast('Línea eliminada ✓', 'ok');
     load();
   });
 }
@@ -1642,6 +1720,9 @@ document.addEventListener('keydown', function(e){
 // ── Helpers ───────────────────────────────────────────────────
 function findRow(orden){
   return DATA_DISPLAY.find(function(r){ return String(r[K.orden]) === String(orden); }) || null;
+}
+function findRowById(id){
+  return DATA_DISPLAY.find(function(r){ return r.__row != null && String(r.__row) === String(id); }) || null;
 }
 function isPendiente(r){ var v = r[K.recepcion]; return !v || v === '' || v === '0000-00-00'; }
 function pNum(v){

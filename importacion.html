@@ -1193,13 +1193,18 @@ function rackBuild(){
   var footMat=new THREE.MeshStandardMaterial({color:0x1a2740, metalness:.5, roughness:.5});
   for(var fi=0;fi<=C;fi++){ var fx=(fi-C/2)*BAY; [zf,zb].forEach(function(z){
     var ft=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.08,0.32), footMat); ft.position.set(fx,0.04,z); ft.castShadow=true; R3D.rackGroup.add(ft); }); }
-  // ── Marcadores de posición (2 por bahía; wireframe tenue = blanco de raycast) ──
-  var markGeo=new THREE.BoxGeometry(BAY/POS_PER_BAY-0.28, LVL-0.4, DEP-0.4);
+  // ── Posiciones de pallet (2 por bahía): footprint con contorno visible = blanco de raycast ──
+  R3D.slotByKey={};
+  var padGeo=new THREE.BoxGeometry(BAY/POS_PER_BAY-0.3, 0.6, DEP-0.45);
+  var padEdges=new THREE.EdgesGeometry(padGeo);
   for(var f2=1;f2<=R;f2++) for(var c2=1;c2<=C*POS_PER_BAY;c2++){
-    var p=slotPos(f2,c2,R,C);
-    var mk=new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({color:0x3a5f7a, wireframe:true, transparent:true, opacity:.14}));
-    mk.position.set(p.x, p.y+(LVL-0.4)/2, p.z); mk.userData={fila:f2, col:c2, slot:true};
-    R3D.rackGroup.add(mk); R3D.slotTargets.push(mk);
+    var p=slotPos(f2,c2,R,C), yy=p.y+0.3;
+    var mk=new THREE.Mesh(padGeo, new THREE.MeshBasicMaterial({color:0x1bc8ff, transparent:true, opacity:.05}));
+    mk.position.set(p.x, yy, p.z); mk.userData={fila:f2, col:c2, slot:true};
+    var edge=new THREE.LineSegments(padEdges, new THREE.LineBasicMaterial({color:0x4a90b0, transparent:true, opacity:.6}));
+    edge.position.copy(mk.position); mk.userData.edge=edge;
+    R3D.rackGroup.add(mk); R3D.rackGroup.add(edge); R3D.slotTargets.push(mk);
+    R3D.slotByKey[f2+'-'+c2]=mk;
   }
   R3D.controls.target.set(0, totalH*0.45, 0);
   rackResetCam();
@@ -1220,12 +1225,15 @@ function makePallet(hex){
 function syncPallets3D(){
   if(!R3D) return; clearGroup(R3D.palGroup); R3D.palTargets=[];
   var e=curEst(); if(!e) return; var R=e.filas, C=e.columnas;
+  // mostrar todos los footprints; se ocultan los que quedan ocupados
+  if(R3D.slotByKey) Object.keys(R3D.slotByKey).forEach(function(k){ var m=R3D.slotByKey[k]; m.visible=true; if(m.userData.edge) m.userData.edge.visible=true; });
   PALLETS.filter(function(p){ return String(p.estanteria_id)===String(e.id); }).forEach(function(p){
     var a=artById(p.articulo_id), col=tipoColor(a?a.tipo:'');
     var g=makePallet(col.bd), pos=slotPos(p.fila,p.columna,R,C);
     g.position.set(pos.x, pos.y, pos.z); g.userData={pid:p.id, fila:p.fila, col:p.columna};
     g.traverse(function(o){ if(o.isMesh){ o.userData.pid=p.id; o.userData.fila=p.fila; o.userData.col=p.columna; } });
     R3D.palGroup.add(g); R3D.palTargets.push(g);
+    var mk=R3D.slotByKey && R3D.slotByKey[p.fila+'-'+p.columna]; if(mk){ mk.visible=false; if(mk.userData.edge) mk.userData.edge.visible=false; }
   });
 }
 function rackNDC(e){ var r=R3D.renderer.domElement.getBoundingClientRect();

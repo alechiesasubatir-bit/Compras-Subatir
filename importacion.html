@@ -365,7 +365,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
     <img class="logo-icon" src="logo.jpg" alt="Subatir"/>
     <div>
       <h1>Subatir</h1>
-      <p>Importación</p>
+      <p>Control de stock entre depósitos</p>
     </div>
   </a>
   <nav>
@@ -391,13 +391,13 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 <div class="ticker-bar">
   <span class="ticker-label">🌐 IMP</span>
   <div class="ticker-track" id="ticker-track">
-    <span class="ticker-item"><span class="ti-dot"></span>Importación — <b>Subatir S.A. / Prolimpio</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Control de stock entre depósitos — <b>Subatir S.A. / Prolimpio</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Artículos: <b id="tk-art">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Stock Furriol: <b id="tk-fur">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Stock Artigas: <b id="tk-art2">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Pallets en tránsito: <b id="tk-tran">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Consumo · Venta · Infraestructura</span>
-    <span class="ticker-item"><span class="ti-dot"></span>Importación — <b>Subatir S.A. / Prolimpio</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Control de stock entre depósitos — <b>Subatir S.A. / Prolimpio</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Artículos: <b id="tk-art_b">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Stock Furriol: <b id="tk-fur_b">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Stock Artigas: <b id="tk-art2_b">—</b></span>
@@ -441,7 +441,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   <!-- Tabla de artículos -->
   <div class="card" style="padding:20px">
     <div class="section-title">
-      <h2>🌐 <span>Artículos importados</span></h2>
+      <h2>📊 <span>Stock por depósito</span></h2>
       <div style="display:flex;gap:8px;align-items:center">
         <span class="badge badge-info" id="tbl-count">—</span>
         <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -487,6 +487,13 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
         </tbody>
       </table>
     </div>
+  </div>
+
+  <!-- Separador: capa física opcional -->
+  <div style="display:flex;align-items:center;gap:12px;margin:8px 2px 0">
+    <div style="height:1px;flex:1;background:var(--border)"></div>
+    <span style="font-family:'Syne',sans-serif;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)">Ubicación física · opcional</span>
+    <div style="height:1px;flex:1;background:var(--border)"></div>
   </div>
 
   <!-- Mapa del depósito (cuadrícula) -->
@@ -820,8 +827,8 @@ function renderArticles(){
       +'<td style="text-align:right;font-family:var(--mono);color:'+(art>0?'var(--ok)':'var(--muted)')+'">'+fmtNum(art)+'</td>'
       +'<td style="text-align:right;font-family:var(--mono);font-weight:700">'+fmtNum(tot)+'</td>'
       +'<td style="text-align:center;white-space:nowrap">'
-        +'<button class="btn btn-ghost btn-sm" onclick="openTransfer('+a.id+')" title="Transferir entre depósitos">🔁 Transferir</button> '
-        +'<button class="btn btn-orange btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet con QR">🏷 Pallet</button>'
+        +'<button class="btn btn-orange btn-sm" onclick="openTransfer('+a.id+')" title="Transferir entre depósitos">🔁 Transferir</button> '
+        +'<button class="btn btn-ghost btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet con QR (ubicación física)">🏷 Pallet</button>'
       +'</td>'
     +'</tr>';
   }).join('');

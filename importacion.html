@@ -1099,9 +1099,17 @@ function dndResolve(pid, target){
 //  ESTANTERÍA 3D (Three.js) — vista cinemática + colocación
 // ══════════════════════════════════════════════════════════════
 var VIEW='3d', R3D=null;
-var BAY=2.4, LVL=1.7, DEP=2.2, BASE=1.0;
+var BAY=2.5, LVL=1.8, DEP=2.6, BASE=1.0;
 function curEst(){ var s=document.getElementById('g-est'); return estById(s?s.value:GRID.est); }
 function slotPos(f,c,R,C){ return { x:(c-(C+1)/2)*BAY, y:BASE+(R-f)*LVL, z:0 }; }
+// Puntal/diagonal que une dos puntos (para las celosías de los parantes)
+function strut(a,b,mat,th){
+  var dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
+  var m=new THREE.Mesh(new THREE.BoxGeometry(th, len, th), mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+  m.castShadow=true; return m;
+}
 function clearGroup(g){ for(var i=g.children.length-1;i>=0;i--){ var c=g.children[i]; g.remove(c); if(c.geometry&&c.geometry.dispose)c.geometry.dispose(); } }
 
 function setView(v){
@@ -1154,34 +1162,51 @@ function rackBuild(){
   if(!R3D) return; var e=curEst();
   clearGroup(R3D.rackGroup); R3D.slotTargets=[];
   if(!e){ clearGroup(R3D.palGroup); R3D.palTargets=[]; return; }
-  var R=e.filas, C=e.columnas, totalH=BASE+R*LVL+0.3, totalW=C*BAY;
-  var steel=new THREE.MeshStandardMaterial({color:0x24468f, metalness:.45, roughness:.5});
-  var beamMat=new THREE.MeshStandardMaterial({color:0xf0731a, metalness:.35, roughness:.5});
+  var R=e.filas, C=e.columnas, totalH=BASE+R*LVL+0.4, zf=-DEP/2, zb=DEP/2;
+  var steel=new THREE.MeshStandardMaterial({color:0x24468f, metalness:.5, roughness:.45});
+  var beamMat=new THREE.MeshStandardMaterial({color:0xf0731a, metalness:.4, roughness:.45});
+  // ── Marcos: parantes front/back + travesaños + diagonales (celosía) ──
   var upGeo=new THREE.BoxGeometry(0.14, totalH, 0.14);
   for(var i=0;i<=C;i++){ var x=(i-C/2)*BAY;
-    [-DEP/2, DEP/2].forEach(function(z){ var m=new THREE.Mesh(upGeo, steel); m.position.set(x, totalH/2, z); m.castShadow=true; R3D.rackGroup.add(m); }); }
-  var beamGeo=new THREE.BoxGeometry(BAY-0.02, 0.13, 0.11);
-  for(var f=1;f<=R;f++){ var by=BASE+(R-f)*LVL-0.08;
+    [zf,zb].forEach(function(z){ var m=new THREE.Mesh(upGeo, steel); m.position.set(x, totalH/2, z); m.castShadow=true; R3D.rackGroup.add(m); });
+    var steps=Math.max(5, R*2), tgl=true;
+    for(var k=0;k<steps;k++){
+      var y1=(k/steps)*totalH, y2=((k+1)/steps)*totalH;
+      R3D.rackGroup.add(strut(new THREE.Vector3(x,y1,tgl?zf:zb), new THREE.Vector3(x,y2,tgl?zb:zf), steel, 0.05)); // diagonal
+      R3D.rackGroup.add(strut(new THREE.Vector3(x,y1,zf), new THREE.Vector3(x,y1,zb), steel, 0.05));                // travesaño
+      tgl=!tgl;
+    }
+  }
+  // ── Largueros naranjas por nivel (adelante y atrás), por bahía ──
+  var beamGeo=new THREE.BoxGeometry(BAY-0.02, 0.16, 0.13);
+  for(var f=1;f<=R;f++){ var by=BASE+(R-f)*LVL-0.09;
     for(var c=1;c<=C;c++){ var bx=(c-(C+1)/2)*BAY;
-      [-DEP/2+0.09, DEP/2-0.09].forEach(function(z){ var b=new THREE.Mesh(beamGeo, beamMat); b.position.set(bx, by, z); b.castShadow=true; R3D.rackGroup.add(b); }); } }
-  // marcadores de ranura (wireframe tenue, también sirven de blanco de raycast)
-  var markGeo=new THREE.BoxGeometry(BAY-0.3, LVL-0.35, DEP-0.4);
+      [zf+0.11, zb-0.11].forEach(function(z){ var b=new THREE.Mesh(beamGeo, beamMat); b.position.set(bx, by, z); b.castShadow=true; R3D.rackGroup.add(b); }); } }
+  // ── Pared de fondo (contexto de depósito) ──
+  var wall=new THREE.Mesh(new THREE.PlaneGeometry((C+2)*BAY+4, totalH+4), new THREE.MeshStandardMaterial({color:0x39434f, roughness:1}));
+  wall.position.set(0,(totalH+4)/2-1.2, zb+0.9); wall.receiveShadow=true; R3D.rackGroup.add(wall);
+  // ── Marcadores de posición (wireframe tenue = blanco de raycast) ──
+  var markGeo=new THREE.BoxGeometry(BAY-0.3, LVL-0.4, DEP-0.4);
   for(var f2=1;f2<=R;f2++) for(var c2=1;c2<=C;c2++){
     var p=slotPos(f2,c2,R,C);
-    var mk=new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({color:0x3a5f7a, wireframe:true, transparent:true, opacity:.18}));
-    mk.position.set(p.x, p.y+(LVL-0.35)/2, p.z); mk.userData={fila:f2, col:c2, slot:true};
+    var mk=new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({color:0x3a5f7a, wireframe:true, transparent:true, opacity:.14}));
+    mk.position.set(p.x, p.y+(LVL-0.4)/2, p.z); mk.userData={fila:f2, col:c2, slot:true};
     R3D.rackGroup.add(mk); R3D.slotTargets.push(mk);
   }
   R3D.controls.target.set(0, totalH*0.45, 0);
   rackResetCam();
   syncPallets3D();
 }
+// Pallet: tarima de madera + carga envuelta en film (blancuzca) con banda de color por tipo
 function makePallet(hex){
   var g=new THREE.Group();
+  var pw=BAY-0.5, pd=DEP-0.5, lh=LVL-0.64;
   var wood=new THREE.MeshStandardMaterial({color:0x9c6b3f, roughness:.92});
-  var base=new THREE.Mesh(new THREE.BoxGeometry(BAY-0.4, 0.16, DEP-0.5), wood); base.position.y=0.08; base.castShadow=true; g.add(base);
-  var load=new THREE.Mesh(new THREE.BoxGeometry(BAY-0.55, LVL-0.55, DEP-0.62), new THREE.MeshStandardMaterial({color:hex, roughness:.72, metalness:.06}));
-  load.position.y=0.16+(LVL-0.55)/2; load.castShadow=true; g.add(load);
+  var base=new THREE.Mesh(new THREE.BoxGeometry(pw, 0.16, pd), wood); base.position.y=0.08; base.castShadow=true; g.add(base);
+  var film=new THREE.MeshStandardMaterial({color:0xe3e9f0, roughness:.32, metalness:.03});
+  var load=new THREE.Mesh(new THREE.BoxGeometry(pw-0.1, lh, pd-0.1), film); load.position.y=0.16+lh/2; load.castShadow=true; g.add(load);
+  var band=new THREE.Mesh(new THREE.BoxGeometry(pw-0.02, 0.24, pd-0.02), new THREE.MeshStandardMaterial({color:hex, roughness:.55})); band.position.y=0.16+0.18; g.add(band);
+  var top=new THREE.Mesh(new THREE.BoxGeometry(pw-0.34, 0.3, pd-0.34), new THREE.MeshStandardMaterial({color:0xccd5e1, roughness:.5})); top.position.y=0.16+lh+0.15; top.castShadow=true; g.add(top);
   return g;
 }
 function syncPallets3D(){

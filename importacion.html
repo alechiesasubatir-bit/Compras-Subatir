@@ -356,6 +356,8 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 <script src="subatir-app.js?v=8"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
 
@@ -505,10 +507,20 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
         <select class="fsel" id="g-est" onchange="renderGrid()"></select>
       </div>
     </div>
-    <div id="grid-legend" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--muted-l)"></div>
+    <div id="grid-legend" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--muted-l)"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <button id="btn-view3d" class="btn btn-orange btn-sm" onclick="setView('3d')">🧊 Vista 3D</button>
+      <button id="btn-view2d" class="btn btn-ghost btn-sm" onclick="setView('2d')">▦ Vista 2D</button>
+      <button class="btn btn-ghost btn-sm" onclick="rackResetCam()">🎥 Centrar cámara</button>
+    </div>
     <div id="tray-wrap" style="margin-bottom:14px;border-radius:12px;transition:background .15s,outline-color .15s"></div>
-    <div style="overflow-x:auto"><div id="grid-host"></div></div>
-    <div style="font-size:12px;color:var(--muted-l);margin-top:12px">Arrastrá un pallet (desde el mapa o desde <b style="color:var(--orange-l)">Sin ubicar</b>) a una ranura para colocarlo · soltalo sobre una ocupada para <b style="color:var(--teal-l)">intercambiar</b> · soltalo en la bandeja para <b>quitarlo</b> de la estantería. También funciona con el dedo en tablet. Un toque abre el detalle.</div>
+    <div id="rack3d-wrap" style="position:relative;height:480px;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:radial-gradient(130% 100% at 50% 0%,#16202f 0%,#080b12 70%)">
+      <canvas id="rack3d" style="display:block;width:100%;height:100%;touch-action:none"></canvas>
+      <div id="rack3d-badge" style="position:absolute;left:12px;top:10px;font-size:11px;color:var(--muted-l);font-family:var(--mono);pointer-events:none"></div>
+      <div id="rack3d-tip" style="position:absolute;left:0;top:0;pointer-events:none;display:none;background:rgba(7,9,15,.92);border:1px solid var(--teal-l);border-radius:8px;padding:6px 9px;font-size:11px;color:var(--text);z-index:6;transform:translate(-50%,-125%);white-space:nowrap"></div>
+    </div>
+    <div id="grid2d-wrap" style="overflow-x:auto;display:none"><div id="grid-host"></div></div>
+    <div style="font-size:12px;color:var(--muted-l);margin-top:12px">Girá la cámara arrastrando en el vacío (o con el dedo) · arrastrá un pallet <b style="color:var(--orange-l)">Sin ubicar</b> al rack para colocarlo · arrastrá un pallet del rack a otra posición para moverlo · un toque abre el detalle. La <b>Vista 2D</b> es la grilla plana clásica.</div>
   </div>
 
   <!-- Pallets -->
@@ -872,7 +884,10 @@ function renderPallets(){
 function renderGridControls(){
   var gd=document.getElementById('g-dep'); if(!gd) return;
   var deps=DEPS.map(function(d){return d.nombre;});
-  GRID.dep = (GRID.dep && deps.indexOf(GRID.dep)>=0) ? GRID.dep : (deps[0]||'');
+  if(!(GRID.dep && deps.indexOf(GRID.dep)>=0)){
+    var withPal=deps.filter(function(d){ return PALLETS.some(function(p){ return p.deposito===d; }); })[0];
+    GRID.dep = withPal || deps[0] || '';
+  }
   gd.innerHTML=deps.map(function(d){return '<option '+(d===GRID.dep?'selected':'')+'>'+esc(d)+'</option>';}).join('');
   onGridDep();
 }
@@ -915,6 +930,7 @@ function renderGrid(){
   }
   html+='</div>';
   host.innerHTML=html;
+  if(typeof rackSync==='function') rackSync();
 }
 
 // ── Transferencia ──────────────────────────────────────────────
@@ -1007,9 +1023,33 @@ function dndMove(e){
   var g=DND.ghost; if(g){ g.style.transform=(DND_REDUCED?'':'scale(1.05) ')+'translate('+(e.clientX-g.offsetWidth/2)+'px,'+(e.clientY-26)+'px)'; }
   dndSetHover(dndTargetAt(e.clientX,e.clientY));
 }
+var R3D_dropSlot=null;
 function dndTargetAt(x,y){
   var el=document.elementFromPoint(x,y); if(!el) return null;
-  return el.closest('#grid-host [data-slot]') || (el.closest('#tray-wrap') ? document.getElementById('tray-wrap') : null);
+  var s=el.closest('#grid-host [data-slot]'); if(s) return s;
+  if(el.closest('#rack3d-wrap')){ rack3dDropProbe(x,y); return document.getElementById('rack3d-wrap'); }
+  if(el.closest('#tray-wrap')) return document.getElementById('tray-wrap');
+  return null;
+}
+// Coloca un pallet en una ranura (mover / intercambiar) — compartido 2D y 3D
+function palletToSlot(pid, estId, fila, col){
+  var who=whoName(), dragged=PALLETS.find(function(x){return String(x.id)===String(pid);}); if(!dragged) return;
+  if(String(dragged.estanteria_id)===String(estId) && dragged.fila===fila && dragged.columna===col) return;
+  var tgt=palAt(estId,fila,col);
+  if(!tgt){
+    toast('Moviendo pallet…','info');
+    SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}).then(function(r){
+      if(r.error||(r.data&&r.data.ok===false)){ toast('Error: '+(r.error?r.error.message:r.data.error),'err'); load(); return; }
+      vibrate(); toast('📦 Pallet en '+letterOf(fila)+col,'ok'); load();
+    });
+  } else if(String(tgt.id)!==String(pid)){
+    if(dragged.estanteria_id==null){ toast('Esa posición está ocupada — soltalo en una libre','err'); return; }
+    var fF=dragged.fila, fC=dragged.columna; toast('Intercambiando pallets…','info');
+    SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:null,p_fila:null,p_col:null,p_user:who})
+      .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}); })
+      .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:+estId,p_fila:fF,p_col:fC,p_user:who}); })
+      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); } else { vibrate(); toast('🔄 '+letterOf(fF)+fC+' ⇄ '+letterOf(fila)+col,'ok'); } load(); });
+  }
 }
 function dndSetHover(t){
   if(DND_hover===t) return;
@@ -1044,27 +1084,190 @@ function dndResolve(pid, target){
       if(r.error){ toast('Error: '+r.error.message,'err'); } else { vibrate(); toast('↩ Pallet sin ubicar','ok'); } load(); });
     return;
   }
+  if(target.id==='rack3d-wrap'){
+    if(!R3D_dropSlot){ toast('Soltalo sobre una posición del rack','err'); return; }
+    palletToSlot(pid, curEst().id, R3D_dropSlot.fila, R3D_dropSlot.col);
+    return;
+  }
   var estId=document.getElementById('g-est').value;
   var parts=(target.getAttribute('data-slot')||'').split('-'), fila=+parts[0], col=+parts[1];
   if(!fila||!col) return;
-  if(String(dragged.estanteria_id)===String(estId) && dragged.fila===fila && dragged.columna===col) return;
-  var tgt=palAt(estId,fila,col);
-  if(!tgt){
-    toast('Moviendo pallet…','info');
-    SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}).then(function(r){
-      if(r.error||(r.data&&r.data.ok===false)){ toast('Error: '+(r.error?r.error.message:r.data.error),'err'); load(); return; }
-      vibrate(); toast('📦 Pallet en '+letterOf(fila)+col,'ok'); load();
-    });
-  } else if(String(tgt.id)!==String(pid)){
-    if(dragged.estanteria_id==null){ toast('Esa ranura está ocupada — soltalo en una libre','err'); return; }
-    var fF=dragged.fila, fC=dragged.columna;
-    toast('Intercambiando pallets…','info');
-    SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:null,p_fila:null,p_col:null,p_user:who})
-      .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}); })
-      .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:+estId,p_fila:fF,p_col:fC,p_user:who}); })
-      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); } else { vibrate(); toast('🔄 '+letterOf(fF)+fC+' ⇄ '+letterOf(fila)+col,'ok'); } load(); });
-  }
+  palletToSlot(pid, estId, fila, col);
 }
+
+// ══════════════════════════════════════════════════════════════
+//  ESTANTERÍA 3D (Three.js) — vista cinemática + colocación
+// ══════════════════════════════════════════════════════════════
+var VIEW='3d', R3D=null;
+var BAY=2.4, LVL=1.7, DEP=2.2, BASE=1.0;
+function curEst(){ var s=document.getElementById('g-est'); return estById(s?s.value:GRID.est); }
+function slotPos(f,c,R,C){ return { x:(c-(C+1)/2)*BAY, y:BASE+(R-f)*LVL, z:0 }; }
+function clearGroup(g){ for(var i=g.children.length-1;i>=0;i--){ var c=g.children[i]; g.remove(c); if(c.geometry&&c.geometry.dispose)c.geometry.dispose(); } }
+
+function setView(v){
+  if(v==='3d' && typeof THREE==='undefined'){ toast('No se pudo cargar el 3D; mostrando vista 2D','err'); v='2d'; }
+  VIEW=v;
+  document.getElementById('rack3d-wrap').style.display = v==='3d'?'block':'none';
+  document.getElementById('grid2d-wrap').style.display = v==='2d'?'block':'none';
+  document.getElementById('btn-view3d').className='btn btn-sm '+(v==='3d'?'btn-orange':'btn-ghost');
+  document.getElementById('btn-view2d').className='btn btn-sm '+(v==='2d'?'btn-orange':'btn-ghost');
+  if(v==='3d') rackSync(); else renderGrid();
+}
+
+function rackInit(){
+  if(R3D || typeof THREE==='undefined') return;
+  var wrap=document.getElementById('rack3d-wrap'), canvas=document.getElementById('rack3d');
+  var w=wrap.clientWidth||600, h=wrap.clientHeight||480;
+  var scene=new THREE.Scene(); scene.fog=new THREE.Fog(0x0a0f18, 26, 70);
+  var camera=new THREE.PerspectiveCamera(46, w/h, 0.1, 400);
+  var renderer=new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2)); renderer.setSize(w,h,false);
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x2a2622, .85));
+  var dir=new THREE.DirectionalLight(0xfff2df, .95); dir.position.set(14,22,12); dir.castShadow=true;
+  dir.shadow.mapSize.set(1024,1024); var sc=dir.shadow.camera; sc.left=-26;sc.right=26;sc.top=26;sc.bottom=-26;sc.near=1;sc.far=80; scene.add(dir);
+  var floor=new THREE.Mesh(new THREE.PlaneGeometry(120,120), new THREE.MeshStandardMaterial({color:0x2b3240, roughness:.98}));
+  floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor);
+  var controls=new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping=true; controls.dampingFactor=.09; controls.minDistance=5; controls.maxDistance=60;
+  controls.maxPolarAngle=Math.PI/2.03; controls.enablePan=false;
+  var hi=new THREE.Mesh(new THREE.BoxGeometry(BAY-0.25, LVL-0.25, DEP-0.25), new THREE.MeshBasicMaterial({color:0x1bc8ff, transparent:true, opacity:.28})); hi.visible=false; scene.add(hi);
+  R3D={scene:scene,camera:camera,renderer:renderer,controls:controls,rackGroup:new THREE.Group(),palGroup:new THREE.Group(),
+       slotTargets:[],palTargets:[],ray:new THREE.Raycaster(),hi:hi,drag:null,builtEst:null,_pending:null,_downXY:null,_moved:false};
+  scene.add(R3D.rackGroup); scene.add(R3D.palGroup);
+  canvas.addEventListener('pointermove', rackMove);
+  canvas.addEventListener('pointerdown', rackDown);
+  canvas.addEventListener('pointerup', rackUp);
+  canvas.addEventListener('pointerleave', function(){ rackTip(); });
+  window.addEventListener('resize', rackResize);
+  rackAnimate();
+}
+function rackSync(){
+  if(VIEW!=='3d' || typeof THREE==='undefined') return;
+  rackInit(); if(!R3D) return;
+  var e=curEst(), eid=e?e.id:null;
+  if(R3D.builtEst!==eid){ rackBuild(); R3D.builtEst=eid; } else { syncPallets3D(); }
+  var b=document.getElementById('rack3d-badge'); if(b) b.textContent=(e?(GRID.dep+' · '+e.nombre+' · '+e.filas+'×'+e.columnas):'—');
+  rackResize();
+}
+function rackBuild(){
+  if(!R3D) return; var e=curEst();
+  clearGroup(R3D.rackGroup); R3D.slotTargets=[];
+  if(!e){ clearGroup(R3D.palGroup); R3D.palTargets=[]; return; }
+  var R=e.filas, C=e.columnas, totalH=BASE+R*LVL+0.3, totalW=C*BAY;
+  var steel=new THREE.MeshStandardMaterial({color:0x24468f, metalness:.45, roughness:.5});
+  var beamMat=new THREE.MeshStandardMaterial({color:0xf0731a, metalness:.35, roughness:.5});
+  var upGeo=new THREE.BoxGeometry(0.14, totalH, 0.14);
+  for(var i=0;i<=C;i++){ var x=(i-C/2)*BAY;
+    [-DEP/2, DEP/2].forEach(function(z){ var m=new THREE.Mesh(upGeo, steel); m.position.set(x, totalH/2, z); m.castShadow=true; R3D.rackGroup.add(m); }); }
+  var beamGeo=new THREE.BoxGeometry(BAY-0.02, 0.13, 0.11);
+  for(var f=1;f<=R;f++){ var by=BASE+(R-f)*LVL-0.08;
+    for(var c=1;c<=C;c++){ var bx=(c-(C+1)/2)*BAY;
+      [-DEP/2+0.09, DEP/2-0.09].forEach(function(z){ var b=new THREE.Mesh(beamGeo, beamMat); b.position.set(bx, by, z); b.castShadow=true; R3D.rackGroup.add(b); }); } }
+  // marcadores de ranura (wireframe tenue, también sirven de blanco de raycast)
+  var markGeo=new THREE.BoxGeometry(BAY-0.3, LVL-0.35, DEP-0.4);
+  for(var f2=1;f2<=R;f2++) for(var c2=1;c2<=C;c2++){
+    var p=slotPos(f2,c2,R,C);
+    var mk=new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({color:0x3a5f7a, wireframe:true, transparent:true, opacity:.18}));
+    mk.position.set(p.x, p.y+(LVL-0.35)/2, p.z); mk.userData={fila:f2, col:c2, slot:true};
+    R3D.rackGroup.add(mk); R3D.slotTargets.push(mk);
+  }
+  R3D.controls.target.set(0, totalH*0.45, 0);
+  rackResetCam();
+  syncPallets3D();
+}
+function makePallet(hex){
+  var g=new THREE.Group();
+  var wood=new THREE.MeshStandardMaterial({color:0x9c6b3f, roughness:.92});
+  var base=new THREE.Mesh(new THREE.BoxGeometry(BAY-0.4, 0.16, DEP-0.5), wood); base.position.y=0.08; base.castShadow=true; g.add(base);
+  var load=new THREE.Mesh(new THREE.BoxGeometry(BAY-0.55, LVL-0.55, DEP-0.62), new THREE.MeshStandardMaterial({color:hex, roughness:.72, metalness:.06}));
+  load.position.y=0.16+(LVL-0.55)/2; load.castShadow=true; g.add(load);
+  return g;
+}
+function syncPallets3D(){
+  if(!R3D) return; clearGroup(R3D.palGroup); R3D.palTargets=[];
+  var e=curEst(); if(!e) return; var R=e.filas, C=e.columnas;
+  PALLETS.filter(function(p){ return String(p.estanteria_id)===String(e.id); }).forEach(function(p){
+    var a=artById(p.articulo_id), col=tipoColor(a?a.tipo:'');
+    var g=makePallet(col.bd), pos=slotPos(p.fila,p.columna,R,C);
+    g.position.set(pos.x, pos.y, pos.z); g.userData={pid:p.id, fila:p.fila, col:p.columna};
+    g.traverse(function(o){ if(o.isMesh){ o.userData.pid=p.id; o.userData.fila=p.fila; o.userData.col=p.columna; } });
+    R3D.palGroup.add(g); R3D.palTargets.push(g);
+  });
+}
+function rackNDC(e){ var r=R3D.renderer.domElement.getBoundingClientRect();
+  R3D._m={x:((e.clientX-r.left)/r.width)*2-1, y:-((e.clientY-r.top)/r.height)*2+1}; }
+function rackPick(objs){ R3D.ray.setFromCamera(R3D._m||{x:0,y:0}, R3D.camera); return R3D.ray.intersectObjects(objs, true); }
+function slotOf(hit){ var o=hit.object; while(o){ if(o.userData && o.userData.fila){ return {fila:o.userData.fila, col:o.userData.col}; } o=o.parent; } return null; }
+function palHitPid(hit){ var o=hit.object; while(o){ if(o.userData && o.userData.pid!=null) return o.userData.pid; o=o.parent; } return null; }
+function highlightSlot3D(s){
+  if(!R3D||!R3D.hi) return;
+  if(!s){ R3D.hi.visible=false; return; }
+  var e=curEst(); if(!e) return; var p=slotPos(s.fila,s.col,e.filas,e.columnas);
+  R3D.hi.position.set(p.x, p.y+(LVL-0.25)/2, p.z); R3D.hi.visible=true;
+}
+function rackDown(e){
+  if(!R3D||(e.button!=null&&e.button!==0)) return;
+  R3D._downXY={x:e.clientX,y:e.clientY}; R3D._moved=false; rackNDC(e);
+  var hp=rackPick(R3D.palTargets);
+  if(hp.length){ R3D.controls.enabled=false; R3D._pending={pid:palHitPid(hp[0])}; } else { R3D._pending=null; }
+}
+function rackMove(e){
+  if(!R3D) return; rackNDC(e);
+  if(R3D._downXY && (Math.abs(e.clientX-R3D._downXY.x)+Math.abs(e.clientY-R3D._downXY.y))>6) R3D._moved=true;
+  if(R3D.drag){ rackDragMove(e); return; }
+  if(R3D._pending && R3D._moved){ rackDragStart(R3D._pending.pid); rackDragMove(e); return; }
+  var hp=rackPick(R3D.palTargets);
+  if(hp.length){ R3D.renderer.domElement.style.cursor='grab'; rackTipFor(palHitPid(hp[0]), e); }
+  else { R3D.renderer.domElement.style.cursor=''; rackTip(); }
+}
+function rackDragMove(e){
+  R3D.renderer.domElement.style.cursor='grabbing'; rackTip();
+  var hits=rackPick(R3D.slotTargets.concat(R3D.palTargets));
+  R3D.drag.slot = hits.length? slotOf(hits[0]) : null; highlightSlot3D(R3D.drag.slot);
+}
+function rackDragStart(pid){
+  var g=R3D.palTargets.filter(function(x){return String(x.userData.pid)===String(pid);})[0];
+  R3D.drag={pid:pid, group:g, origY:g?g.position.y:0, slot:null};
+  if(g){ g.position.y+=0.9; }
+}
+function rackDragEnd(){ if(R3D.drag&&R3D.drag.group){ R3D.drag.group.position.y=R3D.drag.origY; } highlightSlot3D(null); R3D.drag=null; }
+function rackUp(e){
+  if(!R3D) return;
+  if(R3D.drag){ var slot=R3D.drag.slot, pid=R3D.drag.pid; rackDragEnd(); R3D.controls.enabled=true; R3D._pending=null; R3D._downXY=null;
+    if(slot) palletToSlot(pid, curEst().id, slot.fila, slot.col); return; }
+  R3D.controls.enabled=true; R3D._downXY=null;
+  var pend=R3D._pending, moved=R3D._moved; R3D._pending=null;
+  if(pend && !moved){ openPalletDetail(pend.pid); return; }
+  if(!moved){ rackNDC(e); var hs=rackPick(R3D.slotTargets);
+    if(hs.length){ var s=slotOf(hs[0]), ce=curEst(); if(s&&ce&&!palAt(ce.id,s.fila,s.col)) openPallet({estId:+ce.id,fila:s.fila,col:s.col}); } }
+}
+function rack3dDropProbe(x,y){
+  R3D_dropSlot=null; if(!R3D) return;
+  var r=R3D.renderer.domElement.getBoundingClientRect();
+  R3D._m={x:((x-r.left)/r.width)*2-1, y:-((y-r.top)/r.height)*2+1};
+  var hits=rackPick(R3D.slotTargets.concat(R3D.palTargets));
+  if(hits.length){ var s=slotOf(hits[0]); if(s){ R3D_dropSlot=s; highlightSlot3D(s); return; } }
+  highlightSlot3D(null);
+}
+function rackTipFor(pid, e){
+  var p=PALLETS.find(function(x){return String(x.id)===String(pid);}); if(!p){ rackTip(); return; }
+  var a=artById(p.articulo_id), tip=document.getElementById('rack3d-tip'), r=document.getElementById('rack3d-wrap').getBoundingClientRect();
+  tip.style.display='block'; tip.style.left=(e.clientX-r.left)+'px'; tip.style.top=(e.clientY-r.top)+'px';
+  tip.innerHTML='<b style="color:var(--teal-l)">'+esc(coordOf(p))+'</b> · '+esc(a?a.descripcion:('#'+p.articulo_id))+' · '+fmtNum(p.unidades)+' u.';
+}
+function rackTip(){ var t=document.getElementById('rack3d-tip'); if(t) t.style.display='none'; }
+function rackResetCam(){
+  if(!R3D) return; var e=curEst(), C=e?e.columnas:5, R=e?e.filas:4;
+  var w=C*BAY, h=BASE+R*LVL, dist=Math.max(w,h)*1.5+7;
+  R3D.camera.position.set(w*0.5, h*0.75+2, dist);
+  R3D.controls.target.set(0, h*0.45, 0); R3D.controls.update();
+}
+function rackResize(){
+  if(!R3D) return; var wrap=document.getElementById('rack3d-wrap'); var w=wrap.clientWidth, h=wrap.clientHeight;
+  if(!w||!h) return; R3D.camera.aspect=w/h; R3D.camera.updateProjectionMatrix(); R3D.renderer.setSize(w,h,false);
+}
+function rackAnimate(){ if(!R3D) return; R3D.raf=requestAnimationFrame(rackAnimate); R3D.controls.update(); R3D.renderer.render(R3D.scene, R3D.camera); }
 
 // ── Armar / estacionar pallet ──────────────────────────────────
 var PRESET_SLOT=null;

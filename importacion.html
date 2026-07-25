@@ -506,8 +506,9 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
       </div>
     </div>
     <div id="grid-legend" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--muted-l)"></div>
+    <div id="tray-wrap" style="margin-bottom:14px;border-radius:12px;transition:background .15s,outline-color .15s"></div>
     <div style="overflow-x:auto"><div id="grid-host"></div></div>
-    <div style="font-size:12px;color:var(--muted-l);margin-top:12px">Clic en una ranura <b style="color:var(--muted)">libre</b> para estacionar · clic en una <b style="color:var(--teal-l)">ocupada</b> para gestionar · <b style="color:var(--orange-l)">arrastrá</b> un pallet a otra ranura para reubicarlo (o soltalo sobre otro para intercambiar).</div>
+    <div style="font-size:12px;color:var(--muted-l);margin-top:12px">Arrastrá un pallet (desde el mapa o desde <b style="color:var(--orange-l)">Sin ubicar</b>) a una ranura para colocarlo · soltalo sobre una ocupada para <b style="color:var(--teal-l)">intercambiar</b> · soltalo en la bandeja para <b>quitarlo</b> de la estantería. También funciona con el dedo en tablet. Un toque abre el detalle.</div>
   </div>
 
   <!-- Pallets -->
@@ -890,6 +891,7 @@ function renderGrid(){
   document.getElementById('grid-legend').innerHTML=['Consumo','Venta','Infraestructura',''].map(function(t){
     var c=tipoColor(t); return '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:13px;height:13px;border-radius:3px;background:'+c.bg+';border:1px solid '+c.bd+'"></span>'+(t||'Sin tipo (Enjoy/Intex)')+'</span>';
   }).join('');
+  renderTray();
   var host=document.getElementById('grid-host');
   if(!e){ host.innerHTML='<div style="color:var(--muted);font-size:13px">No hay estantería en este depósito. Podés configurarlas en la tabla imp_estanterias.</div>'; return; }
   var html='<div style="display:grid;grid-template-columns:34px repeat('+e.columnas+',minmax(96px,1fr));gap:8px;min-width:'+(40+e.columnas*104)+'px">';
@@ -901,13 +903,13 @@ function renderGrid(){
       var p=palAt(estId,f,c2);
       if(p){
         var a=artById(p.articulo_id), col=tipoColor(a?a.tipo:'');
-        html+='<div draggable="true" ondragstart="dragStart(event,'+p.id+')" ondragend="dragEnd(event)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropSlot(event,'+f+','+c2+')" onclick="openPalletDetail('+p.id+')" data-pid="'+p.id+'" title="'+esc((a?a.descripcion:'')+' — '+fmtNum(p.unidades)+' u. · arrastrá para reubicar')+'" style="cursor:grab;min-height:80px;border-radius:11px;padding:8px;background:'+col.bg+';border:1px solid '+col.bd+';display:flex;flex-direction:column;gap:3px">'
+        html+='<div data-drag-pallet="'+p.id+'" data-slot="'+f+'-'+c2+'" onclick="openPalletDetail('+p.id+')" title="'+esc((a?a.descripcion:'')+' — '+fmtNum(p.unidades)+' u. · arrastrá para reubicar')+'" style="touch-action:none;cursor:grab;min-height:80px;border-radius:11px;padding:8px;background:'+col.bg+';border:1px solid '+col.bd+';display:flex;flex-direction:column;gap:3px">'
           +'<div style="font-family:var(--mono);font-size:10px;font-weight:700;color:'+col.tx+'">'+letterOf(f)+c2+' · 📦</div>'
           +'<div style="font-size:11px;line-height:1.25;color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div>'
           +'<div style="margin-top:auto;font-family:var(--mono);font-size:11px;color:'+col.tx+'">'+fmtNum(p.unidades)+' u.</div>'
         +'</div>';
       } else {
-        html+='<div ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropSlot(event,'+f+','+c2+')" onclick="openPallet({estId:'+estId+',fila:'+f+',col:'+c2+'})" title="Ranura libre '+letterOf(f)+c2+'" style="cursor:pointer;min-height:80px;border-radius:11px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:12px">'+letterOf(f)+c2+'</div>';
+        html+='<div data-slot="'+f+'-'+c2+'" onclick="openPallet({estId:'+estId+',fila:'+f+',col:'+c2+'})" title="Ranura libre '+letterOf(f)+c2+'" style="cursor:pointer;min-height:80px;border-radius:11px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:12px">'+letterOf(f)+c2+'</div>';
       }
     }
   }
@@ -952,36 +954,115 @@ function saveTransfer(){
   });
 }
 
-// ── Drag & drop: reubicar pallets entre ranuras ────────────────
-var DRAG_PID=null;
-function dragStart(e,pid){ DRAG_PID=pid; try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(pid)); }catch(_){}
-  try{ e.currentTarget.style.opacity='.45'; }catch(_){} }
-function dragEnd(e){ try{ e.currentTarget.style.opacity=''; }catch(_){} clearDragHi(); DRAG_PID=null; }
-function clearDragHi(){ [...document.querySelectorAll('#grid-host [data-dh]')].forEach(function(el){ el.style.background=el.getAttribute('data-bg')||''; el.style.borderColor=el.getAttribute('data-bd')||''; el.removeAttribute('data-dh'); }); }
-function dragOver(e){ if(DRAG_PID==null) return; e.preventDefault(); try{ e.dataTransfer.dropEffect='move'; }catch(_){}
-  var el=e.currentTarget; if(!el.hasAttribute('data-dh')){ el.setAttribute('data-dh','1'); el.setAttribute('data-bg',el.style.background); el.setAttribute('data-bd',el.style.borderColor); el.style.background='rgba(27,200,255,.20)'; el.style.borderColor='var(--teal-l)'; } }
-function dragLeave(e){ var el=e.currentTarget; if(el.hasAttribute('data-dh')){ el.style.background=el.getAttribute('data-bg')||''; el.style.borderColor=el.getAttribute('data-bd')||''; el.removeAttribute('data-dh'); } }
-function dropSlot(e,fila,col){
-  e.preventDefault(); clearDragHi();
-  var pid=DRAG_PID; DRAG_PID=null; if(pid==null) return;
+// ── Bandeja de pallets SIN UBICAR (arrastrables al mapa) ───────
+function renderTray(){
+  var wrap=document.getElementById('tray-wrap'); if(!wrap) return;
+  var dep=GRID.dep;
+  var un=PALLETS.filter(function(p){ return p.deposito===dep && p.estanteria_id==null && p.estado!=='EN_TRANSITO'; });
+  if(!un.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--muted-l);padding:6px 2px">Sin pallets pendientes de ubicar en '+esc(dep)+'. Los recibidos o quitados de una ranura aparecen acá para arrastrarlos al mapa.</div>';
+    return;
+  }
+  wrap.innerHTML='<div style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--orange-l);margin-bottom:8px">📥 Sin ubicar ('+un.length+') — arrastralos a una ranura</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'+un.map(function(p){
+      var a=artById(p.articulo_id), c=tipoColor(a?a.tipo:'');
+      return '<div data-drag-pallet="'+p.id+'" onclick="openPalletDetail('+p.id+')" title="'+esc((a?a.descripcion:'')+' — '+fmtNum(p.unidades)+' u.')+'" style="touch-action:none;cursor:grab;min-width:150px;max-width:210px;min-height:48px;border-radius:10px;padding:8px 10px;background:'+c.bg+';border:1px solid '+c.bd+'">'
+        +'<div style="font-family:var(--mono);font-size:10px;color:'+c.tx+'">'+esc(p.codigo)+'</div>'
+        +'<div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div>'
+        +'<div style="font-family:var(--mono);font-size:11px;color:'+c.tx+'">'+fmtNum(p.unidades)+' u.</div>'
+      +'</div>';
+    }).join('')+'</div>';
+}
+
+// ── Drag & drop completo (mouse + touch vía Pointer Events) ────
+var DND={pid:null,fromEl:null,ghost:null,active:false,sx:0,sy:0}, DND_hover=null, DND_justDragged=false;
+var DND_REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+function vibrate(){ try{ navigator.vibrate && navigator.vibrate(12); }catch(_){} }
+function dndPointerDown(e){
+  if(e.button!=null && e.button!==0) return;
+  var el=e.target && e.target.closest ? e.target.closest('[data-drag-pallet]') : null;
+  if(!el) return;
+  DND.pid=el.getAttribute('data-drag-pallet'); DND.fromEl=el; DND.sx=e.clientX; DND.sy=e.clientY; DND.active=false;
+  window.addEventListener('pointermove', dndMove, {passive:false});
+  window.addEventListener('pointerup', dndUp, {once:true});
+  window.addEventListener('pointercancel', dndCancel, {once:true});
+}
+function dndStart(){
+  DND.active=true;
+  var el=DND.fromEl, g=el.cloneNode(true);
+  g.style.position='fixed'; g.style.zIndex='5000'; g.style.pointerEvents='none';
+  g.style.width=el.offsetWidth+'px'; g.style.margin='0'; g.style.left='0'; g.style.top='0'; g.style.opacity='.92';
+  if(!DND_REDUCED) g.style.boxShadow='0 16px 40px rgba(0,0,0,.55)';
+  document.body.appendChild(g); DND.ghost=g;
+  el.style.opacity='.3';
+  document.body.style.userSelect='none';
+  document.querySelectorAll('#grid-host [data-slot]').forEach(function(s){ s.style.outline='1px dashed rgba(27,200,255,.35)'; s.style.outlineOffset='-2px'; });
+  var tw=document.getElementById('tray-wrap'); if(tw){ tw.style.outline='1px dashed rgba(249,115,22,.45)'; tw.style.outlineOffset='2px'; }
+}
+function dndMove(e){
+  if(DND.pid==null) return;
+  var dx=e.clientX-DND.sx, dy=e.clientY-DND.sy;
+  if(!DND.active){ if(Math.sqrt(dx*dx+dy*dy)<6) return; dndStart(); }
+  e.preventDefault();
+  var g=DND.ghost; if(g){ g.style.transform=(DND_REDUCED?'':'scale(1.05) ')+'translate('+(e.clientX-g.offsetWidth/2)+'px,'+(e.clientY-26)+'px)'; }
+  dndSetHover(dndTargetAt(e.clientX,e.clientY));
+}
+function dndTargetAt(x,y){
+  var el=document.elementFromPoint(x,y); if(!el) return null;
+  return el.closest('#grid-host [data-slot]') || (el.closest('#tray-wrap') ? document.getElementById('tray-wrap') : null);
+}
+function dndSetHover(t){
+  if(DND_hover===t) return;
+  if(DND_hover){ DND_hover.style.boxShadow=''; if(DND_hover.id==='tray-wrap') DND_hover.style.background=''; }
+  DND_hover=t;
+  if(t){ t.style.boxShadow='0 0 0 2px var(--teal-l) inset'; if(t.id==='tray-wrap') t.style.background='rgba(249,115,22,.10)'; }
+}
+function dndCancel(){ window.removeEventListener('pointermove',dndMove); dndCleanup(); DND.pid=null; }
+function dndUp(e){
+  window.removeEventListener('pointermove', dndMove);
+  var pid=DND.pid, active=DND.active, target=active?dndTargetAt(e.clientX,e.clientY):null;
+  dndCleanup(); DND.pid=null;
+  if(!active) return;                 // fue un toque/clic → dejar pasar
+  DND_justDragged=true; setTimeout(function(){ DND_justDragged=false; },350);
+  if(target) dndResolve(pid,target);
+}
+function dndCleanup(){
+  if(DND.ghost){ DND.ghost.remove(); DND.ghost=null; }
+  if(DND.fromEl){ DND.fromEl.style.opacity=''; }
+  DND.fromEl=null; DND.active=false;
+  document.body.style.userSelect='';
+  dndSetHover(null);
+  document.querySelectorAll('#grid-host [data-slot]').forEach(function(s){ s.style.outline=''; s.style.outlineOffset=''; });
+  var tw=document.getElementById('tray-wrap'); if(tw){ tw.style.outline=''; tw.style.outlineOffset=''; tw.style.background=''; }
+}
+function dndResolve(pid, target){
+  var who=whoName(), dragged=PALLETS.find(function(x){return String(x.id)===String(pid);}); if(!dragged) return;
+  if(target.id==='tray-wrap'){
+    if(dragged.estanteria_id==null) return; // ya sin ubicar
+    toast('Quitando de la estantería…','info');
+    SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:null,p_fila:null,p_col:null,p_user:who}).then(function(r){
+      if(r.error){ toast('Error: '+r.error.message,'err'); } else { vibrate(); toast('↩ Pallet sin ubicar','ok'); } load(); });
+    return;
+  }
   var estId=document.getElementById('g-est').value;
-  var dragged=PALLETS.find(function(x){return String(x.id)===String(pid);}); if(!dragged) return;
-  if(String(dragged.estanteria_id)===String(estId) && dragged.fila===fila && dragged.columna===col) return; // misma ranura
-  var who=whoName(), target=palAt(estId,fila,col);
-  if(!target){
+  var parts=(target.getAttribute('data-slot')||'').split('-'), fila=+parts[0], col=+parts[1];
+  if(!fila||!col) return;
+  if(String(dragged.estanteria_id)===String(estId) && dragged.fila===fila && dragged.columna===col) return;
+  var tgt=palAt(estId,fila,col);
+  if(!tgt){
     toast('Moviendo pallet…','info');
     SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}).then(function(r){
       if(r.error||(r.data&&r.data.ok===false)){ toast('Error: '+(r.error?r.error.message:r.data.error),'err'); load(); return; }
-      toast('📦 Pallet movido a '+letterOf(fila)+col,'ok'); load();
+      vibrate(); toast('📦 Pallet en '+letterOf(fila)+col,'ok'); load();
     });
-  } else if(String(target.id)!==String(pid)){
-    // intercambio A(arrastrado) ⇄ B(destino): libero B, muevo A, devuelvo B a la ranura de A
+  } else if(String(tgt.id)!==String(pid)){
+    if(dragged.estanteria_id==null){ toast('Esa ranura está ocupada — soltalo en una libre','err'); return; }
     var fF=dragged.fila, fC=dragged.columna;
     toast('Intercambiando pallets…','info');
-    SB.rpc('imp_pallet_ubicar',{p_pallet:target.id,p_est:null,p_fila:null,p_col:null,p_user:who})
+    SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:null,p_fila:null,p_col:null,p_user:who})
       .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}); })
-      .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:target.id,p_est:+estId,p_fila:fF,p_col:fC,p_user:who}); })
-      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); } else { toast('🔄 '+letterOf(fF)+fC+' ⇄ '+letterOf(fila)+col,'ok'); } load(); });
+      .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:+estId,p_fila:fF,p_col:fC,p_user:who}); })
+      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); } else { vibrate(); toast('🔄 '+letterOf(fF)+fC+' ⇄ '+letterOf(fila)+col,'ok'); } load(); });
   }
 }
 
@@ -1174,6 +1255,9 @@ function exportCSV(){
 }
 
 // ── Init ───────────────────────────────────────────────────────
+document.addEventListener('pointerdown', dndPointerDown);
+document.addEventListener('click', function(e){ if(DND_justDragged){ e.stopPropagation(); e.preventDefault(); } }, true);
+
 (window.SubatirApp && SubatirApp.ready ? SubatirApp.ready : Promise.resolve()).then(function(){
   load();
   if(window.SubatirApp && SubatirApp.live) SubatirApp.live(['imp_articulos','imp_stock','imp_pallets','imp_movimientos'], load);

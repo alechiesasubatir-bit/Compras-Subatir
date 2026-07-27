@@ -2064,18 +2064,27 @@ function artOptions(sel){
     return '<option value="'+a.id+'" '+(String(a.id)===String(sel)?'selected':'')+'>'+esc((a.proveedor?('['+a.proveedor+'] '):'')+a.descripcion)+'</option>';
   }).join('');
 }
+// Sólo estanterías de depósitos de almacén: en fábrica no se arman pallets
+// (imp_pallet_cerrar los rechaza, así que ofrecerlas dejaría pallets sin salida)
+function estAlmacen(){ return EST.filter(function(e){ return !esFabrica(e.deposito); }); }
 function estOptions(sel){
-  return EST.map(function(e){ return '<option value="'+e.id+'" '+(String(e.id)===String(sel)?'selected':'')+'>'+esc(e.nombre+' — '+e.deposito)+'</option>'; }).join('');
+  var list=estAlmacen();
+  if(!list.length) return '<option value="">No hay estanterías de almacén</option>';
+  return list.map(function(e){ return '<option value="'+e.id+'" '+(String(e.id)===String(sel)?'selected':'')+'>'+esc(e.nombre+' — '+e.deposito)+'</option>'; }).join('');
 }
 function curPlArt(){ return artById(document.getElementById('pl-art').value); }
 function openPallet(opts){
   opts=opts||{};
   if(typeof opts==='number'||typeof opts==='string') opts={artId:opts};
-  document.getElementById('pallet-title').textContent = (opts.fila&&opts.col)?('Estacionar en '+'ranura'):'Armar pallet';
+  var alm=estAlmacen();
+  if(!alm.length){ toast('No hay estanterías de almacén donde armar un pallet','err'); return; }
+  // Si vino con una estantería de fábrica, se ignora y se usa la primera de almacén
+  if(opts.estId && esFabrica((estById(opts.estId)||{}).deposito)){ opts={artId:opts.artId}; }
+  document.getElementById('pallet-title').textContent = (opts.fila&&opts.col)?'Abrir pallet en la ranura':'Abrir pallet';
   document.getElementById('pl-art').innerHTML=artOptions(opts.artId||'');
   document.getElementById('pl-cajas').value='';
   document.getElementById('pl-unid').value='';
-  document.getElementById('pl-est').innerHTML=estOptions(opts.estId||(EST[0]?EST[0].id:''));
+  document.getElementById('pl-est').innerHTML=estOptions(opts.estId||alm[0].id);
   PRESET_SLOT=(opts.fila&&opts.col)?{fila:opts.fila,col:opts.col}:null;
   plSlots();
   plArt();

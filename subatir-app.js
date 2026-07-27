@@ -18,7 +18,6 @@
     'precios.html': 'precios',
     'proveedores.html': 'proveedores',
     'contingencia.html': 'contingencia',
-    'importacion.html': 'importacion',
     'copiloto.html': 'copiloto',
     'usuarios.html': 'usuarios'
   };
@@ -195,12 +194,11 @@
       r.href = 'recepcion.html'; r.className = navClass; r.textContent = '📥 Recepción';
       nav.appendChild(r);
     }
-    // Link a Importación para quien tenga acceso
-    if (nav && !operario && canAccess('importacion', profile) && !nav.querySelector('[href="importacion.html"]')) {
-      var im = document.createElement('a');
-      im.href = 'importacion.html'; im.className = navClass; im.textContent = '🌐 Importación';
-      nav.appendChild(im);
-    }
+    // "Control de Stock Depósitos" ya no es un módulo de Compras: vive como
+    // app aparte en /deposito (login y bootstrap propios, misma base).
+    // Se llega desde el aviso de mercadería en camino del dashboard.
+    // La clave 'importacion' se conserva porque está guardada en
+    // profiles.modules de cada usuario y la usa el guard de esa app.
     if (profile.role === 'admin' && nav && !nav.querySelector('[href="usuarios.html"]')) {
       var a = document.createElement('a');
       a.href = 'usuarios.html'; a.className = navClass; a.textContent = '👥 Usuarios';

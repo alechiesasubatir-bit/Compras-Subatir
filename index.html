@@ -447,8 +447,8 @@ footer{
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=8"></script>
-<script src="subatir-app.js?v=8"></script>
+<script src="supabase-config.js?v=9"></script>
+<script src="subatir-app.js?v=9"></script>
 </head>
 <body>
 
@@ -543,6 +543,9 @@ footer{
       <span class="icon">⚠</span>
       <span id="alert-text"></span>
     </div>
+
+    <!-- Mercadería en camino desde los depósitos (app Depósitos, misma base) -->
+    <div id="camino-card" style="display:none"></div>
 
     <!-- KPI Cards -->
     <div class="kpi-grid">
@@ -753,6 +756,63 @@ var DATA     = { pedidos:[], inventario:[], stock:[], precios:[], contactos:[] }
 var CHART_P  = null;
 var CHART_S  = null;
 var REFRESH_INTERVAL = null;
+// ══════════════════════════════════════════════════════════════
+//  MERCADERÍA EN CAMINO (app Depósitos)
+//  Control de Stock Depósitos es una app aparte (/deposito) pero
+//  comparte esta base, así que acá avisamos lo que salió de un
+//  depósito y todavía no llegó — sobre todo lo que entra a fábrica.
+// ══════════════════════════════════════════════════════════════
+function camEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function camNum(n){ n=parseFloat(n)||0; return n.toLocaleString('es-UY'); }
+function loadEnCamino(){
+  var host=document.getElementById('camino-card');
+  if(!host || !window.SB) return;
+  SB.from('imp_en_camino').select('*').order('salida_at',{ascending:false}).then(function(r){
+    // Si el módulo de depósitos todavía no está instalado, no molestamos
+    if(r.error || !r.data || !r.data.length){ host.style.display='none'; return; }
+    var rows=r.data;
+    var fab=rows.filter(function(x){ return x.destino_tipo==='FABRICA'; });
+    var totU=rows.reduce(function(a,x){ return a+(parseFloat(x.unidades)||0); },0);
+    var demorados=rows.filter(function(x){ return (parseFloat(x.horas_en_transito)||0)>24; });
+
+    host.style.display='block';
+    host.innerHTML=
+      '<div class="card" style="padding:16px 18px;border-left:3px solid #1bc8ff">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:'+(rows.length?'12px':'0')+'">'
+        +'<div style="display:flex;align-items:center;gap:10px">'
+          +'<span style="font-size:19px">🚚</span>'
+          +'<div>'
+            +'<div style="font-size:13.5px;font-weight:700">Mercadería en camino entre depósitos</div>'
+            +'<div style="font-size:11.5px;color:#7a8fa8;margin-top:2px">'
+              +rows.length+' pallet'+(rows.length===1?'':'s')+' · '+camNum(totU)+' unidades'
+              +(fab.length?(' · <b style="color:#fb923c">'+fab.length+' entrando a fábrica</b>'):'')
+              +(demorados.length?(' · <b style="color:#fca5a5">'+demorados.length+' con más de 24 h</b>'):'')
+            +'</div>'
+          +'</div>'
+        +'</div>'
+        +'<a href="deposito/index.html" style="text-decoration:none;font-size:11.5px;font-weight:700;'
+          +'padding:7px 13px;border-radius:8px;border:1px solid rgba(27,200,255,.3);'
+          +'background:rgba(14,138,170,.2);color:#1bc8ff">🏬 Abrir Depósitos →</a>'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px">'+rows.slice(0,6).map(function(x){
+        var h=Math.floor(parseFloat(x.horas_en_transito)||0);
+        var tarde=h>24;
+        return '<div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;'
+          +'padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)">'
+          +'<span style="font-family:monospace;font-size:10.5px;color:#1bc8ff">'+camEsc(x.codigo)+'</span>'
+          +'<span style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+camEsc(x.articulo||('#'+x.articulo_id))+'</span>'
+          +'<span style="font-size:11px;color:#7a8fa8;white-space:nowrap">'+camEsc(x.origen||'?')+' → <b style="color:'
+            +(x.destino_tipo==='FABRICA'?'#fb923c':'#e2e8f0')+'">'+camEsc(x.destino||'?')+'</b>'
+            +(x.destino_tipo==='FABRICA'?' 🔥':'')+'</span>'
+          +'<span style="font-family:monospace;font-size:10.5px;white-space:nowrap;color:'+(tarde?'#fca5a5':'#7a8fa8')+'">'
+            +camNum(x.unidades)+' u. · '+h+' h</span>'
+        +'</div>';
+      }).join('')
+      +(rows.length>6?('<div style="font-size:11px;color:#7a8fa8;padding:4px 10px">y '+(rows.length-6)+' más…</div>'):'')
+      +'</div></div>';
+  }, function(){ host.style.display='none'; });
+}
+
 var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
 
 // ── Claves de columna detectadas dinámicamente ─────────────────
@@ -766,6 +826,9 @@ var CURR_MAP = {};
   if (saved) { SCRIPT_URL = saved; }
   showDashboard(); load();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','contingencia','proveedores'], load);
+  // Aviso de lo que viene en camino desde los depósitos
+  loadEnCamino();
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['imp_pallets'], loadEnCamino);
 })();
 
 function showDashboard(){ var d=document.getElementById('dashboard'); if(d) d.style.display='flex'; }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Ingresar · Subatir</title>
+<title>Ingresar · Depósitos Subatir</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#07090f;--bg2:#0c1119;--teal:#0e8aaa;--tl:#1bc8ff;--or:#f97316;--orl:#fb923c;
@@ -41,9 +41,9 @@ button.go:disabled{opacity:.6;cursor:wait;transform:none}
 </head>
 <body>
 <div class="card">
-  <div class="logo"><div class="logo-icon">SB</div></div>
-  <h1>Subatir</h1>
-  <div class="sub">Sistema de Compras & Stock</div>
+  <div class="logo"><div class="logo-icon">🏬</div></div>
+  <h1>Depósitos</h1>
+  <div class="sub">Control de Stock Depósitos</div>
 
   <form id="form" autocomplete="on">
     <label for="email">Email</label>
@@ -57,7 +57,7 @@ button.go:disabled{opacity:.6;cursor:wait;transform:none}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=9"></script>
+<script src="../supabase-config.js?v=9"></script>
 <script>
 var msg = document.getElementById('msg');
 function show(t, type){ msg.textContent = t; msg.className = 'msg ' + type; }
@@ -65,6 +65,7 @@ function show(t, type){ msg.textContent = t; msg.className = 'msg ' + type; }
 // Avisos por querystring
 var qs = new URLSearchParams(location.search);
 if (qs.get('inactivo')) show('Tu usuario está desactivado. Contactá al administrador.', 'err');
+if (qs.get('denegado')) show('Tu usuario no tiene acceso al módulo de depósitos.', 'err');
 
 // Si ya hay sesión activa, ir al dashboard
 SB.auth.getSession().then(function(r){ if (r.data && r.data.session) location.replace('index.html'); });

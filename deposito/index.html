@@ -484,7 +484,9 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .hist{border:1px solid var(--border);border-radius:11px;overflow:hidden;background:rgba(0,0,0,.2);
   max-height:210px;overflow-y:auto}
 .hist-empty{padding:14px;text-align:center;font-size:12px;color:var(--muted)}
-.hist-row{display:grid;grid-template-columns:26px 1fr auto;gap:9px;align-items:center;
+/* La meta va debajo, no al lado: con usuarios de nombre largo aplastaba
+   la ubicación y la dejaba cortada */
+.hist-row{display:grid;grid-template-columns:26px minmax(0,1fr);gap:2px 9px;align-items:start;
   padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.04);position:relative}
 .hist-row:last-child{border-bottom:none}
 /* Riel de color por tipo de movimiento */
@@ -494,13 +496,15 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .hist-row.h-loc{--hc:var(--teal-l)}
 .hist-row.h-out{--hc:#fcd34d}
 .hist-row.h-tr {--hc:var(--orange)}
+.hist-row.h-use{--hc:var(--danger)}
 .hist-ico{font-size:14px;text-align:center}
 .hist-main{display:flex;flex-direction:column;gap:2px;min-width:0}
 .hist-main b{font-family:var(--display);font-size:10.5px;font-weight:800;letter-spacing:.6px;
   text-transform:uppercase;color:var(--hc,var(--text))}
 .hist-det{font-family:var(--mono);font-size:11px;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hist-meta{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;text-align:right}
+.hist-meta{grid-column:2;font-family:var(--mono);font-size:10px;color:var(--muted);
+  white-space:normal;overflow-wrap:anywhere}
 
 /* ═══ DISPOSICIÓN DE RACKS ═══════════════════════════════════ */
 .lay-presets{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
@@ -2232,7 +2236,7 @@ function pdCerrar(){
 function pdHist(pid){
   var host=document.getElementById('pd-hist');
   host.innerHTML='<div class="hist-empty">Cargando movimientos…</div>';
-  SB.from('imp_movimientos').select('*').eq('pallet_id',pid).order('created_at',{ascending:false}).then(function(r){
+  SB.from('imp_movimientos').select('*').eq('pallet_id',pid).order('created_at',{ascending:false}).order('id',{ascending:false}).then(function(r){
     if(r.error){ host.innerHTML='<div class="hist-empty">No se pudo leer la bitácora.</div>'; return; }
     var rows=r.data||[];
     if(!rows.length){ host.innerHTML='<div class="hist-empty">Sin movimientos todavía. El primero se registra al cerrar el pallet.</div>'; return; }
@@ -2253,8 +2257,8 @@ function pdHist(pid){
     }).join('');
   });
 }
-var MOV_ICO={RECEPCION:'📥',UBICACION:'📍',SALIDA:'🚚',ENTRADA:'✅',TRANSFER:'🔁',AJUSTE:'✏'};
-var MOV_CLS={RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',TRANSFER:'h-tr'};
+var MOV_ICO={RECEPCION:'📥',UBICACION:'📍',SALIDA:'🚚',ENTRADA:'✅',CONSUMO:'🔥',TRANSFER:'🔁',AJUSTE:'✏'};
+var MOV_CLS={RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',CONSUMO:'h-use',TRANSFER:'h-tr'};
 function pdShowQR(){ if(CUR_PAL) showQR(CUR_PAL); }
 function pdDespachar(){
   if(!CUR_PAL) return;

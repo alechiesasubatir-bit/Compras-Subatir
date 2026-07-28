@@ -476,6 +476,16 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 }
 @media print{ .fab{display:none!important} }
 
+/* ═══ REPORTES: elegir columnas ══════════════════════════════ */
+.rep-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:6px;margin-top:4px}
+.rep-col{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;cursor:pointer;
+  background:rgba(255,255,255,.02);border:1px solid var(--border);
+  font-size:12px;color:var(--text);text-transform:none;letter-spacing:normal;font-weight:400;
+  transition:border-color .15s,background .15s}
+.rep-col:hover{border-color:rgba(27,200,255,.4);background:rgba(27,200,255,.06)}
+.rep-col.on{border-color:var(--teal-l);background:rgba(27,200,255,.12)}
+.rep-col input{accent-color:var(--teal-l);width:15px;height:15px;flex:0 0 auto}
+
 /* ═══ TRAZABILIDAD: historial de consumidos, plegable ════════ */
 .hist-block{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
 .hist-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
@@ -966,6 +976,7 @@ window.APP_VER='2026-07-28.1727';
       <div class="sec-tools">
         <span class="badge badge-info" id="tbl-count">—</span>
         <button class="btn btn-primary btn-sm" onclick="openArticulo()" title="Dar de alta un artículo nuevo">➕ Nuevo artículo</button>
+        <button class="btn btn-orange btn-sm" onclick="openReporte()" title="Reportes en Excel o PDF, eligiendo filtros y columnas">📄 Reportes</button>
         <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir</button>
       </div>
@@ -1145,6 +1156,71 @@ window.APP_VER='2026-07-28.1727';
   </div>
 
 </main><!-- /main -->
+
+<!-- ═══════════════════════════════════════════════ MODAL: REPORTES ═══ -->
+<div class="overlay" id="rep-overlay" role="dialog" aria-modal="true" aria-labelledby="rep-title">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <div class="modal-title" id="rep-title">Reportes</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeModal('rep-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group span2">
+          <label for="rep-tipo-rep">Reporte</label>
+          <select class="form-input" id="rep-tipo-rep" onchange="repCambiar()">
+            <option value="stock">Stock por depósito</option>
+            <option value="pallets">Pallets y ubicaciones</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sub-block" style="margin-top:14px">
+        <div class="sub-head">🔎 Qué incluir</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="rep-prov">Proveedor</label>
+            <select class="form-input" id="rep-prov" onchange="repUpd()"></select>
+          </div>
+          <div class="form-group">
+            <label for="rep-tipo">Tipo</label>
+            <select class="form-input" id="rep-tipo" onchange="repUpd()"></select>
+          </div>
+          <div class="form-group">
+            <label for="rep-dep">Depósito</label>
+            <select class="form-input" id="rep-dep" onchange="repUpd()"></select>
+          </div>
+          <div class="form-group" id="rep-estado-wrap" style="display:none">
+            <label for="rep-estado">Estado</label>
+            <select class="form-input" id="rep-estado" onchange="repUpd()"></select>
+          </div>
+        </div>
+        <label class="check-row" style="cursor:pointer;text-transform:none;letter-spacing:normal;font-weight:400;font-size:12px;color:var(--text)">
+          <input type="checkbox" id="rep-con-stock" checked onchange="repUpd()"/>
+          <span id="rep-con-stock-txt">Sólo artículos con stock</span>
+        </label>
+      </div>
+
+      <div class="sub-block" style="margin-top:12px">
+        <div class="sub-head" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📋 Columnas</span>
+          <span style="display:flex;gap:8px">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="repCols(true)">Todas</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="repCols(false)">Mínimas</button>
+          </span>
+        </div>
+        <div id="rep-col-list" class="rep-cols"></div>
+      </div>
+
+      <div id="rep-hint" class="hint-note" role="status" style="margin-top:12px">—</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ok" id="btn-rep-xls" onclick="repExcel()">📊 Excel</button>
+      <button class="btn btn-orange" id="btn-rep-pdf" onclick="repPDF()">📄 PDF</button>
+      <button class="btn btn-ghost" onclick="closeModal('rep-overlay')">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════ MODAL: NUEVO ARTÍCULO ═══ -->
 <!-- Alta del artículo en sí (el catálogo). No es lo mismo que Ingresar,
@@ -1981,6 +2057,332 @@ function gridHtmlFor(e){
 
 // ── Transferencia ──────────────────────────────────────────────
 function depOptions(sel){ return DEPS.map(function(d){return '<option '+(d.nombre===sel?'selected':'')+'>'+esc(d.nombre)+'</option>';}).join(''); }
+// ══════════════════════════════════════════════════════════════
+//  REPORTES (Excel / PDF)
+// ══════════════════════════════════════════════════════════════
+// Las columnas se declaran una vez y de acá salen las tres cosas:
+// los checkboxes, la hoja de Excel y la tabla del PDF. Así no hay
+// que acordarse de tocar tres lugares para agregar una.
+//   num  → alineada a la derecha y formateada como número
+//   pill → se pinta con el color del tipo
+var REP_DEFS={
+  stock:{
+    titulo:'Stock por depósito',
+    cols:[
+      {k:'proveedor',   t:'Proveedor',   on:true },
+      {k:'codigo',      t:'Código',      on:true },
+      {k:'descripcion', t:'Descripción', on:true,  ancho:'40%'},
+      {k:'tipo',        t:'Tipo',        on:true,  pill:true},
+      {k:'un_x_caja',   t:'UN×Caja',     on:false, num:true},
+      {k:'__deps',      t:'Por depósito',on:true,  num:true},   // se expande a una por depósito
+      {k:'total',       t:'Total',       on:true,  num:true},
+      {k:'suelto',      t:'Sin palletizar', on:false, num:true}
+    ]
+  },
+  pallets:{
+    titulo:'Pallets y ubicaciones',
+    cols:[
+      {k:'codigo',      t:'Código QR',   on:true },
+      {k:'articulo',    t:'Artículo',    on:true,  ancho:'34%'},
+      {k:'tipo',        t:'Tipo',        on:true,  pill:true},
+      {k:'cajas',       t:'Cajas',       on:true,  num:true},
+      {k:'unidades',    t:'Unidades',    on:true,  num:true},
+      {k:'ubicacion',   t:'Ubicación',   on:true },
+      {k:'estado',      t:'Estado',      on:true },
+      {k:'fecha',       t:'Fecha',       on:false}
+    ]
+  }
+};
+var REP_ON={};   // {clave: true} de lo tildado
+
+function openReporte(){
+  var sel=function(id,opts){ document.getElementById(id).innerHTML=opts; };
+  var provs=[]; ART.forEach(function(a){ if(a.proveedor && provs.indexOf(a.proveedor)<0) provs.push(a.proveedor); });
+  sel('rep-prov','<option value="">Todos</option>'+provs.sort().map(function(p){ return '<option>'+esc(p)+'</option>'; }).join(''));
+  sel('rep-tipo','<option value="">Todos</option>'+TIPOS.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')+'<option value="__sin">Sin tipo</option>');
+  sel('rep-dep','<option value="">Todos</option>'+DEPS.map(function(d){ return '<option>'+esc(d.nombre)+'</option>'; }).join(''));
+  sel('rep-estado','<option value="">Todos</option>'+['ABIERTO','ESTACIONADO','EN_TRANSITO','RECIBIDO','CONSUMIDO']
+      .map(function(e){ return '<option value="'+e+'">'+e.replace('_',' ')+'</option>'; }).join(''));
+  // Arranca con lo que ya está filtrado en pantalla: si el operario
+  // vino filtrando, es lo que quiere ver en el reporte.
+  document.getElementById('rep-prov').value=document.getElementById('f-prov').value||'';
+  document.getElementById('rep-tipo').value=document.getElementById('f-tipo').value||'';
+  document.getElementById('rep-dep').value =document.getElementById('f-dep').value||'';
+  document.getElementById('rep-tipo-rep').value='stock';
+  repCambiar();
+  openModal('rep-overlay');
+}
+function repDef(){ return REP_DEFS[document.getElementById('rep-tipo-rep').value]||REP_DEFS.stock; }
+function repCambiar(){
+  var d=repDef(), esStock=document.getElementById('rep-tipo-rep').value==='stock';
+  REP_ON={}; d.cols.forEach(function(c){ if(c.on) REP_ON[c.k]=true; });
+  document.getElementById('rep-estado-wrap').style.display=esStock?'none':'';
+  document.getElementById('rep-con-stock-txt').textContent=esStock
+    ? 'Sólo artículos con stock' : 'Sólo pallets activos (sin los consumidos)';
+  repPintarCols(); repUpd();
+}
+function repPintarCols(){
+  document.getElementById('rep-col-list').innerHTML=repDef().cols.map(function(c){
+    var t=c.k==='__deps' ? ('Por depósito ('+DEPS.map(function(d){return d.nombre;}).join(', ')+')') : c.t;
+    return '<label class="rep-col'+(REP_ON[c.k]?' on':'')+'" data-k="'+c.k+'">'
+      +'<input type="checkbox" '+(REP_ON[c.k]?'checked':'')+' onchange="repTildar(\''+c.k+'\',this.checked)"/>'
+      +'<span>'+esc(t)+'</span></label>';
+  }).join('');
+}
+function repTildar(k,on){
+  if(on) REP_ON[k]=true; else delete REP_ON[k];
+  var el=document.querySelector('.rep-col[data-k="'+k+'"]');
+  if(el) el.className='rep-col'+(on?' on':'');
+  repUpd();
+}
+function repCols(todas){
+  REP_ON={};
+  repDef().cols.forEach(function(c){ if(todas||c.on) REP_ON[c.k]=true; });
+  repPintarCols(); repUpd();
+}
+
+// ── Los datos del reporte, ya filtrados ───────────────────────
+function repFiltros(){
+  return {
+    prov:document.getElementById('rep-prov').value,
+    tipo:document.getElementById('rep-tipo').value,
+    dep :document.getElementById('rep-dep').value,
+    estado:document.getElementById('rep-estado').value,
+    soloCon:document.getElementById('rep-con-stock').checked
+  };
+}
+function repDatos(){
+  var f=repFiltros(), esStock=document.getElementById('rep-tipo-rep').value==='stock';
+  var coincideTipo=function(t){
+    if(f.tipo==='__sin') return !t;
+    return !f.tipo || (t||'')===f.tipo;
+  };
+  if(esStock){
+    return ART.filter(function(a){
+      if(f.prov && a.proveedor!==f.prov) return false;
+      if(!coincideTipo(a.tipo)) return false;
+      if(f.dep && f.soloCon && stockOf(a.id,f.dep)<=0) return false;
+      if(!f.dep && f.soloCon && totalOf(a.id)<=0) return false;
+      return true;
+    }).sort(function(x,y){ return String(x.descripcion||'').localeCompare(String(y.descripcion||''),'es'); });
+  }
+  return PALLETS.filter(function(p){
+    var a=artById(p.articulo_id)||{};
+    if(f.prov && a.proveedor!==f.prov) return false;
+    if(!coincideTipo(a.tipo)) return false;
+    if(f.dep && p.deposito!==f.dep) return false;
+    if(f.estado && p.estado!==f.estado) return false;
+    if(f.soloCon && p.estado==='CONSUMIDO') return false;
+    return true;
+  }).sort(palOrden);
+}
+// Devuelve {cols:[{t,num,pill,ancho}], filas:[[celda,...]], tipos:[tipo por fila]}
+function repTabla(){
+  var esStock=document.getElementById('rep-tipo-rep').value==='stock';
+  var datos=repDatos(), cols=[], tipos=[];
+  repDef().cols.forEach(function(c){
+    if(!REP_ON[c.k]) return;
+    if(c.k==='__deps'){ DEPS.forEach(function(d){ cols.push({t:d.nombre, num:true, dep:d.nombre}); }); return; }
+    cols.push({t:c.t, num:c.num, pill:c.pill, ancho:c.ancho, k:c.k});
+  });
+  var filas=datos.map(function(r){
+    var a=esStock?r:(artById(r.articulo_id)||{});
+    tipos.push(a.tipo||'');
+    return cols.map(function(c){
+      if(c.dep) return esStock ? stockOf(r.id,c.dep) : '';
+      switch(c.k){
+        case 'proveedor':   return a.proveedor||'';
+        case 'codigo':      return esStock ? (a.codigo||'') : r.codigo;
+        case 'descripcion': return a.descripcion||'';
+        case 'articulo':    return a.descripcion||('#'+r.articulo_id);
+        case 'tipo':        return a.tipo||'Sin tipo';
+        case 'un_x_caja':   return num(a.un_x_caja)||'';
+        case 'total':       return totalOf(r.id);
+        case 'suelto':      return DEPS.reduce(function(t,d){ return t+dispOf(r.id,d.nombre); },0);
+        case 'cajas':       return num(r.cajas)||'';
+        case 'unidades':    return num(r.unidades)||0;
+        case 'ubicacion':   return palLoc(r);
+        case 'estado':      return String(r.estado||'').replace('_',' ');
+        case 'fecha':       return r.created_at?new Date(r.created_at).toLocaleDateString('es-UY'):'';
+      }
+      return '';
+    });
+  });
+  return {cols:cols, filas:filas, tipos:tipos, esStock:esStock};
+}
+function repUpd(){
+  var t=repTabla(), h=document.getElementById('rep-hint');
+  var esStock=t.esStock;
+  if(!t.cols.length){ h.className='hint-note hint-warn'; h.textContent='Elegí al menos una columna.'; return; }
+  if(!t.filas.length){ h.className='hint-note hint-warn'; h.textContent='Con esos filtros no queda ninguna fila.'; return; }
+  h.className='hint-note';
+  h.textContent=t.filas.length+(esStock?(t.filas.length===1?' artículo':' artículos'):(t.filas.length===1?' pallet':' pallets'))
+    +' · '+t.cols.length+(t.cols.length===1?' columna':' columnas');
+}
+// Resumen legible de los filtros, para que el reporte impreso diga
+// qué está mirando y no sea un listado sin contexto.
+function repResumen(){
+  var f=repFiltros(), p=[];
+  if(f.prov) p.push('Proveedor: '+f.prov);
+  if(f.tipo) p.push('Tipo: '+(f.tipo==='__sin'?'sin tipo':f.tipo));
+  if(f.dep)  p.push('Depósito: '+f.dep);
+  if(f.estado) p.push('Estado: '+f.estado.replace('_',' '));
+  if(f.soloCon) p.push(document.getElementById('rep-tipo-rep').value==='stock'?'sólo con stock':'sólo activos');
+  return p.length ? p.join('  ·  ') : 'Sin filtros: todo el inventario';
+}
+
+// ── Excel ─────────────────────────────────────────────────────
+// Se arma como HTML con estilos en línea, que es lo que Excel sabe
+// interpretar sin librerías: así el reporte sale con los colores y
+// el logo. Excel avisa que la extensión no coincide con el formato
+// la primera vez; se abre igual.
+function repExcel(){
+  var t=repTabla();
+  if(!t.cols.length || !t.filas.length){ toast('No hay nada para exportar','err'); return; }
+  var esc2=function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  var head='<tr>'+t.cols.map(function(c){
+    return '<th style="background:#0b3a5c;color:#fff;font-weight:bold;border:1px solid #17516f;'
+      +'padding:7px 9px;text-align:'+(c.num?'right':'left')+'">'+esc2(c.t)+'</th>';
+  }).join('')+'</tr>';
+  var body=t.filas.map(function(fila,i){
+    var zebra = i%2 ? '#f2f7fb' : '#ffffff';
+    return '<tr>'+fila.map(function(v,j){
+      var c=t.cols[j], st='border:1px solid #cfd9e2;padding:5px 9px;background:'+zebra+';';
+      if(c.num) st+='text-align:right;mso-number-format:"\\#\\,\\#\\#0";';
+      if(c.pill){ var col=REP_XLS_TIPO[v]||REP_XLS_TIPO['Sin tipo']; st+='background:'+col.bg+';color:'+col.tx+';font-weight:bold;text-align:center;'; }
+      return '<td style="'+st+'">'+esc2(v===''||v==null?'':v)+'</td>';
+    }).join('')+'</tr>';
+  }).join('');
+  var logo = window.LOGO_CIRC ? '<img src="'+window.LOGO_CIRC+'" width="54" height="54"/>' : '';
+  var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"/></head><body>'
+    +'<table cellspacing="0">'
+    +'<tr><td colspan="'+t.cols.length+'" style="padding:6px">'+logo+'</td></tr>'
+    +'<tr><td colspan="'+t.cols.length+'" style="font-size:19pt;font-weight:bold;color:#0b3a5c;padding:2px 6px">'
+      +esc2('Subatir · Depósitos — '+repDef().titulo)+'</td></tr>'
+    +'<tr><td colspan="'+t.cols.length+'" style="font-size:9pt;color:#5b6b7a;padding:2px 6px">'+esc2(repResumen())+'</td></tr>'
+    +'<tr><td colspan="'+t.cols.length+'" style="font-size:9pt;color:#5b6b7a;padding:2px 6px 10px">'
+      +esc2('Generado el '+new Date().toLocaleString('es-UY')+' por '+whoName()+'  ·  '+t.filas.length+' filas')+'</td></tr>'
+    +head+body+'</table></body></html>';
+  repBajar(html, 'application/vnd.ms-excel', repNombre('xls'));
+  toast('📊 Excel generado — '+t.filas.length+' filas','ok');
+}
+var REP_XLS_TIPO={
+  'Consumo':{bg:'#dff2fc',tx:'#0b5a7a'}, 'Venta':{bg:'#dff5e6',tx:'#166534'},
+  'Venta Piscina':{bg:'#fdf3cf',tx:'#8a6d00'}, 'Infraestructura':{bg:'#fde9d7',tx:'#9a4a10'},
+  'Sin tipo':{bg:'#eef1f4',tx:'#5b6b7a'}
+};
+function repNombre(ext){
+  var d=new Date(), p=function(n){ return (n<10?'0':'')+n; };
+  // Sin acentos en vez de sin la letra: si no, "depósito" queda "dep_sito"
+  var t=repDef().titulo.normalize('NFD').replace(/[̀-ͯ]/g,'')
+        .replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_|_$/g,'');
+  return 'Depositos_'+t+'_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())
+    +'_'+p(d.getHours())+p(d.getMinutes())+'.'+ext;
+}
+function repBajar(contenido, mime, nombre){
+  var blob=new Blob(['﻿'+contenido], {type:mime+';charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=nombre;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+
+// ── PDF ───────────────────────────────────────────────────────
+function repPDF(){
+  if(!window.jspdf || !window.jspdf.jsPDF){ toast('No se pudo cargar el generador de PDF (revisá tu conexión)','err'); return; }
+  var t=repTabla();
+  if(!t.cols.length || !t.filas.length){ toast('No hay nada para exportar','err'); return; }
+
+  var doc=new window.jspdf.jsPDF({unit:'pt', format:'a4', orientation:'landscape'});
+  var W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  var M=28, OR=[242,101,34], AZ=[11,58,92], GR=[91,107,122];
+
+  drawRepLogo(doc, M+22, 44, 22);
+  doc.setFont('helvetica','bold'); doc.setTextColor(AZ[0],AZ[1],AZ[2]); doc.setFontSize(17);
+  doc.text('SUBATIR · DEPÓSITOS', M+54, 38);
+  doc.setTextColor(OR[0],OR[1],OR[2]); doc.setFontSize(13);
+  doc.text(repDef().titulo, M+54, 56);
+  doc.setFont('helvetica','normal'); doc.setTextColor(GR[0],GR[1],GR[2]); doc.setFontSize(8.5);
+  doc.text(repResumen(), M+54, 70);
+  doc.text('Generado el '+new Date().toLocaleString('es-UY')+'  ·  '+whoName()+'  ·  '+t.filas.length+' filas',
+           W-M, 38, {align:'right'});
+  doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1.4); doc.line(M, 80, W-M, 80);
+
+  var colStyles={};
+  t.cols.forEach(function(c,i){
+    colStyles[i]={halign: c.num?'right':(c.pill?'center':'left')};
+    if(c.ancho) colStyles[i].cellWidth='auto';
+  });
+
+  doc.autoTable({
+    startY:92,
+    head:[t.cols.map(function(c){ return c.t; })],
+    body:t.filas.map(function(f){ return f.map(function(v,j){
+      return t.cols[j].num && typeof v==='number' ? fmtNum(v) : String(v==null?'':v); }); }),
+    theme:'grid', margin:{left:M, right:M, bottom:38},
+    styles:{fontSize:8, cellPadding:4, valign:'middle', lineColor:[207,217,226], lineWidth:0.5, textColor:[30,30,30], overflow:'linebreak'},
+    headStyles:{fillColor:AZ, textColor:255, fontStyle:'bold', fontSize:8.5, halign:'center'},
+    alternateRowStyles:{fillColor:[242,247,251]},
+    columnStyles:colStyles,
+    // La celda de tipo se pinta con su color, igual que en pantalla
+    didParseCell:function(data){
+      if(data.section!=='body') return;
+      var c=t.cols[data.column.index];
+      if(!c || !c.pill) return;
+      var col=REP_PDF_TIPO[data.cell.raw] || REP_PDF_TIPO['Sin tipo'];
+      data.cell.styles.fillColor=col.bg; data.cell.styles.textColor=col.tx; data.cell.styles.fontStyle='bold';
+    },
+    didDrawPage:function(){
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(GR[0],GR[1],GR[2]);
+      doc.text('Subatir S.A. / Prolimpio · uso interno', M, H-18);
+    }
+  });
+
+  // El "de N" recién se conoce cuando la tabla terminó de paginar: si se
+  // escribe dentro de didDrawPage, la página 1 dice siempre "de 1".
+  var total=doc.internal.getNumberOfPages();
+  for(var pg=1; pg<=total; pg++){
+    doc.setPage(pg);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(GR[0],GR[1],GR[2]);
+    doc.text('Página '+pg+' de '+total, W-M, H-18, {align:'right'});
+  }
+  doc.save(repNombre('pdf'));
+  toast('📄 PDF generado — '+t.filas.length+' filas','ok');
+}
+var REP_PDF_TIPO={
+  'Consumo':{bg:[223,242,252],tx:[11,90,122]}, 'Venta':{bg:[223,245,230],tx:[22,101,52]},
+  'Venta Piscina':{bg:[253,243,207],tx:[138,109,0]}, 'Infraestructura':{bg:[253,233,215],tx:[154,74,16]},
+  'Sin tipo':{bg:[238,241,244],tx:[91,107,122]}
+};
+// Logo circular en el PDF; si no cargó, un círculo con las iniciales
+function drawRepLogo(doc, cx, cy, r){
+  if(window.LOGO_CIRC){
+    try{ doc.addImage(window.LOGO_CIRC,'PNG',cx-r,cy-r,2*r,2*r); return; }catch(e){}
+  }
+  doc.setFillColor(242,101,34); doc.circle(cx,cy,r,'F');
+  doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255); doc.setFontSize(r*0.8);
+  doc.text('S', cx, cy+r*0.28, {align:'center'});
+}
+// Precarga el logo recortado en círculo, igual que en Compras
+window.LOGO_CIRC=null;
+(function preloadLogo(){
+  try{
+    var img=new Image();
+    img.onload=function(){
+      try{
+        var D=320, c=document.createElement('canvas'); c.width=c.height=D;
+        var ctx=c.getContext('2d');
+        ctx.save(); ctx.beginPath(); ctx.arc(D/2,D/2,D/2,0,Math.PI*2); ctx.closePath(); ctx.clip();
+        var s=Math.min(img.width,img.height);
+        ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,D,D);
+        ctx.restore();
+        window.LOGO_CIRC=c.toDataURL('image/png');
+      }catch(e){}   // canvas tainted: queda el fallback dibujado
+    };
+    img.src='../logo.jpg';
+  }catch(e){}
+})();
+
 // ── Alta de artículo ──────────────────────────────────────────
 //    Crea la ficha en el catálogo. Nace sin stock: para cargarle
 //    unidades está Ingresar, que es otra cosa.

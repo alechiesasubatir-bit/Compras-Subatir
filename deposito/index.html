@@ -33,6 +33,14 @@
   --ease:cubic-bezier(.22,.61,.36,1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* La app es oscura: se lo decimos al navegador para que los popups
+   nativos (desplegables, date pickers, scrollbars) también lo sean. */
+html{color-scheme:dark}
+/* Y además pintamos las opciones a mano: en Windows el desplegable
+   del <select> ignora el color-scheme y sale con el blanco del sistema. */
+select{color-scheme:dark}
+select option,select optgroup{background:#0c1119;color:#e2e8f0}
+select option:checked,select option:hover{background:#14212f;color:#fff}
 /* ── Accesibilidad: foco visible para teclado ─────────────────
    Sólo :focus-visible, así el mouse no arrastra anillos. */
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
@@ -436,6 +444,49 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .confirm-msg{font-size:14px;line-height:1.7;margin-bottom:4px}
 .confirm-warn{font-size:12px;color:var(--warn);margin-top:8px}
 
+/* ═══ ACCIÓN "PALLET": la más visible de la fila ══════════════ */
+.btn-pallet{
+  background:linear-gradient(135deg,#0e8aaa,#1bc8ff);
+  border:1px solid rgba(27,200,255,.55);color:#04222c;font-weight:800;
+  box-shadow:0 0 0 1px rgba(27,200,255,.15),0 4px 14px rgba(27,200,255,.3);
+}
+.btn-pallet:hover{filter:brightness(1.08);box-shadow:0 0 0 1px rgba(27,200,255,.3),0 7px 22px rgba(27,200,255,.45)}
+
+/* Botón flotante de acceso rápido */
+.fab{
+  position:fixed;right:22px;bottom:22px;z-index:300;
+  width:58px;height:58px;border-radius:50%;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(27,200,255,.5);
+  background:linear-gradient(140deg,#0e8aaa,#1bc8ff);
+  box-shadow:0 10px 30px rgba(14,138,170,.5),0 0 0 6px rgba(27,200,255,.07);
+  transition:transform .18s var(--ease),box-shadow .18s,filter .18s;
+}
+.fab:hover{transform:translateY(-3px) scale(1.04);filter:brightness(1.08);
+  box-shadow:0 16px 40px rgba(14,138,170,.6),0 0 0 9px rgba(27,200,255,.1)}
+.fab:active{transform:translateY(-1px) scale(.98)}
+.fab-ico{font-size:23px;line-height:1}
+/* El "+" se apoya sobre el ícono para que se lea "agregar pallet" */
+.fab-plus{
+  position:absolute;right:7px;bottom:7px;width:19px;height:19px;border-radius:50%;
+  display:grid;place-items:center;font-size:14px;font-weight:800;line-height:1;
+  background:var(--orange);color:#fff;border:2px solid #0b1520;
+}
+@media print{ .fab{display:none!important} }
+
+/* ═══ CONTEO: cajas × u/caja + remanente ═════════════════════ */
+.sub-block{border:1px solid var(--border);border-radius:12px;padding:13px 14px;margin-top:14px;
+  background:rgba(255,255,255,.02)}
+.sub-head{font-family:var(--display);font-size:10px;font-weight:800;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--muted-l);margin-bottom:11px}
+.cnt-grid{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:8px;align-items:end}
+.cnt-op{font-family:var(--mono);font-size:16px;color:var(--muted);padding-bottom:10px;text-align:center}
+.cnt-grid .form-input[readonly]{background:rgba(255,255,255,.03);color:var(--muted-l);cursor:default}
+@media (max-width:560px){
+  .cnt-grid{grid-template-columns:1fr 1fr;gap:8px 10px}
+  .cnt-op{display:none}
+}
+
 /* ═══ PALLET ABIERTO (en conteo) ═════════════════════════════ */
 .pill-open{background:rgba(249,115,22,.18);color:var(--orange-l);border:1px solid rgba(249,115,22,.45)}
 .count-box{border:1px solid rgba(249,115,22,.35);border-radius:12px;padding:13px 14px;
@@ -703,7 +754,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   .modal-footer{justify-content:stretch}
   .modal-footer .btn{flex:1;justify-content:center}
   .table-wrap{max-height:420px}
-  #toast-host{left:14px;right:14px;bottom:14px}
+  #toast-host{left:14px;right:14px;bottom:88px}
   .toast{max-width:none}
 }
 
@@ -1015,25 +1066,61 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
           <label for="pl-art">Artículo *</label>
           <select class="form-input" id="pl-art" onchange="plArt()"></select>
         </div>
-        <div class="form-group">
-          <label for="pl-cajas">Cajas contadas hasta ahora</label>
-          <input type="number" inputmode="numeric" class="form-input" id="pl-cajas" min="0" step="1" placeholder="0" oninput="plCalc()"/>
+      </div>
+
+      <!-- Conteo: cajas completas + lo que sobra de la caja abierta -->
+      <div class="sub-block">
+        <div class="sub-head">🔢 Conteo</div>
+        <div class="cnt-grid">
+          <div class="form-group">
+            <label for="pl-cajas">Cajas completas</label>
+            <input type="number" inputmode="numeric" class="form-input" id="pl-cajas" min="0" step="1" placeholder="0" oninput="plCalc()"/>
+          </div>
+          <div class="cnt-op" aria-hidden="true">×</div>
+          <div class="form-group">
+            <label for="pl-uxc">UN × caja</label>
+            <input type="number" class="form-input" id="pl-uxc" readonly tabindex="-1" placeholder="—"/>
+          </div>
+          <div class="cnt-op" aria-hidden="true">+</div>
+          <div class="form-group">
+            <label for="pl-rem">Remanente</label>
+            <input type="number" inputmode="numeric" class="form-input" id="pl-rem" min="0" step="1" placeholder="0" oninput="plCalc()"/>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="pl-unid">Unidades del pallet *</label>
-          <input type="number" inputmode="numeric" class="form-input" id="pl-unid" min="0" step="1" placeholder="0"/>
+        <div class="form-group" style="margin-top:12px">
+          <label for="pl-unid">Total de unidades *</label>
+          <input type="number" inputmode="numeric" class="form-input" id="pl-unid" min="0" step="1" placeholder="0" oninput="plManual()"/>
           <div id="pl-hint" class="hint-note">—</div>
         </div>
-        <div class="form-group">
-          <label for="pl-est">Estantería *</label>
-          <select class="form-input" id="pl-est" onchange="plSlots()"></select>
+      </div>
+
+      <!-- Ubicación: puede quedar sin lugar y ubicarse después -->
+      <div class="sub-block">
+        <div class="sub-head">📍 Ubicación</div>
+        <div class="seg" style="margin-bottom:12px">
+          <button type="button" id="pl-mode-slot" class="on" onclick="plMode('slot')">📍 En una ranura</button>
+          <button type="button" id="pl-mode-free" onclick="plMode('free')">📦 Sin ubicar</button>
         </div>
-        <div class="form-group">
-          <label for="pl-slot">Ranura (lugar) *</label>
-          <select class="form-input" id="pl-slot"></select>
+        <div class="form-grid" id="pl-slot-wrap">
+          <div class="form-group">
+            <label for="pl-est">Estantería *</label>
+            <select class="form-input" id="pl-est" onchange="plSlots()"></select>
+          </div>
+          <div class="form-group">
+            <label for="pl-slot">Ranura (lugar) *</label>
+            <select class="form-input" id="pl-slot"></select>
+          </div>
+        </div>
+        <div class="form-grid" id="pl-dep-wrap" style="display:none">
+          <div class="form-group span2">
+            <label for="pl-dep">Depósito *</label>
+            <select class="form-input" id="pl-dep"></select>
+            <div class="hint-note">Queda en la bandeja <b style="color:var(--orange-l)">Sin ubicar</b> del mapa; después lo arrastrás a una ranura.</div>
+          </div>
         </div>
       </div>
-      <div class="modal-note">El pallet queda <b style="color:var(--orange-l)">abierto</b> en esa ranura mientras contás. Cuando termines, cerralo desde su detalle: ahí se genera el <b style="color:var(--teal-l)">código QR</b> y las unidades <b style="color:var(--teal-l)">entran al stock</b> del depósito.</div>
+
+      <div class="modal-note">El pallet queda <b style="color:var(--orange-l)">abierto</b> mientras contás. Cuando termines, cerralo desde su detalle: ahí se genera el <b style="color:var(--teal-l)">código QR</b> y las unidades <b style="color:var(--teal-l)">entran al stock</b> del depósito.</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-orange" id="btn-save-pallet" onclick="savePallet()">📦 Abrir pallet</button>
@@ -1056,15 +1143,25 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
       <div id="pd-conteo" style="margin-top:14px;display:none">
         <div class="count-box">
           <div class="count-head">🟠 Conteo en curso</div>
-          <div class="form-grid">
+          <div class="cnt-grid">
             <div class="form-group">
-              <label for="pd-cajas">Cajas en el pallet</label>
+              <label for="pd-cajas">Cajas completas</label>
               <input type="number" inputmode="numeric" class="form-input" id="pd-cajas" min="0" step="1" placeholder="0" oninput="pdCalc()"/>
             </div>
+            <div class="cnt-op" aria-hidden="true">×</div>
             <div class="form-group">
-              <label for="pd-unid">Unidades totales *</label>
-              <input type="number" inputmode="numeric" class="form-input" id="pd-unid" min="0" step="1" placeholder="0" oninput="pdHint()"/>
+              <label for="pd-uxc">UN × caja</label>
+              <input type="number" class="form-input" id="pd-uxc" readonly tabindex="-1" placeholder="—"/>
             </div>
+            <div class="cnt-op" aria-hidden="true">+</div>
+            <div class="form-group">
+              <label for="pd-rem">Remanente</label>
+              <input type="number" inputmode="numeric" class="form-input" id="pd-rem" min="0" step="1" placeholder="0" oninput="pdCalc()"/>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label for="pd-unid">Total de unidades *</label>
+            <input type="number" inputmode="numeric" class="form-input" id="pd-unid" min="0" step="1" placeholder="0" oninput="pdHint()"/>
           </div>
           <div id="pd-hint" class="hint-note">—</div>
         </div>
@@ -1184,9 +1281,16 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   </div>
 </div>
 
+<!-- Acceso rápido: armar un pallet eligiendo el artículo, desde cualquier parte -->
+<button id="fab-pallet" class="fab" onclick="openPallet({})"
+        aria-label="Armar un pallet nuevo" title="Armar pallet (elegís el artículo)">
+  <span class="fab-ico" aria-hidden="true">📦</span>
+  <span class="fab-plus" aria-hidden="true">+</span>
+</button>
+
 <!-- aria-live: los avisos se anuncian sin robar el foco -->
 <div id="toast-host" role="status" aria-live="polite" aria-atomic="false"
-     style="position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+     style="position:fixed;right:18px;bottom:92px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -1432,7 +1536,7 @@ function renderArticles(){
       +'<td class="num-cell tot">'+fmtNum(tot)+'</td>'
       +'<td style="text-align:center;white-space:nowrap">'
         +'<button class="btn btn-orange btn-sm" onclick="openTransfer('+a.id+')" title="Transferir entre depósitos">🔁 Transferir</button> '
-        +'<button class="btn btn-ghost btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet con QR (ubicación física)">🏷 Pallet</button>'
+        +'<button class="btn btn-pallet btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet de este artículo">🏷 Pallet</button>'
       +'</td>'
     +'</tr>';
   }).join('');
@@ -2077,37 +2181,81 @@ function estOptions(sel){
   return list.map(function(e){ return '<option value="'+e.id+'" '+(String(e.id)===String(sel)?'selected':'')+'>'+esc(e.nombre+' — '+e.deposito)+'</option>'; }).join('');
 }
 function curPlArt(){ return artById(document.getElementById('pl-art').value); }
+var PL_MODE='slot';   // 'slot' = en una ranura · 'free' = sin ubicar
+function depAlmacen(){ return DEPS.filter(function(d){ return !esFabrica(d.nombre); }); }
 function openPallet(opts){
   opts=opts||{};
   if(typeof opts==='number'||typeof opts==='string') opts={artId:opts};
-  var alm=estAlmacen();
-  if(!alm.length){ toast('No hay estanterías de almacén donde armar un pallet','err'); return; }
-  // Si vino con una estantería de fábrica, se ignora y se usa la primera de almacén
+  var alm=estAlmacen(), dep=depAlmacen();
+  if(!dep.length){ toast('No hay depósitos de almacén donde armar un pallet','err'); return; }
+  // Si vino con una estantería de fábrica, se ignora
   if(opts.estId && esFabrica((estById(opts.estId)||{}).deposito)){ opts={artId:opts.artId}; }
-  document.getElementById('pallet-title').textContent = (opts.fila&&opts.col)?'Abrir pallet en la ranura':'Abrir pallet';
+
+  document.getElementById('pallet-title').textContent =
+    (opts.fila&&opts.col) ? 'Abrir pallet en la ranura' : 'Abrir pallet';
   document.getElementById('pl-art').innerHTML=artOptions(opts.artId||'');
   document.getElementById('pl-cajas').value='';
+  document.getElementById('pl-rem').value='';
   document.getElementById('pl-unid').value='';
-  document.getElementById('pl-est').innerHTML=estOptions(opts.estId||alm[0].id);
+  document.getElementById('pl-est').innerHTML=estOptions(opts.estId||(alm[0]?alm[0].id:''));
+  document.getElementById('pl-dep').innerHTML=dep.map(function(d){
+    return '<option>'+esc(d.nombre)+'</option>'; }).join('');
   PRESET_SLOT=(opts.fila&&opts.col)?{fila:opts.fila,col:opts.col}:null;
+
+  // Sin estanterías de almacén sólo queda el modo "sin ubicar"
+  plMode((!alm.length || opts.free) ? 'free' : 'slot');
   plSlots();
   plArt();
   openModal('pallet-overlay');
 }
+function plMode(m){
+  var alm=estAlmacen();
+  if(m==='slot' && !alm.length){ m='free'; toast('No hay estanterías: el pallet queda sin ubicar','info'); }
+  PL_MODE=m;
+  document.getElementById('pl-mode-slot').className = m==='slot'?'on':'';
+  document.getElementById('pl-mode-free').className = m==='free'?'on':'';
+  document.getElementById('pl-slot-wrap').style.display = m==='slot'?'':'none';
+  document.getElementById('pl-dep-wrap').style.display  = m==='free'?'':'none';
+}
 function plArt(){
-  var a=curPlArt();
-  var uxc=(a&&a.un_x_caja>0)?(' · '+fmtNum(a.un_x_caja)+' u./caja'):' · sin UN×caja (cargá unidades a mano)';
-  document.getElementById('pl-hint').textContent='Artículo'+uxc;
+  var a=curPlArt(), uxc=a?num(a.un_x_caja):0;
+  document.getElementById('pl-uxc').value = uxc>0 ? uxc : '';
   plCalc();
 }
+// total = cajas completas × u/caja + remanente
 function plCalc(){
-  var a=curPlArt(); var cajas=num(document.getElementById('pl-cajas').value);
-  if(a&&a.un_x_caja>0&&cajas>0){ document.getElementById('pl-unid').value=cajas*num(a.un_x_caja); }
+  var uxc=num(document.getElementById('pl-uxc').value);
+  var cajas=num(document.getElementById('pl-cajas').value);
+  var rem=num(document.getElementById('pl-rem').value);
+  var h=document.getElementById('pl-hint');
+  if(uxc>0){
+    var tot=cajas*uxc+rem;
+    document.getElementById('pl-unid').value = tot>0 ? tot : '';
+    h.className='hint-note';
+    h.textContent = tot>0
+      ? (fmtNum(cajas)+' × '+fmtNum(uxc)+(rem?(' + '+fmtNum(rem)):'')+' = '+fmtNum(tot)+' unidades')
+      : 'Cargá las cajas completas y, si sobró una caja abierta, el remanente.';
+  } else {
+    h.className='hint-note';
+    h.textContent='Este artículo no tiene UN×caja cargado: poné el total a mano.';
+  }
+}
+// Si tocan el total a mano, se respeta y se avisa si no cuadra
+function plManual(){
+  var uxc=num(document.getElementById('pl-uxc').value);
+  var cajas=num(document.getElementById('pl-cajas').value);
+  var rem=num(document.getElementById('pl-rem').value);
+  var tot=num(document.getElementById('pl-unid').value);
+  var h=document.getElementById('pl-hint');
+  if(uxc>0 && (cajas>0||rem>0) && cajas*uxc+rem!==tot){
+    h.className='hint-note hint-warn';
+    h.textContent='⚠ '+fmtNum(cajas)+' × '+fmtNum(uxc)+(rem?(' + '+fmtNum(rem)):'')+' = '+fmtNum(cajas*uxc+rem)+' u., pero el total dice '+fmtNum(tot)+' u.';
+  } else plCalc();
 }
 function plSlots(){
   var estId=document.getElementById('pl-est').value; var e=estById(estId);
   var sel=document.getElementById('pl-slot');
-  if(!e){ sel.innerHTML='<option value="">—</option>'; return; }
+  if(!e){ sel.innerHTML='<option value="">Sin estantería</option>'; return; }
   var opts=[];
   for(var f=1;f<=e.filas;f++) for(var c=1;c<=posCount(e);c++){ if(!palAt(estId,f,c)) opts.push({f:f,c:c}); }
   var pv=PRESET_SLOT?(PRESET_SLOT.fila+'-'+PRESET_SLOT.col):'';
@@ -2116,26 +2264,42 @@ function plSlots(){
 function savePallet(){
   var a=curPlArt(); if(!a){ toast('Elegí un artículo','err'); return; }
   var cajas=num(document.getElementById('pl-cajas').value);
-  var unid=num(document.getElementById('pl-unid').value);
-  var estId=document.getElementById('pl-est').value;
-  var slot=document.getElementById('pl-slot').value;
-  if(!estId||!slot){ toast('Elegí estantería y ranura libre','err'); return; }
-  var e=estById(estId), parts=slot.split('-'), fila=+parts[0], col=+parts[1];
-  if(palAt(estId,fila,col)){ toast('Esa ranura ya está ocupada','err'); return; }
-  var codigo='PLT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
-  var btn=document.getElementById('btn-save-pallet'); btn.disabled=true;
-  toast('Estacionando pallet…','info');
-  SB.from('imp_pallets').insert({
-    codigo:codigo, articulo_id:a.id, cajas:cajas||null, unidades:unid,
+  var rem  =num(document.getElementById('pl-rem').value);
+  var unid =num(document.getElementById('pl-unid').value);
+
+  var row={
+    codigo:'PLT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase(),
+    articulo_id:a.id, cajas:cajas||null, remanente:rem||0, unidades:unid,
     un_x_caja:a.un_x_caja||null,          // se congela: la etiqueta debe cuadrar siempre
-    deposito:e.deposito, estanteria_id:e.id, fila:fila, columna:col,
-    origen:e.deposito, estado:'ABIERTO', created_by:whoName()
-  }).select().single().then(function(r){
+    estado:'ABIERTO', created_by:whoName()
+  };
+  var donde;
+
+  if(PL_MODE==='slot'){
+    var estId=document.getElementById('pl-est').value;
+    var slot =document.getElementById('pl-slot').value;
+    if(!estId||!slot){ toast('Elegí estantería y ranura libre','err'); return; }
+    var e=estById(estId), parts=slot.split('-'), fila=+parts[0], col=+parts[1];
+    if(palAt(estId,fila,col)){ toast('Esa ranura ya está ocupada','err'); return; }
+    row.deposito=e.deposito; row.origen=e.deposito;
+    row.estanteria_id=e.id; row.fila=fila; row.columna=col;
+    donde='en '+letterOf(fila)+col;
+  } else {
+    // Sin ubicar: sólo hace falta el depósito; se acomoda después
+    var dep=document.getElementById('pl-dep').value;
+    if(!dep){ toast('Elegí el depósito','err'); return; }
+    row.deposito=dep; row.origen=dep;
+    donde='sin ubicar en '+dep;
+  }
+
+  var btn=document.getElementById('btn-save-pallet'); btn.disabled=true;
+  toast('Abriendo pallet…','info');
+  SB.from('imp_pallets').insert(row).select().single().then(function(r){
     btn.disabled=false;
     if(r.error){ toast('Error: '+r.error.message,'err'); return; }
     closeModal('pallet-overlay');
     PALLETS.unshift(r.data);              // para poder abrir el detalle en el acto
-    toast('📦 Pallet abierto en '+letterOf(fila)+col+' — contá y cerralo para generar el QR','ok');
+    toast('📦 Pallet abierto '+donde+' — contá y cerralo para generar el QR','ok');
     load();
     openPalletDetail(r.data.id);
   });
@@ -2151,7 +2315,10 @@ function openPalletDetail(id){
      '<div class="detail-item span2"><div class="detail-label">Artículo</div><div class="detail-value">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Estado</div><div class="detail-value">'+estadoPal(p.estado)+'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Ubicación</div><div class="detail-value">📍 '+esc(palLoc(p))+'</div></div>'
-    +'<div class="detail-item"><div class="detail-label">Cajas × u/caja</div><div class="detail-value" style="font-family:var(--mono)">'+(p.cajas?fmtNum(p.cajas):'—')+' × '+(uxc?fmtNum(uxc):'—')+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Composición</div><div class="detail-value" style="font-family:var(--mono);font-size:12.5px">'
+      +(p.cajas?fmtNum(p.cajas):'—')+' × '+(uxc?fmtNum(uxc):'—')
+      +(num(p.remanente)?(' <span style="color:var(--orange-l)">+ '+fmtNum(p.remanente)+' suelt'+(num(p.remanente)===1?'a':'as')+'</span>'):'')
+      +'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Unidades</div><div class="detail-value" style="font-family:var(--mono);color:var(--teal-l)">'+fmtNum(p.unidades)+'</div></div>';
 
   var parked=p.estado==='ESTACIONADO';
@@ -2159,6 +2326,8 @@ function openPalletDetail(id){
   document.getElementById('pd-conteo').style.display=abierto?'block':'none';
   if(abierto){
     document.getElementById('pd-cajas').value=p.cajas||'';
+    document.getElementById('pd-uxc').value=uxc||'';
+    document.getElementById('pd-rem').value=num(p.remanente)||'';
     document.getElementById('pd-unid').value=p.unidades||'';
     pdHint();
   }
@@ -2178,32 +2347,39 @@ function openPalletDetail(id){
 function pdHint(){
   if(!CUR_PAL) return;
   var uxc=uxcOf(CUR_PAL), h=document.getElementById('pd-hint');
-  var cajas=num(document.getElementById('pd-cajas').value), unid=num(document.getElementById('pd-unid').value);
+  var cajas=num(document.getElementById('pd-cajas').value);
+  var rem=num(document.getElementById('pd-rem').value);
+  var unid=num(document.getElementById('pd-unid').value);
   if(!uxc){ h.textContent='El artículo no tiene unidades por caja cargadas: ingresá el total a mano.'; h.className='hint-note'; return; }
-  if(cajas>0 && unid>0 && cajas*uxc!==unid){
-    // Diferencia legítima (caja incompleta), pero conviene que se vea
-    h.textContent='⚠ '+fmtNum(cajas)+' × '+fmtNum(uxc)+' = '+fmtNum(cajas*uxc)+' u., pero el conteo dice '+fmtNum(unid)+' u.';
+  var calc=cajas*uxc+rem;
+  if((cajas>0||rem>0) && unid>0 && calc!==unid){
+    h.textContent='⚠ '+fmtNum(cajas)+' × '+fmtNum(uxc)+(rem?(' + '+fmtNum(rem)):'')+' = '+fmtNum(calc)+' u., pero el total dice '+fmtNum(unid)+' u.';
     h.className='hint-note hint-warn'; return;
   }
-  h.textContent=fmtNum(uxc)+' unidades por caja'+(cajas>0?(' · '+fmtNum(cajas)+' cajas = '+fmtNum(cajas*uxc)+' u.'):'');
   h.className='hint-note';
+  h.textContent = (cajas>0||rem>0)
+    ? (fmtNum(cajas)+' × '+fmtNum(uxc)+(rem?(' + '+fmtNum(rem)+' sueltas'):'')+' = '+fmtNum(calc)+' u.')
+    : (fmtNum(uxc)+' unidades por caja');
 }
-// Al editar las cajas sí recalcula el total
+// Al editar cajas o remanente se recalcula el total
 function pdCalc(){
   if(!CUR_PAL) return;
-  var uxc=uxcOf(CUR_PAL), cajas=num(document.getElementById('pd-cajas').value);
-  if(uxc>0&&cajas>0) document.getElementById('pd-unid').value=cajas*uxc;
+  var uxc=uxcOf(CUR_PAL);
+  var cajas=num(document.getElementById('pd-cajas').value);
+  var rem=num(document.getElementById('pd-rem').value);
+  if(uxc>0 && (cajas>0||rem>0)) document.getElementById('pd-unid').value=cajas*uxc+rem;
   pdHint();
 }
 function pdGuardarConteo(){
   if(!CUR_PAL) return;
   var cajas=num(document.getElementById('pd-cajas').value);
+  var rem  =num(document.getElementById('pd-rem').value);
   var unid =num(document.getElementById('pd-unid').value);
   var btn=document.getElementById('pd-btn-guardar'); btn.disabled=true;
-  SB.rpc('imp_pallet_contar',{p_pallet:CUR_PAL.id,p_cajas:cajas||null,p_unidades:unid,p_user:whoName()}).then(function(r){
+  SB.rpc('imp_pallet_contar',{p_pallet:CUR_PAL.id,p_cajas:cajas||null,p_unidades:unid,p_remanente:rem,p_user:whoName()}).then(function(r){
     btn.disabled=false;
     if(r.error||(r.data&&r.data.ok===false)){ toast('Error: '+(r.error?r.error.message:r.data.error),'err'); return; }
-    CUR_PAL.cajas=cajas||null; CUR_PAL.unidades=unid;
+    CUR_PAL.cajas=cajas||null; CUR_PAL.unidades=unid; CUR_PAL.remanente=rem;
     toast('Conteo guardado','ok'); load();
   });
 }
@@ -2211,12 +2387,13 @@ function pdGuardarConteo(){
 function pdCerrar(){
   if(!CUR_PAL) return;
   var cajas=num(document.getElementById('pd-cajas').value);
+  var rem  =num(document.getElementById('pd-rem').value);
   var unid =num(document.getElementById('pd-unid').value);
   if(!(unid>0)){ toast('Contá las unidades antes de cerrar','err'); document.getElementById('pd-unid').focus(); return; }
   if(!confirm('Cerrar el pallet con '+fmtNum(unid)+' unidades.\n\nSe generará el QR y esas unidades entrarán al stock de '+CUR_PAL.deposito+'.\nDespués no se puede cambiar el conteo.')) return;
   var btn=document.getElementById('pd-btn-cerrar'); btn.disabled=true;
   toast('Cerrando pallet…','info');
-  SB.rpc('imp_pallet_contar',{p_pallet:CUR_PAL.id,p_cajas:cajas||null,p_unidades:unid,p_user:whoName()})
+  SB.rpc('imp_pallet_contar',{p_pallet:CUR_PAL.id,p_cajas:cajas||null,p_unidades:unid,p_remanente:rem,p_user:whoName()})
     .then(function(r){
       if(r.error||(r.data&&r.data.ok===false)) throw new Error(r.error?r.error.message:r.data.error);
       return SB.rpc('imp_pallet_cerrar',{p_pallet:CUR_PAL.id,p_user:whoName()});
@@ -2224,7 +2401,7 @@ function pdCerrar(){
     .then(function(r){
       btn.disabled=false;
       if(r.error||(r.data&&r.data.ok===false)){ toast('Error: '+(r.error?r.error.message:r.data.error),'err'); return; }
-      CUR_PAL.estado='ESTACIONADO'; CUR_PAL.cajas=cajas||null; CUR_PAL.unidades=unid;
+      CUR_PAL.estado='ESTACIONADO'; CUR_PAL.cajas=cajas||null; CUR_PAL.unidades=unid; CUR_PAL.remanente=rem;
       closeModal('paldet-overlay');
       toast('🔒 Pallet cerrado · +'+fmtNum(unid)+' u. al stock de '+CUR_PAL.deposito,'ok');
       showQR(CUR_PAL);
@@ -2311,7 +2488,9 @@ function pdfLabel(){
     var desc=(a?a.descripcion:('#'+p.articulo_id)); if(desc.length>42)desc=desc.slice(0,41)+'…';
     doc.text(desc,50,92,{align:'center'});
     var uxc=p.un_x_caja||(a&&a.un_x_caja)||0;
-    doc.text((p.cajas?(fmtNum(p.cajas)+' cajas'):'—')+(uxc?(' x '+fmtNum(uxc)+' u/caja'):''),50,99,{align:'center'});
+    var rem=parseFloat(p.remanente)||0;
+    doc.text((p.cajas?(fmtNum(p.cajas)+' cajas'):'—')+(uxc?(' x '+fmtNum(uxc)+' u/caja'):'')
+             +(rem?(' + '+fmtNum(rem)+' sueltas'):''),50,99,{align:'center'});
     doc.setFont('helvetica','bold'); doc.text('TOTAL: '+fmtNum(p.unidades)+' u.',50,106,{align:'center'});
     doc.setFont('helvetica','normal'); doc.setFontSize(8);
     doc.text('Ubicacion: '+String(palLoc(p)),50,113,{align:'center'});

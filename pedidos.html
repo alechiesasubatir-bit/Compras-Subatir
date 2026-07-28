@@ -349,6 +349,16 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   .kpi-val,.money-cell,.orden-cell{color:#000!important}
   .muted-cell{color:#555!important}
 }
+
+/* ═══ DESPLEGABLES OSCUROS ═══════════════════════════════════
+   Los <select> con class .form-input quedaban sin regla para sus
+   opciones y Windows los pintaba con el blanco del sistema.
+   color-scheme alinea los popups nativos; la regla explícita hace
+   falta porque en Windows el desplegable lo ignora. */
+html{color-scheme:dark}
+select{color-scheme:dark}
+select option,select optgroup{background:#0c1119;color:#e2e8f0}
+select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -1898,21 +1908,38 @@ function delEntrega(id){
 function pdfEntregas(){ if(CUR_LINE) receptionForOrder(String(CUR_LINE[K.orden])); }
 function isPendiente(r){ var v = r[K.recepcion]; return !v || v === '' || v === '0000-00-00'; }
 function pNum(v){
-  if (!v && v !== 0) return 0;
+  if (v === null || v === undefined || v === '') return 0;
+  // Si ya es número no hay nada que interpretar. La versión anterior lo pasaba
+  // por String() y lo re-parseaba, y ahí rompiía precios como 0.576.
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+
   var s = String(v).trim();
-  // Detectar formato europeo: punto como separador de miles, coma como decimal
-  // Ej: "1.234,56" → "1234.56"  |  "1.234" (sin coma) → puede ser entero europeo o decimal anglosajón
-  if (/\d\.\d{3}(,\d+)?$/.test(s)) {
-    // Formato europeo: quitar puntos de miles, cambiar coma decimal por punto
-    s = s.replace(/\./g,'').replace(',','.');
-  } else {
-    // Formato anglosajón o sin separador: quitar comas de miles
-    s = s.replace(/,(?=\d{3})/g,'');
-    // Si queda una coma (decimal anglosajón con solo coma), convertirla
-    s = s.replace(',','.');
+  if (!s) return 0;
+  var neg = /^-/.test(s) || /^\(.*\)$/.test(s);   // (123,45) en notación contable
+  s = s.replace(/[^\d.,]/g,'');                   // fuera símbolos de moneda y espacios
+  if (!s) return 0;
+
+  var puntos = (s.match(/\./g) || []).length;
+  var comas  = (s.match(/,/g)  || []).length;
+
+  if (puntos && comas){
+    // Con ambos separadores, el decimal es el último que aparece
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g,'').replace(/,/g,'.');
+    else                                         s = s.replace(/,/g,'');
+  } else if (comas){
+    // Sólo comas: son miles si forman grupos exactos de 3; si no, es la decimal
+    s = (comas > 1 || /^\d{1,3}(,\d{3})+$/.test(s)) ? s.replace(/,/g,'') : s.replace(',','.');
+  } else if (puntos > 1){
+    s = s.replace(/\./g,'');                      // 1.234.567 → miles
   }
-  s = s.replace(/[^\d.-]/g,'');
-  return parseFloat(s) || 0;
+  // Un solo punto queda como DECIMAL: esta app maneja precios unitarios de hasta
+  // 3 decimales (el formulario usa step="0.001"), así que "0.576" son 576 milésimas
+  // y no quinientos setenta y seis. Para leer un punto como separador de miles hace
+  // falta evidencia explícita: una coma decimal ("1.234,56") o varios grupos.
+
+  var n = parseFloat(s);
+  if (!isFinite(n)) return 0;
+  return neg ? -Math.abs(n) : n;
 }
 function fmtUSD(n,dec){ dec=dec||0; return 'U$S ' + n.toLocaleString('es-UY',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
 function fmtPSO(n,dec){ dec=dec||0; return '$ '   + n.toLocaleString('es-UY',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }

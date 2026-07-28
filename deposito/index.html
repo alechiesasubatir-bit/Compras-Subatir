@@ -1347,6 +1347,8 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
       <button class="btn btn-ghost btn-sm" id="pd-btn-guardar" onclick="pdGuardarConteo()">💾 Guardar conteo</button>
       <button class="btn btn-primary btn-sm" id="pd-btn-qr" onclick="pdShowQR()">🔳 Ver QR</button>
       <button class="btn btn-orange btn-sm" id="pd-btn-desp" onclick="pdDespachar()">🚚 Despachar</button>
+      <button class="btn btn-ghost btn-sm" id="pd-btn-reabrir" onclick="pdReabrir()">✏ Corregir conteo</button>
+      <button class="btn btn-ghost btn-sm" id="pd-btn-desmarcar" onclick="pdDesmarcar()">↩ Desmarcar despacho</button>
       <button class="btn btn-ghost btn-sm" id="pd-btn-unpark" onclick="pdUnpark()">↩ Quitar de ranura</button>
       <button class="btn btn-ghost" onclick="closeModal('paldet-overlay')">Cerrar</button>
     </div>
@@ -2300,7 +2302,10 @@ function rackBuild(){
   var ests=depEsts();
   if(!ests.length){ clearGroup(R3D.palGroup); R3D.palTargets=[]; R3D.totalW=8; R3D.totalD=DEP; return; }
 
-  var AISLE=3.6, ROW_GAP=DEP+5.2;          // pasillo entre racks / entre hileras
+  // Pasillo entre racks de una misma hilera / separación entre hileras.
+  // ROW_GAP es de centro a centro, así que el espacio libre real es
+  // ROW_GAP-DEP: para triplicar el pasillo hay que triplicar ese resto.
+  var AISLE=10.8, ROW_GAP=DEP+15.6;
   var pl=planoRows(ests), keys=pl.keys, rows=pl.rows;
 
   var maxW=0;
@@ -2791,11 +2796,17 @@ function openPalletDetail(id){
   document.getElementById('pd-despacho').style.display='none';
   document.getElementById('pd-btn-desp').textContent='🚚 Despachar';
   var show=function(id,on){ document.getElementById(id).style.display=on?'inline-flex':'none'; };
-  show('pd-btn-cerrar',  abierto);
-  show('pd-btn-guardar', abierto);
-  show('pd-btn-qr',      !abierto);            // el QR recién existe cuando se cierra
-  show('pd-btn-desp',    parked);
-  show('pd-btn-unpark',  (parked||abierto)&&!!p.estanteria_id);
+  // Un pallet armado que sigue sin ubicar y sin despachar todavía se
+  // puede corregir: se reabre, se recuenta y se vuelve a cerrar. Con
+  // ranura o con destino ya no, para que el mapa y el QR no mientan.
+  var corregible = parked && !p.estanteria_id && !p.destino;
+  show('pd-btn-cerrar',   abierto);
+  show('pd-btn-guardar',  abierto);
+  show('pd-btn-qr',       !abierto);            // el QR recién existe cuando se cierra
+  show('pd-btn-desp',     parked && !p.destino);
+  show('pd-btn-reabrir',  corregible);
+  show('pd-btn-desmarcar',parked && !!p.destino);
+  show('pd-btn-unpark',   (parked||abierto)&&!!p.estanteria_id);
   document.getElementById('pd-destino').innerHTML=DEPS.filter(function(d){return d.nombre!==p.deposito;}).map(function(d){return '<option>'+esc(d.nombre)+'</option>';}).join('');
   pdHist(p.id);
   openModal('paldet-overlay');
@@ -2894,9 +2905,34 @@ function pdHist(pid){
 }
 // INGRESO y ARMADO son de v5: la mercadería entra suelta y después se palletiza.
 // RECEPCION queda para leer los movimientos viejos, de cuando cerrar sumaba stock.
-var MOV_ICO={INGRESO:'📥',ARMADO:'🏷',RECEPCION:'📥',UBICACION:'📍',SALIDA:'🚚',ENTRADA:'✅',CONSUMO:'🔥',TRANSFER:'🔁',AJUSTE:'✏'};
-var MOV_CLS={INGRESO:'h-ok',ARMADO:'h-loc',RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',CONSUMO:'h-use',TRANSFER:'h-tr'};
+var MOV_ICO={INGRESO:'📥',ARMADO:'🏷',REAPERTURA:'✏',RECEPCION:'📥',UBICACION:'📍',SALIDA:'🚚',ENTRADA:'✅',CONSUMO:'🔥',TRANSFER:'🔁',AJUSTE:'✏'};
+var MOV_CLS={INGRESO:'h-ok',ARMADO:'h-loc',REAPERTURA:'h-tr',RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',CONSUMO:'h-use',TRANSFER:'h-tr'};
 function pdShowQR(){ if(CUR_PAL) showQR(CUR_PAL); }
+// Reabrir para corregir: el QR impreso lleva las cantidades, así que
+// cambiar los números exige cerrarlo de nuevo y reimprimir la etiqueta.
+function pdReabrir(){
+  if(!CUR_PAL) return;
+  if(!confirm('Reabrir el pallet '+CUR_PAL.codigo+' para corregir el conteo.\n\nVuelve al estado abierto y el QR ya impreso deja de valer:\nal cerrarlo de nuevo hay que reimprimir la etiqueta.')) return;
+  var btn=document.getElementById('pd-btn-reabrir'); btn.disabled=true;
+  SB.rpc('imp_pallet_reabrir',{p_pallet:CUR_PAL.id,p_user:whoName()}).then(function(r){
+    btn.disabled=false;
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    if(r.data && r.data.ok===false){ toast(r.data.error||'No se pudo reabrir','err'); return; }
+    toast('✏ Pallet reabierto — corregí el conteo y cerralo de nuevo','ok');
+    var id=CUR_PAL.id;
+    load().then(function(){ openPalletDetail(id); });
+  });
+}
+function pdDesmarcar(){
+  if(!CUR_PAL) return;
+  SB.rpc('imp_pallet_desmarcar',{p_pallet:CUR_PAL.id,p_user:whoName()}).then(function(r){
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    if(r.data && r.data.ok===false){ toast(r.data.error||'No se pudo desmarcar','err'); return; }
+    toast('↩ Despacho desmarcado','ok');
+    var id=CUR_PAL.id;
+    load().then(function(){ openPalletDetail(id); });
+  });
+}
 function pdDespachar(){
   if(!CUR_PAL) return;
   var box=document.getElementById('pd-despacho');

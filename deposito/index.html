@@ -852,7 +852,17 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="../supabase-config.js?v=9"></script>
-<script src="deposito-app.js?v=1"></script>
+<script src="deposito-app.js?v=2"></script>
+<script>
+// ── Versión de la app ────────────────────────────────────────
+//  Toda la app vive dentro de este HTML, así que versionar los
+//  scripts sueltos (?v=N) no alcanza: lo que se queda viejo es el
+//  documento. Se compara contra version.json, que se pide sin
+//  caché, y si hay una versión nueva la pestaña se recarga sola.
+//  Hace falta porque los operarios dejan la pestaña abierta todo
+//  el día y nunca llegarían a ver un deploy.
+window.APP_VER='2026-07-28.1';
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -2566,11 +2576,14 @@ function rackResetCam(){
   if(!R3D) return; var ests=depEsts(), R=ests[0]?ests[0].filas:4;
   var w=R3D.totalW||12, d=R3D.totalD||DEP, h=BASE+R*LVL;
   var multi = d > DEP*1.6;                       // hay más de una hilera
-  // con varias hileras hay que alejarse para que entren todas
-  var dist=Math.max(w*0.62, h, d*0.9)*1.12+5+d*0.45;
+  // El pasillo entre hileras es piso vacío: si la cámara se aleja en
+  // proporción a él, los racks quedan diminutos. Cuenta a peso reducido,
+  // lo justo para que entren las dos hileras sin encuadrar el vacío.
+  var dEff = DEP + (d-DEP)*0.45;
+  var dist=Math.max(w*0.62, h, dEff*0.9)*1.12+5+dEff*0.45;
   // De frente las hileras se tapan entre sí: con varias, vista en 3/4 desde arriba
-  R3D.camera.position.set(multi ? w*0.70+d*0.35 : w*0.10,
-                          h*(multi?1.05:0.66)+2+d*0.22,
+  R3D.camera.position.set(multi ? w*0.70+dEff*0.35 : w*0.10,
+                          h*(multi?1.05:0.66)+2+dEff*0.22,
                           dist);
   R3D.controls.target.set(0, h*0.42, 0); R3D.controls.update();
 }
@@ -3234,9 +3247,34 @@ document.addEventListener('pointerdown', function(e){
 });
 document.addEventListener('click', function(e){ if(DND_justDragged){ e.stopPropagation(); e.preventDefault(); } }, true);
 
+// ── Chequeo de versión ─────────────────────────────────────────
+//  version.json se pide con cache:'no-store' y un parámetro de
+//  tiempo, así que llega siempre fresco aunque el HTML esté viejo.
+//  Si no coincide, se recarga apuntando a la versión nueva.
+//  El sessionStorage evita el bucle si el servidor sigue mandando
+//  el documento viejo: se intenta una sola vez por versión.
+function checkVersion(){
+  if(!window.APP_VER) return;
+  fetch('version.json?t='+Date.now(), {cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){
+      if(!j || !j.v || j.v===APP_VER) return;
+      if(sessionStorage.getItem('dep_ver_reload')===j.v) return;
+      sessionStorage.setItem('dep_ver_reload', j.v);
+      if(window.toast) toast('Hay una versión nueva — actualizando…','info');
+      setTimeout(function(){
+        location.replace(location.pathname+'?v='+encodeURIComponent(j.v));
+      }, 1200);
+    })
+    .catch(function(){});   // sin conexión no es motivo para molestar
+}
+
 (window.SubatirApp && SubatirApp.ready ? SubatirApp.ready : Promise.resolve()).then(function(){
   load();
   if(window.SubatirApp && SubatirApp.live) SubatirApp.live(['imp_articulos','imp_stock','imp_pallets','imp_movimientos','imp_zonas','imp_estanterias'], load);
+  checkVersion();
+  // La pestaña queda abierta todo el día: se vuelve a mirar cada 10 min
+  setInterval(checkVersion, 600000);
 });
 </script>
 </body>

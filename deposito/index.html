@@ -476,6 +476,16 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 }
 @media print{ .fab{display:none!important} }
 
+/* ═══ TRAZABILIDAD: historial de consumidos, plegable ════════ */
+.hist-block{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+.hist-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  padding:9px 12px;border-radius:10px;cursor:pointer;text-align:left;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--muted-l);
+  font-family:var(--display);font-size:11.5px;font-weight:800;letter-spacing:.4px;
+  text-transform:uppercase;transition:border-color .15s,color .15s,background .15s}
+.hist-toggle:hover{border-color:rgba(27,200,255,.4);color:var(--teal-l);background:rgba(27,200,255,.06)}
+.hist-toggle[aria-expanded="true"]{color:var(--teal-l)}
+
 /* ═══ TRANSFERENCIA: lista de pallets armados ════════════════ */
 .tr-list{max-height:270px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}
 /* Es un <label> para que toda la fila sea clickeable, pero la regla
@@ -1033,11 +1043,11 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 
     <div id="grid2d-wrap" style="overflow-x:auto;display:none"><div id="grid-host"></div></div>
 
-    <!-- Depósito de fábrica: no hay ranuras, hay zonas de descarga -->
+    <!-- Depósito de fábrica: no hay ranuras ni lugar que elegir -->
     <div id="zonas-wrap" style="display:none">
       <div class="fab-note">
-        🔥 <b>Depósito de fábrica.</b> Acá la mercadería no se estaciona: se descarga en una zona
-        y se consume en el acto. El pallet se cierra al escanear su llegada.
+        🔥 <b>Depósito de fábrica.</b> Acá la mercadería no se estaciona: llega y se consume en el
+        acto. Escanear el QR del pallet confirma la recepción y cierra su trazabilidad.
       </div>
       <div id="zonas-host" class="zonas"></div>
     </div>
@@ -1064,26 +1074,60 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
         <span class="badge badge-info" id="pal-count">—</span>
         <button class="btn btn-primary btn-sm" onclick="openTransfer()" title="Elegir pallets armados y marcarlos para despacho">🚚 Transferir pallets</button>
         <button class="btn btn-orange btn-sm" onclick="openScan()">📷 Escanear QR</button>
+        <button class="btn btn-ghost btn-sm" id="pal-toggle" onclick="palToggle()"
+                aria-expanded="false" aria-controls="pal-body">▸ Ver pallets</button>
       </div>
     </div>
-    <div class="table-wrap">
-      <table id="pal-table">
-        <thead>
-          <tr>
-            <th>Código QR</th>
-            <th>Artículo</th>
-            <th style="text-align:right">Cajas</th>
-            <th style="text-align:right">Unidades</th>
-            <th style="text-align:center">Ubicación</th>
-            <th style="text-align:center">Estado</th>
-            <th>Fecha</th>
-            <th style="text-align:center">Acción</th>
-          </tr>
-        </thead>
-        <tbody id="pal-tbody">
-          <tr class="empty-row"><td colspan="8">Sin pallets todavía.</td></tr>
-        </tbody>
-      </table>
+
+    <!-- Plegada por defecto: es una tabla larga que empujaba todo hacia abajo -->
+    <div id="pal-body" style="display:none">
+      <div class="table-wrap">
+        <table id="pal-table">
+          <thead>
+            <tr>
+              <th>Código QR</th>
+              <th>Artículo</th>
+              <th style="text-align:right">Cajas</th>
+              <th style="text-align:right">Unidades</th>
+              <th style="text-align:center">Ubicación</th>
+              <th style="text-align:center">Estado</th>
+              <th>Fecha</th>
+              <th style="text-align:center">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="pal-tbody">
+            <tr class="empty-row"><td colspan="8">Sin pallets todavía.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Los que llegaron a la fábrica ya no son stock: son historia -->
+      <div class="hist-block">
+        <button class="hist-toggle" id="hist-toggle" onclick="histToggle()"
+                aria-expanded="false" aria-controls="pal-hist">
+          <span>▸ Historial · consumidos</span>
+          <span class="badge badge-info" id="hist-count">—</span>
+        </button>
+        <div id="pal-hist" style="display:none">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código QR</th>
+                  <th>Artículo</th>
+                  <th style="text-align:right">Unidades</th>
+                  <th style="text-align:center">Destino</th>
+                  <th>Consumido</th>
+                  <th style="text-align:center">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="hist-tbody">
+                <tr class="empty-row"><td colspan="6">Todavía no se consumió ningún pallet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1380,18 +1424,6 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
       <div id="qr-reader" style="width:100%;max-width:380px;margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid var(--border)"></div>
       <div id="scan-status" style="margin-top:12px;font-size:13px;color:var(--muted-l)">Apuntá la cámara al QR del pallet…</div>
 
-      <!-- Llegada a fábrica: hay que decir en qué zona se descarga -->
-      <div id="scan-zona" style="display:none;margin-top:14px;text-align:left">
-        <div class="count-box" style="border-color:rgba(27,200,255,.35);background:linear-gradient(180deg,rgba(27,200,255,.07),transparent)">
-          <div class="count-head" style="color:var(--teal-l)">📍 ¿Dónde se descarga?</div>
-          <div class="form-group">
-            <label for="sz-zona">Zona de <span id="sz-dep">fábrica</span> *</label>
-            <select class="form-input" id="sz-zona"></select>
-          </div>
-          <div class="hint-note" id="sz-hint">—</div>
-          <button class="btn btn-primary" style="margin-top:12px;width:100%;justify-content:center" onclick="scanConfirmZona()">🔥 Confirmar descarga y consumo</button>
-        </div>
-      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeScan()">Cerrar</button>
@@ -1687,10 +1719,50 @@ function palLoc(p){
   if(p.estado==='EN_TRANSITO') return (p.origen||'')+' → '+(p.destino||'')+' (en tránsito)';
   return (p.deposito||'—')+(p.estado==='ESTACIONADO'?' · sin ranura':'');
 }
+// Plegado/desplegado de la sección y del historial
+function palToggle(){
+  var b=document.getElementById('pal-body'), t=document.getElementById('pal-toggle');
+  var abrir = b.style.display==='none';
+  b.style.display = abrir?'':'none';
+  t.setAttribute('aria-expanded', abrir?'true':'false');
+  t.textContent = (abrir?'▾':'▸')+' Ver pallets';
+}
+function histToggle(){
+  var h=document.getElementById('pal-hist'), t=document.getElementById('hist-toggle');
+  var abrir = h.style.display==='none';
+  h.style.display = abrir?'':'none';
+  t.setAttribute('aria-expanded', abrir?'true':'false');
+  t.querySelector('span').textContent = (abrir?'▾':'▸')+' Historial · consumidos';
+}
+
+// Orden por ubicación física: primero lo que está en una ranura, por
+// estantería y coordenada, después lo que quedó suelto y por último lo
+// que va en viaje. Ordenar por fecha no servía para recorrer el rack.
+function palOrden(a,b){
+  var grupo=function(p){ return p.estanteria_id ? 0 : (p.estado==='EN_TRANSITO' ? 2 : 1); };
+  var ga=grupo(a), gb=grupo(b);
+  if(ga!==gb) return ga-gb;
+  if(ga===0){
+    var ea=(estById(a.estanteria_id)||{}).nombre||'', eb=(estById(b.estanteria_id)||{}).nombre||'';
+    if(ea!==eb) return ea.localeCompare(eb,'es');
+    if(a.fila!==b.fila) return num(a.fila)-num(b.fila);
+    return num(a.columna)-num(b.columna);
+  }
+  return new Date(b.created_at||0)-new Date(a.created_at||0);
+}
+
 function renderPallets(){
-  document.getElementById('pal-count').textContent=PALLETS.length+' pallets';
-  if(!PALLETS.length){ document.getElementById('pal-tbody').innerHTML='<tr class="empty-row"><td colspan="8">Sin pallets todavía.</td></tr>'; return; }
-  document.getElementById('pal-tbody').innerHTML = PALLETS.map(function(p){
+  var activos=PALLETS.filter(function(p){ return p.estado!=='CONSUMIDO'; }).sort(palOrden);
+  var hist=PALLETS.filter(function(p){ return p.estado==='CONSUMIDO'; })
+                  .sort(function(a,b){ return new Date(b.consumido_at||0)-new Date(a.consumido_at||0); });
+
+  var plural=function(n,sing,plur){ return n+' '+(n===1?sing:plur); };
+  document.getElementById('pal-count').textContent =
+    plural(activos.length,'activo','activos')
+    +(hist.length?(' · '+plural(hist.length,'consumido','consumidos')):'');
+  document.getElementById('hist-count').textContent = plural(hist.length,'pallet','pallets');
+
+  document.getElementById('pal-tbody').innerHTML = activos.length ? activos.map(function(p){
     var a=artById(p.articulo_id);
     var f=p.created_at?new Date(p.created_at).toLocaleDateString('es-UY'):'—';
     return '<tr>'
@@ -1703,7 +1775,20 @@ function renderPallets(){
       +'<td class="muted-cell" style="font-size:12px">'+f+'</td>'
       +'<td style="text-align:center"><button class="btn btn-ghost btn-sm" onclick="openPalletDetail('+p.id+')">⚙ Gestionar</button></td>'
     +'</tr>';
-  }).join('');
+  }).join('') : '<tr class="empty-row"><td colspan="8">Sin pallets activos.</td></tr>';
+
+  document.getElementById('hist-tbody').innerHTML = hist.length ? hist.map(function(p){
+    var a=artById(p.articulo_id);
+    var f=p.consumido_at?new Date(p.consumido_at).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    return '<tr>'
+      +'<td class="mono-cell" style="color:var(--muted-l)">'+esc(p.codigo)+'</td>'
+      +'<td class="desc-cell" style="max-width:220px" title="'+esc(a?a.descripcion:'')+'">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</td>'
+      +'<td class="num-cell tot">'+fmtNum(p.unidades)+'</td>'
+      +'<td class="mono-cell" style="text-align:center">'+esc(p.deposito||'—')+'</td>'
+      +'<td class="muted-cell" style="font-size:12px">'+f+(p.consumido_by?(' · '+esc(p.consumido_by)):'')+'</td>'
+      +'<td style="text-align:center"><button class="btn btn-ghost btn-sm" onclick="openPalletDetail('+p.id+')">⚙ Ver</button></td>'
+    +'</tr>';
+  }).join('') : '<tr class="empty-row"><td colspan="6">Todavía no se consumió ningún pallet.</td></tr>';
 }
 
 // ── Cuadrícula (mapa del depósito) ─────────────────────────────
@@ -1729,38 +1814,54 @@ function mapaModo(){
   set('#zonas-wrap', fab);
   var ge=document.getElementById('g-est'); if(ge) ge.style.display=fab?'none':'';
   var bl=document.getElementById('btn-layout'); if(bl) bl.style.display=fab?'none':'';
-  if(fab) renderZonas();
+  if(fab) renderFabrica();
   return fab;
 }
-// Panel de zonas de una fabrica: que se descargo y consumio en cada una
-function renderZonas(){
+// Panel de una fábrica. Antes desglosaba por zonas (Producción / Playa /
+// Insumos), que eran una semilla inventada en la migración: en Artigas la
+// mercadería llega y se usa, sin escala intermedia. Queda lo que importa:
+// qué viene en camino y qué ya se consumió.
+function renderFabrica(){
   var host=document.getElementById('zonas-host'); if(!host) return;
-  var zs=zonasDe(GRID.dep);
-  if(!zs.length){
-    host.innerHTML='<div style="font-size:13px;color:var(--muted)">Este deposito no tiene zonas cargadas. Agregalas en la tabla <b>imp_zonas</b>.</div>';
-    return;
-  }
+  var dep=GRID.dep;
+  var sum=function(ps){ return ps.reduce(function(a,p){ return a+num(p.unidades); },0); };
+  var linea=function(p, cuando){
+    var a=artById(p.articulo_id);
+    return '<div class="zona-u" role="button" tabindex="0" onclick="openPalletDetail('+p.id+')" title="Ver detalle">'
+      +'<span class="zona-uc">'+esc(p.codigo)+'</span>'
+      +'<span class="zona-ud">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</span>'
+      +'<span class="zona-uq">'+fmtNum(p.unidades)+' u.</span></div>';
+  };
+
+  var pal=function(n){ return fmtNum(n)+' pallet'+(n===1?'':'s'); };
+  var cons=PALLETS.filter(function(p){ return p.deposito===dep && p.estado==='CONSUMIDO'; });
+  var cam =PALLETS.filter(function(p){ return p.estado==='EN_TRANSITO' && p.destino===dep; });
   var hoy=new Date(); hoy.setHours(0,0,0,0);
-  host.innerHTML=zs.map(function(z){
-    var enZona=PALLETS.filter(function(p){ return String(p.zona_id)===String(z.id) && p.estado==='CONSUMIDO'; });
-    var tot=enZona.reduce(function(a,p){ return a+num(p.unidades); },0);
-    var hoyN=enZona.filter(function(p){ return p.consumido_at && new Date(p.consumido_at)>=hoy; });
-    var totHoy=hoyN.reduce(function(a,p){ return a+num(p.unidades); },0);
-    var ult=enZona.slice().sort(function(a,b){ return new Date(b.consumido_at||0)-new Date(a.consumido_at||0); }).slice(0,3);
-    return '<div class="zona">'
-      +'<div class="zona-h"><span class="zona-n">'+esc(z.nombre)+'</span>'
-        +'<span class="zona-b">'+fmtNum(enZona.length)+' pallets</span></div>'
-      +'<div class="zona-k"><span>Consumido</span><b>'+fmtNum(tot)+'</b><i>unidades</i></div>'
-      +(totHoy?('<div class="zona-hoy">Hoy: <b>'+fmtNum(totHoy)+'</b> u. en '+hoyN.length+' pallet'+(hoyN.length===1?'':'s')+'</div>'):'')
-      +(ult.length?('<div class="zona-ult">'+ult.map(function(p){
-          var a=artById(p.articulo_id);
-          return '<div class="zona-u" role="button" tabindex="0" onclick="openPalletDetail('+p.id+')" title="Ver detalle">'
-            +'<span class="zona-uc">'+esc(p.codigo)+'</span>'
-            +'<span class="zona-ud">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</span>'
-            +'<span class="zona-uq">'+fmtNum(p.unidades)+' u.</span></div>';
-        }).join('')+'</div>'):'<div class="zona-ult"><div class="zona-empty">Sin consumos registrados</div></div>')
+  var hoyN=cons.filter(function(p){ return p.consumido_at && new Date(p.consumido_at)>=hoy; });
+
+  var ultCons=cons.slice().sort(function(a,b){
+    return new Date(b.consumido_at||0)-new Date(a.consumido_at||0); }).slice(0,5);
+  var ultCam=cam.slice().sort(function(a,b){
+    return new Date(b.salida_at||0)-new Date(a.salida_at||0); }).slice(0,5);
+
+  host.innerHTML =
+    '<div class="zona">'
+      +'<div class="zona-h"><span class="zona-n">🚚 En camino</span>'
+        +'<span class="zona-b">'+pal(cam.length)+'</span></div>'
+      +'<div class="zona-k"><span>Por llegar</span><b>'+fmtNum(sum(cam))+'</b><i>unidades</i></div>'
+      +(ultCam.length
+          ? '<div class="zona-ult">'+ultCam.map(linea).join('')+'</div>'
+          : '<div class="zona-ult"><div class="zona-empty">Nada en tránsito hacia '+esc(dep)+'</div></div>')
+    +'</div>'
+    +'<div class="zona">'
+      +'<div class="zona-h"><span class="zona-n">🔥 Consumido</span>'
+        +'<span class="zona-b">'+pal(cons.length)+'</span></div>'
+      +'<div class="zona-k"><span>Total</span><b>'+fmtNum(sum(cons))+'</b><i>unidades</i></div>'
+      +(hoyN.length?('<div class="zona-hoy">Hoy: <b>'+fmtNum(sum(hoyN))+'</b> u. en '+hoyN.length+' pallet'+(hoyN.length===1?'':'s')+'</div>'):'')
+      +(ultCons.length
+          ? '<div class="zona-ult">'+ultCons.map(linea).join('')+'</div>'
+          : '<div class="zona-ult"><div class="zona-empty">Sin consumos registrados</div></div>')
     +'</div>';
-  }).join('');
 }
 function onGridDep(){
   GRID.dep=document.getElementById('g-dep').value;
@@ -2859,8 +2960,7 @@ function pdfLabel(){
 
 // ── Escaneo por cámara ─────────────────────────────────────────
 function openScan(){
-  SCAN_BUSY=false; SCAN_PEND=null;
-  document.getElementById('scan-zona').style.display='none';
+  SCAN_BUSY=false;
   document.getElementById('scan-status').textContent='Iniciando cámara…';
   openModal('scan-overlay');
   if(typeof Html5Qrcode==='undefined'){ document.getElementById('scan-status').textContent='No se pudo cargar el lector de QR.'; return; }
@@ -2873,54 +2973,28 @@ function stopScanner(){
   if(H5){ try{ H5.stop().then(function(){ try{H5.clear();}catch(_){} H5=null; }).catch(function(){ H5=null; }); }catch(e){ H5=null; } }
 }
 function closeScan(){ stopScanner(); closeModal('scan-overlay'); }
-var SCAN_PEND=null;   // codigo leido esperando que se elija la zona
 function onScan(text){
   if(SCAN_BUSY) return; SCAN_BUSY=true;
   document.getElementById('scan-status').textContent='Leído: '+text+' — procesando…';
-  doScan(text, null);
+  doScan(text);
 }
-function doScan(codigo, zonaId){
-  SB.rpc('imp_pallet_scan',{p_codigo:codigo, p_user:whoName(), p_zona:zonaId}).then(function(r){
+// Llegar a la fábrica es el fin de la trazabilidad: se confirma y listo.
+// Antes acá se pedía la zona de descarga; no existe tal escala intermedia.
+function doScan(codigo){
+  SB.rpc('imp_pallet_scan',{p_codigo:codigo, p_user:whoName()}).then(function(r){
     var st=document.getElementById('scan-status');
     if(r.error){ toast('Error: '+r.error.message,'err'); SCAN_BUSY=false; st.textContent='Intentá de nuevo.'; return; }
     var d=r.data||{};
-    // Llegada a fábrica: falta decir en qué zona se descarga
-    if(!d.ok && d.need_zona){ scanPedirZona(codigo, d.deposito); return; }
     if(!d.ok){ toast(d.error||'QR no válido','err'); SCAN_BUSY=false; st.textContent=(d.error||'QR no válido')+' — probá otro.'; return; }
     if(d.accion==='salida'){
       toast('🚚 Salió de '+d.origen+' → '+d.destino,'ok');
       if(d.destino_tipo==='FABRICA') toast('Al llegar a '+d.destino+' se consume: escaneá el QR ahí.','info');
     }
-    else if(d.accion==='consumo') toast('🔥 Consumido en '+d.destino+' · '+d.zona+' · '+fmtNum(d.unidades)+' u.','ok');
+    else if(d.accion==='consumo') toast('🔥 Consumido en '+d.destino+' · '+fmtNum(d.unidades)+' u.','ok');
     else toast('✅ Llegó a '+d.destino,'ok');
     closeScan();
     load();
   });
-}
-// La cámara ya cumplió: ahora hace falta la zona de descarga
-function scanPedirZona(codigo, dep){
-  SCAN_PEND=codigo;
-  stopScanner();
-  document.getElementById('scan-status').textContent='Pallet '+codigo+' llegando a '+dep+'.';
-  document.getElementById('sz-dep').textContent=dep;
-  var zs=zonasDe(dep), sel=document.getElementById('sz-zona');
-  sel.innerHTML=zs.length
-    ? zs.map(function(z){ return '<option value="'+z.id+'">'+esc(z.nombre)+'</option>'; }).join('')
-    : '<option value="">Sin zonas cargadas</option>';
-  document.getElementById('sz-hint').textContent = zs.length
-    ? 'Al confirmar, las unidades entran y se consumen en el acto.'
-    : 'Cargá zonas para '+dep+' en la tabla imp_zonas antes de recibir.';
-  document.getElementById('scan-zona').style.display='block';
-  SCAN_BUSY=false;
-}
-function scanConfirmZona(){
-  var z=document.getElementById('sz-zona').value;
-  if(!z){ toast('Elegí una zona','err'); return; }
-  if(!SCAN_PEND){ toast('No hay un pallet pendiente','err'); return; }
-  SCAN_BUSY=true;
-  document.getElementById('scan-status').textContent='Registrando consumo…';
-  doScan(SCAN_PEND, +z);
-  SCAN_PEND=null;
 }
 
 // ══════════════════════════════════════════════════════════════

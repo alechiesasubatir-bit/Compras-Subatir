@@ -140,6 +140,8 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 }
 .btn-primary:hover{filter:brightness(1.1)}
 .btn-orange{background:linear-gradient(135deg,var(--orange-d),var(--orange));border-color:rgba(249,115,22,.3);color:#fff}
+/* Ingreso: es la entrada de mercadería, se distingue del resto de acciones */
+.btn-ok{background:linear-gradient(135deg,#15803d,#22c55e);border-color:rgba(34,197,94,.3);color:#fff}
 .btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text)}
 .btn-danger{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
 .btn-sm{padding:5px 10px;font-size:11px}
@@ -1068,6 +1070,41 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 
 </main><!-- /main -->
 
+<!-- ═══════════════════════════════════════ MODAL: INGRESO DE MERCADERÍA ═══ -->
+<!-- Es la puerta por la que entra el stock. Antes lo hacía el cierre de un
+     pallet; ahora la mercadería entra suelta y los pallets se arman después. -->
+<div class="overlay" id="ingreso-overlay" role="dialog" aria-modal="true" aria-labelledby="ingreso-title">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title" id="ingreso-title">Ingresar mercadería</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeModal('ingreso-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="ingreso-info"></div>
+      <div class="form-grid" style="margin-top:14px">
+        <div class="form-group">
+          <label for="ing-dep">Depósito *</label>
+          <select class="form-input" id="ing-dep" onchange="ingUpd()"></select>
+        </div>
+        <div class="form-group">
+          <label for="ing-unid">Unidades que llegaron *</label>
+          <input type="number" inputmode="numeric" class="form-input" id="ing-unid"
+                 min="0" step="1" placeholder="0" oninput="ingUpd()"/>
+        </div>
+        <div class="form-group span2">
+          <label for="ing-nota">Referencia (remito, proveedor…)</label>
+          <input type="text" class="form-input" id="ing-nota" placeholder="Opcional"/>
+          <div id="ing-hint" class="hint-note">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btn-save-ingreso" onclick="saveIngreso()">📥 Ingresar al stock</button>
+      <button class="btn btn-ghost" onclick="closeModal('ingreso-overlay')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════════════════════════════════════════ MODAL: TRANSFERENCIA ═══ -->
 <div class="overlay" id="transfer-overlay" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
   <div class="modal" style="max-width:520px">
@@ -1138,6 +1175,8 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
           <label for="pl-unid">Total de unidades *</label>
           <input type="number" inputmode="numeric" class="form-input" id="pl-unid" min="0" step="1" placeholder="0" oninput="plManual()"/>
           <div id="pl-hint" class="hint-note">—</div>
+          <!-- Sin esto el operario no sabe con cuánto cuenta para armar -->
+          <div id="pl-disp" class="hint-note" role="status">—</div>
         </div>
       </div>
 
@@ -1166,16 +1205,16 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
         <div class="form-grid" id="pl-dep-wrap" style="display:none">
           <div class="form-group span2">
             <label for="pl-dep">Depósito *</label>
-            <select class="form-input" id="pl-dep"></select>
+            <select class="form-input" id="pl-dep" onchange="plDisp()"></select>
             <div class="hint-note">Queda en la bandeja <b style="color:var(--orange-l)">Sin ubicar</b> del mapa; después lo arrastrás a una ranura.</div>
           </div>
         </div>
       </div>
 
-      <div class="modal-note">El pallet queda <b style="color:var(--orange-l)">abierto</b> mientras contás. Cuando termines, cerralo desde su detalle: ahí se genera el <b style="color:var(--teal-l)">código QR</b> y las unidades <b style="color:var(--teal-l)">entran al stock</b> del depósito.</div>
+      <div class="modal-note">Se arma con la mercadería que ya está <b style="color:var(--teal-l)">suelta</b> en el depósito: armar no suma stock, lo reserva. El pallet queda <b style="color:var(--orange-l)">abierto</b> mientras contás y, al cerrarlo desde su detalle, se genera el <b style="color:var(--teal-l)">código QR</b> y queda listo para despachar.</div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-orange" id="btn-save-pallet" onclick="savePallet()">📦 Abrir pallet</button>
+      <button class="btn btn-orange" id="btn-save-pallet" onclick="savePallet()">📦 Armar pallet</button>
       <button class="btn btn-ghost" onclick="closeModal('pallet-overlay')">Cerrar</button>
     </div>
   </div>
@@ -1423,11 +1462,21 @@ function refresh(){ load(); }
 // ── Stock helpers ──────────────────────────────────────────────
 function stockOf(artId, dep){ var s=STOCK[artId]; return s&&s[dep]!=null?num(s[dep]):0; }
 function totalOf(artId){ var s=STOCK[artId]||{}, t=0; DEPS.forEach(function(d){ t+=num(s[d.nombre]); }); return t; }
+// Lo que hay suelto, fuera de los pallets. Espejo de imp_disponible():
+// los pallets ABIERTO y ESTACIONADO guardan unidades que YA están
+// contadas dentro del stock del depósito, no son algo aparte.
+function palletizadoOf(artId, dep){
+  return PALLETS.reduce(function(t,p){
+    return t + ((String(p.articulo_id)===String(artId) && p.deposito===dep
+                 && (p.estado==='ABIERTO'||p.estado==='ESTACIONADO')) ? num(p.unidades) : 0);
+  },0);
+}
+function dispOf(artId, dep){ return stockOf(artId,dep) - palletizadoOf(artId,dep); }
 
 // ── Carga ──────────────────────────────────────────────────────
 function load(){
   setLoading(true);
-  Promise.all([
+  return Promise.all([
     SB.from('imp_articulos').select('*').order('descripcion'),
     SB.from('imp_stock').select('*'),
     SB.from('imp_depositos').select('*').eq('activo',true).order('nombre'),
@@ -1587,8 +1636,9 @@ function renderArticles(){
       +'<td class="num-cell'+(art>0?'':' zero')+'"'+(art>0?' style="color:var(--ok)"':'')+'>'+fmtNum(art)+'</td>'
       +'<td class="num-cell tot">'+fmtNum(tot)+'</td>'
       +'<td style="text-align:center;white-space:nowrap">'
+        +'<button class="btn btn-ok btn-sm" onclick="openIngreso('+a.id+')" title="Ingresar mercadería que llegó al depósito">📥 Ingresar</button> '
         +'<button class="btn btn-orange btn-sm" onclick="openTransfer('+a.id+')" title="Transferir entre depósitos">🔁 Transferir</button> '
-        +'<button class="btn btn-pallet btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet de este artículo">🏷 Pallet</button>'
+        +'<button class="btn btn-pallet btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet con lo que hay suelto">🏷 Armar</button>'
       +'</td>'
     +'</tr>';
   }).join('');
@@ -1740,6 +1790,51 @@ function gridHtmlFor(e){
 
 // ── Transferencia ──────────────────────────────────────────────
 function depOptions(sel){ return DEPS.map(function(d){return '<option '+(d.nombre===sel?'selected':'')+'>'+esc(d.nombre)+'</option>';}).join(''); }
+// ── Ingreso de mercadería ─────────────────────────────────────
+//    Entra al stock del depósito sin pallet. Los pallets se arman
+//    después, con lo que haya quedado suelto.
+function openIngreso(artId){
+  var a=artById(artId); if(!a) return; CUR_ART=a;
+  document.getElementById('ingreso-title').textContent='Ingresar — '+a.descripcion;
+  document.getElementById('ingreso-info').innerHTML = DEPS.map(function(d){
+    return '<div class="detail-item"><div class="detail-label">'+esc(d.nombre)+'</div>'
+         + '<div class="detail-value" style="font-family:var(--mono)">'+fmtNum(stockOf(a.id,d.nombre))+'</div></div>';
+  }).join('');
+  // Por defecto el primer almacén: la mercadería llega a Furriol
+  var alm=DEPS.filter(function(d){ return d.tipo!=='FABRICA'; });
+  document.getElementById('ing-dep').innerHTML=depOptions(alm[0]?alm[0].nombre:(DEPS[0]?DEPS[0].nombre:''));
+  document.getElementById('ing-unid').value='';
+  document.getElementById('ing-nota').value='';
+  ingUpd();
+  openModal('ingreso-overlay');
+}
+function ingUpd(){
+  if(!CUR_ART) return;
+  var d=document.getElementById('ing-dep').value;
+  var u=num(document.getElementById('ing-unid').value);
+  var hoy=stockOf(CUR_ART.id,d), libre=dispOf(CUR_ART.id,d);
+  var t='En '+d+' hay '+fmtNum(hoy)+' u. ('+fmtNum(libre)+' sin palletizar).';
+  if(u>0) t+=' Queda en '+fmtNum(hoy+u)+' u.';
+  document.getElementById('ing-hint').textContent=t;
+}
+function saveIngreso(){
+  if(!CUR_ART) return;
+  var d=document.getElementById('ing-dep').value;
+  var u=num(document.getElementById('ing-unid').value);
+  var nota=document.getElementById('ing-nota').value.trim();
+  if(!(u>0)){ toast('Ingresá las unidades que llegaron','err'); document.getElementById('ing-unid').focus(); return; }
+  var btn=document.getElementById('btn-save-ingreso'); btn.disabled=true;
+  toast('Ingresando…','info');
+  SB.rpc('imp_ingreso',{p_art:CUR_ART.id,p_dep:d,p_unidades:u,p_user:whoName(),p_nota:nota||null}).then(function(r){
+    btn.disabled=false;
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    if(r.data && r.data.ok===false){ toast(r.data.error||'No se pudo ingresar','err'); return; }
+    closeModal('ingreso-overlay');
+    toast('📥 '+fmtNum(u)+' u. ingresadas a '+d,'ok');
+    load();
+  });
+}
+
 function openTransfer(artId){
   var a=artById(artId); if(!a) return; CUR_ART=a;
   document.getElementById('transfer-title').textContent='Transferir — '+a.descripcion;
@@ -2244,7 +2339,7 @@ function openPallet(opts){
   if(opts.estId && esFabrica((estById(opts.estId)||{}).deposito)){ opts={artId:opts.artId}; }
 
   document.getElementById('pallet-title').textContent =
-    (opts.fila&&opts.col) ? 'Abrir pallet en la ranura' : 'Abrir pallet';
+    (opts.fila&&opts.col) ? 'Armar pallet en la ranura' : 'Armar pallet';
   document.getElementById('pl-art').innerHTML=artOptions(opts.artId||'');
   document.getElementById('pl-cajas').value='';
   document.getElementById('pl-rem').value='';
@@ -2267,11 +2362,39 @@ function plMode(m){
   document.getElementById('pl-mode-free').className = m==='free'?'on':'';
   document.getElementById('pl-slot-wrap').style.display = m==='slot'?'':'none';
   document.getElementById('pl-dep-wrap').style.display  = m==='free'?'':'none';
+  plDisp();
 }
 function plArt(){
   var a=curPlArt(), uxc=a?num(a.un_x_caja):0;
   document.getElementById('pl-uxc').value = uxc>0 ? uxc : '';
   plCalc();
+}
+// En qué depósito se está armando: lo decide la ranura elegida y,
+// si todavía no hay ninguna, el desplegable de depósito.
+function plDep(){
+  if(PL_MODE==='slot'){
+    if(PL_SLOT){ var e=estById(PL_SLOT.estId); if(e) return e.deposito; }
+    var alm=depAlmacen(); return alm[0]?alm[0].nombre:null;
+  }
+  var s=document.getElementById('pl-dep'); return s?s.value:null;
+}
+// Cuánto hay suelto para armar. Es el techo del pallet: sin esto el
+// operario arma a ciegas y se entera del error recién al guardar.
+function plDisp(){
+  var el=document.getElementById('pl-disp'); if(!el) return;
+  var a=curPlArt(), dep=plDep();
+  if(!a || !dep){ el.className='hint-note'; el.textContent='—'; return; }
+  var libre=dispOf(a.id,dep), tot=num(document.getElementById('pl-unid').value);
+  if(libre<=0){
+    el.className='hint-note hint-warn';
+    el.textContent='No hay nada suelto en '+dep+': ingresá mercadería antes de armar.';
+  } else if(tot>libre){
+    el.className='hint-note hint-warn';
+    el.textContent='Te pasás: en '+dep+' hay '+fmtNum(libre)+' u. sin palletizar y el pallet pide '+fmtNum(tot)+'.';
+  } else {
+    el.className='hint-note';
+    el.textContent='Disponible para armar en '+dep+': '+fmtNum(libre)+' u. sin palletizar.';
+  }
 }
 // total = cajas completas × u/caja + remanente
 function plCalc(){
@@ -2290,6 +2413,7 @@ function plCalc(){
     h.className='hint-note';
     h.textContent='Este artículo no tiene UN×caja cargado: poné el total a mano.';
   }
+  plDisp();
 }
 // Si tocan el total a mano, se respeta y se avisa si no cuadra
 function plManual(){
@@ -2301,6 +2425,7 @@ function plManual(){
   if(uxc>0 && (cajas>0||rem>0) && cajas*uxc+rem!==tot){
     h.className='hint-note hint-warn';
     h.textContent='⚠ '+fmtNum(cajas)+' × '+fmtNum(uxc)+(rem?(' + '+fmtNum(rem)):'')+' = '+fmtNum(cajas*uxc+rem)+' u., pero el total dice '+fmtNum(tot)+' u.';
+    plDisp();
   } else plCalc();
 }
 // ── Mini-mapa de ranuras dentro del modal ────────────────────────
@@ -2355,13 +2480,14 @@ function plPickSlot(estId, f, c){
   Array.prototype.forEach.call(document.querySelectorAll('#pl-mini .mini-slot.sel'),
     function(el){ el.classList.remove('sel'); });
   var out=document.getElementById('pl-pick');
-  if(estId==null){ PL_SLOT=null; out.textContent='Sin ranura elegida'; out.className='mini-pick'; return; }
+  if(estId==null){ PL_SLOT=null; out.textContent='Sin ranura elegida'; out.className='mini-pick'; plDisp(); return; }
   PL_SLOT={estId:estId, fila:+f, col:+c};
   var el=document.querySelector('#pl-mini .mini-slot[data-est="'+estId+'"][data-f="'+f+'"][data-c="'+c+'"]');
   if(el) el.classList.add('sel');
   var e=estById(estId);
   out.textContent='📍 '+(e?e.nombre:'')+' · '+letterOf(f)+c;
   out.className='mini-pick on';
+  plDisp();   // la ranura puede cambiar el depósito, y con él el disponible
 }
 
 // Tocar una ranura libre la elige (y es el camino accesible por teclado)
@@ -2414,41 +2540,46 @@ function savePallet(){
   var rem  =num(document.getElementById('pl-rem').value);
   var unid =num(document.getElementById('pl-unid').value);
 
-  var row={
-    codigo:'PLT-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase(),
-    articulo_id:a.id, cajas:cajas||null, remanente:rem||0, unidades:unid,
-    un_x_caja:a.un_x_caja||null,          // se congela: la etiqueta debe cuadrar siempre
-    estado:'ABIERTO', created_by:whoName()
-  };
-  var donde;
+  if(!(unid>0)){ toast('El pallet tiene que llevar al menos una unidad','err'); return; }
+
+  var estId=null, fila=null, col=null, dep=null, donde;
 
   if(PL_MODE==='slot'){
     if(!PL_SLOT){ toast('Arrastrá el pallet a una ranura libre del mapa','err'); return; }
-    var estId=PL_SLOT.estId, fila=PL_SLOT.fila, col=PL_SLOT.col;
+    estId=PL_SLOT.estId; fila=PL_SLOT.fila; col=PL_SLOT.col;
     var e=estById(estId);
     if(!e){ toast('Estantería inválida','err'); return; }
     if(palAt(estId,fila,col)){ toast('Esa ranura ya está ocupada','err'); plSlots(); return; }
-    row.deposito=e.deposito; row.origen=e.deposito;
-    row.estanteria_id=e.id; row.fila=fila; row.columna=col;
+    dep=e.deposito;
     donde='en '+letterOf(fila)+col;
   } else {
     // Sin ubicar: sólo hace falta el depósito; se acomoda después
-    var dep=document.getElementById('pl-dep').value;
+    dep=document.getElementById('pl-dep').value;
     if(!dep){ toast('Elegí el depósito','err'); return; }
-    row.deposito=dep; row.origen=dep;
     donde='sin ubicar en '+dep;
   }
 
+  // Aviso temprano; la base vuelve a validarlo, que es lo que manda
+  var libre=dispOf(a.id,dep);
+  if(unid>libre){
+    toast('En '+dep+' hay '+fmtNum(libre)+' u. sin palletizar: ingresá mercadería antes de armar','err');
+    return;
+  }
+
   var btn=document.getElementById('btn-save-pallet'); btn.disabled=true;
-  toast('Abriendo pallet…','info');
-  SB.from('imp_pallets').insert(row).select().single().then(function(r){
+  toast('Armando pallet…','info');
+  SB.rpc('imp_pallet_armar',{
+    p_art:a.id, p_dep:dep, p_cajas:cajas||null, p_un_x_caja:a.un_x_caja||null,
+    p_remanente:rem||0, p_unidades:unid,
+    p_est:estId, p_fila:fila, p_col:col, p_user:whoName()
+  }).then(function(r){
     btn.disabled=false;
     if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    var d=r.data||{};
+    if(d.ok===false){ toast(d.error||'No se pudo armar el pallet','err'); plSlots(); return; }
     closeModal('pallet-overlay');
-    PALLETS.unshift(r.data);              // para poder abrir el detalle en el acto
-    toast('📦 Pallet abierto '+donde+' — contá y cerralo para generar el QR','ok');
-    load();
-    openPalletDetail(r.data.id);
+    toast('📦 Pallet armado '+donde+' — contá y cerralo para generar el QR','ok');
+    load().then(function(){ openPalletDetail(d.id); });
   });
 }
 
@@ -2537,7 +2668,7 @@ function pdCerrar(){
   var rem  =num(document.getElementById('pd-rem').value);
   var unid =num(document.getElementById('pd-unid').value);
   if(!(unid>0)){ toast('Contá las unidades antes de cerrar','err'); document.getElementById('pd-unid').focus(); return; }
-  if(!confirm('Cerrar el pallet con '+fmtNum(unid)+' unidades.\n\nSe generará el QR y esas unidades entrarán al stock de '+CUR_PAL.deposito+'.\nDespués no se puede cambiar el conteo.')) return;
+  if(!confirm('Cerrar el pallet con '+fmtNum(unid)+' unidades.\n\nSe genera el QR y el pallet queda listo para despachar.\nEl stock de '+CUR_PAL.deposito+' no cambia: esas unidades ya estaban ingresadas.\nDespués no se puede cambiar el conteo.')) return;
   var btn=document.getElementById('pd-btn-cerrar'); btn.disabled=true;
   toast('Cerrando pallet…','info');
   SB.rpc('imp_pallet_contar',{p_pallet:CUR_PAL.id,p_cajas:cajas||null,p_unidades:unid,p_remanente:rem,p_user:whoName()})

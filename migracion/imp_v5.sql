@@ -36,6 +36,35 @@ returns numeric language sql stable set search_path = public as $$
                       and estado in ('ABIERTO','ESTACIONADO')), 0);
 $$;
 
+-- ── 1b. Utilidades ───────────────────────────────────────────
+--    La referencia del ingreso (remito, proveedor) es una nota, no
+--    una ubicación: metida en ubicacion_a la bitácora la mostraba
+--    como si el pallet hubiera estado en un lugar con ese nombre.
+alter table public.imp_movimientos add column if not exists nota text;
+
+--    Números legibles en los mensajes: to_char con FM deja el
+--    separador colgando en los enteros ("hay 500. u.").
+create or replace function public.imp_num_txt(n numeric)
+returns text language sql immutable as $$
+  select rtrim(rtrim(to_char(coalesce(n,0),'FM999999999990.99'),'0'),'.');
+$$;
+
+--    Los códigos de pallet los venía generando el navegador en
+--    base36. Al pasar el armado a la base hay que generarlos igual,
+--    o conviven dos formatos de etiqueta.
+create or replace function public.imp_base36(n bigint)
+returns text language plpgsql immutable as $$
+declare d constant text := '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        r text := ''; v bigint := n;
+begin
+  if v is null or v = 0 then return '0'; end if;
+  while v > 0 loop
+    r := substr(d, (v % 36)::int + 1, 1) || r;
+    v := v / 36;
+  end loop;
+  return r;
+end $$;
+
 -- ── 2. Ingreso de mercadería: entra al stock sin pallet ──────
 --    Es el acto de recibir lo que llegó al depósito y contarlo.
 create or replace function public.imp_ingreso(
@@ -61,8 +90,8 @@ begin
   end if;
 
   perform public.imp_stock_add(p_art, p_dep, p_unidades);
-  insert into public.imp_movimientos(articulo_id,tipo,destino,deposito,unidades,usuario,ubicacion_a)
-    values (p_art,'INGRESO',p_dep,p_dep,p_unidades,p_user,p_nota);
+  insert into public.imp_movimientos(articulo_id,tipo,destino,deposito,unidades,usuario,nota)
+    values (p_art,'INGRESO',p_dep,p_dep,p_unidades,p_user,nullif(trim(coalesce(p_nota,'')),''));
 
   return jsonb_build_object('ok',true,'deposito',p_dep,'unidades',p_unidades,
                             'disponible',public.imp_disponible(p_art,p_dep));
@@ -120,12 +149,12 @@ begin
   v_disp := public.imp_disponible(p_art, v_dep);
   if p_unidades > v_disp then
     return jsonb_build_object('ok',false,'error',
-      'No alcanza lo disponible en '||v_dep||': hay '||trim(to_char(v_disp,'FM999999999.99'))||
-      ' u. sin palletizar y el pallet pide '||trim(to_char(p_unidades,'FM999999999.99'))||' u.',
+      'No alcanza lo disponible en '||v_dep||': hay '||public.imp_num_txt(v_disp)||
+      ' u. sin palletizar y el pallet pide '||public.imp_num_txt(p_unidades)||' u.',
       'disponible',v_disp);
   end if;
 
-  v_codigo := 'PLT-'||upper(to_hex(floor(extract(epoch from clock_timestamp())*1000)::bigint))
+  v_codigo := 'PLT-'||public.imp_base36(floor(extract(epoch from clock_timestamp())*1000)::bigint)
               ||'-'||upper(substr(md5(random()::text),1,4));
 
   insert into public.imp_pallets(codigo,articulo_id,cajas,un_x_caja,remanente,unidades,
@@ -164,7 +193,7 @@ begin
   v_disp := public.imp_disponible(p.articulo_id, p.deposito) + coalesce(p.unidades,0);
   if coalesce(p_unidades,0) > v_disp then
     return jsonb_build_object('ok',false,'error',
-      'No alcanza lo disponible en '||p.deposito||': hay '||trim(to_char(v_disp,'FM999999999.99'))||
+      'No alcanza lo disponible en '||p.deposito||': hay '||public.imp_num_txt(v_disp)||
       ' u. para este pallet','disponible',v_disp);
   end if;
 

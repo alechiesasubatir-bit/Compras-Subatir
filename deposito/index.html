@@ -476,6 +476,24 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 }
 @media print{ .fab{display:none!important} }
 
+/* ═══ TRANSFERENCIA: lista de pallets armados ════════════════ */
+.tr-list{max-height:270px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}
+/* Es un <label> para que toda la fila sea clickeable, pero la regla
+   global de label lo pondría en mayúsculas y gris chico */
+.tr-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;cursor:pointer;
+  background:rgba(255,255,255,.02);border:1px solid var(--border);transition:border-color .15s,background .15s;
+  text-transform:none;letter-spacing:normal;font-weight:400}
+.tr-row:hover{border-color:rgba(27,200,255,.4);background:rgba(27,200,255,.06)}
+.tr-row.on{border-color:var(--teal-l);background:rgba(27,200,255,.13)}
+.tr-row input{accent-color:var(--teal-l);width:16px;height:16px;flex:0 0 auto}
+.tr-main{flex:1;min-width:0}
+.tr-cod{font-family:var(--mono);font-size:11.5px;color:var(--teal-l);font-weight:600}
+.tr-art{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.tr-un{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);white-space:nowrap}
+.tr-ya{font-size:10px;color:var(--orange-l);font-weight:700}
+.tr-empty{padding:16px;text-align:center;font-size:12px;color:var(--muted)}
+
 /* ═══ MINI-MAPA DE RANURAS (elegir lugar arrastrando) ════════ */
 .mini-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:11px}
 .mini-chip{
@@ -1044,6 +1062,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
       </div>
       <div class="sec-tools">
         <span class="badge badge-info" id="pal-count">—</span>
+        <button class="btn btn-primary btn-sm" onclick="openTransfer()" title="Elegir pallets armados y marcarlos para despacho">🚚 Transferir pallets</button>
         <button class="btn btn-orange btn-sm" onclick="openScan()">📷 Escanear QR</button>
       </div>
     </div>
@@ -1106,32 +1125,40 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 </div>
 
 <!-- ════════════════════════════════════════════════ MODAL: TRANSFERENCIA ═══ -->
+<!-- Lo que se transfiere son pallets enteros ya armados, no unidades sueltas.
+     Marcar el destino los deja listos; la salida la registra el escaneo. -->
 <div class="overlay" id="transfer-overlay" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:660px">
     <div class="modal-header">
-      <div class="modal-title" id="transfer-title">Transferir stock</div>
+      <div class="modal-title" id="transfer-title">Transferir pallets</div>
       <button class="modal-close" aria-label="Cerrar" onclick="closeModal('transfer-overlay')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="detail-grid" id="transfer-info"></div>
-      <div class="form-grid" style="margin-top:14px">
+      <div class="form-grid">
         <div class="form-group">
           <label for="tr-origen">Desde *</label>
-          <select class="form-input" id="tr-origen" onchange="trUpd()"></select>
+          <select class="form-input" id="tr-origen" onchange="trList()"></select>
         </div>
         <div class="form-group">
           <label for="tr-destino">Hacia *</label>
-          <select class="form-input" id="tr-destino"></select>
+          <select class="form-input" id="tr-destino" onchange="trUpd()"></select>
         </div>
-        <div class="form-group span2">
-          <label for="tr-unid">Unidades a transferir *</label>
-          <input type="number" inputmode="numeric" class="form-input" id="tr-unid" min="0" step="1" placeholder="0"/>
-          <div id="tr-hint" class="hint-note">—</div>
+      </div>
+
+      <div class="sub-block" style="margin-top:14px">
+        <div class="sub-head" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📦 Pallets armados</span>
+          <span style="display:flex;gap:8px">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="trAll(true)">Todos</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="trAll(false)">Ninguno</button>
+          </span>
         </div>
+        <div id="tr-list" class="tr-list"></div>
+        <div id="tr-hint" class="hint-note" role="status">—</div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" id="btn-save-transfer" onclick="saveTransfer()">💾 Transferir</button>
+      <button class="btn btn-primary" id="btn-save-transfer" onclick="saveTransfer()">🚚 Marcar para despacho</button>
       <button class="btn btn-ghost" onclick="closeModal('transfer-overlay')">Cerrar</button>
     </div>
   </div>
@@ -1637,7 +1664,6 @@ function renderArticles(){
       +'<td class="num-cell tot">'+fmtNum(tot)+'</td>'
       +'<td style="text-align:center;white-space:nowrap">'
         +'<button class="btn btn-ok btn-sm" onclick="openIngreso('+a.id+')" title="Ingresar mercadería que llegó al depósito">📥 Ingresar</button> '
-        +'<button class="btn btn-orange btn-sm" onclick="openTransfer('+a.id+')" title="Transferir entre depósitos">🔁 Transferir</button> '
         +'<button class="btn btn-pallet btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet con lo que hay suelto">🏷 Armar</button>'
       +'</td>'
     +'</tr>';
@@ -1835,37 +1861,89 @@ function saveIngreso(){
   });
 }
 
-function openTransfer(artId){
-  var a=artById(artId); if(!a) return; CUR_ART=a;
-  document.getElementById('transfer-title').textContent='Transferir — '+a.descripcion;
-  document.getElementById('transfer-info').innerHTML = DEPS.map(function(d){
-    return '<div class="detail-item"><div class="detail-label">'+esc(d.nombre)+'</div><div class="detail-value" style="font-family:var(--mono)">'+fmtNum(stockOf(a.id,d.nombre))+'</div></div>';
-  }).join('');
-  document.getElementById('tr-origen').innerHTML=depOptions(DEPS[0]?DEPS[0].nombre:'');
-  document.getElementById('tr-destino').innerHTML=depOptions(DEPS[1]?DEPS[1].nombre:'');
-  document.getElementById('tr-unid').value='';
-  trUpd();
+// ── Transferencia de pallets ──────────────────────────────────
+//    Se transfieren pallets enteros ya armados, no unidades sueltas.
+//    Marcar el destino los deja listos; la salida real la registra el
+//    escaneo del QR, igual que la llegada.
+var TR_SEL = {};   // {palletId: true}
+
+function openTransfer(){
+  var alm=depAlmacen();
+  if(!alm.length){ toast('No hay depósitos de almacén desde donde despachar','err'); return; }
+  document.getElementById('tr-origen').innerHTML=depOptions(alm[0].nombre);
+  // Por defecto la fábrica: el camino normal es Furriol → Artigas
+  var fab=DEPS.filter(function(d){ return d.tipo==='FABRICA'; });
+  var dest=fab[0] ? fab[0].nombre : (DEPS.filter(function(d){ return d.nombre!==alm[0].nombre; })[0]||{}).nombre;
+  document.getElementById('tr-destino').innerHTML=depOptions(dest||'');
+  TR_SEL={};
+  trList();
   openModal('transfer-overlay');
 }
-function trUpd(){
-  if(!CUR_ART) return;
+// Los que se pueden mandar: armados (cerrados) y parados en el origen
+function trDisponibles(){
   var o=document.getElementById('tr-origen').value;
-  document.getElementById('tr-hint').textContent='Disponible en '+o+': '+fmtNum(stockOf(CUR_ART.id,o))+' u.';
+  return PALLETS.filter(function(p){ return p.estado==='ESTACIONADO' && p.deposito===o; });
+}
+function trList(){
+  var host=document.getElementById('tr-list'); if(!host) return;
+  var o=document.getElementById('tr-origen').value;
+  var ps=trDisponibles();
+  if(!ps.length){
+    host.innerHTML='<div class="tr-empty">No hay pallets armados en <b>'+esc(o)+'</b>. '
+      +'Armá y cerrá un pallet para poder despacharlo.</div>';
+    trUpd(); return;
+  }
+  host.innerHTML=ps.map(function(p){
+    var a=artById(p.articulo_id);
+    // Sólo la ranura: el depósito ya lo dice el desplegable "Desde"
+    var e=p.estanteria_id?estById(p.estanteria_id):null;
+    var ub=e ? (e.nombre+' · '+coordOf(p)) : 'sin ranura';
+    return '<label class="tr-row'+(TR_SEL[p.id]?' on':'')+'" data-pid="'+p.id+'">'
+      +'<input type="checkbox" '+(TR_SEL[p.id]?'checked':'')+' onchange="trPick('+p.id+',this.checked)"/>'
+      +'<div class="tr-main">'
+        +'<div class="tr-cod">'+esc(p.codigo)+(p.destino?(' <span class="tr-ya">· ya marcado a '+esc(p.destino)+'</span>'):'')+'</div>'
+        +'<div class="tr-art">'+esc(a?a.descripcion:'—')+'</div>'
+        +'<div class="tr-meta">'+esc(ub)+(p.cajas?(' · '+fmtNum(p.cajas)+' caja'+(num(p.cajas)===1?'':'s')):'')+'</div>'
+      +'</div>'
+      +'<div class="tr-un">'+fmtNum(p.unidades)+' u.</div>'
+    +'</label>';
+  }).join('');
+  trUpd();
+}
+function trPick(id, on){
+  if(on) TR_SEL[id]=true; else delete TR_SEL[id];
+  var row=document.querySelector('.tr-row[data-pid="'+id+'"]');
+  if(row) row.className='tr-row'+(on?' on':'');
+  trUpd();
+}
+function trAll(on){
+  TR_SEL={};
+  if(on) trDisponibles().forEach(function(p){ TR_SEL[p.id]=true; });
+  trList();
+}
+function trUpd(){
+  var d=document.getElementById('tr-destino').value;
+  var ids=Object.keys(TR_SEL);
+  var ps=trDisponibles().filter(function(p){ return TR_SEL[p.id]; });
+  var un=ps.reduce(function(t,p){ return t+num(p.unidades); },0);
+  var h=document.getElementById('tr-hint');
+  h.textContent = ids.length
+    ? ids.length+' pallet'+(ids.length===1?'':'s')+' · '+fmtNum(un)+' u. hacia '+d
+      +'. Al confirmar quedan marcados: la salida se registra al escanear el QR.'
+    : 'Elegí los pallets que salen hacia '+d+'.';
 }
 function saveTransfer(){
-  if(!CUR_ART) return;
   var o=document.getElementById('tr-origen').value, d=document.getElementById('tr-destino').value;
-  var u=num(document.getElementById('tr-unid').value);
+  var ids=Object.keys(TR_SEL).map(Number);
   if(o===d){ toast('Origen y destino deben ser distintos','err'); return; }
-  if(!(u>0)){ toast('Ingresá las unidades a transferir','err'); return; }
-  if(u>stockOf(CUR_ART.id,o)){ toast('Stock insuficiente en '+o,'err'); return; }
+  if(!ids.length){ toast('Elegí al menos un pallet','err'); return; }
   var btn=document.getElementById('btn-save-transfer'); btn.disabled=true;
-  toast('Transfiriendo…','info');
-  SB.rpc('imp_transfer',{p_art:CUR_ART.id,p_origen:o,p_destino:d,p_unidades:u,p_user:whoName()}).then(function(r){
+  toast('Marcando…','info');
+  SB.from('imp_pallets').update({destino:d}).in('id',ids).then(function(r){
     btn.disabled=false;
     if(r.error){ toast('Error: '+r.error.message,'err'); return; }
     closeModal('transfer-overlay');
-    toast('✅ '+fmtNum(u)+' u. de '+o+' → '+d,'ok');
+    toast('🚚 '+ids.length+' pallet'+(ids.length===1?'':'s')+' marcado'+(ids.length===1?'':'s')+' hacia '+d+' — escaneá el QR al salir','ok');
     load();
   });
 }
@@ -2704,6 +2782,7 @@ function pdHist(pid){
       else if(m.ubicacion_de)           det='desde '+esc(m.ubicacion_de)+(m.destino?(' → '+esc(m.destino)):'');
       else if(m.origen&&m.destino)      det=esc(m.origen)+' → '+esc(m.destino);
       else if(m.deposito)               det=esc(m.deposito);
+      if(m.nota) det+=(det?' · ':'')+esc(m.nota);   // remito, proveedor…
       return '<div class="hist-row '+cls+'">'
         +'<span class="hist-ico">'+ico+'</span>'
         +'<span class="hist-main"><b>'+esc(m.tipo)+'</b>'+(det?('<span class="hist-det">'+det+'</span>'):'')+'</span>'
@@ -2712,8 +2791,10 @@ function pdHist(pid){
     }).join('');
   });
 }
-var MOV_ICO={RECEPCION:'📥',UBICACION:'📍',SALIDA:'🚚',ENTRADA:'✅',CONSUMO:'🔥',TRANSFER:'🔁',AJUSTE:'✏'};
-var MOV_CLS={RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',CONSUMO:'h-use',TRANSFER:'h-tr'};
+// INGRESO y ARMADO son de v5: la mercadería entra suelta y después se palletiza.
+// RECEPCION queda para leer los movimientos viejos, de cuando cerrar sumaba stock.
+var MOV_ICO={INGRESO:'📥',ARMADO:'🏷',RECEPCION:'📥',UBICACION:'📍',SALIDA:'🚚',ENTRADA:'✅',CONSUMO:'🔥',TRANSFER:'🔁',AJUSTE:'✏'};
+var MOV_CLS={INGRESO:'h-ok',ARMADO:'h-loc',RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',CONSUMO:'h-use',TRANSFER:'h-tr'};
 function pdShowQR(){ if(CUR_PAL) showQR(CUR_PAL); }
 function pdDespachar(){
   if(!CUR_PAL) return;

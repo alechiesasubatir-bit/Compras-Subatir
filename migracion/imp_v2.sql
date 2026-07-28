@@ -11,6 +11,21 @@
 --  Es idempotente: se puede volver a correr sin romper nada.
 -- ============================================================
 
+-- ── 0. Freno: v2 no se corre encima de v3 ────────────────────
+--   v2 es idempotente consigo mismo, pero NO con las etapas que
+--   vienen después: reinstalaría el imp_pallet_scan de 2 parámetros
+--   (conviviendo con el de 3 de v3 → llamada ambigua), el
+--   imp_pallet_cerrar sin el control de depósito de fábrica, y el
+--   imp_pallet_contar de 4 parámetros que v4 elimina.
+--   Si v3 ya está aplicada, saltá directo a la etapa que falte.
+do $$
+begin
+  if exists (select 1 from information_schema.tables
+              where table_schema='public' and table_name='imp_zonas') then
+    raise exception 'imp_v2 ya fue superado por imp_v3 (existe imp_zonas). No lo vuelvas a correr: reinstalaría versiones viejas de imp_pallet_scan, imp_pallet_cerrar e imp_pallet_contar. Corré imp_check.sql para ver qué falta.';
+  end if;
+end $$;
+
 -- ── 1. Pallets: estado ABIERTO + datos del cierre ────────────
 -- un_x_caja se congela en el pallet: si mañana cambia el del
 -- artículo, la etiqueta impresa sigue cuadrando con lo que se contó.
@@ -51,14 +66,24 @@ alter table public.imp_estanterias add column if not exists plano_fila  int not 
 alter table public.imp_estanterias add column if not exists plano_orden int not null default 1;
 
 -- Semilla: numera el orden por nombre dentro de cada depósito.
-with r as (
-  select id, row_number() over (partition by deposito order by nombre) rn
-    from public.imp_estanterias
-)
-update public.imp_estanterias e
-   set plano_orden = r.rn
-  from r
- where r.id = e.id and e.plano_orden = 1;
+-- Sólo en la primera corrida, cuando nadie tocó todavía la disposición.
+-- Si ya está configurada, renumerar la rompería: en la disposición en
+-- PARALELO todos los racks tienen plano_orden = 1 y se distinguen por
+-- plano_fila, así que numerarlos 1..n los desparramaría en diagonal.
+do $$
+begin
+  if not exists (select 1 from public.imp_estanterias
+                  where plano_fila <> 1 or plano_orden <> 1) then
+    with r as (
+      select id, row_number() over (partition by deposito order by nombre) rn
+        from public.imp_estanterias
+    )
+    update public.imp_estanterias e
+       set plano_orden = r.rn
+      from r
+     where r.id = e.id;
+  end if;
+end $$;
 
 -- ── 4. Ubicar un pallet: ahora deja rastro ───────────────────
 create or replace function public.imp_pallet_ubicar(p_pallet bigint, p_est bigint, p_fila int, p_col int, p_user text)

@@ -955,6 +955,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
       </div>
       <div class="sec-tools">
         <span class="badge badge-info" id="tbl-count">—</span>
+        <button class="btn btn-primary btn-sm" onclick="openArticulo()" title="Dar de alta un artículo nuevo">➕ Nuevo artículo</button>
         <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir</button>
       </div>
@@ -971,7 +972,9 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
           <option value="">Todos los tipos</option>
           <option value="Consumo">Consumo</option>
           <option value="Venta">Venta</option>
+          <option value="Venta Piscina">Venta Piscina</option>
           <option value="Infraestructura">Infraestructura</option>
+          <option value="__sin">Sin tipo</option>
         </select>
         <select class="fsel" id="f-dep" aria-label="Filtrar por depósito" onchange="applyFilters()"><option value="">Todos los depósitos</option></select>
       </div>
@@ -1132,6 +1135,50 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   </div>
 
 </main><!-- /main -->
+
+<!-- ═══════════════════════════════════════════ MODAL: NUEVO ARTÍCULO ═══ -->
+<!-- Alta del artículo en sí (el catálogo). No es lo mismo que Ingresar,
+     que carga unidades al stock de un artículo que ya existe. -->
+<div class="overlay" id="art-overlay" role="dialog" aria-modal="true" aria-labelledby="art-title">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title" id="art-title">Nuevo artículo</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeModal('art-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="ar-prov">Proveedor *</label>
+          <input class="form-input" id="ar-prov" list="ar-provs" placeholder="Intex, Enjoy, Subatir…" oninput="arUpd()"/>
+          <datalist id="ar-provs"></datalist>
+        </div>
+        <div class="form-group">
+          <label for="ar-cod">Código</label>
+          <input class="form-input" id="ar-cod" placeholder="490123"/>
+        </div>
+        <div class="form-group span2">
+          <label for="ar-desc">Descripción *</label>
+          <input class="form-input" id="ar-desc" placeholder="Pileta Redonda 305 cm" oninput="arUpd()"/>
+        </div>
+        <div class="form-group">
+          <label for="ar-tipo">Tipo</label>
+          <select class="form-input" id="ar-tipo"></select>
+        </div>
+        <div class="form-group">
+          <label for="ar-uxc">Unidades por caja</label>
+          <input type="number" inputmode="numeric" class="form-input" id="ar-uxc" min="0" step="1" placeholder="—"/>
+        </div>
+      </div>
+      <div id="ar-hint" class="hint-note" role="status" style="margin-top:12px">—</div>
+      <div class="modal-note">Las unidades por caja se usan para armar pallets: si las cargás, el conteo
+        calcula el total solo. Se pueden dejar vacías y poner el total a mano.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btn-save-art" onclick="saveArticulo()">➕ Crear artículo</button>
+      <button class="btn btn-ghost" onclick="closeModal('art-overlay')">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════ MODAL: INGRESO DE MERCADERÍA ═══ -->
 <!-- Es la puerta por la que entra el stock. Antes lo hacía el cierre de un
@@ -1458,7 +1505,9 @@ function zonasDe(dep){ return ZONAS.filter(function(z){ return z.deposito===dep;
 function zonaById(id){ return ZONAS.find(function(z){ return String(z.id)===String(id); }); }
 var CUR_ART=null, LAST_PALLET=null, CUR_PAL=null, H5=null, SCAN_BUSY=false;
 var GRID={dep:null, est:null};
-var TIPO_COLORS={'Consumo':{bg:'rgba(27,200,255,.18)',bd:'#1bc8ff',tx:'#7dd3fc'},'Venta':{bg:'rgba(34,197,94,.18)',bd:'#22c55e',tx:'#86efac'},'Infraestructura':{bg:'rgba(249,115,22,.18)',bd:'#f97316',tx:'#fdba74'},'':{bg:'rgba(100,116,139,.18)',bd:'#64748b',tx:'#cbd5e1'}};
+// El orden manda en las leyendas y en los desplegables de tipo.
+var TIPOS=['Consumo','Venta','Venta Piscina','Infraestructura'];
+var TIPO_COLORS={'Consumo':{bg:'rgba(27,200,255,.18)',bd:'#1bc8ff',tx:'#7dd3fc'},'Venta':{bg:'rgba(34,197,94,.18)',bd:'#22c55e',tx:'#86efac'},'Venta Piscina':{bg:'rgba(234,179,8,.18)',bd:'#eab308',tx:'#fde047'},'Infraestructura':{bg:'rgba(249,115,22,.18)',bd:'#f97316',tx:'#fdba74'},'':{bg:'rgba(100,116,139,.18)',bd:'#64748b',tx:'#cbd5e1'}};
 function letterOf(f){ return String.fromCharCode(64+(+f||0)); }
 function coordOf(p){ return p.fila&&p.columna ? (letterOf(p.fila)+p.columna) : '—'; }
 function tipoColor(t){ return TIPO_COLORS[t||'']||TIPO_COLORS['']; }
@@ -1614,7 +1663,9 @@ function getFiltered(){
   var fd=document.getElementById('f-dep').value;
   var out=ART.filter(function(a){
     if(fp && a.proveedor!==fp) return false;
-    if(ft && (a.tipo||'')!==ft) return false;
+    // '__sin' busca los que no tienen tipo cargado, que '' no distingue
+    if(ft==='__sin'){ if(a.tipo) return false; }
+    else if(ft && (a.tipo||'')!==ft) return false;
     if(fd && stockOf(a.id,fd)<=0) return false;
     if(q){ var hay=(String(a.descripcion||'')+' '+String(a.codigo||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
     return true;
@@ -1674,6 +1725,7 @@ document.addEventListener('keydown', function(e){
 function tipoPill(t){
   if(t==='Consumo')        return '<span class="pill" style="background:rgba(27,200,255,.15);color:#7dd3fc;border:1px solid rgba(27,200,255,.3)">Consumo</span>';
   if(t==='Venta')          return '<span class="pill pill-ok">Venta</span>';
+  if(t==='Venta Piscina')  return '<span class="pill" style="background:rgba(234,179,8,.15);color:#fde047;border:1px solid rgba(234,179,8,.35)">Piscina</span>';
   if(t==='Infraestructura')return '<span class="pill" style="background:rgba(249,115,22,.15);color:#fdba74;border:1px solid rgba(249,115,22,.3)">Infra</span>';
   return '<span class="pill" style="opacity:.5">—</span>';
 }
@@ -1681,7 +1733,7 @@ function tipoPill(t){
 function renderArticles(){
   var rows=getFiltered();
   markSort();
-  document.getElementById('tbl-count').textContent=rows.length+' artículos';
+  document.getElementById('tbl-count').textContent=rows.length+(rows.length===1?' artículo':' artículos');
   document.getElementById('th-fur').textContent = 'Furriol';
   document.getElementById('th-art').textContent = 'Artigas';
   if(!rows.length){ document.getElementById('tbody').innerHTML='<tr class="empty-row"><td colspan="9">Sin resultados con los filtros actuales.</td></tr>'; return; }
@@ -1877,7 +1929,7 @@ function onGridDep(){
 function renderGrid(){
   GRID.est=document.getElementById('g-est').value;
   if(mapaModo()) return;                       // fabrica: se muestran zonas, no racks
-  document.getElementById('grid-legend').innerHTML=['Consumo','Venta','Infraestructura',''].map(function(t){
+  document.getElementById('grid-legend').innerHTML=TIPOS.concat(['']).map(function(t){
     var c=tipoColor(t);
     return '<span class="lg"><i style="background:'+c.bg+';border:1px solid '+c.bd+'"></i>'+(t||'Sin tipo')+'</span>';
   }).join('');
@@ -1919,6 +1971,58 @@ function gridHtmlFor(e){
 
 // ── Transferencia ──────────────────────────────────────────────
 function depOptions(sel){ return DEPS.map(function(d){return '<option '+(d.nombre===sel?'selected':'')+'>'+esc(d.nombre)+'</option>';}).join(''); }
+// ── Alta de artículo ──────────────────────────────────────────
+//    Crea la ficha en el catálogo. Nace sin stock: para cargarle
+//    unidades está Ingresar, que es otra cosa.
+function openArticulo(){
+  var provs=[]; ART.forEach(function(a){ if(a.proveedor && provs.indexOf(a.proveedor)<0) provs.push(a.proveedor); });
+  document.getElementById('ar-provs').innerHTML=provs.sort().map(function(p){ return '<option value="'+esc(p)+'"></option>'; }).join('');
+  document.getElementById('ar-tipo').innerHTML='<option value="">Sin tipo</option>'
+    +TIPOS.map(function(t){ return '<option value="'+esc(t)+'">'+esc(t)+'</option>'; }).join('');
+  ['ar-prov','ar-cod','ar-desc','ar-uxc'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('ar-tipo').value='';
+  arUpd();
+  openModal('art-overlay');
+}
+// La base tiene unique(proveedor, descripcion): conviene avisar antes
+// de mandar, no después de que rebote.
+function arUpd(){
+  var prov=document.getElementById('ar-prov').value.trim();
+  var desc=document.getElementById('ar-desc').value.trim();
+  var h=document.getElementById('ar-hint');
+  if(!prov || !desc){ h.className='hint-note'; h.textContent='Proveedor y descripción son obligatorios.'; return; }
+  var dup=ART.some(function(a){
+    return (a.proveedor||'').toLowerCase()===prov.toLowerCase()
+        && (a.descripcion||'').toLowerCase()===desc.toLowerCase(); });
+  if(dup){ h.className='hint-note hint-warn'; h.textContent='Ya existe un artículo de '+prov+' con esa descripción.'; }
+  else   { h.className='hint-note'; h.textContent='Se va a crear en '+prov+', sin stock inicial.'; }
+}
+function saveArticulo(){
+  var prov=document.getElementById('ar-prov').value.trim();
+  var desc=document.getElementById('ar-desc').value.trim();
+  var cod =document.getElementById('ar-cod').value.trim();
+  var tipo=document.getElementById('ar-tipo').value;
+  var uxc =num(document.getElementById('ar-uxc').value);
+  if(!prov){ toast('Poné el proveedor','err'); document.getElementById('ar-prov').focus(); return; }
+  if(!desc){ toast('Poné la descripción','err'); document.getElementById('ar-desc').focus(); return; }
+  var btn=document.getElementById('btn-save-art'); btn.disabled=true;
+  toast('Creando artículo…','info');
+  SB.from('imp_articulos').insert({
+    proveedor:prov, codigo:cod||null, descripcion:desc,
+    tipo:tipo||null, un_x_caja:uxc>0?uxc:null, activo:true
+  }).select().single().then(function(r){
+    btn.disabled=false;
+    if(r.error){
+      var m=r.error.message||'';
+      toast(/duplicate|unique/i.test(m) ? 'Ya existe un artículo de '+prov+' con esa descripción' : ('Error: '+m),'err');
+      return;
+    }
+    closeModal('art-overlay');
+    toast('➕ '+desc+' creado en '+prov,'ok');
+    load();
+  });
+}
+
 // ── Ingreso de mercadería ─────────────────────────────────────
 //    Entra al stock del depósito sin pallet. Los pallets se arman
 //    después, con lo que haya quedado suelto.
@@ -2650,7 +2754,7 @@ function plSlots(){
   // Leyenda de colores por tipo
   var leg=document.getElementById('pl-mini-leg');
   if(leg) leg.innerHTML='<span><i style="border:1px dashed rgba(255,255,255,.35)"></i>Libre</span>'
-    +['Consumo','Venta','Infraestructura',''].map(function(t){
+    +TIPOS.concat(['']).map(function(t){
         var c=tipoColor(t);
         return '<span><i style="background:'+c.bg+';border:1px solid '+c.bd+'"></i>'+(t||'Sin tipo')+'</span>';
       }).join('');

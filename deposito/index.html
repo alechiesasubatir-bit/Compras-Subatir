@@ -977,8 +977,6 @@ window.APP_VER='2026-07-28.1747';
         <span class="badge badge-info" id="tbl-count">—</span>
         <button class="btn btn-primary btn-sm" onclick="openArticulo()" title="Dar de alta un artículo nuevo">➕ Nuevo artículo</button>
         <button class="btn btn-orange btn-sm" onclick="openReporte()" title="Reportes en Excel o PDF, eligiendo filtros y columnas">📄 Reportes</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir</button>
       </div>
     </div>
 
@@ -1349,10 +1347,21 @@ window.APP_VER='2026-07-28.1747';
       <button class="modal-close" aria-label="Cerrar" onclick="closeModal('pallet-overlay')">✕</button>
     </div>
     <div class="modal-body">
+      <!-- El desplegable de artículos tiene 119 entradas: filtrar por tipo
+           primero deja una lista corta donde encontrar el que se busca. -->
       <div class="form-grid">
+        <div class="form-group">
+          <label for="pl-tipo">Tipo</label>
+          <select class="form-input" id="pl-tipo" onchange="plFiltrarArt()"></select>
+        </div>
+        <div class="form-group">
+          <label for="pl-prov">Proveedor</label>
+          <select class="form-input" id="pl-prov" onchange="plFiltrarArt()"></select>
+        </div>
         <div class="form-group span2">
           <label for="pl-art">Artículo *</label>
           <select class="form-input" id="pl-art" onchange="plArt()"></select>
+          <div id="pl-art-hint" class="hint-note">—</div>
         </div>
       </div>
 
@@ -3043,7 +3052,19 @@ function openPallet(opts){
 
   document.getElementById('pallet-title').textContent =
     (opts.fila&&opts.col) ? 'Armar pallet en la ranura' : 'Armar pallet';
-  document.getElementById('pl-art').innerHTML=artOptions(opts.artId||'');
+
+  // Filtros de la lista de artículos. Si se entró desde la fila de un
+  // artículo, se preseleccionan su tipo y proveedor: es lo que se viene
+  // a armar, y de paso queda claro por qué la lista está corta.
+  var pre=opts.artId?artById(opts.artId):null;
+  var provs=[]; ART.forEach(function(a){ if(a.proveedor && provs.indexOf(a.proveedor)<0) provs.push(a.proveedor); });
+  document.getElementById('pl-tipo').innerHTML='<option value="">Todos los tipos</option>'
+    +TIPOS.map(function(t){ return '<option'+(pre&&pre.tipo===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('')
+    +'<option value="__sin"'+(pre&&!pre.tipo?' selected':'')+'>Sin tipo</option>';
+  document.getElementById('pl-prov').innerHTML='<option value="">Todos los proveedores</option>'
+    +provs.sort().map(function(p){ return '<option'+(pre&&pre.proveedor===p?' selected':'')+'>'+esc(p)+'</option>'; }).join('');
+  plFiltrarArt(opts.artId||'');
+
   document.getElementById('pl-cajas').value='';
   document.getElementById('pl-rem').value='';
   document.getElementById('pl-unid').value='';
@@ -3056,6 +3077,34 @@ function openPallet(opts){
   plSlots();
   plArt();
   openModal('pallet-overlay');
+}
+// Rearma la lista de artículos según tipo y proveedor. Conserva el que
+// estaba elegido si sigue entrando en el filtro; si no, toma el primero.
+function plFiltrarArt(forzar){
+  var ft=document.getElementById('pl-tipo').value;
+  var fp=document.getElementById('pl-prov').value;
+  var sel=document.getElementById('pl-art');
+  var actual=forzar||sel.value;
+  var lista=ART.filter(function(a){
+    if(fp && a.proveedor!==fp) return false;
+    if(ft==='__sin') return !a.tipo;
+    return !ft || (a.tipo||'')===ft;
+  }).sort(function(a,b){ return String(a.descripcion).localeCompare(String(b.descripcion),'es'); });
+
+  var hay=lista.some(function(a){ return String(a.id)===String(actual); });
+  sel.innerHTML=lista.length
+    ? lista.map(function(a){
+        return '<option value="'+a.id+'"'+(hay&&String(a.id)===String(actual)?' selected':'')+'>'
+          +esc((a.proveedor?('['+a.proveedor+'] '):'')+a.descripcion)+'</option>'; }).join('')
+    : '<option value="">— sin artículos con ese filtro —</option>';
+
+  var h=document.getElementById('pl-art-hint');
+  if(h){
+    if(!lista.length){ h.className='hint-note hint-warn'; h.textContent='Ningún artículo con ese tipo y proveedor.'; }
+    else { h.className='hint-note';
+           h.textContent=lista.length+(lista.length===1?' artículo':' artículos')+' para elegir.'; }
+  }
+  plArt();
 }
 function plMode(m){
   var alm=estAlmacen();
@@ -3628,18 +3677,9 @@ function saveLayout(){
   }, function(err){ btn.disabled=false; toast('Error: '+(err&&err.message||err),'err'); });
 }
 
-// ── CSV ────────────────────────────────────────────────────────
-function exportCSV(){
-  var rows=getFiltered();
-  var head=['Proveedor','Codigo','Descripcion','Tipo','UN x Caja','Furriol','Artigas','Total'];
-  var lines=[head.join(';')];
-  rows.forEach(function(a){
-    lines.push([a.proveedor||'',a.codigo||'','"'+String(a.descripcion||'').replace(/"/g,'""')+'"',a.tipo||'',a.un_x_caja||'',stockOf(a.id,'Furriol'),stockOf(a.id,'Artigas'),totalOf(a.id)].join(';'));
-  });
-  var blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
-  var url=URL.createObjectURL(blob), link=document.createElement('a');
-  link.href=url; link.download='stock_depositos_articulos.csv'; link.click(); URL.revokeObjectURL(url);
-}
+// El CSV y el Imprimir se fueron: los reemplazó la pantalla de Reportes,
+// que exporta lo mismo pero eligiendo filtros y columnas. Los estilos de
+// @media print quedan, que sirven para imprimir con Ctrl+P.
 
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener('pointerdown', dndPointerDown);

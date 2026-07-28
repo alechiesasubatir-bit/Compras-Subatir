@@ -355,6 +355,14 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 .ti-dot{width:5px;height:5px;border-radius:50%;background:var(--orange);flex-shrink:0}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
+/* Segmentado Existente / Nuevo dentro del formulario */
+.seg2{display:flex;gap:4px;margin-bottom:6px}
+.seg2 button{flex:1;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;
+  border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#7a8fa8;
+  transition:background .15s,color .15s,border-color .15s}
+.seg2 button:hover{color:#e2e8f0;background:rgba(255,255,255,.08)}
+.seg2 button.on{color:#fff;background:linear-gradient(135deg,#0e8aaa,#1bc8ff);border-color:rgba(27,200,255,.45)}
+
 /* ═══ DESPLEGABLES OSCUROS ═══════════════════════════════════
    Los <select> con class .form-input quedaban sin regla para sus
    opciones y Windows los pintaba con el blanco del sistema.
@@ -586,9 +594,25 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
     <h3 id="ed-title">Editar precio</h3>
     <div class="msub" id="ed-sub">Los cambios se guardan localmente y se envían a la base de datos al Sincronizar.</div>
     <div class="frm">
-      <div class="fg full"><label>Artículo *</label><input id="ed-articulo" placeholder="Nombre del artículo"/></div>
+      <div class="fg full">
+        <label>Artículo *</label>
+        <div class="seg2">
+          <button type="button" id="ed-art-m-old" class="on" onclick="edArtMode('old')">📋 Existente</button>
+          <button type="button" id="ed-art-m-new" onclick="edArtMode('new')">✚ Nuevo</button>
+        </div>
+        <select id="ed-art-sel" onchange="edPickArt()"></select>
+        <input id="ed-articulo" placeholder="Nombre del artículo nuevo"/>
+      </div>
       <div class="fg"><label>Código</label><input id="ed-codigo" placeholder="Código interno"/></div>
-      <div class="fg"><label>Proveedor *</label><input id="ed-proveedor" list="prov-datalist" placeholder="Proveedor"/></div>
+      <div class="fg">
+        <label>Proveedor *</label>
+        <div class="seg2">
+          <button type="button" id="ed-prov-m-old" class="on" onclick="edProvMode('old')">📋 Existente</button>
+          <button type="button" id="ed-prov-m-new" onclick="edProvMode('new')">✚ Nuevo</button>
+        </div>
+        <select id="ed-prov-sel" onchange="edPickProv()"></select>
+        <input id="ed-proveedor" placeholder="Nombre del proveedor nuevo"/>
+      </div>
       <div class="fg"><label>Precio s/IVA U$S</label><input id="ed-usd" type="number" step="0.01" placeholder="0.00"/></div>
       <div class="fg"><label>Precio s/IVA $</label><input id="ed-pso" type="number" step="0.01" placeholder="0.00"/></div>
       <div class="fg"><label>Calidad</label>
@@ -635,6 +659,7 @@ var CAT_FILT = [];   // catálogo filtrado
 var CAT_SORT = { k:'articulo', d:'asc' };
 var CHART_H  = null;
 var SEL_ART  = null; // artículo seleccionado en comparador
+var ED_ART_MODE = 'old', ED_PROV_MODE = 'old'; // alta: existente o nuevo
 // Datos del último historial graficado — para selector de moneda
 var HIST_DATA = { labels:[], pricesUSD:[], pricesPSO:[], provs:[], cantidades:[], minP:0, maxP:0 };
 
@@ -1343,6 +1368,61 @@ function fillProvDatalist(){
   if(dl) dl.innerHTML=PROVLIST.map(function(p){return '<option value="'+esc(p)+'">';}).join('');
 }
 
+// ── Alta de precio: artículo/proveedor existente o nuevo ──────────
+// Los <select> escriben en los inputs de siempre (ed-articulo / ed-proveedor),
+// así readForm() y saveEdit() no cambian.
+function edFillLists(){
+  var a=document.getElementById('ed-art-sel');
+  if(a) a.innerHTML='<option value="">— Elegí un artículo —</option>'+
+    ARTLIST.map(function(x){return '<option value="'+esc(x)+'">'+esc(x)+'</option>';}).join('');
+  var p=document.getElementById('ed-prov-sel');
+  if(p) p.innerHTML='<option value="">— Elegí un proveedor —</option>'+
+    PROVLIST.map(function(x){return '<option value="'+esc(x)+'">'+esc(x)+'</option>';}).join('');
+}
+function edArtMode(m){
+  ED_ART_MODE=m;
+  document.getElementById('ed-art-m-old').className = m==='old'?'on':'';
+  document.getElementById('ed-art-m-new').className = m==='new'?'on':'';
+  document.getElementById('ed-art-sel').style.display  = m==='old'?'':'none';
+  document.getElementById('ed-articulo').style.display = m==='new'?'':'none';
+  if(m==='new'){ document.getElementById('ed-art-sel').value=''; }
+}
+function edProvMode(m){
+  ED_PROV_MODE=m;
+  document.getElementById('ed-prov-m-old').className = m==='old'?'on':'';
+  document.getElementById('ed-prov-m-new').className = m==='new'?'on':'';
+  document.getElementById('ed-prov-sel').style.display  = m==='old'?'':'none';
+  document.getElementById('ed-proveedor').style.display = m==='new'?'':'none';
+  if(m==='new'){ document.getElementById('ed-prov-sel').value=''; }
+}
+// Último registro cargado de un artículo o proveedor, para copiar sus datos
+function edUltimo(campo, valor){
+  var f=RAW.filter(function(r){ return String(r[campo]||'').trim()===valor; });
+  if(!f.length) return null;
+  f.sort(function(a,b){ return String(b[PK.fecha]||'').localeCompare(String(a[PK.fecha]||'')); });
+  return f[0];
+}
+function edPickArt(){
+  var v=document.getElementById('ed-art-sel').value;
+  document.getElementById('ed-articulo').value=v;      // lo que lee saveEdit
+  if(!v) return;
+  var r=PK.articulo ? edUltimo(PK.articulo, v) : null;
+  if(r && PK.codigo) document.getElementById('ed-codigo').value = r[PK.codigo]||'';
+  setSelect('ed-cat', catOf(v));                       // categoría ya conocida
+}
+function edPickProv(){
+  var v=document.getElementById('ed-prov-sel').value;
+  document.getElementById('ed-proveedor').value=v;
+  if(!v) return;
+  // Copiamos las condiciones del proveedor, que no cambian por artículo
+  var r=PK.proveedor ? edUltimo(PK.proveedor, v) : null;
+  if(!r) return;
+  if(PK.pago)     document.getElementById('ed-pago').value = r[PK.pago]||'';
+  if(PK.calidad)  setSelect('ed-calidad',  String(r[PK.calidad] ||'').toUpperCase());
+  if(PK.atencion) setSelect('ed-atencion', String(r[PK.atencion]||'').toUpperCase());
+  if(PK.demora)   setSelect('ed-demora',   String(r[PK.demora]  ||'').toUpperCase());
+}
+
 // Busca un registro por su referencia (__row del Sheet o __localId de una alta local)
 function findRec(ref){
   ref=String(ref);
@@ -1357,7 +1437,11 @@ function openNew(){
   ['ed-articulo','ed-codigo','ed-proveedor','ed-usd','ed-pso','ed-pago'].forEach(function(id){document.getElementById(id).value='';});
   ['ed-calidad','ed-atencion','ed-demora','ed-cat'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('ed-fecha').value=new Date().toISOString().slice(0,10);
-  fillProvDatalist();
+  edFillLists();
+  document.getElementById('ed-art-sel').value='';
+  document.getElementById('ed-prov-sel').value='';
+  // Lo habitual es cargar un precio nuevo de algo que ya existe
+  edArtMode('old'); edProvMode('old');
   document.getElementById('edit-ovl').classList.add('open');
 }
 
@@ -1379,7 +1463,14 @@ function openEdit(ref){
   document.getElementById('ed-pago').value     = PK.pago     ? (r[PK.pago]||'')     : '';
   document.getElementById('ed-fecha').value    = PK.fecha ? isoDate(r[PK.fecha]) : '';
   setSelect('ed-cat', catOf(PK.articulo ? r[PK.articulo] : ''));
-  fillProvDatalist();
+  edFillLists();
+  // Editando, el artículo y el proveedor ya existen: se muestran elegidos
+  var av=document.getElementById('ed-articulo').value;
+  var pv=document.getElementById('ed-proveedor').value;
+  var asel=document.getElementById('ed-art-sel');  asel.value=av;
+  var psel=document.getElementById('ed-prov-sel'); psel.value=pv;
+  edArtMode(asel.value===av && av ? 'old' : 'new');
+  edProvMode(psel.value===pv && pv ? 'old' : 'new');
   document.getElementById('edit-ovl').classList.add('open');
 }
 

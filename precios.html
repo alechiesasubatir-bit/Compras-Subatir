@@ -354,6 +354,16 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 .ticker-item b{color:var(--teal-l)}
 .ti-dot{width:5px;height:5px;border-radius:50%;background:var(--orange);flex-shrink:0}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* ═══ DESPLEGABLES OSCUROS ═══════════════════════════════════
+   Los <select> con class .form-input quedaban sin regla para sus
+   opciones y Windows los pintaba con el blanco del sistema.
+   color-scheme alinea los popups nativos; la regla explícita hace
+   falta porque en Windows el desplegable lo ignora. */
+html{color-scheme:dark}
+select{color-scheme:dark}
+select option,select optgroup{background:#0c1119;color:#e2e8f0}
+select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=9"></script>

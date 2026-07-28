@@ -8,6 +8,18 @@ echo.
 
 cd /d "%~dp0"
 
+:: La app de Depósitos se recarga sola cuando ve una versión nueva.
+:: El número va en dos archivos que tienen que coincidir, así que se
+:: escriben acá y no a mano. Si algo falla, no se publica: es peor
+:: subir con las versiones desincronizadas.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0bump-version.ps1"
+if errorlevel 1 (
+  echo.
+  echo  ✗ No se pudo actualizar la version. No se publico nada.
+  pause
+  exit /b 1
+)
+
 git add .
 
 set /p msg="Descripcion del cambio (Enter para usar fecha): "

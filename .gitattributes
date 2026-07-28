@@ -1,0 +1,22 @@
+# cmd.exe recorre los .bat por posicion de bytes: con saltos LF el
+# parser se desfasa y empieza a comerse el principio de cada linea.
+# Tienen que quedar SIEMPRE con CRLF, sin depender de core.autocrlf
+# de cada maquina.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Windows PowerShell 5.1 lee los .ps1 en la codepage local si no hay
+# BOM, asi que conviene mantenerlos en ASCII y con CRLF.
+*.ps1 text eol=crlf
+
+# El resto queda normalizado a LF dentro del repo, que es lo habitual.
+*.html text eol=lf
+*.js   text eol=lf
+*.sql  text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+
+# Binarios: que git no los toque.
+*.jpg binary
+*.png binary
+*.pdf binary

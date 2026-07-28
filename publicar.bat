@@ -1,21 +1,27 @@
 @echo off
 chcp 65001 >nul
 echo.
-echo  ╔══════════════════════════════════════╗
-echo  ║     PUBLICAR ACTUALIZACIÓN           ║
-echo  ╚══════════════════════════════════════╝
+echo  ==========================================
+echo        PUBLICAR ACTUALIZACION
+echo  ==========================================
 echo.
 
 cd /d "%~dp0"
 
-:: La app de Depósitos se recarga sola cuando ve una versión nueva.
-:: El número va en dos archivos que tienen que coincidir, así que se
-:: escriben acá y no a mano. Si algo falla, no se publica: es peor
+:: OJO: este archivo tiene que quedar en ASCII y con saltos CRLF.
+:: cmd.exe recorre el .bat por posicion de bytes, asi que con acentos
+:: o cajas UTF-8 el parser se desfasa despues del chcp y empieza a
+:: comerse el principio de cada linea. Hay una regla en .gitattributes
+:: para que git no lo pase a LF al clonar.
+
+:: La app de Depositos se recarga sola cuando ve una version nueva.
+:: El numero va en dos archivos que tienen que coincidir, asi que se
+:: escriben aca y no a mano. Si algo falla, no se publica: es peor
 :: subir con las versiones desincronizadas.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0bump-version.ps1"
 if errorlevel 1 (
   echo.
-  echo  ✗ No se pudo actualizar la version. No se publico nada.
+  echo  ERROR: no se pudo actualizar la version. No se publico nada.
   pause
   exit /b 1
 )
@@ -33,7 +39,7 @@ git commit -m "%msg%"
 git push
 
 echo.
-echo  ✓ Publicado. La pagina se actualiza en 1-2 minutos.
+echo  Publicado. La pagina se actualiza en 1-2 minutos.
 echo  URL: https://alechiesasubatir-bit.github.io/Compras-Subatir/
 echo.
 pause

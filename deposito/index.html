@@ -2330,13 +2330,16 @@ function repUpd(){
 // Resumen legible de los filtros, para que el reporte impreso diga
 // qué está mirando y no sea un listado sin contexto.
 function repResumen(){
-  var f=repFiltros(), p=[];
+  var f=repFiltros(), m=repModo(), p=[];
   if(f.prov) p.push('Proveedor: '+f.prov);
   if(f.tipo) p.push('Tipo: '+(f.tipo==='__sin'?'sin tipo':f.tipo));
   if(f.dep)  p.push('Depósito: '+f.dep);
-  if(f.estado) p.push('Estado: '+f.estado.replace('_',' '));
-  if(f.soloCon) p.push(document.getElementById('rep-tipo-rep').value==='stock'?'sólo con stock':'sólo activos');
-  return p.length ? p.join('  ·  ') : 'Sin filtros: todo el inventario';
+  if(m==='pallets' && f.estado) p.push('Estado: '+f.estado.replace('_',' '));
+  // En ingresos el checkbox está oculto porque no aplica: si se cuela en
+  // el resumen, el PDF dice "sólo activos" sin que nadie lo haya pedido.
+  if(f.soloCon && m!=='ingresos') p.push(m==='stock'?'sólo con stock':'sólo activos');
+  if(p.length) return p.join('  ·  ');
+  return m==='ingresos' ? 'Todos los ingresos registrados' : 'Sin filtros: todo el inventario';
 }
 
 // ── Excel ─────────────────────────────────────────────────────

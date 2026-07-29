@@ -1094,6 +1094,12 @@ window.APP_VER='2026-07-29.0936';
       </div>
       <div class="sec-tools">
         <span class="badge badge-info" id="pal-count">—</span>
+        <select class="fsel" id="pal-f-tipo" aria-label="Filtrar pallets por tipo de artículo" onchange="renderPallets()">
+          <option value="">Todos los tipos</option>
+        </select>
+        <select class="fsel" id="pal-f-dep" aria-label="Filtrar pallets por depósito" onchange="renderPallets()">
+          <option value="">Todos los depósitos</option>
+        </select>
         <button class="btn btn-primary btn-sm" onclick="openTransfer()" title="Elegir pallets armados y marcarlos para despacho">🚚 Transferir pallets</button>
         <button class="btn btn-orange btn-sm" onclick="openScan()">📷 Escanear QR</button>
         <button class="btn btn-ghost btn-sm" id="pal-toggle" onclick="palToggle()"
@@ -1127,7 +1133,7 @@ window.APP_VER='2026-07-29.0936';
       <div class="hist-block">
         <button class="hist-toggle" id="hist-toggle" onclick="histToggle()"
                 aria-expanded="false" aria-controls="pal-hist">
-          <span>▸ Historial · consumidos</span>
+          <span>▸ Historial de envíos</span>
           <span class="badge badge-info" id="hist-count">—</span>
         </button>
         <div id="pal-hist" style="display:none">
@@ -1137,14 +1143,16 @@ window.APP_VER='2026-07-29.0936';
                 <tr>
                   <th>Código QR</th>
                   <th>Artículo</th>
+                  <th style="text-align:center">Tipo</th>
                   <th style="text-align:right">Unidades</th>
                   <th style="text-align:center">Destino</th>
-                  <th>Consumido</th>
+                  <th style="text-align:center">Estado</th>
+                  <th>Recibido</th>
                   <th style="text-align:center">Acción</th>
                 </tr>
               </thead>
               <tbody id="hist-tbody">
-                <tr class="empty-row"><td colspan="6">Todavía no se consumió ningún pallet.</td></tr>
+                <tr class="empty-row"><td colspan="8">Todavía no se envió ningún pallet.</td></tr>
               </tbody>
             </table>
           </div>
@@ -1169,6 +1177,7 @@ window.APP_VER='2026-07-29.0936';
           <select class="form-input" id="rep-tipo-rep" onchange="repCambiar()">
             <option value="stock">Stock por depósito</option>
             <option value="pallets">Pallets y ubicaciones</option>
+            <option value="ingresos">Ingresos de mercadería</option>
           </select>
         </div>
       </div>
@@ -1854,7 +1863,9 @@ function renderArticles(){
 // ── Pallets ────────────────────────────────────────────────────
 function artById(id){ return ART.find(function(a){return String(a.id)===String(id);}); }
 function estadoPal(e){
-  if(e==='CONSUMIDO')   return '<span class="pill pill-used">🔥 Consumido</span>';
+  // El estado en la base sigue siendo CONSUMIDO; sólo cambia cómo se
+  // lee: para el depósito lo que pasó es que llegó y se entregó.
+  if(e==='CONSUMIDO')   return '<span class="pill pill-used">📥 Recibido</span>';
   if(e==='ABIERTO')     return '<span class="pill pill-open">🟠 Abierto · contando</span>';
   if(e==='RECIBIDO')    return '<span class="pill pill-recv">✅ Recibido</span>';
   if(e==='EN_TRANSITO') return '<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d;border:1px solid rgba(245,158,11,.4)">🚚 En tránsito</span>';
@@ -1881,7 +1892,7 @@ function histToggle(){
   var abrir = h.style.display==='none';
   h.style.display = abrir?'':'none';
   t.setAttribute('aria-expanded', abrir?'true':'false');
-  t.querySelector('span').textContent = (abrir?'▾':'▸')+' Historial · consumidos';
+  t.querySelector('span').textContent = (abrir?'▾':'▸')+' Historial de envíos';
 }
 
 // Orden por ubicación física: primero lo que está en una ranura, por
@@ -1901,14 +1912,39 @@ function palOrden(a,b){
 }
 
 function renderPallets(){
-  var activos=PALLETS.filter(function(p){ return p.estado!=='CONSUMIDO'; }).sort(palOrden);
-  var hist=PALLETS.filter(function(p){ return p.estado==='CONSUMIDO'; })
+  // Los desplegables se rellenan acá para que sigan a los datos
+  var ft=document.getElementById('pal-f-tipo'), fd=document.getElementById('pal-f-dep');
+  if(ft && ft.options.length<=1){
+    ft.innerHTML='<option value="">Todos los tipos</option>'
+      +TIPOS.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')
+      +'<option value="__sin">Sin tipo</option>';
+  }
+  if(fd && fd.options.length<=1){
+    fd.innerHTML='<option value="">Todos los depósitos</option>'
+      +DEPS.map(function(d){ return '<option>'+esc(d.nombre)+'</option>'; }).join('');
+  }
+  var vt=ft?ft.value:'', vd=fd?fd.value:'';
+  if(ft) ft.classList.toggle('on', !!vt);
+  if(fd) fd.classList.toggle('on', !!vd);
+
+  var pasa=function(p){
+    var a=artById(p.articulo_id)||{};
+    if(vt==='__sin'){ if(a.tipo) return false; }
+    else if(vt && (a.tipo||'')!==vt) return false;
+    // El pallet enviado ya no está en su origen: se filtra por dónde
+    // terminó, que para los de Artigas es el destino.
+    if(vd && p.deposito!==vd) return false;
+    return true;
+  };
+
+  var activos=PALLETS.filter(function(p){ return p.estado!=='CONSUMIDO' && pasa(p); }).sort(palOrden);
+  var hist=PALLETS.filter(function(p){ return p.estado==='CONSUMIDO' && pasa(p); })
                   .sort(function(a,b){ return new Date(b.consumido_at||0)-new Date(a.consumido_at||0); });
 
   var plural=function(n,sing,plur){ return n+' '+(n===1?sing:plur); };
   document.getElementById('pal-count').textContent =
     plural(activos.length,'activo','activos')
-    +(hist.length?(' · '+plural(hist.length,'consumido','consumidos')):'');
+    +(hist.length?(' · '+plural(hist.length,'enviado','enviados')):'');
   document.getElementById('hist-count').textContent = plural(hist.length,'pallet','pallets');
 
   document.getElementById('pal-tbody').innerHTML = activos.length ? activos.map(function(p){
@@ -1931,13 +1967,15 @@ function renderPallets(){
     var f=p.consumido_at?new Date(p.consumido_at).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
     return '<tr>'
       +'<td class="mono-cell" style="color:var(--muted-l)">'+esc(p.codigo)+'</td>'
-      +'<td class="desc-cell" style="max-width:220px" title="'+esc(a?a.descripcion:'')+'">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</td>'
+      +'<td class="desc-cell" style="max-width:200px" title="'+esc(a?a.descripcion:'')+'">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</td>'
+      +'<td style="text-align:center">'+tipoPill(a?a.tipo:'')+'</td>'
       +'<td class="num-cell tot">'+fmtNum(p.unidades)+'</td>'
       +'<td class="mono-cell" style="text-align:center">'+esc(p.deposito||'—')+'</td>'
+      +'<td style="text-align:center">'+estadoPal(p.estado)+'</td>'
       +'<td class="muted-cell" style="font-size:12px">'+f+(p.consumido_by?(' · '+esc(p.consumido_by)):'')+'</td>'
       +'<td style="text-align:center"><button class="btn btn-ghost btn-sm" onclick="openPalletDetail('+p.id+')">⚙ Ver</button></td>'
     +'</tr>';
-  }).join('') : '<tr class="empty-row"><td colspan="6">Todavía no se consumió ningún pallet.</td></tr>';
+  }).join('') : '<tr class="empty-row"><td colspan="8">Todavía no se envió ningún pallet.</td></tr>';
 }
 
 // ── Cuadrícula (mapa del depósito) ─────────────────────────────
@@ -2003,7 +2041,7 @@ function renderFabrica(){
           : '<div class="zona-ult"><div class="zona-empty">Nada en tránsito hacia '+esc(dep)+'</div></div>')
     +'</div>'
     +'<div class="zona">'
-      +'<div class="zona-h"><span class="zona-n">🔥 Consumido</span>'
+      +'<div class="zona-h"><span class="zona-n">📥 Recibido '+esc(dep)+'</span>'
         +'<span class="zona-b">'+pal(cons.length)+'</span></div>'
       +'<div class="zona-k"><span>Total</span><b>'+fmtNum(sum(cons))+'</b><i>unidades</i></div>'
       +(hoyN.length?('<div class="zona-hoy">Hoy: <b>'+fmtNum(sum(hoyN))+'</b> u. en '+hoyN.length+' pallet'+(hoyN.length===1?'':'s')+'</div>'):'')
@@ -2100,8 +2138,26 @@ var REP_DEFS={
       {k:'estado',      t:'Estado',      on:true },
       {k:'fecha',       t:'Fecha',       on:false}
     ]
+  },
+  ingresos:{
+    titulo:'Ingresos de mercadería',
+    cols:[
+      {k:'fecha_hora',  t:'Fecha',       on:true },
+      {k:'articulo',    t:'Artículo',    on:true,  ancho:'30%'},
+      {k:'proveedor',   t:'Proveedor',   on:true },
+      {k:'tipo',        t:'Tipo',        on:false, pill:true},
+      {k:'deposito',    t:'Depósito',    on:true },
+      {k:'stock_antes', t:'Tenía',       on:true,  num:true},
+      {k:'ingresado',   t:'Ingresó',     on:true,  num:true},
+      {k:'stock_despues',t:'Quedó',      on:true,  num:true},
+      {k:'nota',        t:'Referencia',  on:true },
+      {k:'usuario',     t:'Usuario',     on:false}
+    ]
   }
 };
+// Los movimientos no se cargan con el resto: son muchos y sólo hacen
+// falta para este reporte. Se traen cuando se lo elige.
+var MOVS_ING=null;
 var REP_ON={};   // {clave: true} de lo tildado
 
 function openReporte(){
@@ -2110,6 +2166,7 @@ function openReporte(){
   sel('rep-prov','<option value="">Todos</option>'+provs.sort().map(function(p){ return '<option>'+esc(p)+'</option>'; }).join(''));
   sel('rep-tipo','<option value="">Todos</option>'+TIPOS.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')+'<option value="__sin">Sin tipo</option>');
   sel('rep-dep','<option value="">Todos</option>'+DEPS.map(function(d){ return '<option>'+esc(d.nombre)+'</option>'; }).join(''));
+  MOVS_ING=null;
   sel('rep-estado','<option value="">Todos</option>'+['ABIERTO','ESTACIONADO','EN_TRANSITO','RECIBIDO','CONSUMIDO']
       .map(function(e){ return '<option value="'+e+'">'+e.replace('_',' ')+'</option>'; }).join(''));
   // Arranca con lo que ya está filtrado en pantalla: si el operario
@@ -2122,13 +2179,28 @@ function openReporte(){
   openModal('rep-overlay');
 }
 function repDef(){ return REP_DEFS[document.getElementById('rep-tipo-rep').value]||REP_DEFS.stock; }
+function repModo(){ return document.getElementById('rep-tipo-rep').value; }
 function repCambiar(){
-  var d=repDef(), esStock=document.getElementById('rep-tipo-rep').value==='stock';
+  var d=repDef(), m=repModo();
   REP_ON={}; d.cols.forEach(function(c){ if(c.on) REP_ON[c.k]=true; });
-  document.getElementById('rep-estado-wrap').style.display=esStock?'none':'';
-  document.getElementById('rep-con-stock-txt').textContent=esStock
-    ? 'Sólo artículos con stock' : 'Sólo pallets activos (sin los consumidos)';
-  repPintarCols(); repUpd();
+  document.getElementById('rep-estado-wrap').style.display = m==='pallets' ? '' : 'none';
+  var chk=document.getElementById('rep-con-stock').parentNode;
+  chk.style.display = m==='ingresos' ? 'none' : '';   // en ingresos no aplica
+  document.getElementById('rep-con-stock-txt').textContent = m==='stock'
+    ? 'Sólo artículos con stock' : 'Sólo pallets activos (sin los enviados)';
+  repPintarCols();
+  if(m==='ingresos' && !MOVS_ING){
+    document.getElementById('rep-hint').textContent='Buscando los ingresos…';
+    SB.from('imp_movimientos').select('*').eq('tipo','INGRESO')
+      .order('created_at',{ascending:false}).limit(3000)
+      .then(function(r){
+        MOVS_ING = r.error ? [] : (r.data||[]);
+        if(r.error) toast('No se pudieron leer los ingresos: '+r.error.message,'err');
+        repUpd();
+      });
+    return;
+  }
+  repUpd();
 }
 function repPintarCols(){
   document.getElementById('rep-col-list').innerHTML=repDef().cols.map(function(c){
@@ -2161,11 +2233,20 @@ function repFiltros(){
   };
 }
 function repDatos(){
-  var f=repFiltros(), esStock=document.getElementById('rep-tipo-rep').value==='stock';
+  var f=repFiltros(), m=repModo(), esStock=m==='stock';
   var coincideTipo=function(t){
     if(f.tipo==='__sin') return !t;
     return !f.tipo || (t||'')===f.tipo;
   };
+  if(m==='ingresos'){
+    return (MOVS_ING||[]).filter(function(mv){
+      var a=artById(mv.articulo_id)||{};
+      if(f.prov && a.proveedor!==f.prov) return false;
+      if(!coincideTipo(a.tipo)) return false;
+      if(f.dep && mv.deposito!==f.dep) return false;
+      return true;
+    });
+  }
   if(esStock){
     return ART.filter(function(a){
       if(f.prov && a.proveedor!==f.prov) return false;
@@ -2187,7 +2268,7 @@ function repDatos(){
 }
 // Devuelve {cols:[{t,num,pill,ancho}], filas:[[celda,...]], tipos:[tipo por fila]}
 function repTabla(){
-  var esStock=document.getElementById('rep-tipo-rep').value==='stock';
+  var m=repModo(), esStock=m==='stock';
   var datos=repDatos(), cols=[], tipos=[];
   repDef().cols.forEach(function(c){
     if(!REP_ON[c.k]) return;
@@ -2200,6 +2281,15 @@ function repTabla(){
     return cols.map(function(c){
       if(c.dep) return esStock ? stockOf(r.id,c.dep) : '';
       switch(c.k){
+        // Ingresos: el "antes" y el "después" salen guardados del momento
+        // del ingreso; los movimientos viejos no los tienen y van con —
+        case 'fecha_hora':   return r.created_at?new Date(r.created_at).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+        case 'deposito':     return r.deposito||'';
+        case 'stock_antes':  return r.stock_antes==null?'—':num(r.stock_antes);
+        case 'ingresado':    return num(r.unidades)||0;
+        case 'stock_despues':return r.stock_despues==null?'—':num(r.stock_despues);
+        case 'nota':         return r.nota||'';
+        case 'usuario':      return r.usuario||'';
         case 'proveedor':   return a.proveedor||'';
         case 'codigo':      return esStock ? (a.codigo||'') : r.codigo;
         case 'descripcion': return a.descripcion||'';
@@ -2220,12 +2310,21 @@ function repTabla(){
   return {cols:cols, filas:filas, tipos:tipos, esStock:esStock};
 }
 function repUpd(){
-  var t=repTabla(), h=document.getElementById('rep-hint');
-  var esStock=t.esStock;
+  var m=repModo(), h=document.getElementById('rep-hint');
+  if(m==='ingresos' && !MOVS_ING){ h.className='hint-note'; h.textContent='Buscando los ingresos…'; return; }
+  var t=repTabla();
   if(!t.cols.length){ h.className='hint-note hint-warn'; h.textContent='Elegí al menos una columna.'; return; }
-  if(!t.filas.length){ h.className='hint-note hint-warn'; h.textContent='Con esos filtros no queda ninguna fila.'; return; }
+  if(!t.filas.length){
+    h.className='hint-note hint-warn';
+    h.textContent = m==='ingresos'
+      ? 'No hay ingresos registrados con esos filtros.'
+      : 'Con esos filtros no queda ninguna fila.';
+    return;
+  }
+  var unidad = m==='stock' ? ['artículo','artículos']
+             : m==='ingresos' ? ['ingreso','ingresos'] : ['pallet','pallets'];
   h.className='hint-note';
-  h.textContent=t.filas.length+(esStock?(t.filas.length===1?' artículo':' artículos'):(t.filas.length===1?' pallet':' pallets'))
+  h.textContent=t.filas.length+' '+(t.filas.length===1?unidad[0]:unidad[1])
     +' · '+t.cols.length+(t.cols.length===1?' columna':' columnas');
 }
 // Resumen legible de los filtros, para que el reporte impreso diga

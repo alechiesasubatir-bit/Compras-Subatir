@@ -4174,10 +4174,13 @@ function cfgDraw(){
   // Estanterías (encima)
   cfgRacks().forEach(function(r){
     var R=rackRect(r), p=toPx(R.x,R.y), w=m2px(R.w), h=m2px(R.h);
-    var bad = !cfgRackHome(r);
-    g.fillStyle = bad ? 'rgba(239,68,68,.22)' : 'rgba(36,70,143,.6)';
+    // Rojo = puesto fuera de todo sub-depósito (hay que resolverlo).
+    // Ámbar = todavía sin ubicar, esperando que lo arrastren.
+    var home=cfgRackHome(r);
+    var bad = !home && !r._sinUbicar, pend = !home && r._sinUbicar;
+    g.fillStyle = bad ? 'rgba(239,68,68,.22)' : pend ? 'rgba(245,158,11,.20)' : 'rgba(36,70,143,.6)';
     g.fillRect(p.x,p.y,w,h);
-    g.strokeStyle = bad ? 'rgba(239,68,68,.9)' : 'rgba(240,115,26,.85)';
+    g.strokeStyle = bad ? 'rgba(239,68,68,.9)' : pend ? 'rgba(245,158,11,.85)' : 'rgba(240,115,26,.85)';
     g.lineWidth = (CFG.sel && CFG.sel.kind==='rack' && CFG.sel.key===r.key) ? 3 : 1.4;
     g.strokeRect(p.x,p.y,w,h);
     // Bahías: cada división es una posición de pallet
@@ -4482,7 +4485,12 @@ function cfgProblemas(){
     if(!r.nombre) p.push('Hay una estantería sin nombre');
     else if(rv[r.nombre.toLowerCase()]) p.push('La estantería "'+r.nombre+'" está repetida');
     else rv[r.nombre.toLowerCase()]=1;
-    if(!cfgRackHome(r)) p.push('"'+r.nombre+'" no entra en ningún sub-depósito de estanterías');
+    // Que un rack quede fuera de todo sub-depósito sólo es un ERROR si
+    // alguien lo puso ahí. Los que venían sin coordenadas (_sinUbicar)
+    // arrancan afuera por definición: son un aviso, no algo roto. Si no,
+    // un depósito virgen se abriría con errores y sin poder guardar ni
+    // la medida de la nave.
+    if(!r._sinUbicar && !cfgRackHome(r)) p.push('"'+r.nombre+'" no entra en ningún sub-depósito de estanterías');
   });
   for(var a=0;a<racks.length;a++) for(var b=a+1;b<racks.length;b++){
     if(overlaps(rackRect(racks[a]),rackRect(racks[b])))

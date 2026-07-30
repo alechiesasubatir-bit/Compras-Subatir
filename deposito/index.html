@@ -1536,6 +1536,7 @@ window.APP_VER='2026-07-30.1250';
       <button class="btn btn-orange btn-sm" id="pd-btn-desp" onclick="pdDespachar()">🚚 Despachar</button>
       <button class="btn btn-ghost btn-sm" id="pd-btn-reabrir" onclick="pdReabrir()">✏ Corregir conteo</button>
       <button class="btn btn-ghost btn-sm" id="pd-btn-desmarcar" onclick="pdDesmarcar()">↩ Desmarcar despacho</button>
+      <button class="btn btn-orange btn-sm" id="pd-btn-consumir" onclick="pdConsumir()" title="Sale a fabricacion: descuenta el stock y cierra la trazabilidad">🔥 Consumir</button>
       <button class="btn btn-ghost btn-sm" id="pd-btn-unpark" onclick="pdUnpark()">↩ Quitar de ranura</button>
       <button class="btn btn-ghost" onclick="closeModal('paldet-overlay')">Cerrar</button>
     </div>
@@ -1812,8 +1813,7 @@ function renderKPIs(){
   document.getElementById('kpi-tran').textContent=fmtNum(tran);
   document.getElementById('kpi-arm').textContent=fmtNum(arm);
   // Ocupación: posiciones de rack usadas sobre el total configurado
-  var caps=EST.filter(function(e){ return !esFabrica(e.deposito); })
-              .reduce(function(a,e){ return a+(e.filas||0)*posCount(e); },0);
+  var caps=EST.reduce(function(a,e){ return a+(e.filas||0)*posCount(e); },0);
   var used=PALLETS.filter(function(p){ return p.estanteria_id!=null; }).length;
   var pct=caps?Math.round(used/caps*100):0;
   document.getElementById('kpi-ocup').textContent = caps? pct+'%' : '—';
@@ -2070,18 +2070,24 @@ function renderGridControls(){
   gd.innerHTML=deps.map(function(d){return '<option '+(d===GRID.dep?'selected':'')+'>'+esc(d)+'</option>';}).join('');
   onGridDep();
 }
-// Muestra racks o zonas segun el deposito. Devuelve true si es fabrica.
+// Muestra el mapa y, si es fábrica, además su panel. Devuelve true si es fábrica.
+//  Antes una fábrica no tenía mapa: la mercadería llegaba y se consumía en
+//  el acto, así que no había nada que ubicar. Desde v13 la llegada deja el
+//  pallet RECIBIDO y sin ubicar, y puede guardarse en una estantería de
+//  Artigas antes de usarse — así que la fábrica también necesita su mapa.
+//  El panel de fábrica queda igual, encima: qué viene en camino y qué ya
+//  se consumió sigue siendo información propia de una fábrica.
 function mapaModo(){
   var fab=esFabrica(GRID.dep);
   var set=function(sel,on){ var el=document.querySelector(sel); if(el) el.style.display=on?'':'none'; };
-  set('.segbar', !fab);
-  set('#tray-wrap', !fab);
-  set('.stage', !fab && VIEW==='3d');
-  set('#grid2d-wrap', !fab && VIEW==='2d');
-  set('.stage-help', !fab);
+  set('.segbar', true);
+  set('#tray-wrap', true);
+  set('.stage', VIEW==='3d');
+  set('#grid2d-wrap', VIEW==='2d');
+  set('.stage-help', true);
   set('#zonas-wrap', fab);
-  var ge=document.getElementById('g-est'); if(ge) ge.style.display=fab?'none':'';
-  var bl=document.getElementById('btn-layout'); if(bl) bl.style.display=fab?'none':'';
+  var ge=document.getElementById('g-est'); if(ge) ge.style.display='';
+  var bl=document.getElementById('btn-layout'); if(bl) bl.style.display='';
   if(fab) renderFabrica();
   return fab;
 }
@@ -2142,7 +2148,10 @@ function onGridDep(){
 }
 function renderGrid(){
   GRID.est=document.getElementById('g-est').value;
-  if(mapaModo()) return;                       // fabrica: se muestran zonas, no racks
+  // mapaModo() ya no corta: una fabrica tambien tiene mapa desde v13,
+  // porque lo que llega queda sin ubicar y puede guardarse en un rack.
+  // Devuelve true si es fabrica, y en ese caso ademas pinto su panel.
+  mapaModo();
   document.getElementById('grid-legend').innerHTML=TIPOS.concat(['']).map(function(t){
     var c=tipoColor(t);
     return '<span class="lg"><i style="background:'+c.bg+';border:1px solid '+c.bd+'"></i>'+(t||'Sin tipo')+'</span>';
@@ -2150,7 +2159,7 @@ function renderGrid(){
   renderTray();
   var host=document.getElementById('grid-host');
   var ests=depEsts();
-  if(!ests.length){ host.innerHTML='<div style="color:var(--muted);font-size:13px">No hay estanterías en este depósito. Podés configurarlas en la tabla imp_estanterias.</div>'; if(typeof rackSync==='function') rackSync(); return; }
+  if(!ests.length){ host.innerHTML='<div style="color:var(--muted);font-size:13px">No hay estanterías en este depósito. Dibujalas en ⚙ Config Depósito.</div>'; if(typeof rackSync==='function') rackSync(); return; }
   host.innerHTML = ests.map(gridHtmlFor).join('');
   if(typeof rackSync==='function') rackSync();
 }
@@ -2972,7 +2981,7 @@ function setView(v){
   document.getElementById('grid2d-wrap').style.display = v==='2d'?'block':'none';
   document.getElementById('btn-view3d').className = v==='3d'?'on':'';
   document.getElementById('btn-view2d').className = v==='2d'?'on':'';
-  document.querySelector('.stage').style.display = (v==='3d' && !esFabrica(GRID.dep))?'':'none';
+  document.querySelector('.stage').style.display = (v==='3d')?'':'none';
   if(v==='3d') rackSync(); else renderGrid();
 }
 
@@ -3730,6 +3739,9 @@ function openPalletDetail(id){
   show('pd-btn-reabrir',  corregible);
   show('pd-btn-desmarcar',parked && !!p.destino);
   show('pd-btn-unpark',   (parked||abierto)&&!!p.estanteria_id);
+  // Consumir: solo en fabrica. Un pallet recibido o estacionado ahi puede
+  // salir a fabricacion; en un almacen la mercaderia sale por transferencia.
+  show('pd-btn-consumir', esFabrica(p.deposito) && (p.estado==='RECIBIDO'||p.estado==='ESTACIONADO'));
   // Área de piso: sólo para el pallet sin ranura, y sólo si el depósito
   // tiene áreas dibujadas. Con ranura manda la estantería.
   (function(){
@@ -3880,6 +3892,32 @@ function pdDespachar(){
     toast('🚚 Marcado para despacho a '+dest+'. Escaneá el QR para registrar la salida.','ok');
     load();
   });
+}
+// Consume el pallet: sale a fabricacion. Descuenta el stock y cierra la
+// trazabilidad, asi que se pide confirmacion en dos pasos con el propio
+// boton (sin confirm() nativo, que bloquea el navegador).
+var PD_CONS=null;
+function pdConsumir(){
+  if(!CUR_PAL) return;
+  var b=document.getElementById('pd-btn-consumir');
+  if(PD_CONS!==CUR_PAL.id){
+    PD_CONS=CUR_PAL.id;
+    b.textContent='🔥 Confirmar consumo';
+    b.title='Descuenta '+fmtNum(CUR_PAL.unidades)+' u. del stock de '+CUR_PAL.deposito;
+    toast('Tocá de nuevo para confirmar: el consumo no se puede deshacer','info');
+    setTimeout(function(){ if(PD_CONS===CUR_PAL.id){ PD_CONS=null; b.textContent='🔥 Consumir'; } }, 6000);
+    return;
+  }
+  PD_CONS=null; b.disabled=true; b.textContent='🔥 Consumir';
+  SB.rpc('imp_pallet_consumir',{p_pallet:CUR_PAL.id, p_user:whoName()}).then(function(r){
+    b.disabled=false;
+    if(r.error||(r.data&&r.data.ok===false)){
+      toast('Error: '+(r.error?r.error.message:r.data.error),'err'); return;
+    }
+    toast('🔥 Consumido en '+r.data.deposito+' — '+fmtNum(r.data.unidades)+' u.','ok');
+    closeModal('pallet-overlay');
+    load();
+  }, function(err){ b.disabled=false; toast('Error: '+(err&&err.message||err),'err'); });
 }
 function pdUnpark(){
   if(!CUR_PAL) return;

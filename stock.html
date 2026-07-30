@@ -828,7 +828,7 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script>
 // ─── Estado ──────────────────────────────────────────────────
 var URL_AS  = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
-var RAW_INV = [], RAW_STK = [], RAW_PED = [];
+var RAW_INV = [], RAW_STK = [], RAW_PED = [], RAW_PREC = [], RAW_PROVS = [];
 var MERGED  = [];
 var FILT    = [];
 var CAT_MAP = {};   // NORM(producto) → categoría
@@ -848,6 +848,7 @@ try{ localStorage.removeItem('subatir_stock_local'); }catch(e){}
 
 // Keys detectadas
 var IK = {}, SK = {}, PK = {}; // PK = keys de pedidos (para en-tránsito / proveedor sugerido)
+var QK = {}, VK = {};          // QK = keys de precios · VK = keys del maestro de proveedores
 
 // ─── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
@@ -885,7 +886,9 @@ function load(){
       RAW_INV = d.inventario || []; // hoja COMPRAS
       RAW_STK = d.stock      || []; // hoja INVENTARIO (secundaria)
       RAW_PED = d.pedidos    || []; // hoja OC/Recepción para en-tránsito y proveedor sugerido
-      console.log('[Stock] COMPRAS:', RAW_INV.length, '| INVENTARIO:', RAW_STK.length, '| OC:', RAW_PED.length);
+      RAW_PREC= d.precios    || []; // lista de precios: quién provee cada artículo
+      RAW_PROVS=d.contactos  || d.proveedores || []; // maestro de proveedores (grafía canónica)
+      console.log('[Stock] COMPRAS:', RAW_INV.length, '| INVENTARIO:', RAW_STK.length, '| OC:', RAW_PED.length, '| PRECIOS:', RAW_PREC.length);
       if(RAW_INV.length) console.log('[Stock] Cols COMPRAS:', Object.keys(RAW_INV[0]).join(' | '));
       if(RAW_INV.length===0) toast('⚠ Hoja COMPRAS vacía. Hojas: '+(d.sheetNames||[]).join(', '),'err');
       detectKeys();
@@ -923,6 +926,17 @@ function detectKeys(){
     IK.solicitar   = fk(k,['SOLICITAR','solicitar','A SOLICITAR']);
     // Proveedor sugerido en hoja COMPRAS: acepta typo original "PROOVEDOR" (doble O)
     IK.provSugerido= fk(k,['PROOVEDOR SUGERIDO','PROVEEDOR SUGERIDO','Proveedor sugerido','PROOVEDOR','PROVEEDOR SUGE']);
+    // Columna PROVEEDOR suelta (distinta del sugerido): también aporta al set del artículo
+    IK.prov        = k.indexOf('PROVEEDOR')>=0 && IK.provSugerido!=='PROVEEDOR' ? 'PROVEEDOR' : '';
+  }
+  if(RAW_PREC.length>0){
+    var q = Object.keys(RAW_PREC[0]);
+    QK.art  = fk(q,['ARTICULO','Artículo','Articulo','ARTÍCULO','DESCRIPCIÓN','DESCRIPCION','PRODUCTO']);
+    QK.prov = fk(q,['PROVEEDOR','Proveedor','proveedor']);
+  }
+  if(RAW_PROVS.length>0){
+    var e = Object.keys(RAW_PROVS[0]);
+    VK.empresa = fk(e,['EMPRESA','Empresa','empresa','RAZON SOCIAL','Proveedor','PROVEEDOR']);
   }
   if(RAW_PED.length>0){
     var p = Object.keys(RAW_PED[0]);
@@ -970,11 +984,15 @@ function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').t
 
 // ─── Construye índice de OCs por artículo (en-tránsito + último proveedor) ───
 function buildOCIndex(){
-  var idx = {}; // normalizedDesc → { pendiente, valorPendiente, lastProv, lastFecha, lastPrecio }
+  var idx = {}; // normalizedDesc → { pendiente, valorPendiente, lastProv, lastFecha, lastPrecio, provs }
   RAW_PED.forEach(function(oc){
     var desc = norm(String(oc[PK.desc]||''));
     if(!desc || desc.length < 3) return;
-    if(!idx[desc]) idx[desc] = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', origDesc: String(oc[PK.desc]||'').trim() };
+    if(!idx[desc]) idx[desc] = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', provs:{}, origDesc: String(oc[PK.desc]||'').trim() };
+
+    // TODOS los proveedores que alguna vez lo vendieron, no solo el último
+    var pv = String(oc[PK.prov]||'').trim();
+    if(pv) idx[desc].provs[norm(pv)] = pv;
 
     var recibido = String(oc[PK.recep]||'').trim();
     var cant     = pn(oc[PK.cantidad]);
@@ -996,6 +1014,66 @@ function buildOCIndex(){
     }
   });
   return idx;
+}
+
+// ─── Índice de la LISTA DE PRECIOS: artículo → proveedores que lo cotizan ────
+// Es la fuente real de "quién provee este artículo". Las OC solo muestran a
+// quién se le compró; un proveedor puede tener el producto sin haberlo vendido.
+function buildPrecIndex(){
+  var idx = {}; // normArticulo → { normProv: grafíaOriginal }
+  if(!RAW_PREC.length) return idx;
+  RAW_PREC.forEach(function(p){
+    var art = norm(String(p[QK.art]||''));
+    if(!art || art.length < 3) return;
+    var pv = String(p[QK.prov]||'').trim();
+    if(!pv) return;
+    if(!idx[art]) idx[art] = {};
+    idx[art][norm(pv)] = pv;
+  });
+  return idx;
+}
+
+// ─── Identidad canónica del proveedor ───────────────────────────────────────
+// El mismo proveedor viene escrito distinto según la tabla: "GREEN OIL" en la
+// ficha del artículo, "Green Oil S.A." en la lista de precios. Para agrupar se
+// usa el nombre sin puntos ni sufijo societario ("GREEN OIL"), y para mostrar
+// se elige una sola grafía, priorizando la del maestro de proveedores.
+// El sufijo se ignora solo al final del nombre, así "Química S.A." y
+// "Química Oriental S.A." siguen siendo proveedores distintos.
+var PROV_SUF   = /\s+(S\s*A\s*S|S\s*R\s*L|S\s*A|SRL|LTDA|LTD|LIMITADA)$/;
+var PROV_CANON = {}; // provId → grafía a mostrar
+
+function flatProv(s){ return norm(s).replace(/\./g,' ').replace(/\s+/g,' ').trim(); }
+function provId(name){
+  var n = flatProv(name); if(!n) return '';
+  // el sufijo se quita ANTES de juntar los espacios (necesita el borde de palabra);
+  // sin espacios, "Norte Sur" y "Nortesur S.A." caen en el mismo grupo
+  var b = n.replace(PROV_SUF,'').trim().replace(/\s+/g,'');
+  return b.length >= 3 ? b : n.replace(/\s+/g,''); // que el sufijo no se coma el nombre entero
+}
+function buildProvCanon(){
+  PROV_CANON = {};
+  var votos = {}; // provId → { grafía: peso }
+  function votar(name, peso){
+    var id = provId(name); if(!id) return;
+    var d = String(name).trim();
+    if(!votos[id]) votos[id] = {};
+    votos[id][d] = (votos[id][d]||0) + peso;
+  }
+  if(VK.empresa)      RAW_PROVS.forEach(function(r){ votar(r[VK.empresa], 1000); }); // maestro manda
+  if(QK.prov)         RAW_PREC .forEach(function(r){ votar(r[QK.prov], 3); });
+  if(PK.prov)         RAW_PED  .forEach(function(r){ votar(r[PK.prov], 2); });
+  if(IK.provSugerido) RAW_INV  .forEach(function(r){ votar(r[IK.provSugerido], 1); });
+  if(IK.prov)         RAW_INV  .forEach(function(r){ votar(r[IK.prov], 1); });
+  Object.keys(votos).forEach(function(id){
+    var best='', bp=-1;
+    Object.keys(votos[id]).forEach(function(d){ if(votos[id][d] > bp){ bp = votos[id][d]; best = d; } });
+    PROV_CANON[id] = best;
+  });
+}
+function canonProv(name){
+  var id = provId(name); if(!id) return '';
+  return PROV_CANON[id] || String(name).trim();
 }
 
 // ─── Tokeniza: quita separadores y tokens que empiezan con dígito ────────────
@@ -1021,21 +1099,23 @@ function tokenize(s){
 //                    ("AL" = 2 chars, "33%" filtrado como numérico)
 // Ejemplo rechazado: "TAPAS ALCOA ROSCA" ↔ "TAPAS ALCOA AZUL ROSCA"    → NO MATCH
 //                    ("AZUL" = 4 chars, es discriminador)
-function findOCMatch(desc, ocIdx){
+// matchKeys: devuelve las claves de `idx` que describen el mismo artículo que `desc`.
+// Compartido por el índice de OC y el de la lista de precios.
+function matchKeys(desc, idx){
   var nd = norm(desc);
-  if(!nd || nd.length < 4) return {};
+  if(!nd || nd.length < 4) return [];
 
   // 1. Coincidencia exacta
-  if(ocIdx[nd]) return ocIdx[nd];
+  if(idx[nd]) return [nd];
 
   var ndToks = tokenize(desc);
-  if(!ndToks.length) return {};
+  if(!ndToks.length) return [];
   var ndSet = {};
   ndToks.forEach(function(t){ ndSet[t] = 1; });
 
-  var matches = [];
+  var keys = [];
 
-  Object.keys(ocIdx).forEach(function(k){
+  Object.keys(idx).forEach(function(k){
     var kToks = tokenize(k);
     if(!kToks.length) return;
     var kSet = {};
@@ -1054,17 +1134,25 @@ function findOCMatch(desc, ocIdx){
     });
     if(hasMeaningfulExtra) return;
 
-    matches.push(ocIdx[k]);
+    keys.push(k);
   });
 
-  if(!matches.length) return {};
+  return keys;
+}
+
+function findOCMatch(desc, ocIdx){
+  var keys = matchKeys(desc, ocIdx);
+  if(!keys.length) return { provs:{} };
+  if(keys.length === 1 && ocIdx[keys[0]]) return ocIdx[keys[0]];
 
   // Sumar pendiente de TODAS las claves que coincidan
   // (un mismo artículo puede estar con descripción levemente distinta en varias OC)
-  var result = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'' };
-  matches.forEach(function(m){
+  var result = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', provs:{} };
+  keys.forEach(function(k){
+    var m = ocIdx[k];
     result.pendiente      += m.pendiente;
     result.valorPendiente += m.valorPendiente;
+    Object.keys(m.provs||{}).forEach(function(n){ result.provs[n] = m.provs[n]; });
     if(m.lastFecha > result.lastFecha){
       result.lastFecha  = m.lastFecha;
       result.lastProv   = m.lastProv;
@@ -1074,10 +1162,34 @@ function findOCMatch(desc, ocIdx){
   return result;
 }
 
+// ─── Todos los proveedores de un artículo ────────────────────────────────────
+// Antes cada artículo guardaba UN solo proveedor (el de la OC más reciente), así
+// que filtrar por proveedor dejaba afuera los artículos que ese proveedor vende
+// pero que se compraron por última vez a otro. Ahora se junta el set completo.
+function collectProvs(desc, item, ov, ocData, precIdx, provSugeridoHoja){
+  var set = {}; // provId → grafía canónica
+  function add(name){ var id = provId(name); if(id) set[id] = canonProv(name); }
+
+  // 1. Lista de precios (quién lo cotiza) — la fuente más completa
+  matchKeys(desc, precIdx).forEach(function(k){
+    Object.keys(precIdx[k]).forEach(function(n){ add(precIdx[k][n]); });
+  });
+  // 2. Historial de OC (a quién se le compró, alguna vez)
+  Object.keys((ocData && ocData.provs) || {}).forEach(function(n){ add(ocData.provs[n]); });
+  // 3. Ficha del artículo
+  if(provSugeridoHoja) add(provSugeridoHoja);
+  if(IK.prov && item) add(item[IK.prov]);
+  if(ov && ov.proveedor) add(ov.proveedor);
+
+  return Object.keys(set).map(function(n){ return set[n]; }).sort();
+}
+
 // ─── Merge COMPRAS + OC para calcular stock real ──────────────
 function buildMerged(){
   MERGED = [];
-  var ocIdx = buildOCIndex();
+  buildProvCanon();
+  var ocIdx   = buildOCIndex();
+  var precIdx = buildPrecIndex();
 
   RAW_INV.forEach(function(item){
     var codigo  = String(item[IK.codigo]||'').trim();
@@ -1137,8 +1249,12 @@ function buildMerged(){
 
     // Proveedor sugerido: prioridad override local → OC más reciente → hoja COMPRAS
     var provSugeridoHoja = IK.provSugerido ? String(item[IK.provSugerido]||'').trim() : '';
-    var proveedor = ov.proveedor || ocData.lastProv || provSugeridoHoja || '';
+    var proveedor = canonProv(ov.proveedor || ocData.lastProv || provSugeridoHoja || '');
     var precio    = ocData.lastPrecio || '';
+
+    // TODOS los proveedores del artículo: lista de precios + historial de OC +
+    // proveedor(es) de la ficha. El filtro de proveedor usa esta lista, no el último.
+    var provs = collectProvs(desc, item, ov, ocData, precIdx, provSugeridoHoja);
 
     MERGED.push({
       __row:         item.__row,   // fila en la hoja COMPRAS (para escribir de vuelta)
@@ -1151,6 +1267,7 @@ function buildMerged(){
       valorPendiente:valorPendiente,
       sugerida:      sugerida,
       proveedor:     proveedor,
+      provs:         provs,
       precio:        precio,
       cobertura:     cobertura,
       pct:           pct,
@@ -1191,7 +1308,8 @@ function buildMerged(){
       pendiente:     ocData.pendiente,
       valorPendiente:ocData.valorPendiente,
       sugerida:      0,
-      proveedor:     ocData.lastProv || '',
+      proveedor:     canonProv(ocData.lastProv || ''),
+      provs:         collectProvs(ocData.origDesc || normKey, null, null, ocData, precIdx, ''),
       precio:        ocData.lastPrecio || '',
       cobertura:     null,
       pct:           0,
@@ -1276,7 +1394,9 @@ function applyFilters(){
   FILT = MERGED.filter(function(x){
     if(q && (x.desc+' '+x.codigo).toLowerCase().indexOf(q)<0) return false;
     if(est && x.estado!==est) return false;
-    if(prov && x.proveedor!==prov) return false;
+    // Proveedor: coincide si el artículo lo tiene en CUALQUIERA de sus proveedores
+    // (lista de precios / historial de OC / ficha), no solo como último proveedor
+    if(prov && !hasProv(x, prov)) return false;
     if(cat && x.categoria!==cat) return false;
     // cobertura puede ser null (consumo desconocido): tratarlo como sin dato
     var cob_v = x.cobertura !== null ? x.cobertura : 999;
@@ -1379,7 +1499,12 @@ function renderTable(){
     // En tránsito: con ícono ✈
     html += '<td>'+transitHtml+'</td>';
     html += '<td>'+sugHtml+'</td>';
-    html += '<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--muted-l)">'+esc(x.proveedor||'—')+'</td>';
+    // Último proveedor + cuántos otros lo proveen (tooltip con la lista completa)
+    var otros = (x.provs||[]).filter(function(p){ return provId(p)!==provId(x.proveedor); });
+    var provExtra = otros.length
+      ? '<span class="badge b-info" style="margin-left:4px;font-size:8px" title="También: '+esc(otros.join(' · '))+'">+'+otros.length+'</span>'
+      : '';
+    html += '<td style="max-width:130px;font-size:11px;color:var(--muted-l)"><span style="display:inline-block;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle" title="'+esc(x.proveedor||'')+'">'+esc(x.proveedor||'—')+'</span>'+provExtra+'</td>';
     html += '<td><div class="ract">';
     html += '<button class="ibtn ibtn-view" title="Ver detalle" onclick="openDetail(\''+esc(x.desc)+'\')">👁 Ver</button>';
     html += '<button class="ibtn ibtn-edit" title="Ajustar" onclick="openEdit(\''+esc(x.desc)+'\')">✏</button>';
@@ -1493,12 +1618,38 @@ function renderChart(){
   });
 }
 
+// ─── ¿el artículo tiene a este proveedor? ─────────────────────
+function hasProv(x, prov){
+  var id = provId(prov);
+  if(!id) return true;
+  var list = x.provs && x.provs.length ? x.provs : (x.proveedor ? [x.proveedor] : []);
+  for(var i=0;i<list.length;i++) if(provId(list[i])===id) return true;
+  return false;
+}
+
 // ─── Populate filter de proveedor ─────────────────────────────
+// Lista la unión de TODOS los proveedores de todos los artículos y muestra
+// entre paréntesis cuántos artículos provee cada uno.
 function populateProvFilter(){
-  var provs = [...new Set(MERGED.map(function(x){return x.proveedor;}).filter(Boolean))].sort();
+  var cnt = {}; // provId → {nombre, n}
+  MERGED.forEach(function(x){
+    var list = x.provs && x.provs.length ? x.provs : (x.proveedor ? [x.proveedor] : []);
+    list.forEach(function(p){
+      var id = provId(p); if(!id) return;
+      if(!cnt[id]) cnt[id] = { nombre:canonProv(p), n:0 };
+      cnt[id].n++;
+    });
+  });
+  var provs = Object.keys(cnt).map(function(n){ return cnt[n]; })
+                .sort(function(a,b){ return a.nombre.localeCompare(b.nombre,'es'); });
+
   var sel = document.getElementById('f-prov');
+  var prev = sel.value; // no perder la selección al recargar (realtime)
   sel.innerHTML = '<option value="">Todos los proveedores</option>' +
-    provs.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
+    provs.map(function(p){
+      return '<option value="'+esc(p.nombre)+'">'+esc(p.nombre)+' ('+p.n+')</option>';
+    }).join('');
+  if(prev && provs.some(function(p){ return p.nombre===prev; })) sel.value = prev;
 }
 
 // ─── Modal detalle ────────────────────────────────────────────
@@ -1525,7 +1676,9 @@ function openDetail(desc){
     {l:'Cobertura',   v:cobStr,               cls:''},
     {l:'Compra sug.', v:x.sugerida>0?fmtN(x.sugerida)+' '+x.unidad:'—', cls:''},
     {l:'Precio ref.', v:x.precio||'—',        cls:''},
-    {l:'Proveedor',   v:x.proveedor||'—',     cls:'s2'},
+    {l:'Último proveedor', v:x.proveedor||'—', cls:'s2'},
+    {l:'Proveedores que lo tienen ('+(x.provs||[]).length+')',
+     v:(x.provs||[]).length ? x.provs.join(' · ') : '—', cls:'s2'},
     {l:'',            v:'',                   cls:'div'},
     {l:'Observaciones',v:x.obs||'—',          cls:'s2'},
   ];

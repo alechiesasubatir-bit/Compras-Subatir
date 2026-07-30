@@ -1573,6 +1573,8 @@ window.APP_VER='2026-07-30.1250';
         <label style="font-size:10.5px;color:var(--muted-l);font-weight:600">Depósito</label>
         <select class="cfg-inp" id="cfg-dep" style="flex:0 0 130px" onchange="cfgSwitchDep(this.value)"
                 aria-label="Depósito a configurar"></select>
+        <button class="cfg-tool" id="cfg-t-newdep" onclick="cfgAltaDep()"
+                title="Dar de alta un depósito nuevo">＋ Depósito</button>
         <span class="sep" aria-hidden="true"></span>
         <label style="font-size:10.5px;color:var(--muted-l);font-weight:600">Nave</label>
         <input class="cfg-inp num" id="cfg-nave-w" type="number" min="1" step="0.5" style="flex:0 0 66px"
@@ -4028,7 +4030,7 @@ function cfgSwitchDep(dep){
 function cfgLoad(dep){
   var d=depByName(dep)||{};
   CFG={
-    dep:dep, tool:'sel', sel:null, drag:null, seq:1, naveTouched:false,
+    dep:dep, tool:'sel', sel:null, drag:null, seq:1, naveTouched:false, altaDep:false,
     nave:{w:num(d.ancho_m)||CFG_NAVE_DEF.w, h:num(d.largo_m)||CFG_NAVE_DEF.h},
     nave0:{w:num(d.ancho_m)||null, h:num(d.largo_m)||null},
     view:{scale:12, ox:20, oy:20},
@@ -4421,9 +4423,67 @@ function cfgSet(campo, valor){
   cfgDraw(); cfgResumen(); cfgProblemas();
 }
 
+// ── Alta de depósito ──────────────────────────────────────────
+//  El formulario va en el panel de la derecha y no en otro modal: un
+//  diálogo encima del editor tapa el plano justo cuando hay que mirarlo.
+//  Las medidas son opcionales a propósito — un depósito se puede dar de
+//  alta antes de ir a medirlo, y el editor arranca con el tamaño por
+//  defecto hasta que se carguen.
+function cfgAltaDep(){
+  if(cfgDirty()){
+    toast('Guardá o cerrá los cambios de '+CFG.dep+' antes de crear otro depósito','err');
+    return;
+  }
+  CFG.altaDep=true; CFG.sel=null; cfgProp();
+  setTimeout(function(){ var i=document.getElementById('cf-dep-n'); if(i) i.focus(); },40);
+}
+function cfgAltaCancel(){ CFG.altaDep=false; cfgProp(); }
+function cfgCrearDep(){
+  var nombre=(document.getElementById('cf-dep-n').value||'').trim();
+  var tipo=document.getElementById('cf-dep-t').value;
+  var w=num(document.getElementById('cf-dep-w').value);
+  var h=num(document.getElementById('cf-dep-h').value);
+  if(!nombre){ toast('Poné un nombre','err'); return; }
+  if(DEPS.some(function(d){ return d.nombre.toLowerCase()===nombre.toLowerCase(); })){
+    toast('Ya existe un depósito con ese nombre','err'); return;
+  }
+  // Sólo se mandan las medidas si se cargaron: null = todavía sin medir,
+  // y la constraint de imp_depositos rechaza un 0.
+  var row={nombre:nombre, tipo:tipo, activo:true};
+  if(w>0) row.ancho_m=w;
+  if(h>0) row.largo_m=h;
+  var btn=document.getElementById('cf-dep-ok'); btn.disabled=true;
+  SB.from('imp_depositos').insert(row).select('*').single().then(function(r){
+    btn.disabled=false;
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    DEPS.push(r.data);
+    DEPS.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,'es'); });
+    var sel=document.getElementById('cfg-dep');
+    sel.innerHTML=DEPS.map(function(d){ return '<option'+(d.nombre===nombre?' selected':'')+'>'+esc(d.nombre)+'</option>'; }).join('');
+    CFG.altaDep=false;
+    toast('✅ Depósito '+nombre+' creado','ok');
+    cfgLoad(nombre); cfgFit();
+    load();                       // que el resto de la app lo vea
+  }, function(err){ btn.disabled=false; toast('Error: '+(err&&err.message||err),'err'); });
+}
+
 // ── Panel de propiedades ──────────────────────────────────────
 function cfgProp(){
   var host=document.getElementById('cfg-prop'), t=document.getElementById('cfg-prop-t');
+  if(CFG.altaDep){
+    t.textContent='Depósito nuevo';
+    host.innerHTML=
+      '<div class="cfg-row"><label for="cf-dep-n">Nombre</label><input class="cfg-inp" id="cf-dep-n" placeholder="Ej: Artigas"/></div>'
+     +'<div class="cfg-row"><label for="cf-dep-t">Tipo</label><select class="cfg-inp" id="cf-dep-t">'
+       +'<option value="ALMACEN">Almacén (se estaciona en racks)</option>'
+       +'<option value="FABRICA">Fábrica (se consume al llegar)</option></select></div>'
+     +'<div class="cfg-row"><label for="cf-dep-w">Ancho</label><input class="cfg-inp num" id="cf-dep-w" type="number" step="0.5" min="1" placeholder="opcional"/></div>'
+     +'<div class="cfg-row"><label for="cf-dep-h">Largo</label><input class="cfg-inp num" id="cf-dep-h" type="number" step="0.5" min="1" placeholder="opcional"/></div>'
+     +'<div class="cfg-empty" style="margin:6px 0 9px">Las medidas se pueden dejar vacías y cargarlas después: el plano arranca con un tamaño por defecto.</div>'
+     +'<button class="btn btn-primary btn-sm" id="cf-dep-ok" style="width:100%" onclick="cfgCrearDep()">Crear depósito</button>'
+     +'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:5px" onclick="cfgAltaCancel()">Cancelar</button>';
+    cfgResumen(); cfgProblemas(); return;
+  }
   if(!CFG.sel){ t.textContent='Nada elegido';
     host.innerHTML='<div class="cfg-empty">Elegí una herramienta y dibujá sobre el plano, '
       +'o hacé clic en algo ya dibujado para ver y ajustar sus medidas.</div>';

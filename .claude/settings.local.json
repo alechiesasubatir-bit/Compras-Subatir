@@ -84,7 +84,10 @@
       "Bash(git check-ignore *)",
       "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\SubatirApps\\\\SistemaComprasSubatir\\\\bump-version.ps1\"; \"exit code: $LASTEXITCODE\")",
       "Bash(cp publicar.bat /tmp/prueba.bat)",
-      "Bash(cp publicar.bat __TRACKED_VAR__/prueba.bat)"
+      "Bash(cp publicar.bat __TRACKED_VAR__/prueba.bat)",
+      "PowerShell(& \"C:\\\\SubatirApps\\\\SistemaComprasSubatir\\\\bump-version.ps1\"; \"exit=$LASTEXITCODE\")",
+      "Bash(cmd //c publicar.bat)",
+      "Bash(cmd //c \"C:\\\\\\\\SubatirApps\\\\\\\\SistemaComprasSubatir\\\\\\\\publicar.bat\")"
     ]
   }
 }

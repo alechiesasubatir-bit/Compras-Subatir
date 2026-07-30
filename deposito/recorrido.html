@@ -50,7 +50,8 @@
   </div>
   <div class="header-right">
     <button class="btn btn-sm" id="btn-volver" onclick="verLista()" style="display:none">← Pedidos</button>
-    <a href="index.html" class="btn btn-sm" style="text-decoration:none">Panel</a>
+    <a href="solicitar.html" class="btn btn-sm" id="nav-sol" style="display:none;text-decoration:none">Pedir</a>
+    <a href="index.html" class="btn btn-sm" id="nav-panel" style="display:none;text-decoration:none">Panel</a>
   </div>
 </header>
 
@@ -129,8 +130,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=9"></script>
-<script src="deposito-app.js?v=2"></script>
+<script src="../supabase-config.js?v=2026-07-30.1648"></script>
+<script src="deposito-app.js?v=2026-07-30.1648"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  RECORRIDO — pantalla del operario (celular)
@@ -186,6 +187,11 @@ function ordenDe(p){
 SubatirApp.ready.then(function(p){
   if(!p) return;
   document.getElementById('hsub').textContent=whoName();
+  // Se muestra solo lo que esta persona puede abrir: un link que rebota
+  // al login es peor que no tenerlo.
+  if(SubatirApp.puede('importacion')) document.getElementById('nav-panel').style.display='';
+  if(SubatirApp.puede('solicitante')||SubatirApp.puede('importacion'))
+    document.getElementById('nav-sol').style.display='';
   cargar();
   SubatirApp.live(['imp_solicitudes','imp_solicitud_items','imp_pallets'], function(){
     cargar(true);

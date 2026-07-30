@@ -63,6 +63,10 @@ $tareas = @()
 $tareas += @{ f = 'version.json'; req = @($SUB_VER); opt = @() }
 $tareas += @{ f = 'deposito\version.json'; req = @($SUB_VER); opt = @() }
 $tareas += @{ f = 'deposito\index.html'; req = @($SUB_APP); opt = @($SUB_BUST) }
+# Las pantallas de celular cargan el mismo deposito-app.js: si su ?v= no
+# sube, se quedan con la version vieja del JS compartido para siempre.
+$tareas += @{ f = 'deposito\solicitar.html'; req = @($SUB_BUST); opt = @() }
+$tareas += @{ f = 'deposito\recorrido.html'; req = @($SUB_BUST); opt = @() }
 $tareas += @{ f = 'deposito\sw.js'; req = @($SUB_APP); opt = @() }
 $tareas += @{ f = 'deposito\login.html'; req = @(); opt = @($SUB_BUST) }
 $tareas += @{ f = 'login.html'; req = @(); opt = @($SUB_BUST) }

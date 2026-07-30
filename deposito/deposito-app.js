@@ -15,11 +15,36 @@
   var MODULO = 'importacion';   // clave histórica del módulo: está guardada
                                 // en profiles.modules, no se renombra
 
-  // Qué módulo habilita cada página. Pedir mercadería no es operar el
-  // depósito: alguien de fábrica puede solicitar sin tener que ver el
-  // stock, los pallets ni el mapa. El operario también puede pedir.
-  var PAGE_MOD = { 'solicitar.html': ['solicitante', 'importacion'] };
+  // Qué módulo habilita cada página.
+  //  Las dos pantallas de CELULAR tienen permiso propio a propósito:
+  //  'importacion' abre el panel entero (stock, pallets, mapa, config),
+  //  que no es lo que necesita quien sólo pide mercadería o sale a
+  //  levantar pedidos con el teléfono. Quien tenga 'importacion' igual
+  //  entra a las dos: es el permiso completo del depósito.
+  var PAGE_MOD = {
+    'solicitar.html': ['solicitante', 'importacion'],
+    'recorrido.html': ['recorrido', 'importacion']
+  };
   function modsDe() { return PAGE_MOD[page()] || [MODULO]; }
+
+  // A dónde mandar a quien no puede abrir esta página. Un cartel de "sin
+  // permiso" no le sirve a nadie: si tiene una pantalla de celular
+  // habilitada, va derecho ahí.
+  var CASA = [['recorrido', 'recorrido.html'], ['solicitante', 'solicitar.html']];
+  function casaDe(profile) {
+    var mods = profile.modules || [];
+    for (var i = 0; i < CASA.length; i++) {
+      if (mods.indexOf(CASA[i][0]) >= 0 && page() !== CASA[i][1]) return CASA[i][1];
+    }
+    return null;
+  }
+  // Para que cada pantalla esconda lo que la persona no puede abrir
+  function puede(mod) {
+    var p = _profile;
+    if (!p) return false;
+    if (p.role === 'admin') return true;
+    return (p.modules || []).indexOf(mod) >= 0;
+  }
 
   var _profile = null, _readyResolve;
   var _ready = new Promise(function (r) { _readyResolve = r; });
@@ -55,11 +80,8 @@
           return;
         }
         if (!canAccess(profile)) {
-          // Un solicitante puro no entra al panel del depósito, pero sí a
-          // pedir: mandarlo ahí es más útil que un cartel de "sin permiso".
-          if ((profile.modules || []).indexOf('solicitante') >= 0 && page() !== 'solicitar.html') {
-            location.replace('solicitar.html'); return;
-          }
+          var casa = casaDe(profile);
+          if (casa) { location.replace(casa); return; }
           location.replace('login.html?denegado=1'); return;
         }
         injectUserBar(profile);
@@ -127,6 +149,7 @@
   window.SubatirApp = {
     ready: _ready,
     getProfile: function () { return _profile; },
+    puede: puede,
     live: live,
     logout: function () {
       return SB.auth.signOut().then(function () { location.replace('login.html'); });

@@ -24,6 +24,7 @@
     <div class="hsub" id="hsub">—</div>
   </div>
   <div class="header-right">
+    <a href="recorrido.html" class="btn btn-sm" id="nav-rec" style="display:none;text-decoration:none">Recorrido</a>
     <a href="index.html" class="btn btn-sm" id="nav-panel" style="display:none;text-decoration:none">Panel</a>
   </div>
 </header>
@@ -63,8 +64,8 @@
 <div id="toast-host" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=9"></script>
-<script src="deposito-app.js?v=2"></script>
+<script src="../supabase-config.js?v=2026-07-30.1648"></script>
+<script src="deposito-app.js?v=2026-07-30.1648"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  SOLICITAR MERCADERÍA — pantalla del solicitante (celular)
@@ -102,9 +103,9 @@ SubatirApp.ready.then(function(p){
   document.getElementById('hsub').textContent=whoName();
   // El operario y el admin también pueden pedir: a ellos se les deja el
   // acceso al panel, al solicitante puro no (no lo puede abrir).
-  var mods=p.modules||[];
-  if(p.role==='admin' || mods.indexOf('importacion')>=0)
-    document.getElementById('nav-panel').style.display='';
+  if(SubatirApp.puede('importacion')) document.getElementById('nav-panel').style.display='';
+  if(SubatirApp.puede('recorrido')||SubatirApp.puede('importacion'))
+    document.getElementById('nav-rec').style.display='';
   cargar();
   SubatirApp.live(['imp_solicitudes','imp_solicitud_items','imp_pallets'], cargar, {delay:900});
 });

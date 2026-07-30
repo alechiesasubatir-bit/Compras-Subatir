@@ -15,6 +15,12 @@
   var MODULO = 'importacion';   // clave histórica del módulo: está guardada
                                 // en profiles.modules, no se renombra
 
+  // Qué módulo habilita cada página. Pedir mercadería no es operar el
+  // depósito: alguien de fábrica puede solicitar sin tener que ver el
+  // stock, los pallets ni el mapa. El operario también puede pedir.
+  var PAGE_MOD = { 'solicitar.html': ['solicitante', 'importacion'] };
+  function modsDe() { return PAGE_MOD[page()] || [MODULO]; }
+
   var _profile = null, _readyResolve;
   var _ready = new Promise(function (r) { _readyResolve = r; });
 
@@ -23,7 +29,8 @@
   function canAccess(profile) {
     if (!profile || !profile.activo) return false;
     if (profile.role === 'admin') return true;
-    return (profile.modules || []).indexOf(MODULO) >= 0;
+    var mods = profile.modules || [];
+    return modsDe().some(function (m) { return mods.indexOf(m) >= 0; });
   }
 
   function loadProfile() {
@@ -47,7 +54,14 @@
           SB.auth.signOut().then(function () { location.replace('login.html?inactivo=1'); });
           return;
         }
-        if (!canAccess(profile)) { location.replace('login.html?denegado=1'); return; }
+        if (!canAccess(profile)) {
+          // Un solicitante puro no entra al panel del depósito, pero sí a
+          // pedir: mandarlo ahí es más útil que un cartel de "sin permiso".
+          if ((profile.modules || []).indexOf('solicitante') >= 0 && page() !== 'solicitar.html') {
+            location.replace('solicitar.html'); return;
+          }
+          location.replace('login.html?denegado=1'); return;
+        }
         injectUserBar(profile);
         // El link de vuelta a Compras sólo para quien tenga más módulos
         var back = document.getElementById('nav-compras');

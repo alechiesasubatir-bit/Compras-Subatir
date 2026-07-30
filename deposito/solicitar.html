@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Depósitos"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Solicitar mercadería — Subatir / Prolimpio</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#07090f;--bg2:#0c1119;--bg3:#111926;
+  --teal:#0e8aaa;--teal-l:#1bc8ff;
+  --orange:#f97316;--orange-l:#fdba74;
+  --glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.07);--border-s:rgba(255,255,255,.13);
+  --text:#e2e8f0;--muted:#75869d;--muted-l:#8ea0b8;
+  --focus:#4dd6ff;--danger:#ef4444;--ok:#22c55e;--warn:#f59e0b;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;--display:'Syne',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;
+  font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;
+  /* espacio para la barra fija de abajo + el area segura del celular */
+  padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(1100px 620px at 12% -8%,rgba(14,138,170,.16),transparent 60%),
+             radial-gradient(900px 520px at 108% 108%,rgba(249,115,22,.12),transparent 60%)}
+
+header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  background:rgba(7,9,15,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.logo{width:34px;height:34px;border-radius:9px;flex:0 0 auto;object-fit:cover}
+.htxt{flex:1;min-width:0}
+.htit{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hsub{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-right{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+
+main{padding:14px;max-width:760px;margin:0 auto}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:13px}
+.lbl{font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:1.3px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.row{display:flex;gap:9px;align-items:center}
+.row>*{min-width:0}
+
+/* 16px en los campos: con menos, iOS hace zoom solo al enfocarlos */
+.inp{width:100%;padding:11px 13px;border-radius:11px;background:rgba(0,0,0,.34);
+  border:1px solid var(--border-s);color:var(--text);font-size:16px;font-family:inherit;outline:none}
+.inp:focus{border-color:rgba(27,200,255,.6)}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+  linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+
+.btn{padding:11px 15px;border-radius:11px;border:1px solid var(--border-s);background:var(--glass);
+  color:var(--text);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn-primary{background:linear-gradient(180deg,#1bc8ff,#0e8aaa);border-color:transparent;color:#04222c;font-weight:700}
+.btn-orange{background:linear-gradient(180deg,#fb923c,#ea6a08);border-color:transparent;color:#2b1200;font-weight:700}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-sm{padding:7px 11px;font-size:12.5px;min-height:36px}
+
+/* Un pallet. Toda la tarjeta es el area tocable: en el deposito se usa
+   con guantes y una casilla de 20px no se acierta. */
+.pal{display:flex;gap:11px;align-items:flex-start;width:100%;text-align:left;
+  padding:12px;border-radius:12px;margin-bottom:8px;cursor:pointer;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  color:var(--text);font-family:inherit;font-size:15px;min-height:56px}
+.pal:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.pal.on{background:rgba(27,200,255,.13);border-color:rgba(27,200,255,.55)}
+.pal-chk{flex:0 0 22px;height:22px;margin-top:2px;border-radius:7px;border:2px solid var(--border-s);
+  display:flex;align-items:center;justify-content:center;font-size:13px;color:#04222c}
+.pal.on .pal-chk{background:var(--teal-l);border-color:var(--teal-l)}
+.pal-b{flex:1;min-width:0}
+.pal-t{font-size:14px;font-weight:600;line-height:1.35}
+.pal-m{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:3px;
+  overflow-wrap:anywhere}
+.pal-u{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--orange-l);white-space:nowrap}
+
+.grp{font-family:var(--display);font-size:11px;font-weight:800;color:var(--teal-l);
+  margin:14px 0 8px;letter-spacing:.3px}
+.empty{padding:22px 14px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6}
+
+/* Barra fija: lo elegido y el boton de confirmar */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;
+  padding:11px 14px calc(11px + env(safe-area-inset-bottom));
+  background:rgba(7,9,15,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border-s);
+  display:flex;align-items:center;gap:11px}
+.bar-i{flex:1;min-width:0}
+.bar-n{font-family:var(--display);font-size:14px;font-weight:800}
+.bar-s{font-family:var(--mono);font-size:11px;color:var(--muted-l)}
+
+.chip{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;
+  font-family:var(--display);letter-spacing:.3px;border:1px solid var(--border-s);color:var(--muted-l)}
+.chip.pend{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.45);color:#fcd34d}
+.chip.prep{background:rgba(27,200,255,.14);border-color:rgba(27,200,255,.45);color:var(--teal-l)}
+.chip.tran{background:rgba(249,115,22,.15);border-color:rgba(249,115,22,.45);color:var(--orange-l)}
+.chip.ok{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.45);color:#86efac}
+.chip.can{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.4);color:#fca5a5}
+
+.sol{padding:11px;border-radius:12px;border:1px solid var(--border);
+  background:rgba(255,255,255,.03);margin-bottom:8px}
+.sol-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.sol-m{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:5px}
+
+#toast-host{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(104px + env(safe-area-inset-bottom));z-index:60;
+  display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 28px);max-width:460px}
+.toast{padding:11px 15px;border-radius:11px;font-size:13.5px;width:100%;
+  background:rgba(7,9,15,.96);border:1px solid var(--border-s);box-shadow:0 12px 34px rgba(0,0,0,.5)}
+.toast-ok{border-color:rgba(34,197,94,.5)} .toast-err{border-color:rgba(239,68,68,.5)}
+.toast.out{opacity:0;transition:opacity .35s}
+@media (prefers-reduced-motion:reduce){ .toast.out{transition:none} }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="../logo.jpg" alt="" class="logo"/>
+  <div class="htxt">
+    <div class="htit">Solicitar mercadería</div>
+    <div class="hsub" id="hsub">—</div>
+  </div>
+  <div class="header-right">
+    <a href="index.html" class="btn btn-sm" id="nav-panel" style="display:none;text-decoration:none">Panel</a>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="lbl">De dónde a dónde</div>
+    <div class="row">
+      <select class="inp" id="f-origen" onchange="buscar()" aria-label="Depósito de origen"></select>
+      <span style="color:var(--muted)" aria-hidden="true">→</span>
+      <select class="inp" id="f-destino" aria-label="Depósito de destino"></select>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Qué necesitás</div>
+    <input class="inp" id="q" type="search" placeholder="Buscar por descripción o código…"
+           oninput="buscar()" aria-label="Buscar mercadería por descripción o código"/>
+    <div id="res" aria-live="polite"></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Mis solicitudes</div>
+    <div id="mis"></div>
+  </div>
+</main>
+
+<div class="bar">
+  <div class="bar-i">
+    <div class="bar-n" id="bar-n">Nada elegido</div>
+    <div class="bar-s" id="bar-s">Tocá los pallets que necesitás</div>
+  </div>
+  <button class="btn btn-sm" id="btn-limpiar" onclick="limpiar()" style="display:none">Vaciar</button>
+  <button class="btn btn-orange" id="btn-ok" onclick="confirmar()" disabled>Pedir</button>
+</div>
+
+<div id="toast-host" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-config.js?v=9"></script>
+<script src="deposito-app.js?v=2"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  SOLICITAR MERCADERÍA — pantalla del solicitante (celular)
+//
+//  Pantalla aparte y no una sección del panel: quien pide no
+//  necesita el stock, los pallets ni el mapa 3D, y en un celular
+//  esa carga se paga en segundos. Acá sólo hay buscar, marcar y
+//  pedir.
+//
+//  Se eligen PALLETS CONCRETOS (decisión del usuario): son
+//  unidades físicas cerradas con su QR. La reserva la garantiza un
+//  índice en la base, no esta pantalla — ver imp_v14.sql.
+// ══════════════════════════════════════════════════════════════
+var DEPS=[], DISP=[], MIS=[], CART={};   // CART: id de pallet → pallet
+
+function esc(s){ return String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(n){ n=parseFloat(n)||0; return n.toLocaleString('es-UY'); }
+function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
+function whoName(){
+  var p=SubatirApp.getProfile();
+  return p?(p.full_name||(p.email||'').split('@')[0]||'—'):'—';
+}
+function toast(msg,tipo){
+  var h=document.getElementById('toast-host');
+  var d=document.createElement('div');
+  d.className='toast toast-'+(tipo==='err'?'err':tipo==='ok'?'ok':'info');
+  d.textContent=msg; h.appendChild(d);
+  setTimeout(function(){ d.classList.add('out');
+    setTimeout(function(){ if(d.parentNode) d.remove(); },380); }, tipo==='err'?4600:2800);
+}
+
+SubatirApp.ready.then(function(p){
+  if(!p) return;
+  document.getElementById('hsub').textContent=whoName();
+  // El operario y el admin también pueden pedir: a ellos se les deja el
+  // acceso al panel, al solicitante puro no (no lo puede abrir).
+  var mods=p.modules||[];
+  if(p.role==='admin' || mods.indexOf('importacion')>=0)
+    document.getElementById('nav-panel').style.display='';
+  cargar();
+  SubatirApp.live(['imp_solicitudes','imp_solicitud_items','imp_pallets'], cargar, {delay:900});
+});
+
+function cargar(){
+  return Promise.all([
+    SB.from('imp_depositos').select('nombre,tipo').eq('activo',true).order('nombre'),
+    SB.from('imp_pallets_disponibles').select('*'),
+    SB.from('imp_solicitud_resumen').select('*').order('created_at',{ascending:false}).limit(25)
+  ]).then(function(r){
+    var err=r.find(function(x){ return x.error; });
+    if(err){ toast('Error: '+err.error.message,'err'); return; }
+    DEPS=r[0].data||[]; DISP=r[1].data||[]; MIS=r[2].data||[];
+    depSelects();
+    // Un pallet elegido puede haber dejado de estar disponible mientras
+    // se armaba el pedido: se saca del carrito y se avisa, en vez de
+    // dejar que falle recién al confirmar.
+    var vivos={}; DISP.forEach(function(d){ vivos[d.id]=1; });
+    var perdidos=Object.keys(CART).filter(function(id){ return !vivos[id]; });
+    if(perdidos.length){
+      perdidos.forEach(function(id){ delete CART[id]; });
+      toast(perdidos.length+' pallet(s) que habías elegido ya no están disponibles','err');
+    }
+    buscar(); renderMis(); renderBar();
+  });
+}
+
+function depSelects(){
+  var o=document.getElementById('f-origen'), d=document.getElementById('f-destino');
+  var co=o.value, cd=d.value;
+  // Origen: sólo de donde se saca mercadería (un almacén). Destino: el resto.
+  var alm=DEPS.filter(function(x){ return x.tipo!=='FABRICA'; });
+  o.innerHTML=(alm.length?alm:DEPS).map(function(x){ return '<option>'+esc(x.nombre)+'</option>'; }).join('');
+  d.innerHTML=DEPS.map(function(x){ return '<option>'+esc(x.nombre)+'</option>'; }).join('');
+  if(co) o.value=co;
+  if(cd) d.value=cd;
+  else { // por defecto, al primero que no sea el origen
+    var otro=DEPS.find(function(x){ return x.nombre!==o.value; });
+    if(otro) d.value=otro.nombre;
+  }
+}
+
+// ── Buscar y listar ───────────────────────────────────────────
+function buscar(){
+  var q=norm(document.getElementById('q').value);
+  var org=document.getElementById('f-origen').value;
+  var list=DISP.filter(function(p){
+    if(p.deposito!==org) return false;
+    if(!q) return true;
+    return norm(p.articulo).indexOf(q)>=0 || norm(p.art_codigo).indexOf(q)>=0
+        || norm(p.codigo).indexOf(q)>=0;
+  });
+  var host=document.getElementById('res');
+  if(!list.length){
+    host.innerHTML='<div class="empty">'+(q
+      ? 'Nada disponible con «'+esc(document.getElementById('q').value)+'» en '+esc(org)+'.'
+      : 'No hay pallets disponibles en '+esc(org)+'.<br>Un pallet aparece acá cuando está cerrado, '
+        +'quieto en su lugar y sin pedir por otro.')+'</div>';
+    return;
+  }
+  // Agrupados por artículo: se pide "de esto, estos dos"
+  var g={};
+  list.forEach(function(p){ (g[p.articulo||'—']=g[p.articulo||'—']||[]).push(p); });
+  var html='';
+  Object.keys(g).sort().forEach(function(art){
+    var ps=g[art];
+    html+='<div class="grp">'+esc(art)+' <span style="color:var(--muted);font-weight:600">· '
+      +ps.length+' pallet'+(ps.length===1?'':'s')+'</span></div>';
+    ps.sort(function(a,b){ return String(a.ubicacion||'').localeCompare(String(b.ubicacion||'')); });
+    html+=ps.map(function(p){
+      var on=!!CART[p.id];
+      var donde=[p.subdeposito, p.ubicacion].filter(Boolean).join(' · ') || 'sin ubicar';
+      return '<button type="button" class="pal'+(on?' on':'')+'" onclick="toggle('+p.id+')"'
+        +' aria-pressed="'+on+'"ّ'.replace('ّ','')
+        +' aria-label="'+esc(p.codigo+', '+art+', '+fmt(p.unidades)+' unidades, en '+donde
+                          +(on?'. Elegido':'. Tocá para elegir'))+'">'
+        +'<span class="pal-chk" aria-hidden="true">'+(on?'✓':'')+'</span>'
+        +'<span class="pal-b"><span class="pal-t">'+esc(p.codigo)+'</span>'
+        +'<span class="pal-m">📍 '+esc(donde)+'</span></span>'
+        +'<span class="pal-u">'+fmt(p.unidades)+' u.</span>'
+      +'</button>';
+    }).join('');
+  });
+  host.innerHTML=html;
+}
+
+function toggle(id){
+  var p=DISP.find(function(x){ return String(x.id)===String(id); });
+  if(!p) return;
+  if(CART[id]) delete CART[id]; else CART[id]=p;
+  buscar(); renderBar();
+}
+function limpiar(){ CART={}; buscar(); renderBar(); }
+
+function renderBar(){
+  var ids=Object.keys(CART), n=ids.length;
+  var u=ids.reduce(function(a,id){ return a+(parseFloat(CART[id].unidades)||0); },0);
+  document.getElementById('bar-n').textContent = n
+    ? (n+' pallet'+(n===1?'':'s')) : 'Nada elegido';
+  document.getElementById('bar-s').textContent = n
+    ? (fmt(u)+' unidades') : 'Tocá los pallets que necesitás';
+  document.getElementById('btn-ok').disabled = !n;
+  document.getElementById('btn-limpiar').style.display = n?'':'none';
+}
+
+// ── Confirmar ─────────────────────────────────────────────────
+function confirmar(){
+  var ids=Object.keys(CART).map(Number);
+  if(!ids.length) return;
+  var org=document.getElementById('f-origen').value;
+  var dst=document.getElementById('f-destino').value;
+  if(org===dst){ toast('El origen y el destino son el mismo depósito','err'); return; }
+  var b=document.getElementById('btn-ok'); b.disabled=true;
+  SB.rpc('imp_solicitud_crear',{p_origen:org, p_destino:dst, p_pallets:ids,
+                                p_nota:null, p_user:whoName()})
+    .then(function(r){
+      b.disabled=false;
+      if(r.error||(r.data&&r.data.ok===false)){
+        toast('Error: '+(r.error?r.error.message:r.data.error),'err'); cargar(); return;
+      }
+      CART={};
+      if(r.data.no_disponibles)
+        toast('Pedido #'+r.data.solicitud+' creado con '+r.data.items+
+              ', pero no estaban: '+r.data.no_disponibles,'err');
+      else
+        toast('✅ Pedido #'+r.data.solicitud+' enviado — '+r.data.items+' pallet(s)','ok');
+      cargar();
+    }, function(e){ b.disabled=false; toast('Error: '+(e&&e.message||e),'err'); });
+}
+
+// ── Mis solicitudes ───────────────────────────────────────────
+var CHIP={PENDIENTE:['pend','Pendiente'],EN_PREPARACION:['prep','Preparando'],
+          EN_TRANSITO:['tran','En camino'],ENTREGADA:['ok','Entregada'],CANCELADA:['can','Cancelada']};
+function renderMis(){
+  var yo=whoName();
+  var mias=MIS.filter(function(s){ return s.solicitante===yo; });
+  var host=document.getElementById('mis');
+  if(!mias.length){
+    host.innerHTML='<div class="empty">Todavía no pediste nada.</div>'; return;
+  }
+  host.innerHTML=mias.map(function(s){
+    var c=CHIP[s.estado]||['','?'];
+    var f=new Date(s.created_at);
+    var puedeCancelar = s.estado==='PENDIENTE' || s.estado==='EN_PREPARACION';
+    return '<div class="sol">'
+      +'<div class="sol-h"><b>#'+s.id+' · '+esc(s.origen)+' → '+esc(s.destino)+'</b>'
+      +'<span class="chip '+c[0]+'">'+c[1]+'</span></div>'
+      +'<div class="sol-m">'+s.items+' pallet'+(s.items===1?'':'s')+' · '+fmt(s.unidades)+' u. · '
+      +f.toLocaleDateString('es-UY')+' '+f.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})
+      +(s.entregados?(' · '+s.entregados+' entregado'+(s.entregados===1?'':'s')):'')+'</div>'
+      +(puedeCancelar?('<button class="btn btn-sm" style="margin-top:9px" onclick="cancelar('+s.id+')">Cancelar pedido</button>'):'')
+    +'</div>';
+  }).join('');
+}
+// Cancelar libera los pallets. Se pide confirmación en dos toques sobre
+// el mismo botón: un confirm() nativo bloquea el navegador.
+var CANC=null;
+function cancelar(id){
+  if(CANC!==id){
+    CANC=id; toast('Tocá otra vez para cancelar el pedido #'+id,'info');
+    setTimeout(function(){ if(CANC===id) CANC=null; }, 6000);
+    return;
+  }
+  CANC=null;
+  SB.rpc('imp_solicitud_cancelar',{p_sol:id, p_user:whoName()}).then(function(r){
+    if(r.error||(r.data&&r.data.ok===false)){
+      toast('Error: '+(r.error?r.error.message:r.data.error),'err'); return;
+    }
+    toast('Pedido #'+id+' cancelado','ok'); cargar();
+  });
+}
+
+// ── PWA ───────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>

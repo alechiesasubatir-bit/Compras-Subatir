@@ -29,7 +29,7 @@ self.APP_VER = '2026-07-30.1457';
 var CACHE = 'deposito-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
-var SHELL = ['./', './index.html', './deposito-app.js', '../supabase-config.js',
+var SHELL = ['./', './index.html', './solicitar.html', './deposito-app.js', '../supabase-config.js',
              './icon-192.png', './icon-512.png', '../logo.jpg'];
 
 self.addEventListener('install', function (ev) {

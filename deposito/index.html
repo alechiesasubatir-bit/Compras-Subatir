@@ -1664,8 +1664,19 @@ var GRID={dep:null, est:null};
 // El orden manda en las leyendas y en los desplegables de tipo.
 var TIPOS=['Consumo','Venta','Venta Piscina','Infraestructura'];
 var TIPO_COLORS={'Consumo':{bg:'rgba(27,200,255,.18)',bd:'#1bc8ff',tx:'#7dd3fc'},'Venta':{bg:'rgba(34,197,94,.18)',bd:'#22c55e',tx:'#86efac'},'Venta Piscina':{bg:'rgba(234,179,8,.18)',bd:'#eab308',tx:'#fde047'},'Infraestructura':{bg:'rgba(249,115,22,.18)',bd:'#f97316',tx:'#fdba74'},'':{bg:'rgba(100,116,139,.18)',bd:'#64748b',tx:'#cbd5e1'}};
-function letterOf(f){ return String.fromCharCode(64+(+f||0)); }
-function coordOf(p){ return p.fila&&p.columna ? (letterOf(p.fila)+p.columna) : '—'; }
+// Letra del nivel, contada DESDE ABAJO: en un rack de 4 niveles la fila 4
+// (la de abajo) es "A" y la fila 1 (la de arriba) es "D". La fila sigue
+// numerándose desde arriba —es lo que guarda imp_pallets.fila y de donde
+// sale la altura en el 3D—, así que la letra depende de cuántos niveles
+// tiene ESE rack y hay que pasárselos. Sin niveles no se puede invertir:
+// se cae al criterio viejo en vez de inventar una letra.
+function letterOf(f, filas){
+  var n=+f||0;
+  if(filas>0) n=filas-n+1;
+  return String.fromCharCode(64+n);
+}
+function filasDe(estId){ var e=estById(estId); return e?e.filas:0; }
+function coordOf(p){ return p.fila&&p.columna ? (letterOf(p.fila, filasDe(p.estanteria_id))+p.columna) : '—'; }
 function tipoColor(t){ return TIPO_COLORS[t||'']||TIPO_COLORS['']; }
 
 function whoName(){ var p=(window.SubatirApp&&SubatirApp.getProfile)?SubatirApp.getProfile():null; return p?(p.full_name||(p.email||'').split('@')[0]||'Admin'):'Admin'; }
@@ -2150,19 +2161,19 @@ function gridHtmlFor(e){
   html+='<div></div>';
   for(var c=1;c<=EC;c++) html+='<div style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted-l);font-weight:700;'+baySep(c)+'">'+c+((c-1)%POS_PER_BAY===0?' <span style="color:var(--orange-l);font-size:9px">B'+bayOf(c)+'</span>':'')+'</div>';
   for(var f=1;f<=e.filas;f++){
-    html+='<div style="display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--muted-l);font-weight:700">'+letterOf(f)+'</div>';
+    html+='<div style="display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--muted-l);font-weight:700">'+letterOf(f,e.filas)+'</div>';
     for(var c2=1;c2<=EC;c2++){
       var p=palAt(estId,f,c2);
       if(p){
         var a=artById(p.articulo_id), col=tipoColor(a?a.tipo:'');
         if(p.estado==='ABIERTO') col={bg:'rgba(249,115,22,.14)',bd:'#f97316',tx:'#fdba74'};
-        html+='<div role="button" tabindex="0" aria-label="'+esc('Posición '+letterOf(f)+c2+', ocupada por '+(a?a.descripcion:'pallet')+', '+fmtNum(p.unidades)+' unidades. Abrir detalle.')+'" data-drag-pallet="'+p.id+'" data-est="'+estId+'" data-slot="'+f+'-'+c2+'" onclick="openPalletDetail('+p.id+')" title="'+esc((a?a.descripcion:'')+' — '+fmtNum(p.unidades)+' u. · arrastrá para reubicar')+'" style="'+baySep(c2)+'touch-action:none;cursor:grab;min-height:80px;border-radius:11px;padding:8px;background:'+col.bg+';border:1px '+(p.estado==='ABIERTO'?'dashed':'solid')+' '+col.bd+';display:flex;flex-direction:column;gap:3px">'
-          +'<div style="font-family:var(--mono);font-size:10px;font-weight:700;color:'+col.tx+'">'+letterOf(f)+c2+' · '+(p.estado==='ABIERTO'?'🟠':'📦')+'</div>'
+        html+='<div role="button" tabindex="0" aria-label="'+esc('Posición '+letterOf(f,e.filas)+c2+', ocupada por '+(a?a.descripcion:'pallet')+', '+fmtNum(p.unidades)+' unidades. Abrir detalle.')+'" data-drag-pallet="'+p.id+'" data-est="'+estId+'" data-slot="'+f+'-'+c2+'" onclick="openPalletDetail('+p.id+')" title="'+esc((a?a.descripcion:'')+' — '+fmtNum(p.unidades)+' u. · arrastrá para reubicar')+'" style="'+baySep(c2)+'touch-action:none;cursor:grab;min-height:80px;border-radius:11px;padding:8px;background:'+col.bg+';border:1px '+(p.estado==='ABIERTO'?'dashed':'solid')+' '+col.bd+';display:flex;flex-direction:column;gap:3px">'
+          +'<div style="font-family:var(--mono);font-size:10px;font-weight:700;color:'+col.tx+'">'+letterOf(f,e.filas)+c2+' · '+(p.estado==='ABIERTO'?'🟠':'📦')+'</div>'
           +'<div style="font-size:11px;line-height:1.25;color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div>'
           +'<div style="margin-top:auto;font-family:var(--mono);font-size:11px;color:'+col.tx+'">'+fmtNum(p.unidades)+' u.</div>'
         +'</div>';
       } else {
-        html+='<div role="button" tabindex="0" aria-label="'+esc('Ranura libre '+letterOf(f)+c2+' en '+e.nombre+'. Armar pallet acá.')+'" data-est="'+estId+'" data-slot="'+f+'-'+c2+'" onclick="openPallet({estId:'+estId+',fila:'+f+',col:'+c2+'})" title="Ranura libre '+letterOf(f)+c2+' — '+esc(e.nombre)+'" style="'+baySep(c2)+'cursor:pointer;min-height:80px;border-radius:11px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:12px">'+letterOf(f)+c2+'</div>';
+        html+='<div role="button" tabindex="0" aria-label="'+esc('Ranura libre '+letterOf(f,e.filas)+c2+' en '+e.nombre+'. Armar pallet acá.')+'" data-est="'+estId+'" data-slot="'+f+'-'+c2+'" onclick="openPallet({estId:'+estId+',fila:'+f+',col:'+c2+'})" title="Ranura libre '+letterOf(f,e.filas)+c2+' — '+esc(e.nombre)+'" style="'+baySep(c2)+'cursor:pointer;min-height:80px;border-radius:11px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:12px">'+letterOf(f,e.filas)+c2+'</div>';
       }
     }
   }
@@ -2839,7 +2850,7 @@ function palletToSlot(pid, estId, fila, col){
     toast('Moviendo pallet…','info');
     SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}).then(function(r){
       if(r.error||(r.data&&r.data.ok===false)){ toast('Error: '+(r.error?r.error.message:r.data.error),'err'); load(); return; }
-      limpiarArea(pid).then(function(){ vibrate(); toast('📦 Pallet en '+letterOf(fila)+col,'ok'); load(); });
+      limpiarArea(pid).then(function(){ vibrate(); toast('📦 Pallet en '+letterOf(fila,filasDe(estId))+col,'ok'); load(); });
     });
   } else if(String(tgt.id)!==String(pid)){
     if(dragged.estanteria_id==null){ toast('Esa posición está ocupada — soltalo en una libre','err'); return; }
@@ -2847,7 +2858,7 @@ function palletToSlot(pid, estId, fila, col){
     SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:null,p_fila:null,p_col:null,p_user:who})
       .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}); })
       .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:+estId,p_fila:fF,p_col:fC,p_user:who}); })
-      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); load(); return; } Promise.all([limpiarArea(pid), limpiarArea(tgt.id)]).then(function(){ vibrate(); toast('🔄 '+letterOf(fF)+fC+' ⇄ '+letterOf(fila)+col,'ok'); load(); }); });
+      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); load(); return; } Promise.all([limpiarArea(pid), limpiarArea(tgt.id)]).then(function(){ vibrate(); toast('🔄 '+letterOf(fF,filasDe(estId))+fC+' ⇄ '+letterOf(fila,filasDe(estId))+col,'ok'); load(); }); });
   }
 }
 function dndSetHover(t){
@@ -3539,18 +3550,18 @@ function plSlots(){
       +' <span>'+esc(e.deposito+(sd?(' · '+sd.nombre):''))+' · '+e.filas+'×'+EC+'</span></div>'
       +'<div class="mini-grid" style="grid-template-columns:13px repeat('+EC+',minmax(14px,1fr))">';
     for(var f=1;f<=e.filas;f++){
-      h+='<span class="mini-row-l">'+letterOf(f)+'</span>';
+      h+='<span class="mini-row-l">'+letterOf(f,e.filas)+'</span>';
       for(var c=1;c<=EC;c++){
         var pal=palAt(e.id,f,c);
         if(pal){
           var a=artById(pal.articulo_id), col=tipoColor(a?a.tipo:'');
           if(pal.estado==='ABIERTO') col={bg:'rgba(249,115,22,.3)',bd:'#f97316'};
           h+='<span class="mini-slot busy" style="background:'+col.bg+';border:1px solid '+col.bd+'"'
-            +' title="'+esc(letterOf(f)+c+' · ocupada · '+(a?a.descripcion:'pallet'))+'"></span>';
+            +' title="'+esc(letterOf(f,e.filas)+c+' · ocupada · '+(a?a.descripcion:'pallet'))+'"></span>';
         } else {
           h+='<span class="mini-slot free" data-est="'+e.id+'" data-f="'+f+'" data-c="'+c+'"'
-            +' role="button" tabindex="0" title="'+esc(letterOf(f)+c+' · libre')+'"'
-            +' aria-label="'+esc('Ranura libre '+letterOf(f)+c+' en '+e.nombre)+'"></span>';
+            +' role="button" tabindex="0" title="'+esc(letterOf(f,e.filas)+c+' · libre')+'"'
+            +' aria-label="'+esc('Ranura libre '+letterOf(f,e.filas)+c+' en '+e.nombre)+'"></span>';
         }
       }
     }
@@ -3579,7 +3590,7 @@ function plPickSlot(estId, f, c){
   var el=document.querySelector('#pl-mini .mini-slot[data-est="'+estId+'"][data-f="'+f+'"][data-c="'+c+'"]');
   if(el) el.classList.add('sel');
   var e=estById(estId);
-  out.textContent='📍 '+(e?e.nombre:'')+' · '+letterOf(f)+c;
+  out.textContent='📍 '+(e?e.nombre:'')+' · '+letterOf(f,e?e.filas:0)+c;
   out.className='mini-pick on';
   plDisp();   // la ranura puede cambiar el depósito, y con él el disponible
 }
@@ -3645,7 +3656,7 @@ function savePallet(){
     if(!e){ toast('Estantería inválida','err'); return; }
     if(palAt(estId,fila,col)){ toast('Esa ranura ya está ocupada','err'); plSlots(); return; }
     dep=e.deposito;
-    donde='en '+letterOf(fila)+col;
+    donde='en '+letterOf(fila,e.filas)+col;
   } else {
     // Sin ubicar: sólo hace falta el depósito; se acomoda después
     dep=document.getElementById('pl-dep').value;

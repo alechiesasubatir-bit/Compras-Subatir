@@ -2856,6 +2856,22 @@ function dndResolve(pid, target){
 // ══════════════════════════════════════════════════════════════
 var VIEW='3d', R3D=null;
 var BAY=3.0, LVL=1.8, DEP=2.6, BASE=1.0, POS_PER_BAY=2;
+// Materiales del rack, compartidos por TODAS las estanterias: antes se
+// creaban tres nuevos por rack, o sea 3xN materiales identicos en la GPU.
+// Se crean una sola vez y no se descartan nunca, asi que clearGroup no
+// los toca (ver la lista de materiales permanentes).
+var RACK_MATS=null;
+function rackMats(){
+  if(RACK_MATS) return RACK_MATS;
+  RACK_MATS={
+    steel:new THREE.MeshStandardMaterial({color:0x24468f, metalness:.5, roughness:.45}),
+    beam: new THREE.MeshStandardMaterial({color:0xf0731a, metalness:.4, roughness:.45}),
+    foot: new THREE.MeshStandardMaterial({color:0x1a2740, metalness:.5, roughness:.5}),
+    slot: new THREE.MeshBasicMaterial({color:0x1bc8ff, transparent:true, opacity:.05}),
+    slotEdge:new THREE.LineBasicMaterial({color:0x4a90b0, transparent:true, opacity:.6})
+  };
+  return RACK_MATS;
+}
 function curEst(){ var s=document.getElementById('g-est'); return estById(s?s.value:GRID.est); }
 function depEsts(){ return EST.filter(function(e){ return e.deposito===GRID.dep; }); }   // estanterías del depósito actual
 function posCount(e){ return (e?e.columnas:0)*POS_PER_BAY; }            // posiciones de pallet por nivel
@@ -2870,7 +2886,28 @@ function strut(a,b,mat,th){
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
   m.castShadow=true; return m;
 }
-function clearGroup(g){ for(var i=g.children.length-1;i>=0;i--){ var c=g.children[i]; g.remove(c); if(c.geometry&&c.geometry.dispose)c.geometry.dispose(); } }
+// Vacía un grupo liberando la memoria de la GPU. Antes sólo descartaba
+// las geometrías: los materiales quedaban vivos en VRAM en cada rearmado,
+// y la escena se rearma con cada cambio (realtime, guardar la planta,
+// cambiar de depósito). Los de RACK_MATS se comparten y se reusan, así
+// que ésos NO se descartan.
+function clearGroup(g){
+  var keep=RACK_MATS||{}, permanentes={};
+  Object.keys(keep).forEach(function(k){ if(keep[k]) permanentes[keep[k].uuid]=1; });
+  function limpiar(o){
+    if(o.geometry&&o.geometry.dispose) o.geometry.dispose();
+    var mats=Array.isArray(o.material)?o.material:(o.material?[o.material]:[]);
+    mats.forEach(function(m){
+      if(!m||permanentes[m.uuid]) return;
+      if(m.map&&m.map.dispose) m.map.dispose();   // los sprites de texto llevan textura
+      if(m.dispose) m.dispose();
+    });
+  }
+  for(var i=g.children.length-1;i>=0;i--){
+    var c=g.children[i]; g.remove(c);
+    if(c.traverse) c.traverse(limpiar); else limpiar(c);
+  }
+}
 
 function setView(v){
   if(v==='3d' && typeof THREE==='undefined'){ toast('No se pudo cargar el 3D; mostrando vista 2D','err'); v='2d'; }
@@ -2966,65 +3003,132 @@ function planoRows(ests){
 function rowWidth(list, aisle){
   return list.reduce(function(a,e){ return a+e.columnas*BAY; },0)+aisle*(list.length-1);
 }
+// ¿Este depósito tiene planta dibujada en Config Depósito?
+//  Alcanza con que UNA estantería tenga coordenadas: mezclar racks
+//  ubicados con racks autoacomodados daría una escena sin sentido, así
+//  que el modo se decide por depósito y no por rack.
+function depPlano(){
+  var d=depByName(GRID.dep)||{};
+  var ests=depEsts();
+  var conXY=ests.filter(function(e){ return e.x_m!=null && e.y_m!=null; });
+  if(!conXY.length) return null;
+  return {
+    w:num(d.ancho_m)||0, h:num(d.largo_m)||0,
+    subs:SUBDEP.filter(function(s){ return s.deposito===GRID.dep; }),
+    sinUbicar:ests.length-conXY.length
+  };
+}
 function rackBuild(){
   if(!R3D) return;
   clearGroup(R3D.rackGroup); R3D.slotTargets=[]; R3D.slotByKey={};
-  R3D.rackOriginX={}; R3D.rackOriginZ={};
+  R3D.rackXf={};
   var ests=depEsts();
   if(!ests.length){ clearGroup(R3D.palGroup); R3D.palTargets=[]; R3D.totalW=8; R3D.totalD=DEP; return; }
 
-  // Pasillo entre racks de una misma hilera / separación entre hileras.
-  // ROW_GAP es de centro a centro, así que el espacio libre real es
-  // ROW_GAP-DEP: para triplicar el pasillo hay que triplicar ese resto.
-  var AISLE=10.8, ROW_GAP=DEP+15.6;
-  var pl=planoRows(ests), keys=pl.keys, rows=pl.rows;
-
-  var maxW=0;
-  keys.forEach(function(k){ var w=rowWidth(rows[k],AISLE); if(w>maxW) maxW=w; });
-  R3D.totalW=maxW;
-  R3D.totalD=(keys.length-1)*ROW_GAP+DEP;
-
-  keys.forEach(function(k,ri){
-    var list=rows[k], cursor=-rowWidth(list,AISLE)/2;
-    var oz=(ri-(keys.length-1)/2)*ROW_GAP;   // hileras centradas en Z
-    list.forEach(function(e){
-      var w=e.columnas*BAY, ox=cursor+w/2;
-      R3D.rackOriginX[e.id]=ox; R3D.rackOriginZ[e.id]=oz;
-      buildOneRack(e, ox, oz);
-      cursor+=w+AISLE;
+  var plano=depPlano();
+  if(plano && plano.w>0 && plano.h>0){
+    // ── Según el plano dibujado ────────────────────────────────
+    // La escena está centrada en el origen (la cámara y el piso lo
+    // asumen), así que el plano —cuyo origen es la esquina de la nave—
+    // se corre media nave. Y en el editor Y crece hacia abajo, que en
+    // la vista en planta del 3D es +Z.
+    R3D.totalW=plano.w; R3D.totalD=plano.h;
+    buildNave(plano);
+    ests.forEach(function(e){
+      if(e.x_m==null||e.y_m==null) return;      // sin ubicar: no se inventa
+      buildOneRack(e, num(e.x_m)-plano.w/2, num(e.y_m)-plano.h/2, +(e.rot_deg||0));
     });
-  });
+  } else {
+    // ── Sin plano: acomodado viejo por hilera/orden ─────────────
+    // Se mantiene para que un depósito que todavía no se dibujó siga
+    // viéndose como siempre. ROW_GAP es de centro a centro, así que el
+    // pasillo libre real es ROW_GAP-DEP.
+    var AISLE=10.8, ROW_GAP=DEP+15.6;
+    var pl=planoRows(ests), keys=pl.keys, rows=pl.rows;
+    var maxW=0;
+    keys.forEach(function(k){ var w=rowWidth(rows[k],AISLE); if(w>maxW) maxW=w; });
+    R3D.totalW=maxW;
+    R3D.totalD=(keys.length-1)*ROW_GAP+DEP;
+    keys.forEach(function(k,ri){
+      var list=rows[k], cursor=-rowWidth(list,AISLE)/2;
+      var oz=(ri-(keys.length-1)/2)*ROW_GAP;
+      list.forEach(function(e){
+        var w=e.columnas*BAY;
+        buildOneRack(e, cursor+w/2, oz, 0);
+        cursor+=w+AISLE;
+      });
+    });
+  }
   rackResetCam();
   syncPallets3D();
 }
-function buildOneRack(e, ox, oz){
-  oz=oz||0;
-  var R=e.filas, C=e.columnas, totalH=BASE+R*LVL+0.4, zf=oz-DEP/2, zb=oz+DEP/2;
-  var steel=new THREE.MeshStandardMaterial({color:0x24468f, metalness:.5, roughness:.45});
-  var beamMat=new THREE.MeshStandardMaterial({color:0xf0731a, metalness:.4, roughness:.45});
+// Piso y contorno de la nave y de cada sub-depósito, en su tamaño real.
+// Va todo con MeshBasicMaterial: son marcas planas en el suelo, no
+// objetos físicos, así que no tienen por qué pagar el cálculo de luces.
+function buildNave(plano){
+  var y=0.02;                                   // apenas sobre el piso, sin z-fighting
+  function rect(cx,cz,w,h,color,op,alto){
+    var m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+      new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:op,
+                                   side:THREE.DoubleSide, depthWrite:false}));
+    m.rotation.x=-Math.PI/2; m.position.set(cx, alto||y, cz);
+    R3D.rackGroup.add(m);
+    var eg=new THREE.EdgesGeometry(new THREE.PlaneGeometry(w,h));
+    var ln=new THREE.LineSegments(eg, new THREE.LineBasicMaterial({color:color, transparent:true, opacity:.85}));
+    ln.rotation.x=-Math.PI/2; ln.position.set(cx,(alto||y)+0.01,cz);
+    R3D.rackGroup.add(ln);
+  }
+  rect(0,0,plano.w,plano.h,0x1bc8ff,0.05,y);
+  plano.subs.forEach(function(s){
+    var cx=num(s.x_m)+num(s.ancho_m)/2-plano.w/2;
+    var cz=num(s.y_m)+num(s.largo_m)/2-plano.h/2;
+    var esEst=s.tipo==='ESTANTERIAS';
+    rect(cx,cz,num(s.ancho_m),num(s.largo_m), esEst?0xf0731a:0x1bc8ff, esEst?0.07:0.05, y+0.005);
+    var lab=labelSprite(s.nombre);
+    if(lab){ lab.position.set(cx, 0.6, cz-num(s.largo_m)/2+0.5); R3D.rackGroup.add(lab); }
+  });
+}
+function buildOneRack(e, ox, pz, rot){
+  // El rack se arma en coordenadas LOCALES (centro en el origen, largo
+  // sobre X) dentro de su propio Group, y después el Group se posiciona y
+  // se gira. Así el giro de 90° lo calcula Three.js: hacer la rotación a
+  // mano en cada mesh, ranura y pallet es donde se cuelan los errores de
+  // signo. Los pallets van en un sub-Group del rack por lo mismo.
+  var grp=new THREE.Group();
+  grp.position.set(ox, 0, pz||0);
+  grp.rotation.y = (rot===90) ? Math.PI/2 : 0;
+  var palHost=new THREE.Group(); grp.add(palHost);
+  R3D.rackXf[e.id]={grp:grp, palHost:palHost};
+  R3D.rackGroup.add(grp);
+
+  var R=e.filas, C=e.columnas, totalH=BASE+R*LVL+0.4, zf=-DEP/2, zb=DEP/2;
+  var M=rackMats(), steel=M.steel, beamMat=M.beam;
   var upGeo=new THREE.BoxGeometry(0.14, totalH, 0.14);
-  for(var i=0;i<=C;i++){ var x=ox+(i-C/2)*BAY;
-    [zf,zb].forEach(function(z){ var m=new THREE.Mesh(upGeo, steel); m.position.set(x, totalH/2, z); m.castShadow=true; R3D.rackGroup.add(m); });
+  for(var i=0;i<=C;i++){ var x=(i-C/2)*BAY;
+    [zf,zb].forEach(function(z){ var m=new THREE.Mesh(upGeo, steel); m.position.set(x, totalH/2, z); m.castShadow=true; grp.add(m); });
     var steps=Math.max(5, R*2), tgl=true;
     for(var k=0;k<steps;k++){ var y1=(k/steps)*totalH, y2=((k+1)/steps)*totalH;
-      R3D.rackGroup.add(strut(new THREE.Vector3(x,y1,tgl?zf:zb), new THREE.Vector3(x,y2,tgl?zb:zf), steel, 0.05));
-      R3D.rackGroup.add(strut(new THREE.Vector3(x,y1,zf), new THREE.Vector3(x,y1,zb), steel, 0.05)); tgl=!tgl; }
+      grp.add(strut(new THREE.Vector3(x,y1,tgl?zf:zb), new THREE.Vector3(x,y2,tgl?zb:zf), steel, 0.05));
+      grp.add(strut(new THREE.Vector3(x,y1,zf), new THREE.Vector3(x,y1,zb), steel, 0.05)); tgl=!tgl; }
   }
   var beamGeo=new THREE.BoxGeometry(BAY-0.02, 0.16, 0.13);
   for(var f=1;f<=R;f++){ var by=BASE+(R-f)*LVL-0.09;
-    for(var c=1;c<=C;c++){ var bx=ox+(c-(C+1)/2)*BAY;
-      [zf+0.11, zb-0.11].forEach(function(z){ var b=new THREE.Mesh(beamGeo, beamMat); b.position.set(bx, by, z); b.castShadow=true; R3D.rackGroup.add(b); }); } }
-  var footMat=new THREE.MeshStandardMaterial({color:0x1a2740, metalness:.5, roughness:.5});
-  for(var fi=0;fi<=C;fi++){ var fx=ox+(fi-C/2)*BAY; [zf,zb].forEach(function(z){
-    var ft=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.08,0.32), footMat); ft.position.set(fx,0.04,z); ft.castShadow=true; R3D.rackGroup.add(ft); }); }
-  var lab=labelSprite(e.nombre); if(lab){ lab.position.set(ox, totalH+0.75, oz); R3D.rackGroup.add(lab); }
+    for(var c=1;c<=C;c++){ var bx=(c-(C+1)/2)*BAY;
+      [zf+0.11, zb-0.11].forEach(function(z){ var b=new THREE.Mesh(beamGeo, beamMat); b.position.set(bx, by, z); b.castShadow=true; grp.add(b); }); } }
+  var footGeo=new THREE.BoxGeometry(0.32,0.08,0.32);
+  for(var fi=0;fi<=C;fi++){ var fx=(fi-C/2)*BAY; [zf,zb].forEach(function(z){
+    var ft=new THREE.Mesh(footGeo, M.foot); ft.position.set(fx,0.04,z); ft.castShadow=true; grp.add(ft); }); }
+  // El cartel se contragira para que se lea de frente aunque el rack esté
+  // de costado: un sprite girado 90° queda de canto y no se lee.
+  var lab=labelSprite(e.nombre);
+  if(lab){ lab.position.set(0, totalH+0.75, 0); lab.rotation.y=-grp.rotation.y; grp.add(lab); }
   var padGeo=new THREE.BoxGeometry(BAY/POS_PER_BAY-0.3, 0.6, DEP-0.45), padEdges=new THREE.EdgesGeometry(padGeo);
   for(var f2=1;f2<=R;f2++) for(var c2=1;c2<=C*POS_PER_BAY;c2++){
-    var x2=ox+slotX(c2,C), y2=BASE+(R-f2)*LVL+0.3;
-    var mk=new THREE.Mesh(padGeo, new THREE.MeshBasicMaterial({color:0x1bc8ff, transparent:true, opacity:.05}));
-    mk.position.set(x2, y2, oz); mk.userData={estId:e.id, fila:f2, col:c2, slot:true};
-    var edge=new THREE.LineSegments(padEdges, new THREE.LineBasicMaterial({color:0x4a90b0, transparent:true, opacity:.6})); edge.position.copy(mk.position); mk.userData.edge=edge;
-    R3D.rackGroup.add(mk); R3D.rackGroup.add(edge); R3D.slotTargets.push(mk);
+    var x2=slotX(c2,C), y2=BASE+(R-f2)*LVL+0.3;
+    var mk=new THREE.Mesh(padGeo, M.slot);
+    mk.position.set(x2, y2, 0); mk.userData={estId:e.id, fila:f2, col:c2, slot:true};
+    var edge=new THREE.LineSegments(padEdges, M.slotEdge); edge.position.copy(mk.position); mk.userData.edge=edge;
+    grp.add(mk); grp.add(edge); R3D.slotTargets.push(mk);
     R3D.slotByKey[e.id+'-'+f2+'-'+c2]=mk;
   }
 }
@@ -3051,18 +3155,24 @@ function makePallet(hex, abierto){
   return g;
 }
 function syncPallets3D(){
-  if(!R3D) return; clearGroup(R3D.palGroup); R3D.palTargets=[];
+  if(!R3D) return;
+  R3D.palTargets=[];
+  // Los pallets cuelgan del Group de su rack (palHost), así heredan su
+  // posición y su giro. Se vacía el de cada rack, no una bolsa común.
+  Object.keys(R3D.rackXf||{}).forEach(function(id){ clearGroup(R3D.rackXf[id].palHost); });
+  clearGroup(R3D.palGroup);                    // por si quedó algo del modelo viejo
   var ests=depEsts(); if(!ests.length) return; var byId={}; ests.forEach(function(e){ byId[e.id]=e; });
   // mostrar todos los footprints; se ocultan los que quedan ocupados
   if(R3D.slotByKey) Object.keys(R3D.slotByKey).forEach(function(k){ var m=R3D.slotByKey[k]; m.visible=true; if(m.userData.edge) m.userData.edge.visible=true; });
   PALLETS.filter(function(p){ return byId[p.estanteria_id]; }).forEach(function(p){
-    var e=byId[p.estanteria_id], ox=R3D.rackOriginX[p.estanteria_id]||0, oz=(R3D.rackOriginZ&&R3D.rackOriginZ[p.estanteria_id])||0;
+    var xf=R3D.rackXf[p.estanteria_id]; if(!xf) return;   // rack sin ubicar en el plano
+    var e=byId[p.estanteria_id];
     var a=artById(p.articulo_id), col=tipoColor(a?a.tipo:'');
     var g=makePallet(col.bd, p.estado==='ABIERTO');
-    g.position.set(ox+slotX(p.columna,e.columnas), BASE+(e.filas-p.fila)*LVL, oz);
+    g.position.set(slotX(p.columna,e.columnas), BASE+(e.filas-p.fila)*LVL, 0);   // local al rack
     g.userData={pid:p.id, estId:p.estanteria_id, fila:p.fila, col:p.columna};
     g.traverse(function(o){ if(o.isMesh){ o.userData.pid=p.id; o.userData.estId=p.estanteria_id; o.userData.fila=p.fila; o.userData.col=p.columna; } });
-    R3D.palGroup.add(g); R3D.palTargets.push(g);
+    xf.palHost.add(g); R3D.palTargets.push(g);
     var mk=R3D.slotByKey[p.estanteria_id+'-'+p.fila+'-'+p.columna]; if(mk){ mk.visible=false; if(mk.userData.edge) mk.userData.edge.visible=false; }
   });
 }
@@ -3075,8 +3185,12 @@ function highlightSlot3D(s){
   if(!R3D||!R3D.hi) return;
   if(!s){ R3D.hi.visible=false; return; }
   var e=estById(s.estId); if(!e) return;
-  var ox=(R3D.rackOriginX&&R3D.rackOriginX[s.estId])||0, oz=(R3D.rackOriginZ&&R3D.rackOriginZ[s.estId])||0;
-  R3D.hi.position.set(ox+slotX(s.col,e.columnas), BASE+(e.filas-s.fila)*LVL+0.3, oz); R3D.hi.visible=true;
+  // Se toma la posición del propio marcador de la ranura en el mundo: es
+  // exacta y no hay que rehacer el giro del rack a mano.
+  var mk=R3D.slotByKey && R3D.slotByKey[s.estId+'-'+s.fila+'-'+s.col];
+  if(!mk){ R3D.hi.visible=false; return; }
+  mk.getWorldPosition(R3D.hi.position);
+  R3D.hi.visible=true;
 }
 function rackDown(e){
   if(!R3D||(e.button!=null&&e.button!==0)) return;
@@ -3147,12 +3261,13 @@ function rackResetCam(){
 function focusEst(){
   var id=document.getElementById('g-est').value;
   if(VIEW==='3d'){
-    if(!R3D||!R3D.rackOriginX) return; var ox=R3D.rackOriginX[id];
-    if(ox==null){ rackResetCam(); return; }
-    var oz=(R3D.rackOriginZ&&R3D.rackOriginZ[id])||0;
+    if(!R3D||!R3D.rackXf) return;
+    var xf=R3D.rackXf[id];
+    if(!xf){ rackResetCam(); return; }        // rack sin lugar en el plano
+    var c=new THREE.Vector3(); xf.grp.getWorldPosition(c);
     var e=estById(id), h=BASE+(e?e.filas:4)*LVL, w=(e?e.columnas:5)*BAY;
-    R3D.controls.target.set(ox, h*0.42, oz);
-    R3D.camera.position.set(ox+w*0.15, h*0.64+2, oz+Math.max(w,h)*1.15+5); R3D.controls.update();
+    R3D.controls.target.set(c.x, h*0.42, c.z);
+    R3D.camera.position.set(c.x+w*0.15, h*0.64+2, c.z+Math.max(w,h)*1.15+5); R3D.controls.update();
   } else {
     var el=document.getElementById('grid2d-est-'+id); if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
   }

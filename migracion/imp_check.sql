@@ -3,7 +3,7 @@
 --
 --  Sólo lee: no modifica nada. Corrélo en Supabase → SQL Editor
 --  antes y después de aplicar cada etapa para ver qué versión
---  tiene la base. Cubre de v2 a v11.
+--  tiene la base. Cubre de v2 a v14.
 --
 --  Las etapas son idempotentes CONSIGO MISMAS pero NO entre sí
 --  (v2 encima de v3 hace daño), así que conviene mirar esto antes
@@ -152,5 +152,35 @@ from (
   select 25, 'v11', 'Vista imp_subdep_uso (qué cuelga de cada uno)',
          exists(select 1 from information_schema.views
                  where table_schema='public' and table_name='imp_subdep_uso')
+
+  -- ── v12 — las letras de nivel se cuentan desde abajo ───────
+  union all
+  select 26, 'v12', 'imp_nivel_letra (A abajo, D arriba)',
+         exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+                 where n.nspname='public' and p.proname='imp_nivel_letra')
+
+  -- ── v13 — llegar a la fabrica ya no consume ────────────────
+  union all
+  select 27, 'v13', 'imp_pallet_consumir (el consumo es un paso aparte)',
+         exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+                 where n.nspname='public' and p.proname='imp_pallet_consumir')
+
+  -- ── v14 — solicitudes de mercaderia ────────────────────────
+  union all
+  select 28, 'v14', 'Tablas imp_solicitudes / imp_solicitud_items',
+         (select count(*) from information_schema.tables
+           where table_schema='public'
+             and table_name in ('imp_solicitudes','imp_solicitud_items')) = 2
+  union all
+  select 29, 'v14', 'Vista imp_pallets_disponibles',
+         exists(select 1 from information_schema.views
+                 where table_schema='public' and table_name='imp_pallets_disponibles')
+  union all
+  select 30, 'v14', 'Reserva: indice unico de pallet por solicitud viva',
+         exists(select 1 from pg_indexes where schemaname='public'
+                 and indexname='imp_solicitud_items_pallet_vivo')
+  union all
+  select 31, 'v14', 'Trigger que avanza la solicitud al escanear',
+         exists(select 1 from pg_trigger where tgname='trg_imp_sol_sync')
 ) v
 order by v.n;

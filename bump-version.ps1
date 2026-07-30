@@ -1,52 +1,117 @@
 # ============================================================
-#  Sube la version de la app de Depositos.
+#  Sube la version de las DOS apps: Compras (los HTML de la raiz)
+#  y Depositos (deposito/).
 #
-#  El numero vive en DOS lugares que tienen que coincidir:
-#    - deposito/version.json      (lo que la app consulta)
-#    - deposito/index.html        (window.APP_VER, lo que la app es)
+#  Cada app se recarga sola cuando ve una version nueva, y para eso
+#  el numero tiene que estar en dos lados que coincidan:
+#    - version.json            <- lo que la app consulta (sin cache)
+#    - window.APP_VER del HTML <- lo que la app es
 #
 #  Si se desincronizan: cambiar solo el JSON hace que cada pestana
 #  recargue una vez al pedo y siga igual; cambiar solo el HTML no
 #  recarga a nadie. Por eso se escriben juntos aca y no a mano.
 #
-#  Lo llama publicar.bat antes del commit.
+#  Ademas reescribe el ?v= de supabase-config.js, subatir-app.js y
+#  deposito-app.js en todas las paginas. Antes habia que subirlo a
+#  mano con un sed cada vez que se tocaba uno de esos archivos, y
+#  olvidarse dejaba a la gente con el JS viejo aunque el HTML fuera
+#  nuevo. Ahora sube en cada publicacion.
+#
+#  Lo llama publicar.bat antes del commit. Si algo no cuadra, corta
+#  con exit 1 y no se publica nada: es peor subir desincronizado.
+#
+#  OJO: mantener este archivo en ASCII (sin acentos ni cajas). Windows
+#  PowerShell 5.1 lee los .ps1 en la codepage local si no hay BOM.
 # ============================================================
 
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $MyInvocation.MyCommand.Path
-$vj = Join-Path $raiz 'deposito\version.json'
-$ix = Join-Path $raiz 'deposito\index.html'
-
-if (-not (Test-Path $vj) -or -not (Test-Path $ix)) {
-  Write-Host '  AVISO: falta deposito/version.json o deposito/index.html.'
-  Write-Host '         Se publica igual, pero sin tocar la version.'
-  exit 0
-}
-
 $v = Get-Date -Format 'yyyy-MM-dd.HHmm'
 
 # UTF-8 SIN BOM a proposito: con BOM, el JSON.parse del navegador
-# falla al leer version.json y el chequeo de version deja de andar.
+# falla al leer version.json y el chequeo de version muere en silencio.
 $utf8 = New-Object System.Text.UTF8Encoding $false
 
-$j  = [System.IO.File]::ReadAllText($vj)
-$j2 = [regex]::Replace($j, '("v"\s*:\s*")[^"]*(")', ('${1}' + $v + '${2}'))
+# Los tres reemplazos posibles. El ?v= no lleva grupo 2 porque termina
+# donde arranca la comilla del atributo.
+$SUB_VER = @{
+  pat = '("v"\s*:\s*")[^"]*(")'
+  rep = '${1}' + $v + '${2}'
+  que = 'el campo "v"'
+}
+$SUB_APP = @{
+  pat = "(window\.APP_VER\s*=\s*')[^']*(')"
+  rep = '${1}' + $v + '${2}'
+  que = 'window.APP_VER'
+}
+$SUB_BUST = @{
+  pat = '((?:supabase-config|subatir-app|deposito-app)\.js\?v=)[^"'']*'
+  rep = '${1}' + $v
+  que = 'el ?v= de los scripts compartidos'
+}
 
-$h  = [System.IO.File]::ReadAllText($ix)
-$h2 = [regex]::Replace($h, "(window\.APP_VER\s*=\s*')[^']*(')", ('${1}' + $v + '${2}'))
+# Modulos de Compras: todos tienen APP_VER y cargan los scripts compartidos.
+$modulos = @(
+  'index.html', 'pedidos.html', 'recepcion.html', 'stock.html', 'precios.html',
+  'proveedores.html', 'contingencia.html', 'copiloto.html', 'usuarios.html'
+)
 
-# Si algun reemplazo no encontro su lugar, mejor frenar que publicar
-# con las dos versiones desincronizadas.
-if ($j2 -eq $j) {
-  Write-Host '  ERROR: no se encontro el campo "v" en deposito/version.json.'
+# req = si el archivo existe y no aparece el patron, no se publica.
+# opt = se reemplaza si esta, y si no, no pasa nada.
+$tareas = @()
+$tareas += @{ f = 'version.json'; req = @($SUB_VER); opt = @() }
+$tareas += @{ f = 'deposito\version.json'; req = @($SUB_VER); opt = @() }
+$tareas += @{ f = 'deposito\index.html'; req = @($SUB_APP); opt = @($SUB_BUST) }
+$tareas += @{ f = 'deposito\login.html'; req = @(); opt = @($SUB_BUST) }
+$tareas += @{ f = 'login.html'; req = @(); opt = @($SUB_BUST) }
+foreach ($m in $modulos) {
+  $tareas += @{ f = $m; req = @($SUB_APP, $SUB_BUST); opt = @() }
+}
+
+# --- Pasada 1: leer y validar, sin escribir nada -------------
+# Se valida todo antes de tocar el disco para no dejar la mitad de
+# los archivos en la version nueva y la otra mitad en la vieja.
+$errores = @()
+$avisos = @()
+$pendientes = @()
+
+foreach ($t in $tareas) {
+  $ruta = Join-Path $raiz $t.f
+  if (-not (Test-Path $ruta)) {
+    $avisos += ('no esta ' + $t.f + ', se saltea')
+    continue
+  }
+  $txt = [System.IO.File]::ReadAllText($ruta)
+  $out = $txt
+  foreach ($s in $t.req) {
+    if (-not [regex]::IsMatch($out, $s.pat)) {
+      $errores += ($t.f + ': no se encontro ' + $s.que)
+      continue
+    }
+    $out = [regex]::Replace($out, $s.pat, $s.rep)
+  }
+  foreach ($s in $t.opt) {
+    if ([regex]::IsMatch($out, $s.pat)) {
+      $out = [regex]::Replace($out, $s.pat, $s.rep)
+    }
+  }
+  if ($out -ne $txt) {
+    $pendientes += @{ ruta = $ruta; txt = $out }
+  }
+}
+
+foreach ($a in $avisos) { Write-Host ('  AVISO: ' + $a) }
+
+if ($errores.Count -gt 0) {
+  Write-Host '  ERROR: no se pudo actualizar la version.'
+  foreach ($e in $errores) { Write-Host ('         - ' + $e) }
+  Write-Host '         No se publico nada.'
   exit 1
 }
-if ($h2 -eq $h) {
-  Write-Host '  ERROR: no se encontro window.APP_VER en deposito/index.html.'
-  exit 1
+
+# --- Pasada 2: escribir --------------------------------------
+foreach ($p in $pendientes) {
+  [System.IO.File]::WriteAllText($p.ruta, $p.txt, $utf8)
 }
 
-[System.IO.File]::WriteAllText($vj, $j2, $utf8)
-[System.IO.File]::WriteAllText($ix, $h2, $utf8)
-
-Write-Host "  Version de Depositos: $v"
+Write-Host ("  Version: $v  (" + $pendientes.Count + ' archivos)')

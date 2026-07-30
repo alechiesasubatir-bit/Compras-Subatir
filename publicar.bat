@@ -14,10 +14,11 @@ cd /d "%~dp0"
 :: comerse el principio de cada linea. Hay una regla en .gitattributes
 :: para que git no lo pase a LF al clonar.
 
-:: La app de Depositos se recarga sola cuando ve una version nueva.
-:: El numero va en dos archivos que tienen que coincidir, asi que se
-:: escriben aca y no a mano. Si algo falla, no se publica: es peor
-:: subir con las versiones desincronizadas.
+:: Compras y Depositos se recargan solas cuando ven una version nueva.
+:: El numero va en varios archivos que tienen que coincidir (version.json
+:: y el window.APP_VER de cada pagina), y de paso se sube el ?v= de los
+:: scripts compartidos. Lo escribe todo bump-version.ps1, no se toca a
+:: mano. Si algo falla, no se publica: es peor subir desincronizado.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0bump-version.ps1"
 if errorlevel 1 (
   echo.

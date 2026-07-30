@@ -8,6 +8,9 @@
 // ============================================================
 (function () {
   var SB = window.SB;
+  // URL de este propio script: sirve para resolver version.json sin
+  // depender de en qué carpeta esté la página que lo incluye.
+  var _selfSrc = (document.currentScript && document.currentScript.src) || location.href;
 
   // ── Módulo de cada página ──────────────────────────────────
   var PAGE_MODULE = {
@@ -427,9 +430,103 @@
       .then(function (r) { return r.error ? { error: r.error.message } : { success: true }; });
   }
 
+  // ── Chequeo de versión ─────────────────────────────────────
+  //  GitHub Pages sirve los HTML con max-age=600 y la gente deja la
+  //  pestaña abierta todo el día, así que sin esto nunca se enteran de
+  //  un deploy. El ?v= de los <script> no alcanza: lo que se queda
+  //  viejo es el documento.
+  //
+  //  version.json se pide con cache:'no-store' + parámetro de tiempo,
+  //  así que llega fresco aunque el HTML esté cacheado. Se compara con
+  //  el window.APP_VER que cada módulo trae embebido (los escribe juntos
+  //  bump-version.ps1). Mismo mecanismo que la app de Depósitos.
+  //
+  //  Diferencia con Depósitos: acá se editan formularios, así que NO se
+  //  recarga encima de un modal abierto o de un campo con el foco — en
+  //  ese caso se avisa con un cartel y decide la persona.
+  var VER_URL = (function () {
+    try { return new URL('version.json', _selfSrc).href; } catch (e) { return 'version.json'; }
+  })();
+
+  // ¿Hay algo abierto que se perdería al recargar?
+  //  Los modales se detectan por GEOMETRÍA, no por clase ni por posición
+  //  en el DOM: cada módulo usa su propia convención (.ovl, .overlay,
+  //  .modal-overlay, clase .open, style.display…) y no todos cuelgan de
+  //  <body>. Se mira qué elemento tapa el centro de la pantalla y se sube
+  //  por sus padres buscando una capa que cubra el viewport. Es O(1) y no
+  //  se confunde con el header sticky ni con el toast de abajo, que no
+  //  pasan por el centro.
+  function pageBusy() {
+    var ae = document.activeElement;
+    if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return true;
+    if (ae && ae.isContentEditable) return true;
+    if (!document.body) return false;
+    var el = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+    while (el && el !== document.body && el !== document.documentElement) {
+      var cs;
+      try { cs = getComputedStyle(el); } catch (e) { break; }
+      if (cs.position === 'fixed' || cs.position === 'absolute') {
+        var r = el.getBoundingClientRect();
+        if (r.width >= innerWidth * 0.6 && r.height >= innerHeight * 0.6) return true;
+      }
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  function verBanner(v) {
+    if (document.getElementById('sb-ver-banner')) return;
+    var b = document.createElement('div');
+    b.id = 'sb-ver-banner';
+    b.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;' +
+      'display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:12px;' +
+      'background:rgba(7,9,15,.94);backdrop-filter:blur(16px);border:1px solid rgba(249,115,22,.45);' +
+      'box-shadow:0 12px 34px rgba(0,0,0,.5);color:#e2e8f0;font-family:system-ui,sans-serif;font-size:12.5px';
+    b.innerHTML = '<span>Hay una versión nueva de la app.</span>' +
+      '<button id="sb-ver-go" style="cursor:pointer;font-size:11px;font-weight:700;padding:6px 13px;' +
+      'border-radius:8px;border:0;background:#f97316;color:#0b0f16">Actualizar</button>' +
+      '<button id="sb-ver-x" title="Después" style="cursor:pointer;font-size:14px;line-height:1;padding:4px 7px;' +
+      'border-radius:8px;border:1px solid rgba(255,255,255,.14);background:transparent;color:#7a8fa8">✕</button>';
+    document.body.appendChild(b);
+    document.getElementById('sb-ver-go').onclick = function () { reloadTo(v); };
+    document.getElementById('sb-ver-x').onclick = function () { b.remove(); };
+  }
+
+  function reloadTo(v) {
+    location.replace(location.pathname + '?v=' + encodeURIComponent(v) + location.hash);
+  }
+
+  function checkVersion() {
+    if (!window.APP_VER) return;                    // módulo sin versionar: no molestar
+    return fetch(VER_URL + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.v || j.v === window.APP_VER) return;
+        // Ya se recargó por esta versión y seguimos viejos: el servidor
+        // todavía manda el documento cacheado. Cartel, no bucle.
+        if (sessionStorage.getItem('sb_ver_reload') === j.v) { verBanner(j.v); return; }
+        if (pageBusy()) { verBanner(j.v); return; }
+        sessionStorage.setItem('sb_ver_reload', j.v);
+        if (window.toast) toast('Hay una versión nueva — actualizando…', 'info');
+        setTimeout(function () { reloadTo(j.v); }, 1200);
+      })
+      .catch(function () { });                       // sin conexión no es motivo para molestar
+  }
+
+  function startVersionCheck() {
+    if (!window.APP_VER) return;
+    checkVersion();
+    setInterval(checkVersion, 600000);              // 10 min: la pestaña queda abierta todo el día
+    // Volver a la pestaña es el mejor momento para mirar
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) checkVersion();
+    });
+  }
+
   // ── Export ─────────────────────────────────────────────────
   window.SubatirApp = {
     ready: _ready,
+    checkVersion: checkVersion,
     getProfile: function () { return _profile; },
     getData: getData,
     updateRow: updateRow, addRow: addRow, deleteRow: deleteRow,
@@ -441,6 +538,7 @@
     canAccess: canAccess, currentModule: currentModule
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', guard);
-  else guard();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { guard(); startVersionCheck(); });
+  } else { guard(); startVersionCheck(); }
 })();

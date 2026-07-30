@@ -1,0 +1,7 @@
+# Permisos locales de Claude Code: son de esta máquina, no del proyecto.
+# Se ignora solo el .local.json — si algún día hay un .claude/settings.json
+# con configuración compartida del proyecto, ese SÍ va al repo.
+#
+# Ojo con lo que se commitea acá: el repo entero se publica en GitHub
+# Pages, así que todo archivo versionado queda accesible por URL.
+.claude/settings.local.json

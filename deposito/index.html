@@ -1513,6 +1513,16 @@ window.APP_VER='2026-07-29.2314';
         </div>
       </div>
 
+      <!-- Pallet sin ranura: en qué parte del piso está.
+           Sólo aparece si el depósito tiene áreas de piso dibujadas. -->
+      <div id="pd-area-wrap" style="margin-top:14px;display:none">
+        <div class="form-group">
+          <label for="pd-area">En qué área del piso está</label>
+          <select class="form-input" id="pd-area" onchange="pdSetArea(this.value)"></select>
+          <div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5">Se dibujan en ⚙ Config Depósito. Al ubicarlo en una estantería, manda la estantería.</div>
+        </div>
+      </div>
+
       <!-- Trazabilidad: de dónde vino y por dónde pasó -->
       <div style="margin-top:16px">
         <div class="hist-title">🧭 Trazabilidad</div>
@@ -1917,10 +1927,24 @@ function estadoPal(e){
 }
 function estById(id){ return EST.find(function(e){return String(e.id)===String(id);}); }
 function palAt(estId,f,c){ return PALLETS.find(function(p){return String(p.estanteria_id)===String(estId)&&p.fila===f&&p.columna===c;}); }
+// ── Sub-depósitos (Config Depósito) ───────────────────────────
+function subById(id){ return SUBDEP.find(function(s){ return String(s.id)===String(id); }); }
+function subsDe(dep){ return SUBDEP.filter(function(s){ return s.deposito===dep; }); }
+function subsPiso(dep){ return subsDe(dep).filter(function(s){ return s.tipo==='PISO'; }); }
+// Dónde está un pallet dentro del depósito. MANDA la estantería: si el
+// pallet está en un rack, su sub-depósito es el del rack y la columna
+// subdeposito_id (que sólo aplica al pallet suelto) se ignora.
+function subDePallet(p){
+  if(p.estanteria_id){ var e=estById(p.estanteria_id); return e?subById(e.subdeposito_id):null; }
+  return subById(p.subdeposito_id);
+}
 function palLoc(p){
   if(p.zona_id){ var z=zonaById(p.zona_id); return (p.deposito||'')+' · '+(z?z.nombre:'Zona?'); }
-  if(p.estanteria_id){ var e=estById(p.estanteria_id); return (p.deposito||'')+' · '+(e?e.nombre:'Est?')+' · '+coordOf(p); }
+  var s=subDePallet(p), sn=s?(' · '+s.nombre):'';
+  if(p.estanteria_id){ var e=estById(p.estanteria_id); return (p.deposito||'')+sn+' · '+(e?e.nombre:'Est?')+' · '+coordOf(p); }
   if(p.estado==='EN_TRANSITO') return (p.origen||'')+' → '+(p.destino||'')+' (en tránsito)';
+  // Sin ranura pero con área asignada ya no es un "no se sabe dónde"
+  if(s) return (p.deposito||'—')+' · '+s.nombre+' (en piso)';
   return (p.deposito||'—')+(p.estado==='ESTACIONADO'?' · sin ranura':'');
 }
 // Plegado/desplegado de la sección y del historial
@@ -2787,6 +2811,25 @@ function dndTargetAt(x,y){
   if(el.closest('#tray-wrap')) return document.getElementById('tray-wrap');
   return null;
 }
+// Al entrar a una estantería, el área de piso deja de aplicar: manda el
+// rack. Se limpia acá y no dentro del RPC imp_pallet_ubicar para no tener
+// que migrar una función que ya está probada y en uso.
+function limpiarArea(pid){
+  return SB.from('imp_pallets').update({subdeposito_id:null}).eq('id',pid);
+}
+// Guarda en qué área de piso está un pallet suelto. Escribe directo:
+// es un dato de ubicación, no toca stock ni estado.
+function pdSetArea(v){
+  if(!CUR_PAL) return;
+  var id = v ? +v : null;
+  SB.from('imp_pallets').update({subdeposito_id:id}).eq('id',CUR_PAL.id).then(function(r){
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    CUR_PAL.subdeposito_id=id;
+    var s=id?subById(id):null;
+    toast(s?('Queda en '+s.nombre):'Área quitada','ok');
+    load();
+  });
+}
 // Coloca un pallet en una ranura (mover / intercambiar) — compartido 2D y 3D
 function palletToSlot(pid, estId, fila, col){
   var who=whoName(), dragged=PALLETS.find(function(x){return String(x.id)===String(pid);}); if(!dragged) return;
@@ -2796,7 +2839,7 @@ function palletToSlot(pid, estId, fila, col){
     toast('Moviendo pallet…','info');
     SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}).then(function(r){
       if(r.error||(r.data&&r.data.ok===false)){ toast('Error: '+(r.error?r.error.message:r.data.error),'err'); load(); return; }
-      vibrate(); toast('📦 Pallet en '+letterOf(fila)+col,'ok'); load();
+      limpiarArea(pid).then(function(){ vibrate(); toast('📦 Pallet en '+letterOf(fila)+col,'ok'); load(); });
     });
   } else if(String(tgt.id)!==String(pid)){
     if(dragged.estanteria_id==null){ toast('Esa posición está ocupada — soltalo en una libre','err'); return; }
@@ -2804,7 +2847,7 @@ function palletToSlot(pid, estId, fila, col){
     SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:null,p_fila:null,p_col:null,p_user:who})
       .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}); })
       .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:+estId,p_fila:fF,p_col:fC,p_user:who}); })
-      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); } else { vibrate(); toast('🔄 '+letterOf(fF)+fC+' ⇄ '+letterOf(fila)+col,'ok'); } load(); });
+      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); load(); return; } Promise.all([limpiarArea(pid), limpiarArea(tgt.id)]).then(function(){ vibrate(); toast('🔄 '+letterOf(fF)+fC+' ⇄ '+letterOf(fila)+col,'ok'); load(); }); });
   }
 }
 function dndSetHover(t){
@@ -2973,7 +3016,22 @@ function rackSync(){
     b.innerHTML='<span class="chip">📍 <b>'+esc(GRID.dep||'—')+'</b></span>'
       +'<span class="chip">'+ests.length+' estantería'+(ests.length===1?'':'s')+'</span>'
       +'<span class="chip">ocupadas <b>'+occ+'</b>/'+pos+'</span>'
-      +'<span class="chip k">libres <b>'+libre+'</b></span>';
+      +'<span class="chip k">libres <b>'+libre+'</b></span>'
+      // Ocupación por sub-depósito: con la planta dibujada, el total del
+      // depósito no dice dónde falta lugar.
+      +subsDe(GRID.dep).map(function(s){
+        var mios=ests.filter(function(e){ return String(e.subdeposito_id)===String(s.id); });
+        if(s.tipo==='PISO'){
+          var n=PALLETS.filter(function(p){ return p.estanteria_id==null && p.estado!=='EN_TRANSITO' &&
+                   String(p.subdeposito_id)===String(s.id); }).length;
+          return '<span class="chip" title="Área de piso">▢ '+esc(s.nombre)+' <b>'+n+'</b> en piso</span>';
+        }
+        if(!mios.length) return '<span class="chip" title="Sub-depósito sin estanterías">▭ '+esc(s.nombre)+' vacío</span>';
+        var sp=mios.reduce(function(a,e){ return a+posCount(e)*e.filas; },0);
+        var ids2={}; mios.forEach(function(e){ ids2[e.id]=1; });
+        var so=PALLETS.filter(function(p){ return ids2[p.estanteria_id]; }).length;
+        return '<span class="chip" title="Ocupación de este sub-depósito">▭ '+esc(s.nombre)+' <b>'+so+'</b>/'+sp+'</span>';
+      }).join('');
   }
   rackResize();
 }
@@ -3295,10 +3353,30 @@ function artOptions(sel){
 // Sólo estanterías de depósitos de almacén: en fábrica no se arman pallets
 // (imp_pallet_cerrar los rechaza, así que ofrecerlas dejaría pallets sin salida)
 function estAlmacen(){ return EST.filter(function(e){ return !esFabrica(e.deposito); }); }
+// Las estanterías se agrupan por sub-depósito con optgroup: con una
+// planta dibujada la lista plana obliga a recordar de memoria qué rack
+// está dónde, y el nombre del rack solo no lo dice.
 function estOptions(sel){
   var list=estAlmacen();
   if(!list.length) return '<option value="">No hay estanterías de almacén</option>';
-  return list.map(function(e){ return '<option value="'+e.id+'" '+(String(e.id)===String(sel)?'selected':'')+'>'+esc(e.nombre+' — '+e.deposito)+'</option>'; }).join('');
+  function opt(e){
+    return '<option value="'+e.id+'" '+(String(e.id)===String(sel)?'selected':'')+'>'+
+      esc(e.nombre+' — '+e.deposito)+'</option>';
+  }
+  var grupos={}, sueltas=[];
+  list.forEach(function(e){
+    var s=subById(e.subdeposito_id);
+    if(s) (grupos[s.id]=grupos[s.id]||{s:s,items:[]}).items.push(e);
+    else sueltas.push(e);
+  });
+  var keys=Object.keys(grupos);
+  if(!keys.length) return list.map(opt).join('');       // sin planta dibujada: lista plana
+  var html=keys.map(function(k){
+    var g=grupos[k];
+    return '<optgroup label="'+esc(g.s.deposito+' · '+g.s.nombre)+'">'+g.items.map(opt).join('')+'</optgroup>';
+  }).join('');
+  if(sueltas.length) html+='<optgroup label="Sin ubicar en el plano">'+sueltas.map(opt).join('')+'</optgroup>';
+  return html;
 }
 function curPlArt(){ return artById(document.getElementById('pl-art').value); }
 var PL_MODE='slot';   // 'slot' = en una ranura · 'free' = sin ubicar
@@ -3454,8 +3532,11 @@ function plSlots(){
 
   host.innerHTML=ests.map(function(e){
     var EC=posCount(e);
+    // El sub-depósito va en el encabezado: al elegir una ranura importa
+    // en qué parte del galpón queda, no sólo el nombre del rack.
+    var sd=subById(e.subdeposito_id);
     var h='<div class="mini-est"><div class="mini-h">'+esc(e.nombre)
-      +' <span>'+esc(e.deposito)+' · '+e.filas+'×'+EC+'</span></div>'
+      +' <span>'+esc(e.deposito+(sd?(' · '+sd.nombre):''))+' · '+e.filas+'×'+EC+'</span></div>'
       +'<div class="mini-grid" style="grid-template-columns:13px repeat('+EC+',minmax(14px,1fr))">';
     for(var f=1;f<=e.filas;f++){
       h+='<span class="mini-row-l">'+letterOf(f)+'</span>';
@@ -3636,6 +3717,18 @@ function openPalletDetail(id){
   show('pd-btn-reabrir',  corregible);
   show('pd-btn-desmarcar',parked && !!p.destino);
   show('pd-btn-unpark',   (parked||abierto)&&!!p.estanteria_id);
+  // Área de piso: sólo para el pallet sin ranura, y sólo si el depósito
+  // tiene áreas dibujadas. Con ranura manda la estantería.
+  (function(){
+    var wrap=document.getElementById('pd-area-wrap'), sel=document.getElementById('pd-area');
+    var areas=subsPiso(p.deposito);
+    var aplica = !p.estanteria_id && p.estado!=='EN_TRANSITO' && p.estado!=='CONSUMIDO' && areas.length>0;
+    wrap.style.display = aplica ? 'block' : 'none';
+    if(!aplica) return;
+    sel.innerHTML='<option value="">— sin definir —</option>'+areas.map(function(a){
+      return '<option value="'+a.id+'"'+(String(p.subdeposito_id)===String(a.id)?' selected':'')+'>'+esc(a.nombre)+'</option>';
+    }).join('');
+  })();
   document.getElementById('pd-destino').innerHTML=DEPS.filter(function(d){return d.nombre!==p.deposito;}).map(function(d){return '<option>'+esc(d.nombre)+'</option>';}).join('');
   pdHist(p.id);
   openModal('paldet-overlay');

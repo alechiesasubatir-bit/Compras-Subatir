@@ -644,28 +644,54 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .hist-meta{grid-column:2;font-family:var(--mono);font-size:10px;color:var(--muted);
   white-space:normal;overflow-wrap:anywhere}
 
-/* ═══ DISPOSICIÓN DE RACKS ═══════════════════════════════════ */
-.lay-presets{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
-.lay-presets>span{font-size:11px;color:var(--muted);font-weight:600}
-.lay-inp{width:64px;padding:5px 8px;border-radius:7px;text-align:right;
-  background:rgba(0,0,0,.3);border:1px solid var(--border);color:var(--text);
+/* ═══ CONFIG DEPÓSITO — editor de planta ═════════════════════ */
+/* Reemplaza el modal viejo de "disposición" (hilera/orden), que era
+   una tabla de números: ahora la planta se dibuja en metros.        */
+.cfg-wrap{display:grid;grid-template-columns:1fr 258px;gap:14px}
+@media (max-width:900px){ .cfg-wrap{grid-template-columns:1fr} }
+
+.cfg-bar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:11px}
+.cfg-bar .sep{width:1px;height:22px;background:var(--border-s);margin:0 3px}
+.cfg-tool{padding:7px 11px;border-radius:9px;cursor:pointer;font-size:11px;font-weight:700;
+  background:var(--glass);border:1px solid var(--border-s);color:var(--muted-l);
+  transition:background .14s var(--ease),color .14s var(--ease),border-color .14s var(--ease)}
+.cfg-tool:hover{background:var(--glass-b);color:var(--text)}
+.cfg-tool.on{background:rgba(27,200,255,.16);border-color:rgba(27,200,255,.5);color:var(--teal-l)}
+.cfg-tool:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.cfg-canvas-box{position:relative;border:1px solid var(--border);border-radius:12px;
+  background:rgba(0,0,0,.34);overflow:hidden}
+#cfg-canvas{display:block;width:100%;height:clamp(320px,52vh,560px);touch-action:none;cursor:crosshair}
+#cfg-canvas.tool-sel{cursor:default}
+.cfg-hint{position:absolute;left:11px;bottom:9px;font-family:var(--mono);font-size:10px;
+  color:var(--muted);pointer-events:none;text-shadow:0 1px 4px #000}
+
+/* Panel de propiedades del elemento elegido */
+.cfg-side{display:flex;flex-direction:column;gap:9px}
+.cfg-card{padding:11px 12px;border-radius:11px;border:1px solid var(--border);
+  background:rgba(0,0,0,.24)}
+.cfg-card-t{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:1.3px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.cfg-row{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.cfg-row>label{flex:0 0 62px;font-size:10.5px;color:var(--muted-l);font-weight:600}
+.cfg-inp{flex:1;min-width:0;padding:6px 9px;border-radius:7px;
+  background:rgba(0,0,0,.34);border:1px solid var(--border);color:var(--text);
   font-family:var(--mono);font-size:12px;outline:none}
-.lay-inp:focus{border-color:rgba(27,200,255,.55)}
-/* Croquis en planta */
-.lay-preview{margin-top:14px;padding:13px;border-radius:12px;
-  border:1px solid var(--border);background:rgba(0,0,0,.22)}
-.lay-prev-t{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:1.4px;
-  text-transform:uppercase;color:var(--muted);margin-bottom:11px}
-.lay-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.lay-rn{font-family:var(--mono);font-size:10px;color:var(--muted);width:16px;flex-shrink:0}
-.lay-rack{flex:1;min-width:70px;padding:9px 10px;border-radius:7px;font-size:11px;font-weight:600;
-  text-align:center;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  background:linear-gradient(180deg,rgba(36,70,143,.6),rgba(36,70,143,.3));
-  border:1px solid rgba(240,115,26,.5);
-  box-shadow:inset 0 -3px 0 rgba(240,115,26,.55)}
-.lay-gap{width:12px;flex-shrink:0}
-.lay-aisle{margin:7px 0 7px 22px;font-size:9px;letter-spacing:2px;text-transform:uppercase;
-  color:var(--muted);border-top:1px dashed rgba(255,255,255,.14);padding-top:6px}
+.cfg-inp:focus{border-color:rgba(27,200,255,.55)}
+.cfg-inp.num{text-align:right}
+select.cfg-inp{font-family:inherit}
+.cfg-empty{font-size:11.5px;color:var(--muted);line-height:1.55}
+.cfg-badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:800;
+  letter-spacing:.4px;text-transform:uppercase;font-family:var(--display)}
+.cfg-badge.est{background:rgba(240,115,26,.18);color:var(--orange-l);border:1px solid rgba(240,115,26,.45)}
+.cfg-badge.piso{background:rgba(27,200,255,.14);color:var(--teal-l);border:1px solid rgba(27,200,255,.4)}
+
+/* Lo que está mal, dicho antes de dejar guardar */
+.cfg-probs{margin-top:10px;padding:10px 12px;border-radius:10px;
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4)}
+.cfg-probs ul{margin:0;padding-left:17px}
+.cfg-probs li{font-size:11.5px;color:#fca5a5;line-height:1.6}
+.cfg-ok{margin-top:10px;font-size:11.5px;color:var(--muted-l)}
 
 /* ═══ TOAST ══════════════════════════════════════════════════ */
 #toast-container{position:fixed;bottom:24px;right:24px;z-index:999;
@@ -1038,7 +1064,7 @@ window.APP_VER='2026-07-29.2314';
       <div class="sec-tools">
         <select class="fsel" id="g-dep" aria-label="Depósito a visualizar" onchange="onGridDep()"></select>
         <select class="fsel" id="g-est" aria-label="Centrar en una estantería" onchange="focusEst()" title="Centrar en una estantería"></select>
-        <button class="btn btn-ghost btn-sm" id="btn-layout" onclick="openLayout()" title="Disposición de los racks en el plano">⚙ Estanterías</button>
+        <button class="btn btn-ghost btn-sm" id="btn-layout" onclick="openConfig()" title="Dibujar la planta: sub-depósitos y estanterías">⚙ Config Depósito</button>
       </div>
     </div>
 
@@ -1524,44 +1550,60 @@ window.APP_VER='2026-07-29.2314';
   </div>
 </div>
 
-<!-- ════════════════════════════════════════ MODAL: DISPOSICIÓN DE RACKS ═══ -->
-<div class="overlay" id="layout-overlay" role="dialog" aria-modal="true" aria-labelledby="layout-title">
-  <div class="modal" style="max-width:720px">
+<!-- ═══════════════════════════════════════════ MODAL: CONFIG DEPÓSITO ═══ -->
+<div class="overlay" id="cfg-overlay" role="dialog" aria-modal="true" aria-labelledby="cfg-title">
+  <div class="modal" style="max-width:min(1180px,96vw)">
     <div class="modal-header">
-      <div class="modal-title" id="layout-title">Disposición de las estanterías</div>
-      <button class="modal-close" aria-label="Cerrar" onclick="closeModal('layout-overlay')">✕</button>
+      <div class="modal-title" id="cfg-title">Config Depósito</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="cfgClose()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="modal-note" style="margin-top:0">
-        Cada estantería se ubica en una <b style="color:var(--teal-l)">hilera</b> del plano y en un
-        <b style="color:var(--teal-l)">orden</b> dentro de esa hilera.
-        Todas en la hilera <b>1</b> → los racks quedan <b style="color:var(--orange-l)">en línea</b>, uno al lado del otro.
-        Una hilera distinta a cada una → quedan <b style="color:var(--orange-l)">en paralelo</b>, con pasillo entre medio.
+
+      <div class="cfg-bar">
+        <label style="font-size:10.5px;color:var(--muted-l);font-weight:600">Depósito</label>
+        <select class="cfg-inp" id="cfg-dep" style="flex:0 0 130px" onchange="cfgSwitchDep(this.value)"
+                aria-label="Depósito a configurar"></select>
+        <span class="sep" aria-hidden="true"></span>
+        <label style="font-size:10.5px;color:var(--muted-l);font-weight:600">Nave</label>
+        <input class="cfg-inp num" id="cfg-nave-w" type="number" min="1" step="0.5" style="flex:0 0 66px"
+               oninput="cfgNave()" aria-label="Ancho de la nave en metros"/>
+        <span style="color:var(--muted);font-size:11px">×</span>
+        <input class="cfg-inp num" id="cfg-nave-h" type="number" min="1" step="0.5" style="flex:0 0 66px"
+               oninput="cfgNave()" aria-label="Largo de la nave en metros"/>
+        <span style="color:var(--muted);font-size:11px">m</span>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="cfg-tool on" id="cfg-t-sel"  onclick="cfgTool('sel')"  title="Elegir, mover y redimensionar">↖ Elegir</button>
+        <button class="cfg-tool"    id="cfg-t-sub"  onclick="cfgTool('sub')"  title="Dibujar un sub-depósito con estanterías">▭ Sub-depósito</button>
+        <button class="cfg-tool"    id="cfg-t-piso" onclick="cfgTool('piso')" title="Dibujar un área de piso, sin racks">▢ Área de piso</button>
+        <button class="cfg-tool"    id="cfg-t-rack" onclick="cfgTool('rack')" title="Poner una estantería dentro de un sub-depósito">▤ Estantería</button>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="cfg-tool" onclick="cfgFit()" title="Encuadrar la nave">⤢ Encuadrar</button>
       </div>
-      <div class="lay-presets">
-        <span>Atajos:</span>
-        <button class="btn btn-ghost btn-sm" onclick="layPreset('linea')">▬ Todo en línea</button>
-        <button class="btn btn-ghost btn-sm" onclick="layPreset('paralelo')">≡ Todo en paralelo</button>
+
+      <div class="cfg-wrap">
+        <div class="cfg-canvas-box">
+          <canvas id="cfg-canvas" role="img"
+                  aria-label="Plano del depósito en planta. Se dibuja con el mouse; el panel de la derecha permite editar las medidas con el teclado."></canvas>
+          <div class="cfg-hint" id="cfg-hint"></div>
+        </div>
+
+        <div class="cfg-side">
+          <div class="cfg-card">
+            <div class="cfg-card-t" id="cfg-prop-t">Nada elegido</div>
+            <div id="cfg-prop"></div>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-card-t">En este depósito</div>
+            <div id="cfg-resumen" class="cfg-empty"></div>
+          </div>
+        </div>
       </div>
-      <div class="table-wrap" style="max-height:340px">
-        <table id="lay-table">
-          <thead>
-            <tr>
-              <th scope="col">Estantería</th>
-              <th scope="col" style="text-align:right">Niveles</th>
-              <th scope="col" style="text-align:right">Bahías</th>
-              <th scope="col" style="text-align:right">Hilera</th>
-              <th scope="col" style="text-align:right">Orden</th>
-            </tr>
-          </thead>
-          <tbody id="lay-tbody"></tbody>
-        </table>
-      </div>
-      <div id="lay-preview" class="lay-preview"></div>
+
+      <div id="cfg-msg"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" id="btn-save-layout" onclick="saveLayout()">💾 Guardar disposición</button>
-      <button class="btn btn-ghost" onclick="closeModal('layout-overlay')">Cerrar</button>
+      <button class="btn btn-primary" id="cfg-save" onclick="cfgSave()">💾 Guardar planta</button>
+      <button class="btn btn-ghost" onclick="cfgClose()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1599,7 +1641,7 @@ window.APP_VER='2026-07-29.2314';
 // ══════════════════════════════════════════════════════════════
 //  MÓDULO CONTROL DE STOCK DEPÓSITOS — lógica
 // ══════════════════════════════════════════════════════════════
-var ART=[], STOCK={}, DEPS=[], PALLETS=[], EST=[], ZONAS=[], SORT={key:'descripcion',dir:1};
+var ART=[], STOCK={}, DEPS=[], PALLETS=[], EST=[], ZONAS=[], SUBDEP=[], SORT={key:'descripcion',dir:1};
 // Tipo de depósito: ALMACEN se estaciona en racks · FABRICA se consume
 function depByName(n){ return DEPS.find(function(d){ return d.nombre===n; }); }
 function depTipo(n){ var d=depByName(n); return (d&&d.tipo)||'ALMACEN'; }
@@ -1696,7 +1738,8 @@ function load(){
     SB.from('imp_depositos').select('*').eq('activo',true).order('nombre'),
     SB.from('imp_pallets').select('*').order('created_at',{ascending:false}),
     SB.from('imp_estanterias').select('*').eq('activo',true).order('nombre'),
-    SB.from('imp_zonas').select('*').eq('activo',true).order('orden')
+    SB.from('imp_zonas').select('*').eq('activo',true).order('orden'),
+    SB.from('imp_subdepositos').select('*').eq('activo',true).order('nombre')
   ]).then(function(res){
     var e = res.find(function(r){ return r.error; });
     if(e){ setLoading(false); toast('Error: '+e.error.message,'err'); return; }
@@ -1705,6 +1748,7 @@ function load(){
     PALLETS = res[3].data||[];
     EST = res[4].data||[];
     ZONAS = res[5].data||[];
+    SUBDEP = res[6].data||[];
     STOCK = {};
     (res[1].data||[]).forEach(function(s){ (STOCK[s.articulo_id]=STOCK[s.articulo_id]||{})[s.deposito]=s.cantidad; });
     populateFilters();
@@ -3704,80 +3748,654 @@ function doScan(codigo){
 }
 
 // ══════════════════════════════════════════════════════════════
-//  DISPOSICIÓN DE LOS RACKS EN EL PLANO
+//  CONFIG DEPÓSITO — la planta se dibuja, en metros
 // ══════════════════════════════════════════════════════════════
-function openLayout(){
-  var ests=depEsts();
-  if(!ests.length){ toast('Este depósito no tiene estanterías cargadas','err'); return; }
-  document.getElementById('layout-title').textContent='Disposición — '+GRID.dep;
-  document.getElementById('lay-tbody').innerHTML=ests.map(function(e){
-    return '<tr>'
-      +'<td>'+esc(e.nombre)+'</td>'
-      +'<td class="num-cell muted-cell">'+e.filas+'</td>'
-      +'<td class="num-cell muted-cell">'+e.columnas+'</td>'
-      +'<td style="text-align:right"><input type="number" inputmode="numeric" class="lay-inp" data-est="'+e.id+'" data-k="fila" min="1" step="1" value="'+(e.plano_fila||1)+'" oninput="layPreview()" aria-label="Hilera de '+esc(e.nombre)+'"/></td>'
-      +'<td style="text-align:right"><input type="number" inputmode="numeric" class="lay-inp" data-est="'+e.id+'" data-k="orden" min="1" step="1" value="'+(e.plano_orden||1)+'" oninput="layPreview()" aria-label="Orden de '+esc(e.nombre)+'"/></td>'
-    +'</tr>';
-  }).join('');
-  layPreview();
-  openModal('layout-overlay');
+//  Reemplaza al modal viejo, que pedía "hilera" y "orden" por rack:
+//  eran posiciones abstractas y el 3D los acomodaba solo, así que el
+//  dibujo nunca se parecía al galpón real.
+//
+//  Sistema de coordenadas: metros, origen en la esquina superior
+//  izquierda de la nave, X a la derecha e Y hacia abajo (vista en
+//  planta). Del sub-depósito se guarda la ESQUINA — es lo que se
+//  arrastra y lo que se mide con la cinta — y del rack el CENTRO,
+//  que es lo que ya usa el 3D para armarlo.
+//
+//  Todo se edita en memoria y recién impacta en la base al Guardar:
+//  mover un rectángulo son decenas de cambios por segundo y no tiene
+//  sentido escribir cada uno.
+var CFG=null;
+var CFG_SNAP=0.5;              // la cinta métrica no da más fino que esto
+var CFG_MIN=1.0;               // rectángulo mínimo, en metros
+var CFG_NAVE_DEF={w:20,h:40};  // si el depósito todavía no se midió
+
+function cfgSubs(){ return CFG.subs.filter(function(s){ return !s._del; }); }
+function cfgRacks(){ return CFG.racks.filter(function(r){ return !r._del; }); }
+function cfgSubById(id){ return CFG.subs.find(function(s){ return String(s.key)===String(id); }); }
+
+// Huella del rack en el piso: el largo lo dan las bahías, el fondo es fijo.
+function rackW(r){ return (r.rot===90 ? DEP : r.columnas*BAY); }
+function rackH(r){ return (r.rot===90 ? r.columnas*BAY : DEP); }
+function rackRect(r){ return {x:r.x-rackW(r)/2, y:r.y-rackH(r)/2, w:rackW(r), h:rackH(r)}; }
+function snap(v){ return Math.round(v/CFG_SNAP)*CFG_SNAP; }
+function r1(v){ return Math.round(v*10)/10; }
+function overlaps(a,b){ return a.x < b.x+b.w-0.01 && b.x < a.x+a.w-0.01 &&
+                               a.y < b.y+b.h-0.01 && b.y < a.y+a.h-0.01; }
+function contains(outer,inner){ return inner.x >= outer.x-0.01 && inner.y >= outer.y-0.01 &&
+  inner.x+inner.w <= outer.x+outer.w+0.01 && inner.y+inner.h <= outer.y+outer.h+0.01; }
+
+// ── Abrir ─────────────────────────────────────────────────────
+function openConfig(){
+  var dep=GRID.dep||(DEPS[0]&&DEPS[0].nombre);
+  if(!dep){ toast('No hay depósitos cargados','err'); return; }
+  var sel=document.getElementById('cfg-dep');
+  sel.innerHTML=DEPS.map(function(d){ return '<option'+(d.nombre===dep?' selected':'')+'>'+esc(d.nombre)+'</option>'; }).join('');
+  cfgLoad(dep);
+  openModal('cfg-overlay');
+  // El canvas necesita medir su caja, que recién existe con el modal abierto
+  setTimeout(function(){ cfgFit(); }, 60);
 }
-function layRead(){
-  var out={};
-  Array.prototype.forEach.call(document.querySelectorAll('.lay-inp'), function(i){
-    var id=i.getAttribute('data-est'); out[id]=out[id]||{};
-    out[id][i.getAttribute('data-k')]=Math.max(1, num(i.value)||1);
+function cfgClose(){ closeModal('cfg-overlay'); CFG=null; }
+function cfgSwitchDep(dep){
+  // Sin confirm() nativo a propósito: bloquea el hilo del navegador y
+  // rompe la estética. Si hay cambios se avisa y no se cambia: guardar
+  // o cerrar son dos clics, perder el dibujo no se deshace.
+  if(CFG && cfgDirty()){
+    document.getElementById('cfg-dep').value=CFG.dep;
+    toast('Tenés cambios sin guardar en '+CFG.dep+'. Guardá o cerrá el editor antes de cambiar de depósito.','err');
+    return;
+  }
+  cfgLoad(dep); cfgFit();
+}
+function cfgLoad(dep){
+  var d=depByName(dep)||{};
+  CFG={
+    dep:dep, tool:'sel', sel:null, drag:null, seq:1, naveTouched:false,
+    nave:{w:num(d.ancho_m)||CFG_NAVE_DEF.w, h:num(d.largo_m)||CFG_NAVE_DEF.h},
+    nave0:{w:num(d.ancho_m)||null, h:num(d.largo_m)||null},
+    view:{scale:12, ox:20, oy:20},
+    subs:SUBDEP.filter(function(s){ return s.deposito===dep; }).map(function(s){
+      return {key:'s'+s.id, id:s.id, nombre:s.nombre, tipo:s.tipo,
+              x:num(s.x_m), y:num(s.y_m), w:num(s.ancho_m), h:num(s.largo_m),
+              orig:{nombre:s.nombre, tipo:s.tipo, x:num(s.x_m), y:num(s.y_m), w:num(s.ancho_m), h:num(s.largo_m)}};
+    }),
+    racks:EST.filter(function(e){ return e.deposito===dep; }).map(function(e){
+      return {key:'r'+e.id, id:e.id, nombre:e.nombre, filas:e.filas, columnas:e.columnas,
+              sub:e.subdeposito_id?('s'+e.subdeposito_id):null,
+              x:e.x_m==null?null:num(e.x_m), y:e.y_m==null?null:num(e.y_m), rot:+(e.rot_deg||0),
+              orig:{nombre:e.nombre, filas:e.filas, columnas:e.columnas,
+                    sub:e.subdeposito_id?('s'+e.subdeposito_id):null,
+                    x:e.x_m==null?null:num(e.x_m), y:e.y_m==null?null:num(e.y_m), rot:+(e.rot_deg||0)}};
+    })
+  };
+  document.getElementById('cfg-title').textContent='Config Depósito — '+dep;
+  document.getElementById('cfg-nave-w').value=CFG.nave.w;
+  document.getElementById('cfg-nave-h').value=CFG.nave.h;
+  // Las estanterías que vienen sin coordenadas (las de antes de v11) se
+  // apoyan donde haya lugar para que se puedan agarrar y mover; no se
+  // adivina su lugar real, solo se las hace visibles.
+  cfgSeedSinUbicar();
+  cfgRender();
+}
+// Deja a la vista los racks sin coordenadas, apilados arriba a la izquierda.
+// Es solo para poder agarrarlos: NO es una edición del usuario, así que
+// también se mueve el orig. Si no, el editor arrancaría creyendo que hay
+// cambios sin guardar y avisaría de la nada.
+function cfgSeedSinUbicar(){
+  var y=1;
+  cfgRacks().forEach(function(r){
+    if(r.x!=null && r.y!=null) return;
+    r.x=snap(Math.min(rackW(r)/2+1, CFG.nave.w-rackW(r)/2));
+    r.y=snap(y+rackH(r)/2);
+    r.orig.x=r.x; r.orig.y=r.y;        // apoyarlo no cuenta como ubicarlo
+    r._sinUbicar=true;                 // para avisar en el panel
+    y+=rackH(r)+1.5;
   });
-  return out;
 }
-function layPreset(kind){
-  var ests=depEsts();
-  Array.prototype.forEach.call(document.querySelectorAll('.lay-inp'), function(i){
-    var idx=ests.findIndex(function(e){ return String(e.id)===String(i.getAttribute('data-est')); });
-    if(idx<0) return;
-    var k=i.getAttribute('data-k');
-    if(kind==='linea')    i.value = (k==='fila') ? 1 : idx+1;   // todos en la hilera 1
-    else                  i.value = (k==='fila') ? idx+1 : 1;   // una hilera cada uno
+function cfgDirty(){
+  if(!CFG) return false;
+  // La nave sólo cuenta como cambio si alguien la editó. Un depósito sin
+  // medir arranca con el tamaño por defecto, que no coincide con el null
+  // de la base: sin esto el editor avisaría de cambios recién abierto.
+  if(CFG.naveTouched && (CFG.nave.w!==CFG.nave0.w || CFG.nave.h!==CFG.nave0.h)) return true;
+  if(CFG.subs.some(function(s){ return s._new||s._del|| s.nombre!==s.orig.nombre||s.tipo!==s.orig.tipo||
+      s.x!==s.orig.x||s.y!==s.orig.y||s.w!==s.orig.w||s.h!==s.orig.h; })) return true;
+  return CFG.racks.some(function(r){ return r._new||r._del|| r.nombre!==r.orig.nombre||
+      r.filas!==r.orig.filas||r.columnas!==r.orig.columnas||r.sub!==r.orig.sub||
+      r.x!==r.orig.x||r.y!==r.orig.y||r.rot!==r.orig.rot; });
+}
+
+// ── Herramientas / encuadre ───────────────────────────────────
+function cfgTool(t){
+  CFG.tool=t;
+  ['sel','sub','piso','rack'].forEach(function(k){
+    document.getElementById('cfg-t-'+k).classList.toggle('on', k===t);
   });
-  layPreview();
+  document.getElementById('cfg-canvas').classList.toggle('tool-sel', t==='sel');
+  cfgHint();
 }
-// Croquis en planta: cada ▬ es un rack visto desde arriba
-function layPreview(){
-  var vals=layRead(), ests=depEsts();
-  var rows={};
-  ests.forEach(function(e){
-    var v=vals[e.id]||{}, f=v.fila||1;
-    (rows[f]=rows[f]||[]).push({e:e, orden:v.orden||1});
+function cfgHint(){
+  var h={sel:'Arrastrá para mover · tirá de una esquina para redimensionar · Supr para borrar',
+         sub:'Arrastrá sobre el plano para dibujar un sub-depósito',
+         piso:'Arrastrá sobre el plano para dibujar un área de piso',
+         rack:'Hacé clic dentro de un sub-depósito para poner una estantería'}[CFG.tool];
+  document.getElementById('cfg-hint').textContent=h||'';
+}
+function cfgFit(){
+  var cv=document.getElementById('cfg-canvas'); if(!cv||!CFG) return;
+  var box=cv.parentNode.getBoundingClientRect();
+  var dpr=window.devicePixelRatio||1;
+  cv.width=Math.max(1,Math.round(box.width*dpr));
+  cv.height=Math.max(1,Math.round(box.height*dpr));
+  var pad=26;
+  var s=Math.min((box.width-pad*2)/CFG.nave.w, (box.height-pad*2)/CFG.nave.h);
+  CFG.view.scale=Math.max(2,s);
+  CFG.view.ox=(box.width-CFG.nave.w*CFG.view.scale)/2;
+  CFG.view.oy=(box.height-CFG.nave.h*CFG.view.scale)/2;
+  cfgDraw();
+}
+window.addEventListener('resize', function(){ if(CFG && document.getElementById('cfg-overlay').classList.contains('open')) cfgFit(); });
+
+// metros ↔ px
+function m2px(v){ return v*CFG.view.scale; }
+function toPx(x,y){ return {x:CFG.view.ox+x*CFG.view.scale, y:CFG.view.oy+y*CFG.view.scale}; }
+function toM(px,py){ return {x:(px-CFG.view.ox)/CFG.view.scale, y:(py-CFG.view.oy)/CFG.view.scale}; }
+function cfgMouse(ev){
+  var cv=document.getElementById('cfg-canvas'), b=cv.getBoundingClientRect();
+  return toM(ev.clientX-b.left, ev.clientY-b.top);
+}
+
+// ── Dibujo ────────────────────────────────────────────────────
+function cfgDraw(){
+  var cv=document.getElementById('cfg-canvas'); if(!cv||!CFG) return;
+  var g=cv.getContext('2d'), dpr=window.devicePixelRatio||1;
+  g.setTransform(dpr,0,0,dpr,0,0);
+  var W=cv.width/dpr, H=cv.height/dpr;
+  g.clearRect(0,0,W,H);
+
+  var o=toPx(0,0), nw=m2px(CFG.nave.w), nh=m2px(CFG.nave.h);
+
+  // Piso de la nave
+  g.fillStyle='rgba(255,255,255,.028)';
+  g.fillRect(o.x,o.y,nw,nh);
+
+  // Grilla: 1 m fina, 5 m marcada. Es la referencia de tamaño.
+  g.lineWidth=1;
+  for(var i=0;i<=Math.ceil(CFG.nave.w);i++){
+    var p=toPx(i,0); g.strokeStyle=(i%5===0)?'rgba(255,255,255,.13)':'rgba(255,255,255,.05)';
+    g.beginPath(); g.moveTo(p.x,o.y); g.lineTo(p.x,o.y+nh); g.stroke();
+  }
+  for(var j=0;j<=Math.ceil(CFG.nave.h);j++){
+    var q=toPx(0,j); g.strokeStyle=(j%5===0)?'rgba(255,255,255,.13)':'rgba(255,255,255,.05)';
+    g.beginPath(); g.moveTo(o.x,q.y); g.lineTo(o.x+nw,q.y); g.stroke();
+  }
+
+  // Paredes
+  g.strokeStyle='rgba(27,200,255,.5)'; g.lineWidth=2;
+  g.strokeRect(o.x,o.y,nw,nh);
+  g.font='700 10px '+"'IBM Plex Mono',monospace"; g.fillStyle='rgba(142,160,184,.9)';
+  g.textAlign='center'; g.fillText(CFG.nave.w+' m', o.x+nw/2, o.y-8);
+  g.save(); g.translate(o.x-9, o.y+nh/2); g.rotate(-Math.PI/2);
+  g.fillText(CFG.nave.h+' m',0,0); g.restore();
+
+  // Sub-depósitos
+  cfgSubs().forEach(function(s){
+    var p=toPx(s.x,s.y), w=m2px(s.w), h=m2px(s.h);
+    var isEst=s.tipo==='ESTANTERIAS';
+    g.fillStyle = isEst ? 'rgba(240,115,26,.10)' : 'rgba(27,200,255,.09)';
+    g.fillRect(p.x,p.y,w,h);
+    g.setLineDash(isEst?[]:[6,4]);
+    g.strokeStyle = isEst ? 'rgba(240,115,26,.75)' : 'rgba(27,200,255,.6)';
+    g.lineWidth = (CFG.sel && CFG.sel.kind==='sub' && CFG.sel.key===s.key) ? 3 : 1.6;
+    g.strokeRect(p.x,p.y,w,h);
+    g.setLineDash([]);
+    // El texto se recorta al rectángulo: un nombre largo en un área
+    // angosta se desbordaba y se leía encima del vecino. Las medidas van
+    // al pie, que casi siempre queda libre — arriba puede haber un rack.
+    g.save();
+    g.beginPath(); g.rect(p.x+1,p.y+1,w-2,h-2); g.clip();
+    g.textAlign='left';
+    g.font='800 11px '+"'Syne',sans-serif";
+    g.fillStyle = isEst ? '#fdba74' : '#7dd3fc';
+    g.fillText(s.nombre, p.x+7, p.y+16);
+    g.font='500 9.5px '+"'IBM Plex Mono',monospace"; g.fillStyle='rgba(142,160,184,.85)';
+    g.fillText(r1(s.w)+'×'+r1(s.h)+' m', p.x+7, p.y+h-7);
+    g.restore();
+    if(CFG.sel && CFG.sel.kind==='sub' && CFG.sel.key===s.key) cfgHandles(g,p.x,p.y,w,h);
   });
-  var keys=Object.keys(rows).map(Number).sort(function(a,b){return a-b;});
-  keys.forEach(function(k){ rows[k].sort(function(a,b){ return a.orden-b.orden; }); });
-  var html='<div class="lay-prev-t">Vista en planta ('+keys.length+' hilera'+(keys.length===1?'':'s')+')</div>';
-  html+=keys.map(function(k){
-    return '<div class="lay-row"><span class="lay-rn">'+k+'</span>'
-      +rows[k].map(function(o){
-        return '<span class="lay-rack" title="'+esc(o.e.nombre)+'">'+esc(o.e.nombre)+'</span>';
-      }).join('<span class="lay-gap"></span>')
-    +'</div>';
-  }).join('<div class="lay-aisle">pasillo</div>');
-  document.getElementById('lay-preview').innerHTML=html;
+
+  // Estanterías (encima)
+  cfgRacks().forEach(function(r){
+    var R=rackRect(r), p=toPx(R.x,R.y), w=m2px(R.w), h=m2px(R.h);
+    var bad = !cfgRackHome(r);
+    g.fillStyle = bad ? 'rgba(239,68,68,.22)' : 'rgba(36,70,143,.6)';
+    g.fillRect(p.x,p.y,w,h);
+    g.strokeStyle = bad ? 'rgba(239,68,68,.9)' : 'rgba(240,115,26,.85)';
+    g.lineWidth = (CFG.sel && CFG.sel.kind==='rack' && CFG.sel.key===r.key) ? 3 : 1.4;
+    g.strokeRect(p.x,p.y,w,h);
+    // Bahías: cada división es una posición de pallet
+    g.strokeStyle='rgba(240,115,26,.35)'; g.lineWidth=1;
+    for(var c=1;c<r.columnas;c++){
+      if(r.rot===90){ var yy=p.y+h*c/r.columnas; g.beginPath(); g.moveTo(p.x,yy); g.lineTo(p.x+w,yy); g.stroke(); }
+      else          { var xx=p.x+w*c/r.columnas; g.beginPath(); g.moveTo(xx,p.y); g.lineTo(xx,p.y+h); g.stroke(); }
+    }
+    if(w>44 && h>13){
+      g.textAlign='center'; g.font='700 9.5px '+"'IBM Plex Mono',monospace";
+      g.fillStyle='#e2e8f0';
+      g.fillText(r.nombre, p.x+w/2, p.y+h/2+3);
+    }
+    if(CFG.sel && CFG.sel.kind==='rack' && CFG.sel.key===r.key) cfgHandles(g,p.x,p.y,w,h,true);
+  });
 }
-function saveLayout(){
-  var vals=layRead(), ids=Object.keys(vals);
-  if(!ids.length){ closeModal('layout-overlay'); return; }
-  var btn=document.getElementById('btn-save-layout'); btn.disabled=true;
-  toast('Guardando disposición…','info');
-  Promise.all(ids.map(function(id){
-    return SB.from('imp_estanterias').update({plano_fila:vals[id].fila, plano_orden:vals[id].orden}).eq('id',id);
-  })).then(function(res){
+function cfgHandles(g,x,y,w,h,soloMarco){
+  g.fillStyle='#1bc8ff';
+  if(soloMarco) return;                 // el rack no se redimensiona: se cambian las bahías
+  [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(function(p){
+    g.fillRect(p[0]-4,p[1]-4,8,8);
+  });
+}
+
+// ── Interacción ───────────────────────────────────────────────
+// Qué hay en un punto. El rack gana al sub-depósito porque está arriba
+// y es más chico: si no, nunca se podría agarrar.
+function cfgHit(m){
+  var rs=cfgRacks();
+  for(var i=rs.length-1;i>=0;i--){
+    var R=rackRect(rs[i]);
+    if(m.x>=R.x&&m.x<=R.x+R.w&&m.y>=R.y&&m.y<=R.y+R.h) return {kind:'rack',key:rs[i].key};
+  }
+  var ss=cfgSubs();
+  for(var j=ss.length-1;j>=0;j--){
+    var s=ss[j];
+    if(m.x>=s.x&&m.x<=s.x+s.w&&m.y>=s.y&&m.y<=s.y+s.h) return {kind:'sub',key:s.key};
+  }
+  return null;
+}
+function cfgHandleAt(m){
+  if(!CFG.sel||CFG.sel.kind!=='sub') return null;
+  var s=cfgSubById(CFG.sel.key); if(!s) return null;
+  var tol=7/CFG.view.scale;
+  var cs=[['nw',s.x,s.y],['ne',s.x+s.w,s.y],['sw',s.x,s.y+s.h],['se',s.x+s.w,s.y+s.h]];
+  for(var i=0;i<cs.length;i++){
+    if(Math.abs(m.x-cs[i][1])<=tol && Math.abs(m.y-cs[i][2])<=tol) return cs[i][0];
+  }
+  return null;
+}
+function cfgDown(ev){
+  if(!CFG) return;
+  var m=cfgMouse(ev);
+  document.getElementById('cfg-canvas').setPointerCapture(ev.pointerId);
+
+  if(CFG.tool==='sub'||CFG.tool==='piso'){
+    CFG.drag={mode:'draw', tipo:CFG.tool==='sub'?'ESTANTERIAS':'PISO', x0:snap(m.x), y0:snap(m.y), x1:snap(m.x), y1:snap(m.y)};
+    return;
+  }
+  if(CFG.tool==='rack'){ cfgAddRack(m); return; }
+
+  var hnd=cfgHandleAt(m);
+  if(hnd){
+    var s=cfgSubById(CFG.sel.key);
+    CFG.drag={mode:'resize', corner:hnd, key:s.key, x0:s.x, y0:s.y, w0:s.w, h0:s.h};
+    return;
+  }
+  var hit=cfgHit(m);
+  cfgSelect(hit);
+  if(hit){
+    var it = hit.kind==='sub' ? cfgSubById(hit.key) : cfgRacks().find(function(r){return r.key===hit.key;});
+    CFG.drag={mode:'move', kind:hit.kind, key:hit.key,
+              dx:(hit.kind==='sub'? m.x-it.x : m.x-it.x), dy:(hit.kind==='sub'? m.y-it.y : m.y-it.y)};
+  }
+}
+function cfgMove(ev){
+  if(!CFG||!CFG.drag) return;
+  var m=cfgMouse(ev), d=CFG.drag;
+  if(d.mode==='draw'){ d.x1=snap(m.x); d.y1=snap(m.y); cfgDraw(); cfgDrawGhost(); return; }
+  if(d.mode==='move'){
+    if(d.kind==='sub'){
+      var s=cfgSubById(d.key);
+      s.x=Math.max(0,Math.min(snap(m.x-d.dx), CFG.nave.w-s.w));
+      s.y=Math.max(0,Math.min(snap(m.y-d.dy), CFG.nave.h-s.h));
+    } else {
+      var r=cfgRacks().find(function(k){return k.key===d.key;});
+      r.x=Math.max(rackW(r)/2,Math.min(snap(m.x-d.dx), CFG.nave.w-rackW(r)/2));
+      r.y=Math.max(rackH(r)/2,Math.min(snap(m.y-d.dy), CFG.nave.h-rackH(r)/2));
+      r._sinUbicar=false;
+      var home=cfgRackHome(r); if(home) r.sub=home.key;   // el rack adopta el sub-depósito que lo contiene
+    }
+    cfgDraw(); cfgProp(); return;
+  }
+  if(d.mode==='resize'){
+    var s2=cfgSubById(d.key), x2=snap(m.x), y2=snap(m.y);
+    var L=d.x0, T=d.y0, R=d.x0+d.w0, B=d.y0+d.h0;
+    if(d.corner.indexOf('w')>=0) L=Math.min(x2, R-CFG_MIN);
+    if(d.corner.indexOf('e')>=0) R=Math.max(x2, L+CFG_MIN);
+    if(d.corner.indexOf('n')>=0) T=Math.min(y2, B-CFG_MIN);
+    if(d.corner.indexOf('s')>=0) B=Math.max(y2, T+CFG_MIN);
+    s2.x=Math.max(0,L); s2.y=Math.max(0,T);
+    s2.w=Math.min(R,CFG.nave.w)-s2.x; s2.h=Math.min(B,CFG.nave.h)-s2.y;
+    cfgDraw(); cfgProp(); return;
+  }
+}
+function cfgUp(ev){
+  if(!CFG||!CFG.drag) return;
+  var d=CFG.drag; CFG.drag=null;
+  if(d.mode==='draw'){
+    var x=Math.min(d.x0,d.x1), y=Math.min(d.y0,d.y1);
+    var w=Math.abs(d.x1-d.x0), h=Math.abs(d.y1-d.y0);
+    if(w<CFG_MIN||h<CFG_MIN){ cfgDraw(); return; }   // un clic suelto no crea nada
+    x=Math.max(0,Math.min(x,CFG.nave.w-CFG_MIN)); y=Math.max(0,Math.min(y,CFG.nave.h-CFG_MIN));
+    w=Math.min(w,CFG.nave.w-x); h=Math.min(h,CFG.nave.h-y);
+    var base=d.tipo==='ESTANTERIAS'?'Sub-depósito':'Área';
+    var s={key:'n'+(CFG.seq++), id:null, _new:true, nombre:cfgFreeName(base), tipo:d.tipo,
+           x:x,y:y,w:w,h:h, orig:{}};
+    CFG.subs.push(s);
+    cfgSelect({kind:'sub',key:s.key});
+    cfgTool('sel');
+  }
+  cfgRender();
+}
+function cfgDrawGhost(){
+  var d=CFG.drag; if(!d||d.mode!=='draw') return;
+  var g=document.getElementById('cfg-canvas').getContext('2d');
+  var x=Math.min(d.x0,d.x1), y=Math.min(d.y0,d.y1);
+  var p=toPx(x,y), w=m2px(Math.abs(d.x1-d.x0)), h=m2px(Math.abs(d.y1-d.y0));
+  g.setLineDash([5,4]); g.strokeStyle='#1bc8ff'; g.lineWidth=1.6;
+  g.strokeRect(p.x,p.y,w,h); g.setLineDash([]);
+  g.font='700 10px '+"'IBM Plex Mono',monospace"; g.fillStyle='#1bc8ff'; g.textAlign='left';
+  g.fillText(r1(Math.abs(d.x1-d.x0))+'×'+r1(Math.abs(d.y1-d.y0))+' m', p.x+4, p.y-5);
+}
+// Nombre libre: "Sub-depósito 2" si ya existe el 1
+function cfgFreeName(base){
+  var n=1, used={};
+  cfgSubs().forEach(function(s){ used[s.nombre]=1; });
+  while(used[base+' '+n]) n++;
+  return base+' '+n;
+}
+function cfgFreeRackName(){
+  var n=1, used={};
+  cfgRacks().forEach(function(r){ used[r.nombre]=1; });
+  while(used['Estantería '+n]) n++;
+  return 'Estantería '+n;
+}
+// El sub-depósito que contiene enteramente al rack (y que admite racks)
+function cfgRackHome(r){
+  if(r.x==null) return null;
+  var R=rackRect(r);
+  return cfgSubs().find(function(s){
+    return s.tipo==='ESTANTERIAS' && contains({x:s.x,y:s.y,w:s.w,h:s.h}, R);
+  })||null;
+}
+function cfgAddRack(m){
+  var host=cfgSubs().find(function(s){
+    return s.tipo==='ESTANTERIAS' && m.x>=s.x&&m.x<=s.x+s.w&&m.y>=s.y&&m.y<=s.y+s.h;
+  });
+  if(!host){ toast('La estantería va dentro de un sub-depósito de tipo estanterías','err'); return; }
+  var r={key:'n'+(CFG.seq++), id:null, _new:true, nombre:cfgFreeRackName(),
+         filas:4, columnas:5, sub:host.key, x:snap(m.x), y:snap(m.y), rot:0, orig:{}};
+  // Que entre: si no cabe a lo largo, se prueba de costado y si no, se recortan bahías
+  if(rackW(r)>host.w && rackH({rot:90,columnas:r.columnas})<=host.w) r.rot=90;
+  while(r.columnas>1 && (rackW(r)>host.w || rackH(r)>host.h)) r.columnas--;
+  r.x=Math.max(host.x+rackW(r)/2, Math.min(r.x, host.x+host.w-rackW(r)/2));
+  r.y=Math.max(host.y+rackH(r)/2, Math.min(r.y, host.y+host.h-rackH(r)/2));
+  CFG.racks.push(r);
+  cfgSelect({kind:'rack',key:r.key});
+  cfgTool('sel');
+  cfgRender();
+}
+function cfgSelect(hit){ CFG.sel=hit; cfgDraw(); cfgProp(); }
+function cfgRotate(){
+  var r=cfgRacks().find(function(k){return k.key===CFG.sel.key;}); if(!r) return;
+  var prev={rot:r.rot, x:r.x, y:r.y};
+  r.rot = r.rot===90?0:90;
+  // Girar cambia la huella, así que se intenta reacomodar dentro del
+  // sub-depósito que lo contenía.
+  var h=cfgSubById(r.sub);
+  if(h){ r.x=Math.max(h.x+rackW(r)/2, Math.min(r.x, h.x+h.w-rackW(r)/2));
+         r.y=Math.max(h.y+rackH(r)/2, Math.min(r.y, h.y+h.h-rackH(r)/2)); }
+  // Si de costado no entra (un rack de 15 m en un sub-depósito de 14 m),
+  // se deshace: mejor negarse que dejarlo en un estado que no se puede
+  // guardar y obligar a adivinar por qué.
+  if(!cfgRackHome(r)){
+    r.rot=prev.rot; r.x=prev.x; r.y=prev.y;
+    var falta = r.rot===90 ? 'ancho' : 'largo';
+    toast('Girado no entra en '+(h?'"'+h.nombre+'"':'el sub-depósito')+': necesita '+
+          r1(Math.max(rackH(r),rackW(r)))+' m de '+falta+'. Agrandalo o bajá las bahías.','err');
+  }
+  cfgRender();
+}
+function cfgDel(){
+  if(!CFG.sel) return;
+  if(CFG.sel.kind==='sub'){
+    var s=cfgSubById(CFG.sel.key);
+    var dentro=cfgRacks().filter(function(r){ return r.sub===s.key; });
+    if(dentro.length){ toast('Tiene '+dentro.length+' estantería(s) adentro: sacalas o borralas primero','err'); return; }
+    if(s._new) CFG.subs=CFG.subs.filter(function(x){ return x.key!==s.key; }); else s._del=true;
+  } else {
+    var r=cfgRacks().find(function(k){return k.key===CFG.sel.key;});
+    var pal=r.id?PALLETS.filter(function(p){ return String(p.estanteria_id)===String(r.id) &&
+             (p.estado==='ABIERTO'||p.estado==='ESTACIONADO'); }):[];
+    if(pal.length){ toast('Hay '+pal.length+' pallet(s) en esa estantería: no se puede borrar','err'); return; }
+    if(r._new) CFG.racks=CFG.racks.filter(function(x){ return x.key!==r.key; }); else r._del=true;
+  }
+  CFG.sel=null; cfgRender();
+}
+function cfgNave(){
+  if(!CFG) return;
+  CFG.naveTouched=true;
+  CFG.nave.w=Math.max(1,num(document.getElementById('cfg-nave-w').value)||1);
+  CFG.nave.h=Math.max(1,num(document.getElementById('cfg-nave-h').value)||1);
+  cfgFit(); cfgRender();
+}
+// Editar por teclado lo que se dibujó con el mouse
+function cfgSet(campo, valor){
+  if(!CFG||!CFG.sel) return;
+  var it = CFG.sel.kind==='sub' ? cfgSubById(CFG.sel.key)
+                                : cfgRacks().find(function(r){return r.key===CFG.sel.key;});
+  if(!it) return;
+  if(campo==='nombre'){ it.nombre=String(valor).trim(); }
+  else if(campo==='tipo'){ it.tipo=valor; }
+  else if(campo==='filas'||campo==='columnas'){ it[campo]=Math.max(1,Math.round(num(valor))||1); }
+  else { it[campo]=snap(num(valor)); }
+  if(CFG.sel.kind==='rack'){ it._sinUbicar=false; var h=cfgRackHome(it); if(h) it.sub=h.key; }
+  cfgDraw(); cfgResumen(); cfgProblemas();
+}
+
+// ── Panel de propiedades ──────────────────────────────────────
+function cfgProp(){
+  var host=document.getElementById('cfg-prop'), t=document.getElementById('cfg-prop-t');
+  if(!CFG.sel){ t.textContent='Nada elegido';
+    host.innerHTML='<div class="cfg-empty">Elegí una herramienta y dibujá sobre el plano, '
+      +'o hacé clic en algo ya dibujado para ver y ajustar sus medidas.</div>';
+    cfgResumen(); cfgProblemas(); return; }
+
+  if(CFG.sel.kind==='sub'){
+    var s=cfgSubById(CFG.sel.key); if(!s){ CFG.sel=null; return cfgProp(); }
+    t.innerHTML='Sub-depósito <span class="cfg-badge '+(s.tipo==='ESTANTERIAS'?'est':'piso')+'">'
+      +(s.tipo==='ESTANTERIAS'?'estanterías':'piso')+'</span>';
+    host.innerHTML=
+      '<div class="cfg-row"><label for="cf-n">Nombre</label><input class="cfg-inp" id="cf-n" value="'+esc(s.nombre)+'" oninput="cfgSet(\'nombre\',this.value)"/></div>'
+     +'<div class="cfg-row"><label for="cf-t">Tipo</label><select class="cfg-inp" id="cf-t" onchange="cfgSet(\'tipo\',this.value)">'
+       +'<option value="ESTANTERIAS"'+(s.tipo==='ESTANTERIAS'?' selected':'')+'>Con estanterías</option>'
+       +'<option value="PISO"'+(s.tipo==='PISO'?' selected':'')+'>Área de piso</option></select></div>'
+     +'<div class="cfg-row"><label for="cf-w">Ancho</label><input class="cfg-inp num" id="cf-w" type="number" step="0.5" min="1" value="'+r1(s.w)+'" oninput="cfgSet(\'w\',this.value)"/></div>'
+     +'<div class="cfg-row"><label for="cf-h">Largo</label><input class="cfg-inp num" id="cf-h" type="number" step="0.5" min="1" value="'+r1(s.h)+'" oninput="cfgSet(\'h\',this.value)"/></div>'
+     +'<div class="cfg-row"><label for="cf-x">X</label><input class="cfg-inp num" id="cf-x" type="number" step="0.5" min="0" value="'+r1(s.x)+'" oninput="cfgSet(\'x\',this.value)"/></div>'
+     +'<div class="cfg-row"><label for="cf-y">Y</label><input class="cfg-inp num" id="cf-y" type="number" step="0.5" min="0" value="'+r1(s.y)+'" oninput="cfgSet(\'y\',this.value)"/></div>'
+     +'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:4px" onclick="cfgDel()">🗑 Borrar</button>';
+  } else {
+    var r=cfgRacks().find(function(k){return k.key===CFG.sel.key;}); if(!r){ CFG.sel=null; return cfgProp(); }
+    var home=cfgRackHome(r);
+    t.textContent='Estantería';
+    host.innerHTML=
+      '<div class="cfg-row"><label for="cf-rn">Nombre</label><input class="cfg-inp" id="cf-rn" value="'+esc(r.nombre)+'" oninput="cfgSet(\'nombre\',this.value)"/></div>'
+     +'<div class="cfg-row"><label for="cf-rf">Niveles</label><input class="cfg-inp num" id="cf-rf" type="number" step="1" min="1" value="'+r.filas+'" oninput="cfgSet(\'filas\',this.value)"/></div>'
+     +'<div class="cfg-row"><label for="cf-rc">Bahías</label><input class="cfg-inp num" id="cf-rc" type="number" step="1" min="1" value="'+r.columnas+'" oninput="cfgSet(\'columnas\',this.value)"/></div>'
+     +'<div class="cfg-row"><label for="cf-rx">X</label><input class="cfg-inp num" id="cf-rx" type="number" step="0.5" value="'+r1(r.x)+'" oninput="cfgSet(\'x\',this.value)"/></div>'
+     +'<div class="cfg-row"><label for="cf-ry">Y</label><input class="cfg-inp num" id="cf-ry" type="number" step="0.5" value="'+r1(r.y)+'" oninput="cfgSet(\'y\',this.value)"/></div>'
+     +'<div class="cfg-empty" style="margin:6px 0 8px">Mide <b style="color:var(--orange-l)">'+r1(rackW(r))+'×'+r1(rackH(r))+' m</b>'
+       +' · '+(r.filas*r.columnas)+' posiciones<br>'
+       +(home?('En <b style="color:var(--text)">'+esc(home.nombre)+'</b>')
+             :'<b style="color:#fca5a5">Fuera de todo sub-depósito</b>')+'</div>'
+     +'<button class="btn btn-ghost btn-sm" style="width:100%" onclick="cfgRotate()">⟳ Girar 90° (ahora '+r.rot+'°)</button>'
+     +'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:5px" onclick="cfgDel()">🗑 Borrar</button>';
+  }
+  cfgResumen(); cfgProblemas();
+}
+function cfgResumen(){
+  var subs=cfgSubs(), racks=cfgRacks();
+  var est=subs.filter(function(s){return s.tipo==='ESTANTERIAS';}).length;
+  var piso=subs.length-est;
+  var pos=racks.reduce(function(a,r){ return a+r.filas*r.columnas; },0);
+  var m2=subs.reduce(function(a,s){ return a+s.w*s.h; },0);
+  document.getElementById('cfg-resumen').innerHTML=
+    '<b style="color:var(--text)">'+est+'</b> con estanterías · <b style="color:var(--text)">'+piso+'</b> de piso<br>'
+   +'<b style="color:var(--text)">'+racks.length+'</b> estantería'+(racks.length===1?'':'s')+
+     ' · <b style="color:var(--orange-l)">'+pos+'</b> posiciones<br>'
+   +'Ocupan <b style="color:var(--text)">'+r1(m2)+' m²</b> de '+r1(CFG.nave.w*CFG.nave.h)+' m²';
+}
+
+// ── Lo que está mal, dicho antes de guardar ───────────────────
+function cfgProblemas(){
+  var p=[], subs=cfgSubs(), racks=cfgRacks();
+  var nave={x:0,y:0,w:CFG.nave.w,h:CFG.nave.h};
+  var vistos={};
+  subs.forEach(function(s){
+    if(!s.nombre) p.push('Hay un sub-depósito sin nombre');
+    else if(vistos[s.nombre.toLowerCase()]) p.push('"'+s.nombre+'" está repetido');
+    else vistos[s.nombre.toLowerCase()]=1;
+    if(!contains(nave,{x:s.x,y:s.y,w:s.w,h:s.h})) p.push('"'+s.nombre+'" se sale de la nave');
+  });
+  for(var i=0;i<subs.length;i++) for(var j=i+1;j<subs.length;j++){
+    if(overlaps({x:subs[i].x,y:subs[i].y,w:subs[i].w,h:subs[i].h},
+                {x:subs[j].x,y:subs[j].y,w:subs[j].w,h:subs[j].h}))
+      p.push('"'+subs[i].nombre+'" y "'+subs[j].nombre+'" se superponen');
+  }
+  var rv={};
+  racks.forEach(function(r){
+    if(!r.nombre) p.push('Hay una estantería sin nombre');
+    else if(rv[r.nombre.toLowerCase()]) p.push('La estantería "'+r.nombre+'" está repetida');
+    else rv[r.nombre.toLowerCase()]=1;
+    if(!cfgRackHome(r)) p.push('"'+r.nombre+'" no entra en ningún sub-depósito de estanterías');
+  });
+  for(var a=0;a<racks.length;a++) for(var b=a+1;b<racks.length;b++){
+    if(overlaps(rackRect(racks[a]),rackRect(racks[b])))
+      p.push('"'+racks[a].nombre+'" y "'+racks[b].nombre+'" se pisan');
+  }
+  var box=document.getElementById('cfg-msg');
+  var sin=racks.filter(function(r){ return r._sinUbicar; }).length;
+  if(p.length){
+    box.innerHTML='<div class="cfg-probs"><ul>'+p.slice(0,6).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')
+      +(p.length>6?'<li>y '+(p.length-6)+' más…</li>':'')+'</ul></div>';
+  } else if(sin){
+    box.innerHTML='<div class="cfg-ok">⚠ '+sin+' estantería(s) todavía no tenían lugar en el plano: '
+      +'las apoyé arriba a la izquierda para que las puedas mover a donde están de verdad.</div>';
+  } else {
+    box.innerHTML='<div class="cfg-ok">Al guardar, la vista 3D se rearma con este diseño.</div>';
+  }
+  document.getElementById('cfg-save').disabled=p.length>0;
+  return p;
+}
+function cfgRender(){ cfgDraw(); cfgProp(); cfgHint(); }
+
+// ── Guardar ───────────────────────────────────────────────────
+//  Orden obligado: primero los sub-depósitos nuevos, porque las
+//  estanterías necesitan su id real para apuntarles.
+function cfgSave(){
+  if(cfgProblemas().length){ toast('Hay cosas para corregir antes de guardar','err'); return; }
+  var btn=document.getElementById('cfg-save'); btn.disabled=true;
+  toast('Guardando planta…','info');
+
+  var dep=CFG.dep;
+  var nuevos=CFG.subs.filter(function(s){ return s._new && !s._del; });
+  var jobs=[];
+
+  // 1. Medidas de la nave
+  if(CFG.nave.w!==CFG.nave0.w || CFG.nave.h!==CFG.nave0.h){
+    jobs.push(SB.from('imp_depositos').update({ancho_m:CFG.nave.w, largo_m:CFG.nave.h}).eq('nombre',dep));
+  }
+
+  Promise.all(jobs)
+  .then(function(){
+    if(!nuevos.length) return [];
+    return SB.from('imp_subdepositos').insert(nuevos.map(function(s){
+      return {deposito:dep, nombre:s.nombre, tipo:s.tipo,
+              x_m:s.x, y_m:s.y, ancho_m:s.w, largo_m:s.h};
+    })).select('id,nombre').then(function(r){
+      if(r.error) throw new Error(r.error.message);
+      // El insert respeta el orden del array, pero se mapea por nombre
+      // (unique deposito+nombre) para no depender de eso.
+      (r.data||[]).forEach(function(row){
+        var s=nuevos.find(function(x){ return x.nombre===row.nombre; });
+        if(s) s.id=row.id;
+      });
+      return r.data||[];
+    });
+  })
+  .then(function(){
+    var ops=[];
+    // 2. Sub-depósitos editados y borrados
+    CFG.subs.forEach(function(s){
+      if(s._del && s.id) ops.push(SB.from('imp_subdepositos').delete().eq('id',s.id));
+      else if(!s._new && !s._del && s.id && (s.nombre!==s.orig.nombre||s.tipo!==s.orig.tipo||
+              s.x!==s.orig.x||s.y!==s.orig.y||s.w!==s.orig.w||s.h!==s.orig.h)){
+        ops.push(SB.from('imp_subdepositos').update({nombre:s.nombre, tipo:s.tipo,
+          x_m:s.x, y_m:s.y, ancho_m:s.w, largo_m:s.h}).eq('id',s.id));
+      }
+    });
+    // 3. Estanterías
+    var nuevasEst=CFG.racks.filter(function(r){ return r._new && !r._del; });
+    if(nuevasEst.length){
+      ops.push(SB.from('imp_estanterias').insert(nuevasEst.map(function(r){
+        var h=cfgSubById(r.sub);
+        return {deposito:dep, nombre:r.nombre, filas:r.filas, columnas:r.columnas,
+                subdeposito_id:h?h.id:null, x_m:r.x, y_m:r.y, rot_deg:r.rot};
+      })));
+    }
+    CFG.racks.forEach(function(r){
+      if(r._del && r.id){ ops.push(SB.from('imp_estanterias').delete().eq('id',r.id)); return; }
+      if(r._new||r._del||!r.id) return;
+      var h=cfgSubById(r.sub), sid=h?h.id:null;
+      if(r.nombre!==r.orig.nombre||r.filas!==r.orig.filas||r.columnas!==r.orig.columnas||
+         r.sub!==r.orig.sub||r.x!==r.orig.x||r.y!==r.orig.y||r.rot!==r.orig.rot){
+        ops.push(SB.from('imp_estanterias').update({nombre:r.nombre, filas:r.filas, columnas:r.columnas,
+          subdeposito_id:sid, x_m:r.x, y_m:r.y, rot_deg:r.rot}).eq('id',r.id));
+      }
+    });
+    return Promise.all(ops);
+  })
+  .then(function(res){
+    var e=(res||[]).find(function(r){ return r && r.error; });
+    if(e) throw new Error(e.error.message);
     btn.disabled=false;
-    var e=res.find(function(r){ return r && r.error; });
-    if(e){ toast('Error: '+e.error.message,'err'); return; }
-    closeModal('layout-overlay');
-    toast('✅ Disposición actualizada','ok');
-    if(R3D) R3D.builtKey=null;          // forzar reconstrucción del 3D
+    toast('✅ Planta guardada','ok');
+    if(R3D) R3D.builtKey=null;        // que el 3D se rearme con el diseño nuevo
+    cfgClose();
     load();
-  }, function(err){ btn.disabled=false; toast('Error: '+(err&&err.message||err),'err'); });
+  })
+  .catch(function(err){
+    btn.disabled=false;
+    toast('Error al guardar: '+(err&&err.message||err),'err');
+  });
 }
+
+// Eventos del canvas. Se enganchan una sola vez, con pointer events para
+// que funcione igual con mouse y con dedo en la tablet del depósito.
+(function cfgWire(){
+  var cv=document.getElementById('cfg-canvas'); if(!cv) return;
+  cv.addEventListener('pointerdown', cfgDown);
+  cv.addEventListener('pointermove', cfgMove);
+  cv.addEventListener('pointerup',   cfgUp);
+  cv.addEventListener('pointercancel', cfgUp);
+})();
+
+// Teclado: Supr borra lo elegido (Escape ya lo maneja el modal)
+document.addEventListener('keydown', function(ev){
+  if(!CFG||!document.getElementById('cfg-overlay').classList.contains('open')) return;
+  if(ev.key!=='Delete'&&ev.key!=='Backspace') return;
+  var t=ev.target&&ev.target.tagName;
+  if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA') return;   // no robar el borrado de un campo
+  if(!CFG.sel) return;
+  ev.preventDefault(); cfgDel();
+});
 
 // El CSV y el Imprimir se fueron: los reemplazó la pantalla de Reportes,
 // que exporta lo mismo pero eligiendo filtros y columnas. Los estilos de

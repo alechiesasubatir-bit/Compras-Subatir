@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Depósitos"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Control de Stock Depósitos — Subatir / Prolimpio</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -887,8 +895,8 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="../supabase-config.js?v=2026-07-30.1424"></script>
-<script src="deposito-app.js?v=2026-07-30.1424"></script>
+<script src="../supabase-config.js?v=2026-07-30.1457"></script>
+<script src="deposito-app.js?v=2026-07-30.1457"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -897,7 +905,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-07-30.1424';
+window.APP_VER='2026-07-30.1457';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -925,6 +933,8 @@ window.APP_VER='2026-07-30.1424';
   </nav>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
+    <button class="btn btn-primary btn-sm" id="btn-instalar" onclick="pwaInstalar()"
+            style="display:none" title="Instalar la app en este dispositivo">⬇ Instalar app</button>
     <button class="btn btn-ghost btn-sm" onclick="refresh()" id="btn-refresh">
       <span id="spin-icon" style="display:none" class="spin"></span>
       <span id="refresh-label">⟳ Actualizar</span>
@@ -4700,6 +4710,39 @@ function cfgSave(){
     btn.disabled=false;
     toast('Error al guardar: '+(err&&err.message||err),'err');
   });
+}
+
+// ── PWA: instalar en el celular ────────────────────────────────
+//  El service worker se registra despues del load para no competir
+//  con la carga inicial, que en el deposito puede ser sobre una wifi
+//  mala. Si falla no pasa nada: la app anda igual, solo no queda
+//  instalable ni abre sin senal.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+// Chrome avisa cuando la app se puede instalar. Se guarda el evento y se
+// muestra un boton: el prompt del navegador solo se puede abrir desde un
+// gesto del usuario, no automaticamente.
+var PWA_PROMPT=null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault(); PWA_PROMPT=e;
+  var b=document.getElementById('btn-instalar'); if(b) b.style.display='';
+});
+window.addEventListener('appinstalled', function(){
+  PWA_PROMPT=null;
+  var b=document.getElementById('btn-instalar'); if(b) b.style.display='none';
+  toast('App instalada — ya la tenes en el escritorio del celular','ok');
+});
+function pwaInstalar(){
+  if(!PWA_PROMPT){
+    toast('Si no aparece el cartel, usa el menu del navegador → "Instalar app"','info');
+    return;
+  }
+  PWA_PROMPT.prompt();
+  PWA_PROMPT.userChoice.then(function(){ PWA_PROMPT=null;
+    var b=document.getElementById('btn-instalar'); if(b) b.style.display='none'; });
 }
 
 // Eventos del canvas. Se enganchan una sola vez, con pointer events para

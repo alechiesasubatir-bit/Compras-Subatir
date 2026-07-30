@@ -40,7 +40,8 @@ $SUB_VER = @{
   que = 'el campo "v"'
 }
 $SUB_APP = @{
-  pat = "(window\.APP_VER\s*=\s*')[^']*(')"
+  # window.APP_VER en las paginas y self.APP_VER en el service worker
+  pat = "((?:window|self)\.APP_VER\s*=\s*')[^']*(')"
   rep = '${1}' + $v + '${2}'
   que = 'window.APP_VER'
 }
@@ -62,6 +63,7 @@ $tareas = @()
 $tareas += @{ f = 'version.json'; req = @($SUB_VER); opt = @() }
 $tareas += @{ f = 'deposito\version.json'; req = @($SUB_VER); opt = @() }
 $tareas += @{ f = 'deposito\index.html'; req = @($SUB_APP); opt = @($SUB_BUST) }
+$tareas += @{ f = 'deposito\sw.js'; req = @($SUB_APP); opt = @() }
 $tareas += @{ f = 'deposito\login.html'; req = @(); opt = @($SUB_BUST) }
 $tareas += @{ f = 'login.html'; req = @(); opt = @($SUB_BUST) }
 foreach ($m in $modulos) {

@@ -1,0 +1,115 @@
+/* ============================================================
+   Estilos de las pantallas de CELULAR de Depositos
+   (solicitar.html y recorrido.html).
+
+   Estan aca y no repetidos en cada pagina porque son las mismas
+   reglas: duplicadas se despegan a la primera correccion.
+   El panel index.html NO usa esto: es de escritorio y tiene lo
+   suyo.
+   ============================================================ */
+:root{
+  --bg:#07090f;--bg2:#0c1119;--bg3:#111926;
+  --teal:#0e8aaa;--teal-l:#1bc8ff;
+  --orange:#f97316;--orange-l:#fdba74;
+  --glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.07);--border-s:rgba(255,255,255,.13);
+  --text:#e2e8f0;--muted:#75869d;--muted-l:#8ea0b8;
+  --focus:#4dd6ff;--danger:#ef4444;--ok:#22c55e;--warn:#f59e0b;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;--display:'Syne',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;
+  font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;
+  /* espacio para la barra fija de abajo + el area segura del celular */
+  padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(1100px 620px at 12% -8%,rgba(14,138,170,.16),transparent 60%),
+             radial-gradient(900px 520px at 108% 108%,rgba(249,115,22,.12),transparent 60%)}
+
+header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  background:rgba(7,9,15,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.logo{width:34px;height:34px;border-radius:9px;flex:0 0 auto;object-fit:cover}
+.htxt{flex:1;min-width:0}
+.htit{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hsub{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-right{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+
+main{padding:14px;max-width:760px;margin:0 auto}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:13px}
+.lbl{font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:1.3px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.row{display:flex;gap:9px;align-items:center}
+.row>*{min-width:0}
+
+/* 16px en los campos: con menos, iOS hace zoom solo al enfocarlos */
+.inp{width:100%;padding:11px 13px;border-radius:11px;background:rgba(0,0,0,.34);
+  border:1px solid var(--border-s);color:var(--text);font-size:16px;font-family:inherit;outline:none}
+.inp:focus{border-color:rgba(27,200,255,.6)}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+  linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+
+.btn{padding:11px 15px;border-radius:11px;border:1px solid var(--border-s);background:var(--glass);
+  color:var(--text);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn-primary{background:linear-gradient(180deg,#1bc8ff,#0e8aaa);border-color:transparent;color:#04222c;font-weight:700}
+.btn-orange{background:linear-gradient(180deg,#fb923c,#ea6a08);border-color:transparent;color:#2b1200;font-weight:700}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-sm{padding:7px 11px;font-size:12.5px;min-height:36px}
+
+/* Un pallet. Toda la tarjeta es el area tocable: en el deposito se usa
+   con guantes y una casilla de 20px no se acierta. */
+.pal{display:flex;gap:11px;align-items:flex-start;width:100%;text-align:left;
+  padding:12px;border-radius:12px;margin-bottom:8px;cursor:pointer;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  color:var(--text);font-family:inherit;font-size:15px;min-height:56px}
+.pal:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.pal.on{background:rgba(27,200,255,.13);border-color:rgba(27,200,255,.55)}
+.pal-chk{flex:0 0 22px;height:22px;margin-top:2px;border-radius:7px;border:2px solid var(--border-s);
+  display:flex;align-items:center;justify-content:center;font-size:13px;color:#04222c}
+.pal.on .pal-chk{background:var(--teal-l);border-color:var(--teal-l)}
+.pal-b{flex:1;min-width:0}
+.pal-b>span{display:block}   /* idem: dentro de un <button> quedan inline */
+.pal-t{font-size:14px;font-weight:600;line-height:1.35}
+.pal-m{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:3px;
+  overflow-wrap:anywhere}
+.pal-u{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--orange-l);white-space:nowrap}
+
+.grp{font-family:var(--display);font-size:11px;font-weight:800;color:var(--teal-l);
+  margin:14px 0 8px;letter-spacing:.3px}
+.empty{padding:22px 14px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6}
+
+/* Barra fija: lo elegido y el boton de confirmar */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;
+  padding:11px 14px calc(11px + env(safe-area-inset-bottom));
+  background:rgba(7,9,15,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border-s);
+  display:flex;align-items:center;gap:11px}
+.bar-i{flex:1;min-width:0}
+.bar-n{font-family:var(--display);font-size:14px;font-weight:800}
+.bar-s{font-family:var(--mono);font-size:11px;color:var(--muted-l)}
+
+.chip{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;
+  font-family:var(--display);letter-spacing:.3px;border:1px solid var(--border-s);color:var(--muted-l)}
+.chip.pend{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.45);color:#fcd34d}
+.chip.prep{background:rgba(27,200,255,.14);border-color:rgba(27,200,255,.45);color:var(--teal-l)}
+.chip.tran{background:rgba(249,115,22,.15);border-color:rgba(249,115,22,.45);color:var(--orange-l)}
+.chip.ok{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.45);color:#86efac}
+.chip.can{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.4);color:#fca5a5}
+
+.sol{padding:11px;border-radius:12px;border:1px solid var(--border);
+  background:rgba(255,255,255,.03);margin-bottom:8px}
+.sol-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.sol-m{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:5px}
+
+#toast-host{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(104px + env(safe-area-inset-bottom));z-index:60;
+  display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 28px);max-width:460px}
+.toast{padding:11px 15px;border-radius:11px;font-size:13.5px;width:100%;
+  background:rgba(7,9,15,.96);border:1px solid var(--border-s);box-shadow:0 12px 34px rgba(0,0,0,.5)}
+.toast-ok{border-color:rgba(34,197,94,.5)} .toast-err{border-color:rgba(239,68,68,.5)}
+.toast.out{opacity:0;transition:opacity .35s}
+@media (prefers-reduced-motion:reduce){ .toast.out{transition:none} }

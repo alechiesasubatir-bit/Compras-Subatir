@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Depósitos"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Recorrido — Subatir / Prolimpio</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="movil.css"/>
+<style>
+/* Propio del recorrido: el paso, el lector y la grilla de ranuras */
+.paso{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;margin-bottom:8px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border)}
+.paso.hecho{opacity:.5;border-style:dashed}
+.paso.camino{background:rgba(249,115,22,.10);border-color:rgba(249,115,22,.45)}
+.paso-n{flex:0 0 26px;height:26px;border-radius:9px;background:rgba(27,200,255,.16);
+  color:var(--teal-l);display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:12px;font-weight:700}
+.paso.hecho .paso-n{background:rgba(34,197,94,.2);color:#86efac}
+.paso-b{flex:1;min-width:0}
+.paso-b>span{display:block}   /* son <span> dentro de un boton: sin esto se pegan */
+.paso-d{font-family:var(--display);font-size:15px;font-weight:800;color:var(--orange-l);line-height:1.3}
+.paso-t{font-size:13px;margin-top:2px;overflow-wrap:anywhere}
+.paso-m{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:3px}
+#qr-box{width:100%;max-width:340px;margin:0 auto;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border-s)}
+.ranuras{display:grid;gap:5px;margin-top:9px}
+.ran{min-height:44px;border-radius:9px;border:1px dashed var(--border-s);background:rgba(0,0,0,.25);
+  color:var(--muted);font-family:var(--mono);font-size:11px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.ran:disabled{opacity:.3;cursor:not-allowed}
+.ran.on{background:rgba(27,200,255,.2);border:1px solid var(--teal-l);color:var(--teal-l);font-weight:700}
+.ran-l{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="../logo.jpg" alt="" class="logo"/>
+  <div class="htxt">
+    <div class="htit" id="htit">Recorrido</div>
+    <div class="hsub" id="hsub">—</div>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-sm" id="btn-volver" onclick="verLista()" style="display:none">← Pedidos</button>
+    <a href="index.html" class="btn btn-sm" style="text-decoration:none">Panel</a>
+  </div>
+</header>
+
+<main>
+  <!-- Lista de pedidos -->
+  <section id="v-lista">
+    <div class="card">
+      <div class="lbl">Pedidos para atender</div>
+      <div id="lista" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- Un recorrido -->
+  <section id="v-rec" style="display:none">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="lbl" style="margin:0">Pedido</div>
+          <div class="bar-n" id="rec-t">—</div>
+        </div>
+        <span class="chip" id="rec-e">—</span>
+      </div>
+      <div class="sol-m" id="rec-m" style="margin-top:7px"></div>
+      <button class="btn btn-primary" id="btn-iniciar" onclick="iniciar()"
+              style="width:100%;margin-top:11px;display:none">▶ Iniciar recorrido</button>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Qué hay que levantar · en orden de recorrido</div>
+      <div id="pasos"></div>
+    </div>
+  </section>
+
+  <!-- Lector de QR -->
+  <section id="v-scan" style="display:none">
+    <div class="card">
+      <div class="lbl">Escaneá el QR del pallet</div>
+      <div id="qr-box"></div>
+      <div class="sol-m" id="scan-st" style="margin-top:11px;text-align:center">Apuntá la cámara al QR…</div>
+      <button class="btn" style="width:100%;margin-top:11px" onclick="cerrarScan()">Cancelar</button>
+    </div>
+  </section>
+
+  <!-- Llegó: consumir o guardar -->
+  <section id="v-dest" style="display:none">
+    <div class="card">
+      <div class="lbl">Llegó a destino</div>
+      <div class="bar-n" id="d-cod">—</div>
+      <div class="sol-m" id="d-info"></div>
+      <button class="btn btn-orange" style="width:100%;margin-top:13px" onclick="consumir()">🔥 Consumir (va a fabricación)</button>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="verUbicar()">📍 Guardar en una estantería</button>
+      <button class="btn" style="width:100%;margin-top:8px" onclick="verRec()">Dejarlo en el piso por ahora</button>
+    </div>
+  </section>
+
+  <!-- Elegir ranura -->
+  <section id="v-ubic" style="display:none">
+    <div class="card">
+      <div class="lbl">Dónde lo guardás</div>
+      <select class="inp" id="u-est" onchange="ranuras()" aria-label="Estantería"></select>
+      <div id="u-grid"></div>
+      <button class="btn" style="width:100%;margin-top:11px" onclick="verDest()">Volver</button>
+    </div>
+  </section>
+</main>
+
+<div class="bar" id="barra" style="display:none">
+  <div class="bar-i">
+    <div class="bar-n" id="bar-n">—</div>
+    <div class="bar-s" id="bar-s"></div>
+  </div>
+  <button class="btn btn-orange" id="btn-scan" onclick="abrirScan()">📷 Escanear</button>
+</div>
+
+<div id="toast-host" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="../supabase-config.js?v=9"></script>
+<script src="deposito-app.js?v=2"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  RECORRIDO — pantalla del operario (celular)
+//
+//  Atiende un pedido: lo inicia, muestra QUÉ levantar y DÓNDE
+//  está, y después es escanear. El escaneo no cambia: usa el
+//  mismo imp_pallet_scan de siempre, que ya sabe si el pallet
+//  está saliendo o llegando según su estado. Acá no se decide
+//  eso, sólo se muestra qué pasó.
+//
+//  Al llegar, las dos salidas que pidió el usuario: consumir
+//  (fabricación) o guardarlo en una estantería.
+// ══════════════════════════════════════════════════════════════
+var SOLS=[], SOL=null, ITEMS=[], PALS=[], EST=[], SUB=[], ART=[], DEPS=[];
+var H5=null, SCAN_BUSY=false, LLEGO=null, U_SLOT=null;
+
+function esc(s){ return String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(n){ n=parseFloat(n)||0; return n.toLocaleString('es-UY'); }
+function whoName(){ var p=SubatirApp.getProfile();
+  return p?(p.full_name||(p.email||'').split('@')[0]||'—'):'—'; }
+function toast(msg,tipo){
+  var h=document.getElementById('toast-host'), d=document.createElement('div');
+  d.className='toast toast-'+(tipo==='err'?'err':tipo==='ok'?'ok':'info');
+  d.textContent=msg; h.appendChild(d);
+  setTimeout(function(){ d.classList.add('out');
+    setTimeout(function(){ if(d.parentNode) d.remove(); },380); }, tipo==='err'?4600:2800);
+}
+function vibrar(){ try{ navigator.vibrate && navigator.vibrate(14); }catch(e){} }
+
+// Letra del nivel contada desde abajo: A abajo, D arriba (ver imp_v12).
+function letra(fila, filas){ var n=+fila||0; if(filas>0) n=filas-n+1;
+  return String.fromCharCode(64+n); }
+function estById(id){ return EST.find(function(e){ return String(e.id)===String(id); }); }
+function subById(id){ return SUB.find(function(s){ return String(s.id)===String(id); }); }
+function artById(id){ return ART.find(function(a){ return String(a.id)===String(id); }); }
+function ubicOf(p){
+  if(!p.estanteria_id) return 'sin ubicar';
+  var e=estById(p.estanteria_id); if(!e) return 'sin ubicar';
+  var s=subById(e.subdeposito_id);
+  return (s?s.nombre+' · ':'')+e.nombre+' · '+letra(p.fila,e.filas)+p.columna;
+}
+// Clave de orden del recorrido: primero por sub-depósito, después por
+// estantería y por posición. Así se camina el galpón una sola vez en vez
+// de ir y volver por cada pallet.
+function ordenDe(p){
+  var e=estById(p.estanteria_id);
+  var s=e?subById(e.subdeposito_id):null;
+  return [ (s?s.nombre:'zzz'), (e?e.nombre:'zzz'),
+           String(p.columna||0).padStart(3,'0'), String(p.fila||0) ].join('|');
+}
+
+SubatirApp.ready.then(function(p){
+  if(!p) return;
+  document.getElementById('hsub').textContent=whoName();
+  cargar();
+  SubatirApp.live(['imp_solicitudes','imp_solicitud_items','imp_pallets'], function(){
+    cargar(true);
+  }, {delay:900});
+});
+
+function cargar(silencioso){
+  return Promise.all([
+    SB.from('imp_solicitud_resumen').select('*').order('created_at',{ascending:false}).limit(40),
+    SB.from('imp_estanterias').select('*').eq('activo',true),
+    SB.from('imp_subdepositos').select('*'),
+    SB.from('imp_articulos').select('id,descripcion,codigo'),
+    SB.from('imp_depositos').select('nombre,tipo').eq('activo',true)
+  ]).then(function(r){
+    var e=r.find(function(x){ return x.error; });
+    if(e){ toast('Error: '+e.error.message,'err'); return; }
+    SOLS=r[0].data||[]; EST=r[1].data||[]; SUB=r[2].data||[]; ART=r[3].data||[]; DEPS=r[4].data||[];
+    renderLista();
+    if(SOL) return abrir(SOL.id, true);
+  });
+}
+
+// ── Lista de pedidos ──────────────────────────────────────────
+var CHIP={PENDIENTE:['pend','Pendiente'],EN_PREPARACION:['prep','Preparando'],
+          EN_TRANSITO:['tran','En camino'],ENTREGADA:['ok','Entregada'],CANCELADA:['can','Cancelada']};
+function renderLista(){
+  // Lo cerrado no se atiende: primero lo que espera, después lo que va en camino
+  var vivas=SOLS.filter(function(s){ return ['PENDIENTE','EN_PREPARACION','EN_TRANSITO'].indexOf(s.estado)>=0; });
+  var host=document.getElementById('lista');
+  if(!vivas.length){
+    host.innerHTML='<div class="empty">No hay pedidos para atender.<br>'
+      +'Cuando alguien solicite mercadería, aparece acá.</div>';
+    return;
+  }
+  var ord={PENDIENTE:0,EN_PREPARACION:1,EN_TRANSITO:2};
+  vivas.sort(function(a,b){ return (ord[a.estado]-ord[b.estado]) || (a.id-b.id); });
+  host.innerHTML=vivas.map(function(s){
+    var c=CHIP[s.estado]||['','?'];
+    var f=new Date(s.created_at);
+    return '<button type="button" class="pal" onclick="abrir('+s.id+')" style="align-items:center"'
+      +' aria-label="'+esc('Pedido '+s.id+', '+s.origen+' a '+s.destino+', '+s.items+' pallets, '+c[1])+'">'
+      +'<span class="pal-b"><span class="pal-t">#'+s.id+' · '+esc(s.origen)+' → '+esc(s.destino)+'</span>'
+      +'<span class="pal-m">'+s.items+' pallet'+(s.items===1?'':'s')+' · '+fmt(s.unidades)+' u. · '
+      +esc(s.solicitante)+' · '+f.toLocaleDateString('es-UY')+'</span></span>'
+      +'<span class="chip '+c[0]+'">'+c[1]+'</span>'
+    +'</button>';
+  }).join('');
+}
+
+function verLista(){
+  SOL=null;
+  ['v-rec','v-scan','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  document.getElementById('v-lista').style.display='';
+  document.getElementById('barra').style.display='none';
+  document.getElementById('btn-volver').style.display='none';
+  document.getElementById('htit').textContent='Recorrido';
+  cerrarLector();
+}
+function verRec(){
+  ['v-lista','v-scan','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  document.getElementById('v-rec').style.display='';
+  document.getElementById('barra').style.display = SOL && SOL.estado!=='PENDIENTE' ? 'flex' : 'none';
+  cerrarLector();
+}
+function verDest(){
+  ['v-lista','v-rec','v-scan','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  document.getElementById('v-dest').style.display='';
+  document.getElementById('barra').style.display='none';
+}
+
+// ── Abrir un pedido ───────────────────────────────────────────
+function abrir(id, silencioso){
+  return Promise.all([
+    SB.from('imp_solicitud_resumen').select('*').eq('id',id).single(),
+    SB.from('imp_solicitud_items').select('*').eq('solicitud_id',id)
+  ]).then(function(r){
+    if(r[0].error){ toast('Error: '+r[0].error.message,'err'); return; }
+    SOL=r[0].data; ITEMS=(r[1].data||[]).filter(function(i){ return i.estado!=='CANCELADO'; });
+    var ids=ITEMS.map(function(i){ return i.pallet_id; });
+    if(!ids.length){ PALS=[]; pintarRec(); if(!silencioso) verRec(); return; }
+    return SB.from('imp_pallets').select('*').in('id',ids).then(function(p){
+      PALS=p.data||[]; pintarRec(); if(!silencioso) verRec();
+    });
+  });
+}
+
+function pintarRec(){
+  if(!SOL) return;
+  var c=CHIP[SOL.estado]||['','?'];
+  document.getElementById('htit').textContent='Pedido #'+SOL.id;
+  document.getElementById('btn-volver').style.display='';
+  document.getElementById('rec-t').textContent=SOL.origen+' → '+SOL.destino;
+  var ch=document.getElementById('rec-e'); ch.className='chip '+c[0]; ch.textContent=c[1];
+  document.getElementById('rec-m').textContent=
+    SOL.items+' pallet'+(SOL.items===1?'':'s')+' · '+fmt(SOL.unidades)+' u. · pidió '+SOL.solicitante;
+  document.getElementById('btn-iniciar').style.display = SOL.estado==='PENDIENTE' ? '' : 'none';
+
+  // Estado por pallet: lo que sigue en su lugar hay que ir a buscarlo
+  var byId={}; PALS.forEach(function(p){ byId[p.id]=p; });
+  var lista=ITEMS.map(function(i){ return byId[i.pallet_id]; }).filter(Boolean);
+  lista.sort(function(a,b){ return ordenDe(a).localeCompare(ordenDe(b)); });
+
+  var n=0, pend=0;
+  document.getElementById('pasos').innerHTML = lista.length ? lista.map(function(p){
+    var a=artById(p.articulo_id);
+    var cls='', nota='';
+    if(p.estado==='EN_TRANSITO'){ cls=' camino'; nota='✈ en camino'; }
+    else if(p.estado==='RECIBIDO'||p.estado==='CONSUMIDO'||
+            (p.estado==='ESTACIONADO' && p.deposito===SOL.destino)){ cls=' hecho'; nota='✓ entregado'; }
+    else { pend++; }
+    n++;
+    return '<div class="paso'+cls+'"><span class="paso-n">'+n+'</span><span class="paso-b">'
+      +'<span class="paso-d">📍 '+esc(cls===' hecho'?(p.deposito||SOL.destino):ubicOf(p))+'</span>'
+      +'<span class="paso-t">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</span>'
+      +'<span class="paso-m">'+esc(p.codigo)+' · '+fmt(p.unidades)+' u.'+(nota?(' · '+nota):'')+'</span>'
+      +'</span></div>';
+  }).join('') : '<div class="empty">Este pedido no tiene pallets.</div>';
+
+  document.getElementById('bar-n').textContent = pend ? (pend+' por levantar') : 'Todo despachado';
+  document.getElementById('bar-s').textContent = pend
+    ? 'Escaneá cada pallet al cargarlo' : 'Escaneá al llegar a '+SOL.destino;
+  document.getElementById('barra').style.display = SOL.estado==='PENDIENTE' ? 'none' : 'flex';
+}
+
+function iniciar(){
+  var b=document.getElementById('btn-iniciar'); b.disabled=true;
+  SB.rpc('imp_solicitud_iniciar',{p_sol:SOL.id, p_user:whoName()}).then(function(r){
+    b.disabled=false;
+    if(r.error||(r.data&&r.data.ok===false)){
+      toast('Error: '+(r.error?r.error.message:r.data.error),'err'); return; }
+    toast('▶ Recorrido iniciado — '+r.data.pallets+' pallet(s) con destino '+r.data.destino,'ok');
+    abrir(SOL.id);
+  });
+}
+
+// ── Escaneo ───────────────────────────────────────────────────
+//  Un solo botón para las dos puntas: imp_pallet_scan mira el estado
+//  del pallet y decide si es salida o llegada. Pedirle al operario que
+//  elija cuál es sería pedirle que lleve la cuenta.
+function abrirScan(){
+  ['v-lista','v-rec','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  document.getElementById('v-scan').style.display='';
+  document.getElementById('barra').style.display='none';
+  document.getElementById('scan-st').textContent='Apuntá la cámara al QR…';
+  if(typeof Html5Qrcode==='undefined'){
+    document.getElementById('scan-st').textContent='No se pudo cargar el lector de QR.'; return; }
+  H5=new Html5Qrcode('qr-box');
+  H5.start({facingMode:'environment'}, {fps:10, qrbox:{width:230,height:230}}, onQR, function(){})
+    .catch(function(e){
+      document.getElementById('scan-st').textContent='No se pudo abrir la cámara: '+(e&&e.message||e);
+    });
+}
+function cerrarLector(){
+  if(!H5) return;
+  try{ H5.stop().then(function(){ try{H5.clear();}catch(_){} H5=null; }); }catch(e){ H5=null; }
+}
+function cerrarScan(){ cerrarLector(); verRec(); }
+
+function onQR(txt){
+  if(SCAN_BUSY) return; SCAN_BUSY=true;
+  vibrar();
+  document.getElementById('scan-st').textContent='Leído: '+txt+' — procesando…';
+  SB.rpc('imp_pallet_scan',{p_codigo:txt, p_user:whoName()}).then(function(r){
+    setTimeout(function(){ SCAN_BUSY=false; }, 1400);   // evita releer el mismo QR
+    if(r.error||(r.data&&r.data.ok===false)){
+      var msg=r.error?r.error.message:r.data.error;
+      document.getElementById('scan-st').textContent='⚠ '+msg;
+      toast(msg,'err'); return;
+    }
+    var d=r.data;
+    if(d.accion==='salida'){
+      toast('🚚 Sale hacia '+d.destino,'ok');
+      document.getElementById('scan-st').textContent='🚚 '+d.pallet+' → '+d.destino+'. Seguí con el próximo.';
+      cargar(true);
+      return;                                   // el lector queda abierto: vienen más
+    }
+    // Llegada: hay que decidir qué se hace con él
+    cerrarLector();
+    LLEGO={codigo:d.pallet, destino:d.destino, tipo:d.destino_tipo};
+    SB.from('imp_pallets').select('*').eq('codigo',d.pallet).single().then(function(p){
+      LLEGO.pallet=p.data;
+      var a=p.data?artById(p.data.articulo_id):null;
+      document.getElementById('d-cod').textContent=d.pallet;
+      document.getElementById('d-info').textContent=
+        (a?a.descripcion+' · ':'')+(p.data?fmt(p.data.unidades)+' u. · ':'')+'llegó a '+d.destino;
+      // Consumir sólo tiene sentido en una fábrica
+      document.querySelector('#v-dest .btn-orange').style.display =
+        (d.destino_tipo==='FABRICA') ? '' : 'none';
+      verDest(); cargar(true);
+    });
+  }, function(e){ SCAN_BUSY=false; toast('Error: '+(e&&e.message||e),'err'); });
+}
+
+// ── Al llegar: consumir o guardar ─────────────────────────────
+var CONS=null;
+function consumir(){
+  if(!LLEGO||!LLEGO.pallet) return;
+  if(CONS!==LLEGO.pallet.id){
+    CONS=LLEGO.pallet.id;
+    toast('Tocá otra vez para confirmar: el consumo no se deshace','info');
+    setTimeout(function(){ CONS=null; }, 6000); return;
+  }
+  CONS=null;
+  SB.rpc('imp_pallet_consumir',{p_pallet:LLEGO.pallet.id, p_user:whoName()}).then(function(r){
+    if(r.error||(r.data&&r.data.ok===false)){
+      toast('Error: '+(r.error?r.error.message:r.data.error),'err'); return; }
+    toast('🔥 Consumido — '+fmt(r.data.unidades)+' u.','ok');
+    LLEGO=null; cargar(); verRec();
+  });
+}
+
+function verUbicar(){
+  ['v-lista','v-rec','v-scan','v-dest'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  document.getElementById('v-ubic').style.display='';
+  var dep=LLEGO?LLEGO.destino:null;
+  var ests=EST.filter(function(e){ return e.deposito===dep; });
+  var sel=document.getElementById('u-est');
+  sel.innerHTML= ests.length
+    ? ests.map(function(e){ var s=subById(e.subdeposito_id);
+        return '<option value="'+e.id+'">'+esc((s?s.nombre+' · ':'')+e.nombre)+'</option>'; }).join('')
+    : '<option value="">No hay estanterías en '+esc(dep||'')+'</option>';
+  U_SLOT=null; ranuras();
+}
+
+function ranuras(){
+  var id=document.getElementById('u-est').value;
+  var e=estById(id), host=document.getElementById('u-grid');
+  if(!e){ host.innerHTML='<div class="empty">Dibujá estanterías en ⚙ Config Depósito para poder guardar acá.</div>'; return; }
+  // 2 posiciones por bahía, igual que el panel
+  var cols=e.columnas*2;
+  SB.from('imp_pallets').select('id,fila,columna').eq('estanteria_id',e.id)
+    .in('estado',['ABIERTO','ESTACIONADO','RECIBIDO']).then(function(r){
+      var ocup={}; (r.data||[]).forEach(function(p){ ocup[p.fila+'-'+p.columna]=1; });
+      var h='<div class="ranuras" style="grid-template-columns:18px repeat('+cols+',1fr)">';
+      for(var f=1; f<=e.filas; f++){
+        h+='<span class="ran-l">'+letra(f,e.filas)+'</span>';
+        for(var c=1; c<=cols; c++){
+          var libre=!ocup[f+'-'+c], sel=(U_SLOT&&U_SLOT.f===f&&U_SLOT.c===c);
+          h+='<button type="button" class="ran'+(sel?' on':'')+'" '+(libre?'':'disabled')
+            +' onclick="pickRanura('+f+','+c+')" aria-label="'+(libre?'Ranura libre ':'Ocupada ')
+            +letra(f,e.filas)+c+'">'+(libre?(letra(f,e.filas)+c):'·')+'</button>';
+        }
+      }
+      h+='</div>';
+      h+='<button class="btn btn-primary" style="width:100%;margin-top:11px" id="u-ok" '
+        +(U_SLOT?'':'disabled')+' onclick="guardar()">Guardar acá</button>';
+      host.innerHTML=h;
+    });
+}
+function pickRanura(f,c){ U_SLOT={f:f,c:c}; ranuras(); }
+
+function guardar(){
+  if(!LLEGO||!LLEGO.pallet||!U_SLOT) return;
+  var est=document.getElementById('u-est').value;
+  SB.rpc('imp_pallet_ubicar',{p_pallet:LLEGO.pallet.id, p_est:+est,
+                              p_fila:U_SLOT.f, p_col:U_SLOT.c, p_user:whoName()})
+    .then(function(r){
+      if(r.error||(r.data&&r.data.ok===false)){
+        toast('Error: '+(r.error?r.error.message:r.data.error),'err'); return; }
+      var e=estById(est);
+      toast('📦 Guardado en '+e.nombre+' '+letra(U_SLOT.f,e.filas)+U_SLOT.c,'ok');
+      LLEGO=null; U_SLOT=null; cargar(); verRec();
+    });
+}
+
+// Si se sale de la pantalla, apagar la cámara: queda prendida y come batería
+document.addEventListener('visibilitychange', function(){ if(document.hidden) cerrarLector(); });
+window.addEventListener('pagehide', cerrarLector);
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>

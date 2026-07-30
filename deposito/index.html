@@ -895,8 +895,8 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="../supabase-config.js?v=2026-07-30.1648"></script>
-<script src="deposito-app.js?v=2026-07-30.1648"></script>
+<script src="../supabase-config.js?v=2026-07-30.1700"></script>
+<script src="deposito-app.js?v=2026-07-30.1700"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -905,7 +905,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-07-30.1648';
+window.APP_VER='2026-07-30.1700';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -4779,34 +4779,9 @@ document.addEventListener('pointerdown', function(e){
 });
 document.addEventListener('click', function(e){ if(DND_justDragged){ e.stopPropagation(); e.preventDefault(); } }, true);
 
-// ── Chequeo de versión ─────────────────────────────────────────
-//  version.json se pide con cache:'no-store' y un parámetro de
-//  tiempo, así que llega siempre fresco aunque el HTML esté viejo.
-//  Si no coincide, se recarga apuntando a la versión nueva.
-//  El sessionStorage evita el bucle si el servidor sigue mandando
-//  el documento viejo: se intenta una sola vez por versión.
-function checkVersion(){
-  if(!window.APP_VER) return;
-  fetch('version.json?t='+Date.now(), {cache:'no-store'})
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(j){
-      if(!j || !j.v || j.v===APP_VER) return;
-      if(sessionStorage.getItem('dep_ver_reload')===j.v) return;
-      sessionStorage.setItem('dep_ver_reload', j.v);
-      if(window.toast) toast('Hay una versión nueva — actualizando…','info');
-      setTimeout(function(){
-        location.replace(location.pathname+'?v='+encodeURIComponent(j.v));
-      }, 1200);
-    })
-    .catch(function(){});   // sin conexión no es motivo para molestar
-}
-
 (window.SubatirApp && SubatirApp.ready ? SubatirApp.ready : Promise.resolve()).then(function(){
   load();
   if(window.SubatirApp && SubatirApp.live) SubatirApp.live(['imp_articulos','imp_stock','imp_pallets','imp_movimientos','imp_zonas','imp_estanterias'], load);
-  checkVersion();
-  // La pestaña queda abierta todo el día: se vuelve a mirar cada 10 min
-  setInterval(checkVersion, 600000);
 });
 </script>
 </body>

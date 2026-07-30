@@ -146,16 +146,66 @@
     return { reload: trigger };
   }
 
+  // ── Chequeo de versión ─────────────────────────────────────
+  //  Vive acá y no en cada página: las tres pantallas de Depósitos lo
+  //  necesitan, y en el celular MÁS que en ninguna — el operario no
+  //  cierra la app entre pedidos, así que sin esto se queda con el
+  //  código de hace semanas.
+  //
+  //  version.json se pide con cache:'no-store' y un parámetro de
+  //  tiempo, así que llega fresco aunque el HTML esté cacheado. El
+  //  service worker tampoco lo toca (ver sw.js). El sessionStorage
+  //  evita el bucle si el servidor sigue mandando el documento viejo:
+  //  se intenta una sola vez por versión.
+  var VER_URL = (function () {
+    var src = (document.currentScript && document.currentScript.src) || location.href;
+    try { return new URL('version.json', src).href; } catch (e) { return 'version.json'; }
+  })();
+
+  // Cada página puede decir "ahora no": recargar en medio de un escaneo
+  // o con un pedido a medio armar tira el trabajo de la persona.
+  function ocupada() {
+    try { return typeof window.appOcupada === 'function' && !!window.appOcupada(); }
+    catch (e) { return false; }
+  }
+
+  function checkVersion() {
+    if (!window.APP_VER) return;
+    return fetch(VER_URL + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.v || j.v === window.APP_VER) return;
+        if (sessionStorage.getItem('dep_ver_reload') === j.v) return;
+        if (ocupada()) return;                  // se reintenta en la próxima vuelta
+        sessionStorage.setItem('dep_ver_reload', j.v);
+        if (window.toast) window.toast('Hay una versión nueva — actualizando…', 'info');
+        setTimeout(function () {
+          location.replace(location.pathname + '?v=' + encodeURIComponent(j.v) + location.hash);
+        }, 1200);
+      })
+      .catch(function () { });   // sin señal no es motivo para molestar
+  }
+
+  function startVersionCheck() {
+    if (!window.APP_VER) return;
+    checkVersion();
+    setInterval(checkVersion, 600000);          // la pestaña queda abierta todo el día
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) checkVersion();     // volver a la app es buen momento
+    });
+  }
+
   window.SubatirApp = {
     ready: _ready,
     getProfile: function () { return _profile; },
     puede: puede,
+    checkVersion: checkVersion,
     live: live,
     logout: function () {
       return SB.auth.signOut().then(function () { location.replace('login.html'); });
     }
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', guard);
-  else guard();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ guard(); startVersionCheck(); });
+  else { guard(); startVersionCheck(); }
 })();

@@ -130,8 +130,13 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-07-30.1648"></script>
-<script src="deposito-app.js?v=2026-07-30.1648"></script>
+<script src="../supabase-config.js?v=2026-07-30.1700"></script>
+<script src="deposito-app.js?v=2026-07-30.1700"></script>
+<script>
+// Version de la pantalla. La compara deposito-app.js contra version.json;
+// si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
+window.APP_VER='2026-07-30.1700';
+</script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  RECORRIDO — pantalla del operario (celular)
@@ -460,6 +465,9 @@ function guardar(){
 // Si se sale de la pantalla, apagar la cámara: queda prendida y come batería
 document.addEventListener('visibilitychange', function(){ if(document.hidden) cerrarLector(); });
 window.addEventListener('pagehide', cerrarLector);
+
+// Con la camara abierta o un pallet esperando destino, no se recarga.
+window.appOcupada=function(){ return !!H5 || !!LLEGO; };
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){

@@ -307,9 +307,12 @@ Un usuario con solo `recepcion` queda encerrado en su pantalla; lo mismo con
 - **Sin Edge Functions.**
 - **Sin cron jobs** ni `pg_cron`.
 - **Sin webhooks.**
-- **Sin integración con Google** activa. La app nació sobre Google Sheets + Apps
-  Script y migró en 2026-07; queda una URL de Apps Script **vestigial** en
-  `contingencia.html` y `copiloto.html` que ya no se llama. Conviene borrarla.
+- **Sin integración con Google.** Ni activa ni residual. La app nació sobre Google
+  Sheets + Apps Script y migró en 2026-07. Al hacer este relevamiento se detectó
+  que la URL del Apps Script seguía en 8 de los 9 módulos y que dos conservaban el
+  diálogo "Configurá tu Sheet". No se llamaban —todo iba a Supabase— pero daban la
+  impresión de una integración viva: **se eliminaron el 2026-07-31**. Hoy no queda
+  ninguna mención en el repo.
 - **Sin CI/CD**: el deploy es un `.bat` que hace push.
 
 ### Sí hay

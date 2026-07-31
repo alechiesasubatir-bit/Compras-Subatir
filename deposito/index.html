@@ -3077,6 +3077,24 @@ function rackInit(){
   canvas.addEventListener('pointerdown', rackDown);
   canvas.addEventListener('pointerup', rackUp);
   canvas.addEventListener('pointerleave', function(){ rackTip(); });
+
+  // ── Si la placa de video corta el contexto ────────────────────
+  //  Pasa de verdad: notebooks con gráficos híbridos, drivers que se
+  //  reinician, varias pestañas pesadas. Sin esto el canvas queda NEGRO
+  //  para siempre — el navegador ni siquiera intenta restaurarlo si no
+  //  se cancela el evento.
+  canvas.addEventListener('webglcontextlost', function(ev){
+    ev.preventDefault();               // sin esto NO hay restauración posible
+    R3D.perdido=true;
+    if(window.toast) toast('El 3D se cortó (placa de video). Reintentando…','err');
+  });
+  canvas.addEventListener('webglcontextrestored', function(){
+    R3D.perdido=false;
+    // Se perdieron texturas, buffers y materiales: hay que rearmar todo
+    R3D.builtKey=null;
+    try{ rackSync(); if(window.toast) toast('3D restablecido','ok'); }catch(e){}
+  });
+
   window.addEventListener('resize', rackResize);
   rackAnimate();
 }
@@ -3417,8 +3435,24 @@ function rackResize(){
   if(!R3D) return; var wrap=document.getElementById('rack3d-wrap'); var w=wrap.clientWidth, h=wrap.clientHeight;
   if(!w||!h) return; R3D.camera.aspect=w/h; R3D.camera.updateProjectionMatrix(); R3D.renderer.setSize(w,h,false);
 }
+// ¿Hay algo que dibujar ahora mismo? Antes se renderizaba SIEMPRE: estando
+// en Stock, en la vista 2D, con un modal abierto o con el visor fuera de
+// pantalla. Es trabajo de GPU continuo para nada, y en una placa modesta o
+// con gráficos híbridos es lo que termina cortando el contexto.
+function rackVisible(){
+  if(!R3D || R3D.perdido) return false;
+  if(typeof VIEW!=='undefined' && VIEW!=='3d') return false;
+  if(document.hidden) return false;
+  var w=document.getElementById('rack3d-wrap');
+  if(!w || w.offsetParent===null) return false;          // display:none en algún ancestro
+  var r=w.getBoundingClientRect();
+  return r.bottom>0 && r.top<innerHeight && r.width>0;   // algo del visor está en pantalla
+}
 function rackAnimate(){
   if(!R3D) return; R3D.raf=requestAnimationFrame(rackAnimate);
+  // El rAF sigue vivo pero no se dibuja: reengancharlo después sale más
+  // caro que un frame vacío, y así vuelve solo al hacer scroll.
+  if(!rackVisible()) return;
   // Latido suave del cajón resaltado: deja claro dónde va a caer el pallet
   if(R3D.hi && R3D.hi.visible && !DND_REDUCED){
     R3D.hi.material.opacity = 0.22 + Math.sin(performance.now()/230)*0.1;

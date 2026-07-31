@@ -374,12 +374,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-07-31.1504"></script>
-<script src="subatir-app.js?v=2026-07-31.1504"></script>
+<script src="supabase-config.js?v=2026-07-31.1603"></script>
+<script src="subatir-app.js?v=2026-07-31.1603"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-07-31.1504';
+window.APP_VER='2026-07-31.1603';
 </script>
 </head>
 <body>
@@ -1537,9 +1537,14 @@ function saveEdit(){
     if(d && d.error){ toast('Error: '+d.error,'err'); return; }
     var finish=function(){ closeEdit(); toast(isNew ? 'Precio agregado ✓' : 'Cambios guardados ✓','ok'); load(); };
     if(catChanged && SubatirApp.setCategoria){
-      var catOp = newCat ? SubatirApp.setCategoria(art, newCat)
-        : SB.from('categorias').delete().eq('producto', art).then(function(r){ return r.error?{error:r.error.message}:{success:true}; });
-      catOp.then(finish);
+      // Vaciar la categoría es setCategoria con '' — deja ext_id en null.
+      // Ya no se borra de la tabla `categorias`: no se lee más.
+      SubatirApp.setCategoria(art, newCat).then(function(c){
+        // Si el artículo no está en inventario no hay dónde guardarla:
+        // se avisa en vez de dejar creer que se guardó.
+        if(c && c.error) toast('El precio se guardó, pero la categoría no: '+c.error,'err');
+        finish();
+      });
     } else finish();
   });
 }

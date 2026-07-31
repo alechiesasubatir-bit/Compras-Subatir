@@ -432,12 +432,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-07-31.1504"></script>
-<script src="subatir-app.js?v=2026-07-31.1504"></script>
+<script src="supabase-config.js?v=2026-07-31.1603"></script>
+<script src="subatir-app.js?v=2026-07-31.1603"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-07-31.1504';
+window.APP_VER='2026-07-31.1603';
 </script>
 </head>
 <body>
@@ -1745,10 +1745,9 @@ function saveEdit(){
   toast('Guardando…','info');
   var ops=[];
   if(hasFields) ops.push(SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:CUR.__row, fields:JSON.stringify(fields)}));
-  if(catChanged){
-    if(newCat) ops.push(SubatirApp.setCategoria(CUR.desc, newCat));
-    else ops.push(SB.from('categorias').delete().eq('producto', CUR.desc).then(function(r){ return r.error?{error:r.error.message}:{success:true}; }));
-  }
+  // Vaciar la categoría es setCategoria con '': deja ext_id en null. Ya no
+  // se borra de la tabla `categorias`, que quedó como dato viejo.
+  if(catChanged) ops.push(SubatirApp.setCategoria(CUR.desc, newCat));
   Promise.all(ops).then(function(res){
     var err=(res||[]).filter(function(d){ return d && d.error; })[0];
     if(err){ toast('Error: '+err.error,'err'); return; }

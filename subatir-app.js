@@ -405,16 +405,48 @@
   // ── Categorías de productos (Envases / Consumibles / Materias Primas) ──
   function _catNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase().replace(/\s+/g, ' '); }
   // Devuelve un mapa { NORM(producto) : categoria }
+  // ── Categorías ─────────────────────────────────────────────
+  //  La categoría sale de inventario.ext_id, NO de la tabla
+  //  `categorias`. Había dos fuentes y se contradecían en 13
+  //  productos; el equipo de la plataforma confirmó que en esos 13
+  //  la buena es ext_id (coincide con core.insumos). La tabla
+  //  `categorias` queda como dato viejo: no se lee más.
+  //
+  //  En la Etapa 4 de la integración, ext_id se reemplaza por el FK
+  //  a core.insumos. Al estar acá y no repartido por los módulos,
+  //  ese cambio es este solo lugar.
+  var EXT_CAT = { MP: 'Materias Primas', ENV: 'Envases', CON: 'Consumibles' };
+  var CAT_EXT = { 'Materias Primas': 'MP', 'Envases': 'ENV', 'Consumibles': 'CON' };
+
   function categorias() {
-    return SB.from('categorias').select('producto,categoria').then(function (r) {
+    return SB.from('inventario').select('descripcion,ext_id').then(function (r) {
       var map = {};
-      (r.data || []).forEach(function (x) { map[_catNorm(x.producto)] = x.categoria; });
+      (r.data || []).forEach(function (x) {
+        var c = EXT_CAT[x.ext_id];
+        if (c) map[_catNorm(x.descripcion)] = c;
+      });
       return map;
     }, function () { return {}; });
   }
+
+  //  Escribe sobre la fila de inventario que se llame igual. Si el
+  //  artículo no está en inventario no hay dónde guardarlo: se avisa
+  //  en vez de escribir en una tabla que ya nadie lee, que se vería
+  //  como que guardó y no cambiaría nada.
   function setCategoria(producto, categoria) {
-    return SB.from('categorias').upsert({ producto: producto, categoria: categoria, updated_at: new Date().toISOString() })
-      .then(function (r) { return r.error ? { error: r.error.message } : { success: true }; });
+    var ext = categoria ? CAT_EXT[categoria] : null;
+    if (categoria && !ext) return Promise.resolve({ error: 'Categoría desconocida: ' + categoria });
+    var objetivo = _catNorm(producto);
+    return SB.from('inventario').select('id,descripcion').then(function (r) {
+      if (r.error) return { error: r.error.message };
+      var fila = (r.data || []).find(function (x) { return _catNorm(x.descripcion) === objetivo; });
+      if (!fila) {
+        return { error: '"' + producto + '" no está en el inventario, así que no tiene dónde guardar la categoría' };
+      }
+      return SB.from('inventario').update({ ext_id: ext }).eq('id', fila.id).then(function (u) {
+        return u.error ? { error: u.error.message } : { success: true };
+      });
+    });
   }
 
   // ── Entregas parciales de recepción ────────────────────────

@@ -85,6 +85,32 @@ body::before{
     radial-gradient(ellipse 60% 50% at 95% 90%,rgba(14,138,170,.09) 0%,transparent 55%),
     radial-gradient(ellipse 40% 35% at 50% 50%,rgba(249,115,22,.04) 0%,transparent 50%);
 }
+/* ═══ RECORRIDO DEL PALLET ═══════════════════════════════════
+   Línea de avance entre los puntos de control de una transferencia.
+   La barra va por DEBAJO de los puntos (z-index) y se llena con un
+   ancho porcentual: así el avance se lee de un vistazo, sin tener que
+   interpretar cinco iconitos sueltos. */
+.ruta{position:relative;margin:12px 0 4px;padding:2px 0}
+.ruta-l{position:absolute;left:0;right:0;top:11px;height:3px;border-radius:3px;
+  background:rgba(255,255,255,.09)}
+.ruta-f{position:absolute;left:0;top:11px;height:3px;border-radius:3px;
+  background:linear-gradient(90deg,var(--teal),var(--orange));
+  transition:width .5s var(--ease)}
+@media (prefers-reduced-motion:reduce){ .ruta-f{transition:none} }
+.ruta-p{position:relative;z-index:1;display:flex;justify-content:space-between;gap:2px}
+.ruta-i{flex:1;min-width:0;text-align:center}
+.ruta-d{width:25px;height:25px;margin:0 auto;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;font-size:12px;
+  background:var(--bg2);border:2px solid rgba(255,255,255,.12);color:var(--muted)}
+.ruta-i.ok .ruta-d{background:var(--teal);border-color:var(--teal-l);color:#04222c}
+.ruta-i.now .ruta-d{background:var(--orange);border-color:var(--orange-l);color:#2b1200;
+  box-shadow:0 0 0 4px rgba(249,115,22,.2)}
+.ruta-t{font-size:9.5px;font-weight:700;font-family:var(--display);letter-spacing:.2px;
+  margin-top:5px;color:var(--muted);line-height:1.25;overflow-wrap:anywhere}
+.ruta-i.ok .ruta-t,.ruta-i.now .ruta-t{color:var(--text)}
+.ruta-h{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:1px}
+.ruta-nota{font-size:11px;color:var(--muted-l);margin-top:7px;text-align:center}
+
 /* ═══ MODO LIVIANO ═══════════════════════════════════════════
    El desenfoque de fondo (backdrop-filter) obliga a Chrome a
    re-desenfocar en cada frame leyendo una capa que incluye el canvas
@@ -1558,6 +1584,12 @@ window.APP_VER='2026-07-31.1207';
           <select class="form-input" id="pd-area" onchange="pdSetArea(this.value)"></select>
           <div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5">Se dibujan en ⚙ Config Depósito. Al ubicarlo en una estantería, manda la estantería.</div>
         </div>
+      </div>
+
+      <!-- Recorrido: en qué punto del viaje está, de un vistazo -->
+      <div id="pd-ruta-wrap" style="margin-top:16px;display:none">
+        <div class="hist-title">🚚 Recorrido</div>
+        <div id="pd-ruta"></div>
       </div>
 
       <!-- Trazabilidad: de dónde vino y por dónde pasó -->
@@ -3874,6 +3906,10 @@ function openPalletDetail(id){
       return '<option value="'+a.id+'"'+(String(p.subdeposito_id)===String(a.id)?' selected':'')+'>'+esc(a.nombre)+'</option>';
     }).join('');
   })();
+  // Recorrido: solo para el pallet que viaja o viajo
+  var rw=document.getElementById('pd-ruta-wrap');
+  if(palletViaja(p)){ rw.style.display=''; document.getElementById('pd-ruta').innerHTML=rutaHTML(p); }
+  else rw.style.display='none';
   document.getElementById('pd-destino').innerHTML=DEPS.filter(function(d){return d.nombre!==p.deposito;}).map(function(d){return '<option>'+esc(d.nombre)+'</option>';}).join('');
   pdHist(p.id);
   openModal('paldet-overlay');
@@ -4820,6 +4856,64 @@ function cfgSave(){
     btn.disabled=false;
     toast('Error al guardar: '+(err&&err.message||err),'err');
   });
+}
+
+// ── Recorrido del pallet entre depósitos ───────────────────────
+//  Los puntos de control salen de las marcas de tiempo que el pallet YA
+//  guarda (cerrado_at, salida_at, llegada_at, consumido_at) y de dónde
+//  está parado. No hace falta tabla nueva: el dato ya estaba, lo que
+//  faltaba era mostrarlo de forma que se entienda sin leer la bitácora.
+//
+//  Sólo tiene sentido para un pallet que viaja: uno armado y quieto en
+//  su depósito, sin destino, no tiene recorrido que mostrar.
+function palletViaja(p){
+  return !!(p.destino || p.estado==='EN_TRANSITO' || p.origen ||
+            p.estado==='RECIBIDO' || p.estado==='CONSUMIDO');
+}
+function rutaDe(p){
+  var enRack = !!p.estanteria_id;
+  var llego  = !!p.llegada_at || p.estado==='RECIBIDO' || p.estado==='CONSUMIDO' ||
+               (p.estado==='ESTACIONADO' && p.origen && p.deposito===p.destino);
+  var salio  = !!p.salida_at || p.estado==='EN_TRANSITO' || llego;
+  // El último paso cambia según el destino: en una fábrica se consume,
+  // en un almacén se guarda en una estantería.
+  var esFab  = esFabrica(p.destino || p.deposito);
+  var pasos=[
+    {t:'Armado',     i:'📦', ok:!!p.cerrado_at,      at:p.cerrado_at},
+    {t:'Con destino',i:'🏷', ok:!!p.destino || salio, at:null},
+    {t:'Despachado', i:'🚚', ok:salio,               at:p.salida_at},
+    {t:'Recibido',   i:'📥', ok:llego,               at:p.llegada_at},
+    esFab ? {t:'Consumido', i:'🔥', ok:p.estado==='CONSUMIDO', at:p.consumido_at}
+          : {t:'Guardado',  i:'📍', ok:llego && enRack,        at:null}
+  ];
+  // El punto actual es el primero sin hacer; si están todos, el último.
+  var i=pasos.findIndex(function(x){ return !x.ok; });
+  var actual = i<0 ? pasos.length-1 : Math.max(0,i-1);
+  var hechos = pasos.filter(function(x){ return x.ok; }).length;
+  return {pasos:pasos, actual:actual, hechos:hechos,
+          pct: pasos.length>1 ? Math.round((Math.max(0,hechos-1)/(pasos.length-1))*100) : 0};
+}
+// 24 h a propósito: "11:31 p. m." no entra abajo de un punto y rompe en
+// dos líneas. En un depósito además se habla en 24 h.
+function hhmm(ts){
+  if(!ts) return '';
+  var d=new Date(ts);
+  return d.toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit'})+' '+
+         d.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+function rutaHTML(p){
+  var r=rutaDe(p);
+  return '<div class="ruta">'
+    +'<div class="ruta-l"></div><div class="ruta-f" style="width:'+r.pct+'%"></div>'
+    +'<div class="ruta-p">'+r.pasos.map(function(x,i){
+        var cls = x.ok ? (i===r.actual?'ok now':'ok') : '';
+        return '<div class="ruta-i '+cls+'">'
+          +'<div class="ruta-d">'+(x.ok?x.i:'')+'</div>'
+          +'<div class="ruta-t">'+esc(x.t)+'</div>'
+          +'<div class="ruta-h">'+esc(hhmm(x.at))+'</div></div>';
+      }).join('')+'</div></div>'
+    +'<div class="ruta-nota">'+esc((p.origen||p.deposito||'—')+' → '+(p.destino||p.deposito||'—'))
+      +' · '+r.hechos+' de '+r.pasos.length+' puntos</div>';
 }
 
 // ── Modo liviano ───────────────────────────────────────────────

@@ -493,46 +493,21 @@ window.APP_VER='2026-07-31.1221';
   </div>
 </div>
 
-<!-- ── SETUP MODAL ─────────────────────────────────────────── -->
-<div id="setup-modal">
-  <div class="modal-box">
-    <div class="modal-title">⚙ Configuración</div>
-    <div class="modal-sub">URL del Apps Script de Google (la misma que usás en los demás módulos)</div>
-    <input id="setup-url" class="modal-input" type="url" placeholder="https://script.google.com/macros/s/…/exec"/>
-    <div class="modal-actions">
-      <button class="btn btn-setup" onclick="closeSetup()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveSetup()">Guardar y cargar</button>
-    </div>
-  </div>
-</div>
-
 <!-- ── TOAST ───────────────────────────────────────────────── -->
 <div id="toast"></div>
 
 <script>
 /* ── Config ───────────────────────────────────────────────── */
-var SCRIPT_URL = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+// Base neutra: legacyFetch (subatir-app.js) solo lee los parametros de
+// esta URL y los enruta a Supabase; el host no se usa nunca. Antes habia
+// aca una URL de Google Apps Script, de cuando la app vivia sobre Sheets:
+// ya no se llamaba, pero daba la impresion de una integracion viva.
+var SCRIPT_URL = 'https://sb.local/';
 
 /* ── State ────────────────────────────────────────────────── */
 var RAW  = [];   // filas crudas de la hoja Contingencia
 var COLS = [];   // columnas detectadas [{key, label}]
 var K    = {};   // columnas clave detectadas
-
-/* ── Setup ────────────────────────────────────────────────── */
-function openSetup(){
-  document.getElementById('setup-url').value = SCRIPT_URL;
-  document.getElementById('setup-modal').classList.add('open');
-}
-function closeSetup(){ document.getElementById('setup-modal').classList.remove('open'); }
-function saveSetup(){
-  var url = document.getElementById('setup-url').value.trim();
-  if (!url){ toast('Ingresá una URL válida','err'); return; }
-  SCRIPT_URL = url;
-  localStorage.setItem('subatir_script_url', url);
-  closeSetup();
-  load();
-}
-function resetSetup(){ openSetup(); }
 
 /* ── Toast ────────────────────────────────────────────────── */
 var _toastT;
@@ -575,7 +550,6 @@ function smartFetch(url, onOk, onErr){
 
 /* ── Load data ─────────────────────────────────────────────── */
 function load(){
-  if (!SCRIPT_URL){ openSetup(); return; }
   setLoading(true);
   smartFetch(
     SCRIPT_URL + '?action=getData&t=' + Date.now(),
@@ -1170,7 +1144,6 @@ function exportCSV(){
 
 /* ── Init ───────────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', function(){
-  if(!SCRIPT_URL){ openSetup(); return; }
   load();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['contingencia'], load);
 });

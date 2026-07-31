@@ -828,7 +828,11 @@ function loadEnCamino(){
   }, function(){ host.style.display='none'; });
 }
 
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+// Base neutra: legacyFetch (subatir-app.js) solo lee los parametros de
+// esta URL y los enruta a Supabase; el host no se usa nunca. Antes aca
+// habia una URL de Google Apps Script, de cuando la app vivia sobre
+// Sheets: ya no se llama, pero daba la impresion de una integracion viva.
+var SCRIPT_URL = 'https://sb.local/';
 
 // ── Claves de columna detectadas dinámicamente ─────────────────
 var KEYS = {};
@@ -837,8 +841,9 @@ var CURR_MAP = {};
 
 // ── Inicialización ─────────────────────────────────────────────
 (function init(){
-  var saved = localStorage.getItem('subatir_script_url');
-  if (saved) { SCRIPT_URL = saved; }
+  // Se limpia el rastro del Apps Script viejo: quedaba guardado por
+  // navegador y volvía a pisar la base neutra en cada carga.
+  try{ localStorage.removeItem('subatir_script_url'); }catch(e){}
   showDashboard(); load();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','contingencia','proveedores'], load);
   // Aviso de lo que viene en camino desde los depósitos

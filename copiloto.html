@@ -349,7 +349,6 @@ window.APP_VER='2026-07-31.1221';
     <div class="ai-badge"><div class="ai-dot"></div> COPILOTO ACTIVO</div>
     <span class="ts" id="ts">—</span>
     <button class="btn" onclick="load()" id="ref-btn"><span class="spin" id="spin" style="display:none"></span><span id="ref-lbl">⟳ Analizar</span></button>
-    <button class="btn" onclick="openSetup()" title="Configurar">⚙</button>
   </div>
 </header>
 
@@ -527,19 +526,6 @@ window.APP_VER='2026-07-31.1221';
 </div><!-- /main -->
 </div><!-- /app -->
 
-<!-- ── SETUP MODAL ─────────────────────────────────────────── -->
-<div class="modal-overlay" id="setup-modal">
-  <div class="modal-box">
-    <div class="modal-title">⚙ Configuración</div>
-    <div class="modal-sub">URL del Apps Script de Google (la misma usada en todos los módulos)</div>
-    <input id="setup-url" class="modal-input" type="url" placeholder="https://script.google.com/macros/s/…/exec"/>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeSetup()">Cancelar</button>
-      <button class="btn btn-pur" onclick="saveSetup()">Guardar y analizar</button>
-    </div>
-  </div>
-</div>
-
 <!-- ── API KEY MODAL ────────────────────────────────────────── -->
 <div class="modal-overlay" id="api-modal">
   <div class="modal-box" style="max-width:500px">
@@ -595,7 +581,11 @@ window.APP_VER='2026-07-31.1221';
 'use strict';
 
 /* ── Estado global ────────────────────────────────────────── */
-var SCRIPT_URL = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+// Base neutra: legacyFetch (subatir-app.js) solo lee los parametros de
+// esta URL y los enruta a Supabase; el host no se usa nunca. Antes habia
+// aca una URL de Google Apps Script, de cuando la app vivia sobre Sheets:
+// ya no se llamaba, pero daba la impresion de una integracion viva.
+var SCRIPT_URL = 'https://sb.local/';
 var CLAUDE_KEY = localStorage.getItem('subatir_claude_key') || '';
 
 var RAW_PREC  = [];
@@ -686,19 +676,6 @@ function autoResize(el){
 }
 
 /* ── Modals ───────────────────────────────────────────────── */
-function openSetup(){
-  document.getElementById('setup-url').value=SCRIPT_URL;
-  document.getElementById('setup-modal').classList.add('open');
-}
-function closeSetup(){document.getElementById('setup-modal').classList.remove('open');}
-function saveSetup(){
-  var url=document.getElementById('setup-url').value.trim();
-  if(!url){toast('Ingresá una URL válida','err');return;}
-  SCRIPT_URL=url;
-  localStorage.setItem('subatir_script_url',url);
-  closeSetup();
-  load();
-}
 
 function openApiModal(){
   document.getElementById('api-key-input').value=CLAUDE_KEY?'••••••••••••••':'' ;
@@ -815,7 +792,6 @@ window.addEventListener('DOMContentLoaded',function(){
 
 /* ── Load ─────────────────────────────────────────────────── */
 function load(){
-  if(!SCRIPT_URL){openSetup();return;}
   setLoading(true);
   smartFetch(SCRIPT_URL+'?action=getData&t='+Date.now(),
     function(d){

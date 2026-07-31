@@ -675,7 +675,11 @@ window.APP_VER='2026-07-31.1221';
 ════════════════════════════════════════════════ -->
 <script>
 // ── Estado global ─────────────────────────────────────────────
-var SCRIPT_URL   = localStorage.getItem('subatir_script_url') || 'https://script.google.com/macros/s/AKfycbx9r20yV-SKRDMsnZAgBPySEozb9-b9liw3YEwGWDYmz4tIhDfRMpHY6U1l1ZXRL4cw/exec';
+// Base neutra: legacyFetch (subatir-app.js) solo lee los parametros de
+// esta URL y los enruta a Supabase; el host no se usa nunca. Antes aca
+// habia una URL de Google Apps Script, de cuando la app vivia sobre
+// Sheets: ya no se llama, pero daba la impresion de una integracion viva.
+var SCRIPT_URL = 'https://sb.local/';
 var DATA_RAW     = [];   // datos originales de la base de datos
 var DATA_DISPLAY = [];   // datos con overrides locales aplicados
 var RAW_PREC     = [];   // tabla PRECIOS para detectar moneda y armar catálogo

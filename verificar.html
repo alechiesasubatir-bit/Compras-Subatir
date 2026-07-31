@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Verificar migración — Subatir</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#07090f;--bg2:#0c1119;--teal:#0e8aaa;--teal-l:#1bc8ff;--or:#f97316;--orl:#fdba74;
+  --txt:#e2e8f0;--mut:#75869d;--mut2:#8ea0b8;--bdr:rgba(255,255,255,.08);--gl:rgba(255,255,255,.04);
+  --ok:#22c55e;--red:#ef4444;--amb:#f59e0b;--mono:'IBM Plex Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;padding:26px;line-height:1.55}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font-family:'Syne';font-size:22px;font-weight:800;margin-bottom:5px}
+.sub{color:var(--mut2);font-size:13px;margin-bottom:22px}
+.card{background:var(--gl);border:1px solid var(--bdr);border-radius:14px;padding:18px;margin-bottom:16px}
+.card h2{font-family:'Syne';font-size:14px;font-weight:800;margin-bottom:4px}
+.card p{font-size:13px;color:var(--mut2);margin-bottom:13px}
+.btn{cursor:pointer;font-family:'DM Sans';font-weight:700;font-size:13px;padding:11px 17px;border-radius:10px;
+  border:1px solid var(--bdr);background:rgba(255,255,255,.06);color:var(--txt);min-height:44px}
+.btn:hover{filter:brightness(1.15)}
+.btn.pri{background:linear-gradient(135deg,var(--teal),var(--teal-l));border-color:transparent;color:#04222c}
+.btn.or{background:linear-gradient(135deg,var(--or),var(--orl));border-color:transparent;color:#2b1200}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+pre{background:rgba(0,0,0,.4);border:1px solid var(--bdr);border-radius:10px;padding:13px;
+  font-family:var(--mono);font-size:11.5px;overflow:auto;max-height:440px;white-space:pre-wrap;
+  overflow-wrap:anywhere;margin-top:13px}
+.ok{color:#86efac} .bad{color:#fca5a5} .warn{color:#fcd34d} .dim{color:var(--mut)}
+input[type=file]{font-size:12px;color:var(--mut2)}
+.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;
+  font-family:var(--mono);border:1px solid var(--bdr);color:var(--mut2);margin-left:7px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Verificar migración</h1>
+  <div class="sub">
+    Saca una <b>foto</b> de todo lo que la app calcula con cruces por texto y permite comparar
+    dos fotos. Sirve para confirmar que después de migrar los números siguen dando igual —
+    que es lo que no se puede verificar a ojo.
+  </div>
+
+  <div class="card">
+    <h2>1 · Sacar la foto</h2>
+    <p>
+      Corré esto <b>antes</b> de migrar (contra el proyecto actual) y <b>después</b> (contra la
+      plataforma, con <code>supabase-config.js</code> ya apuntando al proyecto nuevo). Guarda un
+      archivo <code>.json</code>.
+    </p>
+    <div class="row">
+      <button class="btn pri" id="btn-foto" onclick="sacarFoto()">📸 Sacar foto</button>
+      <span id="foto-est" class="dim" style="font-size:12.5px"></span>
+    </div>
+    <pre id="foto-out" style="display:none"></pre>
+  </div>
+
+  <div class="card">
+    <h2>2 · Comparar dos fotos</h2>
+    <p>Elegí la foto de <b>antes</b> y la de <b>después</b>. Lo que no cambió no se lista.</p>
+    <div class="row">
+      <label style="font-size:12.5px">Antes <input type="file" id="f-antes" accept=".json"/></label>
+      <label style="font-size:12.5px">Después <input type="file" id="f-desp" accept=".json"/></label>
+      <button class="btn or" onclick="comparar()">⇄ Comparar</button>
+    </div>
+    <pre id="cmp-out" style="display:none"></pre>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  VERIFICADOR DE MIGRACIÓN
+//
+//  Por qué existe: en Compras casi nada está unido por foreign key.
+//  Los precios, las órdenes de compra y el stock se cruzan con el
+//  catálogo por COMPARACIÓN DE TEXTO en el navegador. Si al migrar
+//  cambia una descripción, el cruce se pierde y los números dejan de
+//  cuadrar SIN DAR ERROR. Nadie se entera hasta semanas después.
+//
+//  Esto congela todos esos valores calculados en un archivo y después
+//  los compara. Una diferencia aparece como una línea, no como un
+//  número raro que alguien nota tarde.
+//
+//  ⚠ LAS FUNCIONES DE CRUCE DE ABAJO SON COPIA EXACTA DE stock.html.
+//  Si allá se cambian, acá también: si divergen, este verificador
+//  mediría una realidad distinta de la que ve la app, que es peor que
+//  no verificar nada.
+// ══════════════════════════════════════════════════════════════
+
+// ── Copiado de stock.html — no editar por separado ────────────
+function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase(); }
+function tokenize(s){
+  return norm(s).replace(/\([^)]*\)/g,' ').split(/[\s\/\-\.°\(\)]+/)
+    .filter(function(w){ return w.length >= 2 && !/^\d/.test(w); });
+}
+function matchKeys(desc, idx){
+  var nd=norm(desc);
+  if(!nd || nd.length < 4) return [];
+  if(idx[nd]) return [nd];
+  var ndToks=tokenize(desc);
+  if(!ndToks.length) return [];
+  var ndSet={}; ndToks.forEach(function(t){ ndSet[t]=1; });
+  var keys=[];
+  Object.keys(idx).forEach(function(k){
+    var kToks=tokenize(k); if(!kToks.length) return;
+    var kSet={}; kToks.forEach(function(t){ kSet[t]=1; });
+    var shorter=ndToks.length<=kToks.length?ndToks:kToks;
+    var shorterSet=ndToks.length<=kToks.length?ndSet:kSet;
+    var longer=ndToks.length<=kToks.length?kToks:ndToks;
+    var longerSet=ndToks.length<=kToks.length?kSet:ndSet;
+    var fwd=shorter.filter(function(t){ return longerSet[t]; }).length/shorter.length;
+    if(fwd<0.8) return;
+    if(longer.some(function(t){ return !shorterSet[t] && t.length>=3; })) return;
+    keys.push(k);
+  });
+  return keys;
+}
+var PROV_SUF=/\s+(S\s*A\s*S|S\s*R\s*L|S\s*A|SRL|LTDA|LTD|LIMITADA)$/;
+function flatProv(s){ return norm(s).replace(/\./g,' ').replace(/\s+/g,' ').trim(); }
+function provId(name){
+  var n=flatProv(name); if(!n) return '';
+  var b=n.replace(PROV_SUF,'').trim().replace(/\s+/g,'');
+  return b.length>=3 ? b : n.replace(/\s+/g,'');
+}
+function pn(v){ if(!v&&v!==0) return 0;
+  var s=String(v).replace(/[^\d.,-]/g,'').replace(',','.'); return parseFloat(s)||0; }
+// ── fin de la copia ───────────────────────────────────────────
+
+function est(msg,cls){ var e=document.getElementById('foto-est');
+  e.textContent=msg; e.className=cls||'dim'; }
+
+async function traer(tabla, cols){
+  var r=await SB.from(tabla).select(cols||'*');
+  if(r.error) throw new Error(tabla+': '+r.error.message);
+  return r.data||[];
+}
+
+async function sacarFoto(){
+  var b=document.getElementById('btn-foto'); b.disabled=true;
+  est('Leyendo la base…');
+  try{
+    var inv=await traer('inventario');
+    var pre=await traer('precios');
+    var ped=await traer('pedidos');
+    var prov=await traer('proveedores','empresa');
+    var cat=await traer('categorias');
+    var impArt=await traer('imp_articulos','id,codigo,descripcion,tipo');
+    var impStk=await traer('imp_stock','articulo_id,deposito,cantidad');
+    var impPal=await traer('imp_pallets','codigo,estado,deposito,articulo_id,unidades,estanteria_id,fila,columna');
+
+    est('Calculando los cruces…');
+
+    // ── Índice de OC por descripción, igual que buildOCIndex() ──
+    var ocIdx={};
+    ped.forEach(function(o){
+      var d=norm(o.descripcion||''); if(!d || d.length<3) return;
+      if(!ocIdx[d]) ocIdx[d]={pendiente:0, valor:0, provs:{}, lastFecha:'', lastProv:''};
+      var pv=String(o.proveedor||'').trim(); if(pv) ocIdx[d].provs[provId(pv)]=1;
+      var rec=String(o.f_recepcion||'').trim();
+      var sinRecibir = !rec || rec==='—' || rec==='-' || rec.toUpperCase()==='N/A' || rec==='0';
+      var c=pn(o.cantidad);
+      if(sinRecibir && c>0){ ocIdx[d].pendiente+=c; ocIdx[d].valor+=c*pn(o.precio_un); }
+      var f=String(o.fecha||'');
+      if(f>ocIdx[d].lastFecha){ ocIdx[d].lastFecha=f; ocIdx[d].lastProv=pv; }
+    });
+
+    // ── Índice de precios por artículo ──
+    var precIdx={};
+    pre.forEach(function(p){
+      var a=norm(p.articulo||''); if(!a || a.length<3) return;
+      var pv=String(p.proveedor||'').trim(); if(!pv) return;
+      (precIdx[a]=precIdx[a]||{})[provId(pv)]=1;
+    });
+
+    // ── Categorías por producto ──
+    var catMap={};
+    cat.forEach(function(c){ catMap[norm(c.producto).replace(/\s+/g,' ')]=c.categoria; });
+
+    // ── Por artículo: todo lo que depende del cruce difuso ──
+    var filas=inv.map(function(r){
+      var d=r.descripcion||'';
+      var oc={pendiente:0, valor:0, provs:{}, lastProv:''};
+      matchKeys(d, ocIdx).forEach(function(k){
+        var m=ocIdx[k];
+        oc.pendiente+=m.pendiente; oc.valor+=m.valor;
+        Object.keys(m.provs).forEach(function(p){ oc.provs[p]=1; });
+        if(m.lastProv) oc.lastProv=m.lastProv;
+      });
+      var provs={};
+      Object.keys(oc.provs).forEach(function(p){ provs[p]=1; });
+      matchKeys(d, precIdx).forEach(function(k){
+        Object.keys(precIdx[k]).forEach(function(p){ provs[p]=1; });
+      });
+      if(r.proveedor_sugerido) provs[provId(r.proveedor_sugerido)]=1;
+      if(r.proveedor) provs[provId(r.proveedor)]=1;
+
+      var stock=pn(r.inventario), cons=pn(r.consumo_mensual), min=pn(r.stock_minimo);
+      var cob = cons>0 ? Math.round(((stock+oc.pendiente)/cons)*100)/100 : null;
+      var estado;
+      if(min>0) estado = stock<=min?'CRITICO':(stock<=min*1.5?'MEDIO':'OPTIMO');
+      else if(cob!==null) estado = cob<1?'CRITICO':(cob<2?'MEDIO':'OPTIMO');
+      else estado='OPTIMO';
+
+      return {
+        id:r.id, codigo:r.codigo||null, desc:d,
+        stock:stock, min:min, consumo:cons,
+        categoria:catMap[norm(d).replace(/\s+/g,' ')]||null,
+        extId:r.ext_id||null,
+        pendiente:oc.pendiente, valorPendiente:Math.round(oc.valor*100)/100,
+        ultimoProveedor:oc.lastProv?provId(oc.lastProv):null,
+        proveedores:Object.keys(provs).filter(Boolean).sort(),
+        cobertura:cob, estado:estado
+      };
+    }).sort(function(a,b){ return a.id-b.id; });
+
+    // ── Cuántos artículos por proveedor (el desplegable de Stock) ──
+    var porProv={};
+    filas.forEach(function(f){ f.proveedores.forEach(function(p){ porProv[p]=(porProv[p]||0)+1; }); });
+
+    var foto={
+      meta:{
+        fecha:new Date().toISOString(),
+        proyecto:(window.SUPABASE_URL||'').replace('https://','').split('.')[0],
+        generadoPor:'verificar.html'
+      },
+      conteos:{
+        inventario:inv.length, precios:pre.length, pedidos:ped.length,
+        proveedores:prov.length, categorias:cat.length,
+        imp_articulos:impArt.length, imp_stock:impStk.length, imp_pallets:impPal.length
+      },
+      articulos:filas,
+      articulosPorProveedor:porProv,
+      // Pares (artículo, proveedor) de la lista de precios, normalizados
+      precios:pre.map(function(p){ return norm(p.articulo)+' | '+provId(p.proveedor)+' | '
+        +pn(p.precio_usd)+' | '+pn(p.precio_pesos); }).sort(),
+      // Depósitos: acá sí hay FK, así que se compara crudo
+      impStock:impStk.map(function(s){ return s.articulo_id+' | '+s.deposito+' | '+pn(s.cantidad); }).sort(),
+      impPallets:impPal.map(function(p){ return [p.codigo,p.estado,p.deposito,p.articulo_id,
+        pn(p.unidades),p.estanteria_id,p.fila,p.columna].join(' | '); }).sort()
+    };
+
+    var txt=JSON.stringify(foto,null,1);
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));
+    a.download='foto-'+foto.meta.proyecto+'-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'')+'.json';
+    a.click();
+
+    document.getElementById('foto-out').style.display='';
+    document.getElementById('foto-out').textContent=
+      'Proyecto: '+foto.meta.proyecto+'\n'+
+      'Artículos: '+filas.length+'\n'+
+      'Con algo en tránsito: '+filas.filter(function(f){return f.pendiente>0;}).length+'\n'+
+      'Críticos: '+filas.filter(function(f){return f.estado==='CRITICO';}).length+'\n'+
+      'Proveedores con al menos un artículo: '+Object.keys(porProv).length+'\n'+
+      'Pares precio (artículo, proveedor): '+foto.precios.length+'\n\n'+
+      JSON.stringify(foto.conteos,null,1);
+    est('Foto guardada ✓','ok');
+  }catch(e){
+    est('Error: '+(e&&e.message||e),'bad');
+  }
+  b.disabled=false;
+}
+
+// ── Comparar dos fotos ────────────────────────────────────────
+function leer(input){
+  return new Promise(function(res,rej){
+    var f=input.files&&input.files[0];
+    if(!f) return rej(new Error('Falta elegir el archivo de '+(input.id==='f-antes'?'ANTES':'DESPUÉS')));
+    var r=new FileReader();
+    r.onload=function(){ try{ res(JSON.parse(r.result)); }catch(e){ rej(new Error('El archivo no es un JSON válido')); } };
+    r.onerror=function(){ rej(new Error('No se pudo leer el archivo')); };
+    r.readAsText(f);
+  });
+}
+function difListas(a,b,nombre,out){
+  var sa=new Set(a), sb=new Set(b);
+  var falta=a.filter(function(x){ return !sb.has(x); });
+  var sobra=b.filter(function(x){ return !sa.has(x); });
+  if(!falta.length && !sobra.length){ out.push('  ✓ '+nombre+': idénticos ('+a.length+')'); return 0; }
+  out.push('  ✗ '+nombre+': '+falta.length+' desaparecieron, '+sobra.length+' aparecieron');
+  falta.slice(0,10).forEach(function(x){ out.push('      − '+x); });
+  if(falta.length>10) out.push('      … y '+(falta.length-10)+' más');
+  sobra.slice(0,10).forEach(function(x){ out.push('      + '+x); });
+  if(sobra.length>10) out.push('      … y '+(sobra.length-10)+' más');
+  return falta.length+sobra.length;
+}
+
+async function comparar(){
+  var box=document.getElementById('cmp-out'); box.style.display='';
+  box.textContent='Comparando…';
+  try{
+    var A=await leer(document.getElementById('f-antes'));
+    var B=await leer(document.getElementById('f-desp'));
+    var out=[], problemas=0;
+    out.push('ANTES:   '+A.meta.proyecto+'  ('+A.meta.fecha.slice(0,16).replace('T',' ')+')');
+    out.push('DESPUÉS: '+B.meta.proyecto+'  ('+B.meta.fecha.slice(0,16).replace('T',' ')+')');
+    out.push('');
+
+    out.push('CONTEOS POR TABLA');
+    Object.keys(A.conteos).forEach(function(k){
+      var x=A.conteos[k], y=B.conteos[k];
+      if(x===y) out.push('  ✓ '+k+': '+x);
+      else { out.push('  ✗ '+k+': '+x+' → '+y+'  ('+(y-x>0?'+':'')+(y-x)+')'); problemas++; }
+    });
+    out.push('');
+
+    // Los artículos se comparan por id, campo por campo
+    out.push('ARTÍCULOS — valores calculados');
+    var mapA={}, mapB={};
+    A.articulos.forEach(function(a){ mapA[a.id]=a; });
+    B.articulos.forEach(function(b){ mapB[b.id]=b; });
+    var idsA=Object.keys(mapA), idsB=Object.keys(mapB);
+    var perdidos=idsA.filter(function(i){ return !mapB[i]; });
+    var nuevos=idsB.filter(function(i){ return !mapA[i]; });
+    if(perdidos.length){ out.push('  ✗ '+perdidos.length+' artículos ya no están: '+
+      perdidos.slice(0,8).map(function(i){ return mapA[i].desc; }).join(' · ')); problemas+=perdidos.length; }
+    if(nuevos.length){ out.push('  ⚠ '+nuevos.length+' artículos nuevos'); }
+
+    var campos=['stock','min','consumo','pendiente','valorPendiente','ultimoProveedor',
+                'cobertura','estado','categoria','extId'];
+    var cambios=0, detalle=[];
+    idsA.forEach(function(i){
+      var a=mapA[i], b=mapB[i]; if(!b) return;
+      var difs=[];
+      campos.forEach(function(c){
+        if(JSON.stringify(a[c])!==JSON.stringify(b[c])) difs.push(c+': '+a[c]+' → '+b[c]);
+      });
+      var pa=(a.proveedores||[]).join(','), pb=(b.proveedores||[]).join(',');
+      if(pa!==pb) difs.push('proveedores: ['+pa+'] → ['+pb+']');
+      if(difs.length){ cambios++; detalle.push('    · '+a.desc+'\n        '+difs.join('\n        ')); }
+    });
+    if(!cambios) out.push('  ✓ los '+idsA.length+' artículos dan exactamente igual');
+    else { out.push('  ✗ '+cambios+' artículos cambiaron:'); problemas+=cambios;
+           detalle.slice(0,25).forEach(function(d){ out.push(d); });
+           if(detalle.length>25) out.push('    … y '+(detalle.length-25)+' más'); }
+    out.push('');
+
+    out.push('OTROS CONJUNTOS');
+    problemas+=difListas(A.precios,B.precios,'pares (artículo, proveedor) de precios',out);
+    problemas+=difListas(A.impStock,B.impStock,'stock de depósitos',out);
+    problemas+=difListas(A.impPallets,B.impPallets,'pallets',out);
+    var pa=Object.keys(A.articulosPorProveedor).map(function(k){ return k+'='+A.articulosPorProveedor[k]; }).sort();
+    var pb=Object.keys(B.articulosPorProveedor).map(function(k){ return k+'='+B.articulosPorProveedor[k]; }).sort();
+    problemas+=difListas(pa,pb,'artículos por proveedor',out);
+
+    out.push('');
+    out.push(problemas===0
+      ? '════ SIN DIFERENCIAS. La migración no cambió ningún número. ════'
+      : '════ '+problemas+' DIFERENCIAS. Revisar antes de apagar el proyecto viejo. ════');
+    box.textContent=out.join('\n');
+  }catch(e){
+    box.textContent='Error: '+(e&&e.message||e);
+  }
+}
+</script>
+</body>
+</html>

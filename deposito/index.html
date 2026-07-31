@@ -2813,6 +2813,7 @@ function dndPointerDown(e){
   var el=e.target && e.target.closest ? e.target.closest('[data-drag-pallet]') : null;
   if(!el) return;
   DND.pid=el.getAttribute('data-drag-pallet'); DND.fromEl=el; DND.sx=e.clientX; DND.sy=e.clientY; DND.active=false;
+  DND.x=e.clientX; DND.y=e.clientY;
   window.addEventListener('pointermove', dndMove, {passive:false});
   window.addEventListener('pointerup', dndUp, {once:true});
   window.addEventListener('pointercancel', dndCancel, {once:true});
@@ -2828,14 +2829,61 @@ function dndStart(){
   document.body.style.userSelect='none';
   document.querySelectorAll('#grid-host [data-slot]').forEach(function(s){ s.style.outline='1px dashed rgba(27,200,255,.35)'; s.style.outlineOffset='-2px'; });
   var tw=document.getElementById('tray-wrap'); if(tw){ tw.style.outline='1px dashed rgba(249,115,22,.45)'; tw.style.outlineOffset='2px'; }
+  if(DND_raf) cancelAnimationFrame(DND_raf);
+  DND_raf=requestAnimationFrame(dndAutoScroll);
 }
 function dndMove(e){
   if(DND.pid==null) return;
   var dx=e.clientX-DND.sx, dy=e.clientY-DND.sy;
   if(!DND.active){ if(Math.sqrt(dx*dx+dy*dy)<6) return; dndStart(); }
   e.preventDefault();
+  DND.x=e.clientX; DND.y=e.clientY;      // el auto-scroll necesita saber dónde está el dedo
   var g=DND.ghost; if(g){ g.style.transform=(DND_REDUCED?'':'scale(1.05) ')+'translate('+(e.clientX-g.offsetWidth/2)+'px,'+(e.clientY-26)+'px)'; }
   dndSetHover(dndTargetAt(e.clientX,e.clientY));
+}
+
+// ── Auto-scroll al arrastrar cerca de un borde ────────────────
+//  Mientras se arrastra hay preventDefault() para que la página no se
+//  mueva sola, así que la pantalla queda quieta: con la grilla 2D de
+//  varias estanterías, la ranura de destino cae abajo del pliegue y el
+//  dedo se queda sin lugar a dónde ir. Acá la página se corre sola
+//  cuando el puntero se arrima a un borde, más rápido cuanto más cerca.
+var DND_EDGE=100, DND_MAXV=24, DND_raf=null;
+
+// Velocidad según qué tan metido está el dedo en la zona del borde:
+// 0 en el límite y máxima pegado al canto. Separada para poder probarla.
+function dndVel(y, h){
+  if(y < DND_EDGE)        return -DND_MAXV*(1 - y/DND_EDGE);
+  if(y > h - DND_EDGE)    return  DND_MAXV*(1 - (h-y)/DND_EDGE);
+  return 0;
+}
+// Quién scrollea de verdad debajo del dedo. La grilla 2D cuelga de la
+// página, pero otras listas viven en un contenedor con overflow propio:
+// mover la ventana ahí no haría nada.
+function dndScroller(x,y){
+  var el=document.elementFromPoint(x,y);
+  while(el && el!==document.body && el!==document.documentElement){
+    var cs=getComputedStyle(el);
+    if(/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight+8) return el;
+    el=el.parentElement;
+  }
+  return null;                       // null = la página
+}
+function dndAutoScroll(){
+  DND_raf=null;
+  if(!DND.active) return;
+  var cont=dndScroller(DND.x, DND.y);
+  var caja=cont ? cont.getBoundingClientRect() : {top:0, height:innerHeight};
+  var v=dndVel(DND.y - caja.top, caja.height);
+  if(v){
+    var antes = cont ? cont.scrollTop : window.scrollY;
+    if(cont) cont.scrollTop += v; else window.scrollBy(0,v);
+    var ahora = cont ? cont.scrollTop : window.scrollY;
+    // El contenido se movió abajo de un dedo quieto: lo que estaba
+    // señalando ya no es lo mismo, hay que volver a mirar.
+    if(ahora!==antes) dndSetHover(dndTargetAt(DND.x, DND.y));
+  }
+  DND_raf=requestAnimationFrame(dndAutoScroll);
 }
 var R3D_dropSlot=null;
 function dndTargetAt(x,y){
@@ -2900,6 +2948,7 @@ function dndUp(e){
   if(target) dndResolve(pid,target);
 }
 function dndCleanup(){
+  if(DND_raf){ cancelAnimationFrame(DND_raf); DND_raf=null; }
   if(DND.ghost){ DND.ghost.remove(); DND.ghost=null; }
   if(DND.fromEl){ DND.fromEl.style.opacity=''; }
   DND.fromEl=null; DND.active=false;

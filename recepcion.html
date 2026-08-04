@@ -362,12 +362,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-07-31.1603"></script>
-<script src="subatir-app.js?v=2026-07-31.1603"></script>
+<script src="supabase-config.js?v=2026-08-04.1549"></script>
+<script src="subatir-app.js?v=2026-08-04.1549"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-07-31.1603';
+window.APP_VER='2026-08-04.1549';
 </script>
 </head>
 <body>
@@ -631,7 +631,7 @@ window.APP_VER='2026-07-31.1603';
         <div class="form-group span2">
           <div class="calc-preview" id="calc-preview">
             <div class="calc-item"><span>Subtotal s/IVA</span><strong id="calc-siva">—</strong></div>
-            <div class="calc-item"><span>Total c/IVA (22%)</span><strong id="calc-civa">—</strong></div>
+            <div class="calc-item"><span id="calc-civa-lbl">Total c/IVA</span><strong id="calc-civa">—</strong></div>
           </div>
         </div>
         <div class="form-group span2">
@@ -697,7 +697,11 @@ var SORT_KEY     = 'pendiente';  // por defecto: pendientes de recibir primero
 var SORT_DIR     = 'asc';
 var LOCAL        = JSON.parse(localStorage.getItem('subatir_local') || '{"overrides":{},"new":[],"deleted":[]}');
 var CURRENT_ROW  = null; // fila abierta en modal
-var IVA          = 1.22;
+
+// La tasa depende del artículo (casi todo 22%, algunos 10%): sale de
+// subatir-app.js para no repetir la excepción en cada módulo.
+function ivaTasa(desc){ return (window.SubatirApp && SubatirApp.ivaTasa) ? SubatirApp.ivaTasa(desc) : 0.22; }
+function ivaMult(desc){ return 1 + ivaTasa(desc); }
 
 // Columnas detectadas dinámicamente
 var K = {};
@@ -1539,22 +1543,37 @@ function showOCHint(msg){
 function openNewModal(){ openModal('new-overlay'); populateNewProvSelect(''); populateProdDatalist(null); updateProvInfo(''); showOCHint(''); PICK_STATE=[]; document.getElementById('nw-picker').style.display='none'; NW_MONEDA='U$S'; updateCurrencyUI(); calcIVA(); }
 
 function calcIVA(){
-  // Suma todas las líneas (picker tildado + producto manual), agrupadas por moneda
-  var siva={'U$S':0,'$':0};
-  pickedItems().forEach(function(l){ if(l.cant>0&&l.prec>0){ siva[l.moneda==='$'?'$':'U$S']+=l.cant*l.prec; } });
-  var cant   = parseFloat(document.getElementById('nw-cantidad').value) || 0;
-  var precio = parseFloat(document.getElementById('nw-precio').value)   || 0;
-  if(cant>0&&precio>0){ siva[NW_MONEDA==='$'?'$':'U$S']+=cant*precio; }
+  // Suma todas las líneas (picker tildado + producto manual), agrupadas por moneda.
+  // El IVA se acumula por línea porque la tasa depende del artículo: una OC
+  // puede mezclar 22% y 10%, y ahí multiplicar el subtotal daría mal.
+  var siva={'U$S':0,'$':0}, civa={'U$S':0,'$':0}, tasas={};
+  var sumar=function(desc,cant,prec,moneda){
+    if(!(cant>0)||!(prec>0)) return;
+    var m=moneda==='$'?'$':'U$S', neto=cant*prec, t=ivaTasa(desc);
+    siva[m]+=neto; civa[m]+=neto*(1+t); tasas[Math.round(t*100)]=true;
+  };
+  pickedItems().forEach(function(l){ sumar(l.desc,l.cant,l.prec,l.moneda); });
+  sumar(document.getElementById('nw-desc').value,
+        parseFloat(document.getElementById('nw-cantidad').value)||0,
+        parseFloat(document.getElementById('nw-precio').value)||0,
+        NW_MONEDA);
 
   var fmt=function(v,sym){ return sym+' '+v.toLocaleString('es-UY',{minimumFractionDigits:2,maximumFractionDigits:2}); };
-  var parts=function(mult){
+  var parts=function(tot){
     var out=[];
-    if(siva['U$S']>0) out.push(fmt(siva['U$S']*mult,'U$S'));
-    if(siva['$']>0)   out.push(fmt(siva['$']*mult,'$'));
+    if(tot['U$S']>0) out.push(fmt(tot['U$S'],'U$S'));
+    if(tot['$']>0)   out.push(fmt(tot['$'],'$'));
     return out.length?out.join('  +  '):'—';
   };
-  document.getElementById('calc-siva').textContent = parts(1);
-  document.getElementById('calc-civa').textContent = parts(IVA);
+  document.getElementById('calc-siva').textContent = parts(siva);
+  document.getElementById('calc-civa').textContent = parts(civa);
+
+  // El rótulo dice qué tasa(s) se aplicaron, así el 10% no pasa desapercibido
+  var lbl=document.getElementById('calc-civa-lbl');
+  if(lbl){
+    var ts=Object.keys(tasas).sort(function(a,b){return b-a;});
+    lbl.textContent = 'Total c/IVA'+(ts.length?' ('+ts.join('% + ')+'%)':'');
+  }
 }
 
 function saveNew(){
@@ -1885,17 +1904,28 @@ function buildDocPdf(oc, mode){
   var yy=(doc.lastAutoTable?doc.lastAutoTable.finalY:startY)+16;
 
   if(!esRecep){
-    var tot={'U$S':0,'$':0};
-    (oc.lines||[]).forEach(function(l){ tot[l.moneda==='$'?'$':'U$S'] += (parseFloat(l.cant)||0)*(parseFloat(l.prec)||0); });
+    // Subtotal por moneda y el IVA abierto por tasa: una OC puede mezclar
+    // artículos al 22% y al 10%, así que el total no es el subtotal x 1.22.
+    var tot={'U$S':{neto:0,iva:{}}, '$':{neto:0,iva:{}}};
+    (oc.lines||[]).forEach(function(l){
+      var sym=l.moneda==='$'?'$':'U$S';
+      var neto=(parseFloat(l.cant)||0)*(parseFloat(l.prec)||0);
+      var pct=Math.round(ivaTasa(l.desc)*100);
+      tot[sym].neto+=neto;
+      tot[sym].iva[pct]=(tot[sym].iva[pct]||0)+neto*pct/100;
+    });
     doc.setFontSize(10);
     ['U$S','$'].forEach(function(sym){
-      if(tot[sym]>0){ var s=tot[sym];
-        doc.setFont('helvetica','normal'); doc.setTextColor(BK[0],BK[1],BK[2]);
-        doc.text('Subtotal s/IVA: '+sym+' '+fmtNum(s,2), W-M, yy, {align:'right'}); yy+=15;
-        doc.text('IVA 22%: '+sym+' '+fmtNum(s*0.22,2), W-M, yy, {align:'right'}); yy+=15;
-        doc.setFont('helvetica','bold'); doc.setTextColor(OR[0],OR[1],OR[2]);
-        doc.text('TOTAL c/IVA: '+sym+' '+fmtNum(s*1.22,2), W-M, yy, {align:'right'}); yy+=20;
-      }
+      var t=tot[sym]; if(!(t.neto>0)) return;
+      doc.setFont('helvetica','normal'); doc.setTextColor(BK[0],BK[1],BK[2]);
+      doc.text('Subtotal s/IVA: '+sym+' '+fmtNum(t.neto,2), W-M, yy, {align:'right'}); yy+=15;
+      var totIva=0;
+      Object.keys(t.iva).sort(function(a,b){ return b-a; }).forEach(function(pct){
+        totIva+=t.iva[pct];
+        doc.text('IVA '+pct+'%: '+sym+' '+fmtNum(t.iva[pct],2), W-M, yy, {align:'right'}); yy+=15;
+      });
+      doc.setFont('helvetica','bold'); doc.setTextColor(OR[0],OR[1],OR[2]);
+      doc.text('TOTAL c/IVA: '+sym+' '+fmtNum(t.neto+totIva,2), W-M, yy, {align:'right'}); yy+=20;
     });
   }
 

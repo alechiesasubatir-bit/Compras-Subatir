@@ -289,12 +289,13 @@
       var max = 500;
       (r.data || []).forEach(function (x) { var n = parseInt(x.n_orden, 10); if (!isNaN(n) && n > max) max = n; });
       var cant = parseFloat(params.get('cantidad')) || 0, prec = parseFloat(params.get('precio')) || 0;
-      var siva = cant * prec, civa = siva * 1.22;
+      var desc = params.get('descripcion') || null;
+      var siva = cant * prec, civa = siva * ivaMult(desc);
       var ins = {
         n_orden: String(max + 1),
         fecha: coerce(MAPS.pedidos, 'fecha', params.get('fecha')),
         proveedor: params.get('proveedor') || null,
-        descripcion: params.get('descripcion') || null,
+        descripcion: desc,
         cantidad: cant, precio_un: prec,
         moneda: params.get('moneda') || null,
         s_iva: +siva.toFixed(2), c_iva: +civa.toFixed(2),
@@ -320,7 +321,7 @@
       var obs   = params.get('obs') || null;
       var rows = items.map(function (it) {
         var cant = parseFloat(it.cantidad) || 0, prec = parseFloat(it.precio) || 0;
-        var siva = cant * prec, civa = siva * 1.22;
+        var siva = cant * prec, civa = siva * ivaMult(it.descripcion);
         return {
           n_orden: orden, fecha: fecha, proveedor: prov, descripcion: it.descripcion || null,
           cantidad: cant, precio_un: prec, moneda: it.moneda || null,
@@ -401,6 +402,37 @@
         function (e) { resolve({ error: (e && e.message) || String(e) }); });
     });
   }
+
+  // ── IVA por artículo ───────────────────────────────────────
+  //  Casi todo va al 22% (tasa básica), pero hay artículos que por
+  //  su naturaleza van a la tasa mínima del 10%. Antes el 1.22
+  //  estaba escrito a mano en 12 lugares de pedidos/recepción, así
+  //  que una excepción había que acordarse de aplicarla en todos.
+  //  Ahora la tasa sale siempre de acá.
+  //
+  //  El match es por nombre normalizado y por "contiene", no por
+  //  igualdad: el mismo artículo se llama distinto en cada tabla
+  //  ("Sal Fina Yodada" en inventario, "Sal fina Yodada para
+  //  detergentes x KG (Materia Prima)" en las OC), así que un
+  //  match exacto fallaría justo donde importa, que es la OC.
+  var IVA_BASICA = 0.22;
+  var IVA_EXCEPCIONES = [
+    { patron: 'SAL FINA YODADA', tasa: 0.10 }
+  ];
+
+  // Tasa como fracción: 0.22 / 0.10
+  function ivaTasa(descripcion) {
+    var d = _catNorm(descripcion);
+    if (!d) return IVA_BASICA;
+    for (var i = 0; i < IVA_EXCEPCIONES.length; i++) {
+      if (d.indexOf(IVA_EXCEPCIONES[i].patron) >= 0) return IVA_EXCEPCIONES[i].tasa;
+    }
+    return IVA_BASICA;
+  }
+  // Multiplicador para pasar de s/IVA a c/IVA: 1.22 / 1.10
+  function ivaMult(descripcion) { return 1 + ivaTasa(descripcion); }
+  // Monto de IVA de una línea
+  function ivaMonto(descripcion, sIva) { return (parseFloat(sIva) || 0) * ivaTasa(descripcion); }
 
   // ── Categorías de productos (Envases / Consumibles / Materias Primas) ──
   function _catNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase().replace(/\s+/g, ' '); }
@@ -564,6 +596,7 @@
     updateRow: updateRow, addRow: addRow, deleteRow: deleteRow,
     legacyFetch: legacyFetch, write: write,
     categorias: categorias, setCategoria: setCategoria,
+    ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto,
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
     live: live,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },

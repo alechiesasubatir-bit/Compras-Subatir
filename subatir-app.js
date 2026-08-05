@@ -27,12 +27,45 @@
   // Módulos visibles/accesibles para cualquier usuario autenticado
   var OPEN_MODULES = ['dashboard', 'copiloto'];
 
-  // Operario de recepción: usuario cuyo ÚNICO módulo es "recepcion".
-  // Queda encerrado en recepcion.html (no ve costos ni otros módulos).
+  // Pantallas de celular de la app de Depósitos: viven en /deposito, con
+  // su propio guard, y no abren nada de Compras. No cuentan para decidir
+  // quién es operario: un operario de recepción que además pide mercadería
+  // sigue siendo operario acá.
+  var MODULOS_DEPOSITO = ['solicitante', 'recorrido'];
+
+  // Dónde vive cada pantalla de celular del depósito, para poder mandar
+  // a su casa a quien no tiene nada que hacer en Compras. El orden importa:
+  // el primero que tenga es el que se usa.
+  var CASA_DEPOSITO = [['recorrido', 'deposito/recorrido.html'],
+                       ['solicitante', 'deposito/solicitar.html']];
+
+  // Los módulos del usuario que abren algo de ESTA app.
+  function modulosCompras(profile) {
+    return (profile && profile.modules || []).filter(function (m) {
+      return MODULOS_DEPOSITO.indexOf(m) < 0;
+    });
+  }
+
+  // Operario de recepción: usuario cuyo único módulo DE COMPRAS es
+  // "recepcion". Queda encerrado en recepcion.html (no ve costos ni
+  // otros módulos).
   function isOperario(profile) {
-    return profile && profile.role === 'user' &&
-      (profile.modules || []).length > 0 &&
-      (profile.modules || []).every(function (m) { return m === 'recepcion'; });
+    if (!profile || profile.role !== 'user') return false;
+    var mods = modulosCompras(profile);
+    return mods.length > 0 && mods.every(function (m) { return m === 'recepcion'; });
+  }
+
+  // Quien sólo tiene módulos del depósito no entra a Compras: el dashboard
+  // está abierto a cualquier autenticado y muestra importes. Devuelve a
+  // dónde mandarlo, o null si Compras sí es su lugar.
+  function casaDeposito(profile) {
+    if (!profile || profile.role === 'admin') return null;
+    if (modulosCompras(profile).length > 0) return null;
+    var mods = profile.modules || [];
+    for (var i = 0; i < CASA_DEPOSITO.length; i++) {
+      if (mods.indexOf(CASA_DEPOSITO[i][0]) >= 0) return CASA_DEPOSITO[i][1];
+    }
+    return null;
   }
 
   function currentPage() {
@@ -166,6 +199,15 @@
         _profile = profile;
         if (!profile || !profile.activo) {
           SB.auth.signOut().then(function () { location.replace('login.html?inactivo=1'); });
+          return;
+        }
+        // Sin ningún módulo de Compras no se entra acá: si su lugar es la
+        // app de Depósitos va derecho ahí, y si no tiene nada asignado se
+        // cierra la sesión (dejarlo pasar sería mostrarle el dashboard).
+        var casa = casaDeposito(profile);
+        if (casa) { location.replace(casa); return; }
+        if (profile.role !== 'admin' && modulosCompras(profile).length === 0) {
+          SB.auth.signOut().then(function () { location.replace('login.html?sinacceso=1'); });
           return;
         }
         // El operario de recepción solo puede estar en recepcion.html

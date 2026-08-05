@@ -25,6 +25,8 @@
     'solicitar.html': ['solicitante', 'importacion'],
     'recorrido.html': ['recorrido', 'importacion']
   };
+  // Módulos que viven de este lado: los demás son de Compras.
+  var MODULOS_DEPOSITO = ['solicitante', 'recorrido', 'importacion'];
   function modsDe() { return PAGE_MOD[page()] || [MODULO]; }
 
   // A dónde mandar a quien no puede abrir esta página. Un cartel de "sin
@@ -85,9 +87,13 @@
           location.replace('login.html?denegado=1'); return;
         }
         injectUserBar(profile);
-        // El link de vuelta a Compras sólo para quien tenga más módulos
+        // El link de vuelta a Compras sólo para quien tenga algún módulo
+        // de allá: al que sólo trabaja en el depósito, Compras lo rebota.
         var back = document.getElementById('nav-compras');
-        if (back && (profile.role === 'admin' || (profile.modules || []).length > 1)) back.style.display = '';
+        var deCompras = (profile.modules || []).filter(function (m) {
+          return MODULOS_DEPOSITO.indexOf(m) < 0;
+        });
+        if (back && (profile.role === 'admin' || deCompras.length > 0)) back.style.display = '';
         _readyResolve(profile);
         document.dispatchEvent(new CustomEvent('subatir:ready', { detail: profile }));
       });

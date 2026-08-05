@@ -944,8 +944,8 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-05.0935"></script>
-<script src="deposito-app.js?v=2026-08-05.0935"></script>
+<script src="../supabase-config.js?v=2026-08-05.1612"></script>
+<script src="deposito-app.js?v=2026-08-05.1612"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -954,7 +954,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-05.0935';
+window.APP_VER='2026-08-05.1612';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1473,8 +1473,12 @@ window.APP_VER='2026-08-05.0935';
           </div>
           <div class="cnt-op" aria-hidden="true">×</div>
           <div class="form-group">
+            <!-- Editable: una misma mercadería puede venir en cajas
+                 distintas según el embarque. El pallet guarda el suyo
+                 (imp_pallets.un_x_caja) y el artículo mantiene el habitual. -->
             <label for="pl-uxc">UN × caja</label>
-            <input type="number" class="form-input" id="pl-uxc" readonly tabindex="-1" placeholder="—"/>
+            <input type="number" inputmode="numeric" class="form-input" id="pl-uxc"
+                   min="1" step="1" placeholder="—" oninput="plCalc()"/>
           </div>
           <div class="cnt-op" aria-hidden="true">+</div>
           <div class="form-group">
@@ -3667,13 +3671,19 @@ function plCalc(){
   var cajas=num(document.getElementById('pl-cajas').value);
   var rem=num(document.getElementById('pl-rem').value);
   var h=document.getElementById('pl-hint');
+  // Si este embarque no vino en las cajas de siempre, se avisa: el pallet
+  // guarda su propio armado, pero que nadie lo pise sin darse cuenta.
+  var a=curPlArt(), uxcArt=a?num(a.un_x_caja):0;
+  var aviso = (uxc>0 && uxcArt>0 && uxc!==uxcArt)
+    ? '  ⚠ lo habitual en este artículo son '+fmtNum(uxcArt)+' u/caja'
+    : '';
   if(uxc>0){
     var tot=cajas*uxc+rem;
     document.getElementById('pl-unid').value = tot>0 ? tot : '';
     h.className='hint-note';
-    h.textContent = tot>0
+    h.textContent = (tot>0
       ? (fmtNum(cajas)+' × '+fmtNum(uxc)+(rem?(' + '+fmtNum(rem)):'')+' = '+fmtNum(tot)+' unidades')
-      : 'Cargá las cajas completas y, si sobró una caja abierta, el remanente.';
+      : 'Cargá las cajas completas y, si sobró una caja abierta, el remanente.') + aviso;
   } else {
     h.className='hint-note';
     h.textContent='Este artículo no tiene UN×caja cargado: poné el total a mano.';
@@ -3837,7 +3847,9 @@ function savePallet(){
   var btn=document.getElementById('btn-save-pallet'); btn.disabled=true;
   toast('Armando pallet…','info');
   SB.rpc('imp_pallet_armar',{
-    p_art:a.id, p_dep:dep, p_cajas:cajas||null, p_un_x_caja:a.un_x_caja||null,
+    // El armado va tal como se tipeó: es el de ESTE pallet, no el del artículo.
+    p_art:a.id, p_dep:dep, p_cajas:cajas||null,
+    p_un_x_caja:num(document.getElementById('pl-uxc').value)||a.un_x_caja||null,
     p_remanente:rem||0, p_unidades:unid,
     p_est:estId, p_fila:fila, p_col:col, p_user:whoName()
   }).then(function(r){

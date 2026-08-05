@@ -182,5 +182,12 @@ from (
   union all
   select 31, 'v14', 'Trigger que avanza la solicitud al escanear',
          exists(select 1 from pg_trigger where tgname='trg_imp_sol_sync')
+
+  -- ── v15 — estanterías con cuatro orientaciones ─────────────
+  union all
+  select 32, 'v15', 'Estanterías: rot_deg admite 180 y 270',
+         exists(select 1 from pg_constraint
+                 where conname='imp_estanterias_rot_check'
+                   and pg_get_constraintdef(oid) like '%270%')
 ) v
 order by v.n;

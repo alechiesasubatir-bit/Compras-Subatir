@@ -944,8 +944,8 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-05.1711"></script>
-<script src="deposito-app.js?v=2026-08-05.1711"></script>
+<script src="../supabase-config.js?v=2026-08-05.1754"></script>
+<script src="deposito-app.js?v=2026-08-05.1754"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -954,7 +954,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-05.1711';
+window.APP_VER='2026-08-05.1754';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -3316,7 +3316,13 @@ function buildOneRack(e, ox, pz, rot){
   // signo. Los pallets van en un sub-Group del rack por lo mismo.
   var grp=new THREE.Group();
   grp.position.set(ox, 0, pz||0);
-  grp.rotation.y = (rot===90) ? Math.PI/2 : 0;
+  // Cuatro orientaciones, no dos. Con sólo 0 y 90 todos los racks quedaban
+  // numerados en el mismo sentido del mundo, así que el que se mira desde
+  // el pasillo de enfrente se leía al revés que en 2D. 180 y 270 son el
+  // mismo rack dado vuelta: es la forma de decir hacia qué pasillo da su
+  // frente, y con eso la posición 1 cae donde el operario la ve.
+  var deg = ((((+rot||0) % 360) + 360) % 360);
+  grp.rotation.y = deg * Math.PI / 180;
   var palHost=new THREE.Group(); grp.add(palHost);
   R3D.rackXf[e.id]={grp:grp, palHost:palHost};
   R3D.rackGroup.add(grp);
@@ -3351,6 +3357,27 @@ function buildOneRack(e, ox, pz, rot){
     grp.add(mk); grp.add(edge); R3D.slotTargets.push(mk);
     R3D.slotByKey[e.id+'-'+f2+'-'+c2]=mk;
   }
+  // Número de posición al pie de cada columna. El sprite mira siempre a la
+  // cámara, así que desde cualquier pasillo el 1 se lee sobre la columna 1:
+  // la orientación deja de ser algo que haya que deducir.
+  for(var c3=1;c3<=C*POS_PER_BAY;c3++){
+    var np=numSprite(String(c3));
+    if(np){ np.position.set(slotX(c3,C), 0.42, 0); grp.add(np); }
+  }
+}
+// Etiqueta chica para los números de posición (la de labelSprite es un
+// cartel de rack: acá taparía media estantería).
+function numSprite(text){
+  try{
+    var cv=document.createElement('canvas'); cv.width=64; cv.height=64; var cx=cv.getContext('2d');
+    cx.fillStyle='rgba(12,17,25,.78)'; cx.beginPath(); cx.arc(32,32,26,0,Math.PI*2); cx.fill();
+    cx.strokeStyle='rgba(249,115,22,.75)'; cx.lineWidth=3; cx.stroke();
+    cx.fillStyle='#fdba74'; cx.font='bold 34px "IBM Plex Mono", monospace';
+    cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText(text,32,34);
+    var tex=new THREE.CanvasTexture(cv); tex.anisotropy=4;
+    var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false}));
+    sp.scale.set(0.62,0.62,1); return sp;
+  }catch(_){ return null; }
 }
 // Pallet: tarima de madera + carga envuelta en film (blancuzca) con banda de color por tipo.
 // Si está ABIERTO (en conteo) va sin film y con banda naranja: se ve que todavía no se cerró.
@@ -4200,9 +4227,24 @@ function cfgRacks(){ return CFG.racks.filter(function(r){ return !r._del; }); }
 function cfgSubById(id){ return CFG.subs.find(function(s){ return String(s.key)===String(id); }); }
 
 // Huella del rack en el piso: el largo lo dan las bahías, el fondo es fijo.
-function rackW(r){ return (r.rot===90 ? DEP : r.columnas*BAY); }
-function rackH(r){ return (r.rot===90 ? r.columnas*BAY : DEP); }
+// 0 y 180 ocupan igual, y 90 y 270 también: lo que cambia entre una y su
+// opuesta es hacia qué lado da el frente, no la huella.
+function deCostado(r){ return r && (+r.rot===90 || +r.rot===270); }
+function rackW(r){ return (deCostado(r) ? DEP : r.columnas*BAY); }
+function rackH(r){ return (deCostado(r) ? r.columnas*BAY : DEP); }
 function rackRect(r){ return {x:r.x-rackW(r)/2, y:r.y-rackH(r)/2, w:rackW(r), h:rackH(r)}; }
+// Dónde cae la posición 1 dentro del rectángulo del rack, en píxeles del
+// plano. Las posiciones crecen sobre el eje largo del rack según su giro:
+//   0° → hacia la derecha   ·   180° → hacia la izquierda
+//  90° → hacia arriba       ·   270° → hacia abajo
+// (en el plano, Y crece hacia abajo, igual que +Z en el 3D)
+function cfgIniciaEn(r,p,w,h){
+  var d=((((+r.rot||0)%360)+360)%360);
+  if(d===90)  return {x:p.x+w/2, y:p.y+h-9};
+  if(d===180) return {x:p.x+w-9, y:p.y+h/2};
+  if(d===270) return {x:p.x+w/2, y:p.y+9};
+  return {x:p.x+9, y:p.y+h/2};
+}
 function snap(v){ return Math.round(v/CFG_SNAP)*CFG_SNAP; }
 function r1(v){ return Math.round(v*10)/10; }
 function overlaps(a,b){ return a.x < b.x+b.w-0.01 && b.x < a.x+a.w-0.01 &&
@@ -4405,9 +4447,16 @@ function cfgDraw(){
     // Bahías: cada división es una posición de pallet
     g.strokeStyle='rgba(240,115,26,.35)'; g.lineWidth=1;
     for(var c=1;c<r.columnas;c++){
-      if(r.rot===90){ var yy=p.y+h*c/r.columnas; g.beginPath(); g.moveTo(p.x,yy); g.lineTo(p.x+w,yy); g.stroke(); }
-      else          { var xx=p.x+w*c/r.columnas; g.beginPath(); g.moveTo(xx,p.y); g.lineTo(xx,p.y+h); g.stroke(); }
+      if(deCostado(r)){ var yy=p.y+h*c/r.columnas; g.beginPath(); g.moveTo(p.x,yy); g.lineTo(p.x+w,yy); g.stroke(); }
+      else            { var xx=p.x+w*c/r.columnas; g.beginPath(); g.moveTo(xx,p.y); g.lineTo(xx,p.y+h); g.stroke(); }
     }
+    // Marca de dónde arranca a contar: sin esto, girar 180° no se nota en
+    // el plano y es justo lo que decide si el 3D se lee al derecho.
+    var ini=cfgIniciaEn(r,p,w,h);
+    g.fillStyle='rgba(249,115,22,.9)';
+    g.beginPath(); g.arc(ini.x,ini.y,6,0,Math.PI*2); g.fill();
+    g.fillStyle='#0c1119'; g.textAlign='center'; g.font='700 9px '+"'IBM Plex Mono',monospace";
+    g.fillText('1', ini.x, ini.y+3);
     if(w>44 && h>13){
       g.textAlign='center'; g.font='700 9.5px '+"'IBM Plex Mono',monospace";
       g.fillStyle='#e2e8f0';
@@ -4572,10 +4621,23 @@ function cfgAddRack(m){
   cfgRender();
 }
 function cfgSelect(hit){ CFG.sel=hit; cfgDraw(); cfgProp(); }
+// Dar vuelta el frente: suma 180°, que ocupa exactamente el mismo lugar
+// en el piso (0↔180, 90↔270). Es lo que se usa cuando la estantería está
+// bien puesta pero se cuenta desde el pasillo de enfrente. Va aparte del
+// giro de 90° porque ese sí cambia la huella y puede no entrar.
+function cfgFlip(){
+  var r=cfgRacks().find(function(k){return k.key===CFG.sel.key;}); if(!r) return;
+  r.rot = ((((+r.rot||0) + 180) % 360) + 360) % 360;
+  cfgRender();
+  toast('Frente invertido: ahora la posición 1 queda del otro lado','ok');
+}
 function cfgRotate(){
   var r=cfgRacks().find(function(k){return k.key===CFG.sel.key;}); if(!r) return;
   var prev={rot:r.rot, x:r.x, y:r.y};
-  r.rot = r.rot===90?0:90;
+  // Cuatro pasos: 0 → 90 → 180 → 270. Los dos nuevos son el mismo rack
+  // dado vuelta, y sirven para que la posición 1 quede del lado del
+  // pasillo por donde se lo mira.
+  r.rot = ((((+r.rot||0) + 90) % 360) + 360) % 360;
   // Girar cambia la huella, así que se intenta reacomodar dentro del
   // sub-depósito que lo contenía.
   var h=cfgSubById(r.sub);
@@ -4586,7 +4648,7 @@ function cfgRotate(){
   // guardar y obligar a adivinar por qué.
   if(!cfgRackHome(r)){
     r.rot=prev.rot; r.x=prev.x; r.y=prev.y;
-    var falta = r.rot===90 ? 'ancho' : 'largo';
+    var falta = deCostado(r) ? 'ancho' : 'largo';
     toast('Girado no entra en '+(h?'"'+h.nombre+'"':'el sub-depósito')+': necesita '+
           r1(Math.max(rackH(r),rackW(r)))+' m de '+falta+'. Agrandalo o bajá las bahías.','err');
   }
@@ -4723,7 +4785,11 @@ function cfgProp(){
        +' · '+(r.filas*r.columnas)+' posiciones<br>'
        +(home?('En <b style="color:var(--text)">'+esc(home.nombre)+'</b>')
              :'<b style="color:#fca5a5">Fuera de todo sub-depósito</b>')+'</div>'
-     +'<button class="btn btn-ghost btn-sm" style="width:100%" onclick="cfgRotate()">⟳ Girar 90° (ahora '+r.rot+'°)</button>'
+     +'<div class="cfg-empty" style="margin:0 0 6px">Cuenta las posiciones hacia <b style="color:var(--orange-l)">'
+       + ({0:'la derecha →',90:'arriba ↑',180:'la izquierda ←',270:'abajo ↓'}[((((+r.rot||0)%360)+360)%360)] || 'la derecha →')
+       + '</b><br>El <b style="color:var(--orange-l)">①</b> del plano marca dónde arranca.</div>'
+     +'<button class="btn btn-ghost btn-sm" style="width:100%" onclick="cfgFlip()">⇄ Dar vuelta el frente</button>'
+     +'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:5px" onclick="cfgRotate()">⟳ Girar 90° (ahora '+r.rot+'°)</button>'
      +'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:5px" onclick="cfgDel()">🗑 Borrar</button>';
   }
   cfgResumen(); cfgProblemas();

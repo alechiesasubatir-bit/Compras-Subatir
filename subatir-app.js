@@ -99,6 +99,7 @@
       table: 'pedidos', payloadKeys: ['pedidos'],
       cols: {
         fecha: 'Fecha', n_orden: 'N° Orden', proveedor: 'Proveedor', cantidad: 'Cantidad',
+        codigo: 'Código',
         descripcion: 'Descripción', moneda: '$/U$S', precio_un: 'Precio un', s_iva: 's/iva',
         c_iva: 'c/iva', f_recepcion: 'F.Recepción', f_vto: 'F. Vto', lote: 'Lote',
         coa: 'COA', conforme: 'Conforme', observaciones: 'Observaciones', recibido_por: 'Recibido por'

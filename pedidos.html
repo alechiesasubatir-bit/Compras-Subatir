@@ -187,6 +187,9 @@ tbody td{padding:8px 11px;white-space:nowrap;vertical-align:middle}
 .money-cell{text-align:right;color:var(--ok);font-weight:600;font-family:'IBM Plex Mono',monospace}
 .muted-cell{color:var(--muted)}
 .num-cell{font-family:'IBM Plex Mono',monospace;text-align:right}
+/* Código: angosto y en mono, para que no empuje la tabla */
+.cod-cell{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal-l);
+  white-space:nowrap;max-width:86px;overflow:hidden;text-overflow:ellipsis}
 .delay-cell{font-family:'IBM Plex Mono',monospace;color:var(--danger);font-weight:700;font-size:11px;white-space:nowrap}
 
 /* Pills */
@@ -348,6 +351,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   thead th{background:#f0f0f0;color:#000}
   .kpi-val,.money-cell,.orden-cell{color:#000!important}
   .muted-cell{color:#555!important}
+  .cod-cell{color:#000!important}
 }
 
 /* ═══ DESPLEGABLES OSCUROS ═══════════════════════════════════
@@ -363,12 +367,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-05.1612"></script>
-<script src="subatir-app.js?v=2026-08-05.1612"></script>
+<script src="supabase-config.js?v=2026-08-05.1711"></script>
+<script src="subatir-app.js?v=2026-08-05.1711"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-05.1612';
+window.APP_VER='2026-08-05.1711';
 </script>
 </head>
 <body>
@@ -511,6 +515,7 @@ window.APP_VER='2026-08-05.1612';
             <th onclick="sortBy('orden')">N° OC</th>
             <th onclick="sortBy('fecha')">Fecha</th>
             <th onclick="sortBy('proveedor')">Proveedor</th>
+            <th onclick="sortBy('codigo')">Código</th>
             <th>Descripción</th>
             <th onclick="sortBy('cantidad')" style="text-align:right">Cant.</th>
             <th onclick="sortBy('precio')" style="text-align:right">P. Unit</th>
@@ -523,7 +528,7 @@ window.APP_VER='2026-08-05.1612';
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr class="empty-row"><td colspan="12">Cargando datos…</td></tr>
+          <tr class="empty-row"><td colspan="13">Cargando datos…</td></tr>
         </tbody>
       </table>
     </div>
@@ -569,6 +574,10 @@ window.APP_VER='2026-08-05.1612';
           <div class="form-group">
             <label>Proveedor</label>
             <input type="text" class="form-input" id="ed-prov" placeholder="Proveedor"/>
+          </div>
+          <div class="form-group">
+            <label>Código del artículo</label>
+            <input type="text" class="form-input" id="ed-codigo" placeholder="Ej: 220040"/>
           </div>
           <div class="form-group span2">
             <label>Descripción / Producto</label>
@@ -832,7 +841,7 @@ window.addEventListener('DOMContentLoaded', function(){
   if (!SCRIPT_URL){
     toast('No hay URL de Apps Script configurada. Volvé al Dashboard para configurarla.','err');
     document.getElementById('tbody').innerHTML =
-      '<tr class="empty-row"><td colspan="12">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
+      '<tr class="empty-row"><td colspan="13">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
   } else {
     load();
   }
@@ -899,6 +908,7 @@ function load(){
       console.log('[Pedidos] Keys → orden:', K.orden, '| fecha:', K.fecha, '| prov:', K.proveedor, '| recep:', K.recepcion);
       if(DATA_RAW.length===0) toast('⚠ Hoja OC/Pedidos vacía. Hojas disponibles: '+(d.sheetNames||[]).join(', '),'err');
       buildCurrencyMapP();
+      buildCodeMapP();
       applyLocalOverrides();
       (window.SubatirApp && SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
         .then(function(ents){ ENTREGAS = ents || []; buildEntregasMap(); renderAll(); });
@@ -914,7 +924,7 @@ function load(){
       setLoading(false);
       toast('Error al cargar datos: ' + e.message, 'err');
       document.getElementById('tbody').innerHTML =
-        '<tr class="empty-row"><td colspan="12">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
+        '<tr class="empty-row"><td colspan="13">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
     }
   );
 }
@@ -936,6 +946,7 @@ function detectKeys(rows){
   K.proveedor = fk(keys,['Proveedor','PROVEEDOR','Empresa','EMPRESA','Proveedor/Empresa']);
   K.cantidad  = fk(keys,['Cantidad','CANTIDAD','Cant','CANT','Cant.','CANT.','QTY','Qty']);
   K.desc      = fk(keys,['Descripción','Descripcion','DESCRIPCIÓN','DESCRIPCION','Artículo','Articulo','ARTICULO','Producto','PRODUCTO','Material','MATERIAL','Insumo','INSUMO']);
+  K.codigo    = fk(keys,['Código','Codigo','CÓDIGO','CODIGO','Cod. Art','COD ART','Cod','COD']);
   K.precio    = fk(keys,['Precio un','Precio Un','precio un','PRECIO UN','P. Unit','P.Unit','PRECIO UNIT','Precio u','PRECIO U$S','PRECIO USD','Precio','PRECIO','P. UNIT']);
   K.siva      = fk(keys,['s/iva','s/IVA','S/IVA','S/iva','SIVA','Subtotal','SUBTOTAL','Total s/iva','TOTAL S/IVA','MONTO S/IVA','Importe s/iva','IMPORTE S/IVA']);
   K.civa      = fk(keys,['c/iva','c/IVA','C/IVA','C/iva','CIVA','Total c/iva','TOTAL C/IVA','MONTO C/IVA','Importe c/iva','IMPORTE C/IVA','Total','TOTAL']);
@@ -1008,6 +1019,37 @@ function buildCurrencyMapP(){
     if(hasUSD)       CURR_MAP_P[art]='USD';
     else if(hasPSO)  CURR_MAP_P[art]='PSO';
   });
+}
+
+// ── Código del artículo ───────────────────────────────────────
+// El renglón guarda el suyo (columna `codigo` de pedidos). Para los
+// históricos que todavía no lo tienen, se busca por descripción en
+// el listado de precios: si ese nombre apunta a un solo código, se
+// muestra igual. Si hay dudas, guión: un código errado en una OC
+// es peor que ninguno.
+var CODE_MAP_P = {};
+function buildCodeMapP(){
+  CODE_MAP_P = {};
+  if(!RAW_PREC.length) return;
+  var k0=Object.keys(RAW_PREC[0]);
+  var kArt=fk(k0,['ARTICULO','Artículo','articulo','ARTÍCULO','DESCRIPCION','DESCRIPCIÓN']);
+  var kCod=fk(k0,['CODIGO','Código','Codigo','CÓDIGO']);
+  if(k0.indexOf(kCod)<0) return;
+  var tmp={};
+  RAW_PREC.forEach(function(row){
+    var art=normQ(String(row[kArt]||'').trim()), cod=String(row[kCod]||'').trim();
+    if(!art||!cod) return;
+    (tmp[art]=tmp[art]||{})[cod]=1;
+  });
+  Object.keys(tmp).forEach(function(art){
+    var cods=Object.keys(tmp[art]);
+    if(cods.length===1) CODE_MAP_P[art]=cods[0];   // sin ambigüedad
+  });
+}
+function codigoDe(r){
+  var propio=String((K.codigo?r[K.codigo]:'')||'').trim();
+  if(propio) return propio;
+  return CODE_MAP_P[normQ(String(r[K.desc]||'').trim())] || '';
 }
 
 function tokQ(s){
@@ -1088,7 +1130,7 @@ function applyFilters(){
 
   FILTERED = DATA_DISPLAY.filter(function(r){
     if (buscar){
-      var haystack = [r[K.desc],r[K.proveedor],r[K.orden],r[K.lote]].join(' ').toLowerCase();
+      var haystack = [r[K.desc],r[K.proveedor],r[K.orden],r[K.lote],codigoDe(r)].join(' ').toLowerCase();
       if (haystack.indexOf(buscar) < 0) return false;
     }
     if (estado === 'pendiente' && !isPendiente(r)) return false;
@@ -1133,6 +1175,7 @@ function sortFiltered(){
     if (key === 'orden')    { va = pNum(a[K.orden]);    vb = pNum(b[K.orden]); }
     else if (key === 'fecha')     { va = a[K.fecha]||'';     vb = b[K.fecha]||''; }
     else if (key === 'proveedor') { va = a[K.proveedor]||''; vb = b[K.proveedor]||''; }
+    else if (key === 'codigo')    { va = codigoDe(a);        vb = codigoDe(b); }
     else if (key === 'cantidad')  { va = pNum(a[K.cantidad]);vb = pNum(b[K.cantidad]); }
     else if (key === 'precio')    { va = pNum(a[K.precio]);   vb = pNum(b[K.precio]); }
     else if (key === 'recepcion') { va = a[K.recepcion]||''; vb = b[K.recepcion]||''; }
@@ -1148,7 +1191,7 @@ function renderTable(){
   var html  = '';
 
   if (FILTERED.length === 0){
-    html = '<tr class="empty-row"><td colspan="12">Sin resultados con los filtros actuales.</td></tr>';
+    html = '<tr class="empty-row"><td colspan="13">Sin resultados con los filtros actuales.</td></tr>';
   } else {
     FILTERED.forEach(function(r){
       var orden    = r[K.orden] || '—';
@@ -1179,8 +1222,10 @@ function renderTable(){
       if (r.__modified) html += ' <span class="pill pill-mod">Editado</span>';
       html += '</td>';
       html += '<td>' + fmtDate(r[K.fecha]) + '</td>';
-      html += '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + esc(String(r[K.proveedor]||'—')) + '</td>';
-      html += '<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(r[K.desc]||''))+'">'+esc(String(r[K.desc]||'—'))+'</td>';
+      html += '<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis">' + esc(String(r[K.proveedor]||'—')) + '</td>';
+      var cod = codigoDe(r);
+      html += '<td class="cod-cell">' + (cod ? esc(cod) : '<span class="muted-cell">—</span>') + '</td>';
+      html += '<td style="max-width:210px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(r[K.desc]||''))+'">'+esc(String(r[K.desc]||'—'))+'</td>';
       html += '<td class="num-cell">' + (r[K.cantidad]||'—') + '</td>';
       var precioUn = pNum(r[K.precio]);
       var moneda   = ocMoneda(r);
@@ -1275,6 +1320,7 @@ function openDetail(id){
     {l:'N° Orden',    v: row[K.orden]},
     {l:'Fecha',       v: fmtDate(row[K.fecha])},
     {l:'Proveedor',   v: row[K.proveedor]},
+    {l:'Código',      v: codigoDe(row) || '—'},
     {l:'Descripción', v: row[K.desc], span:true},
     {l:'Cantidad',    v: row[K.cantidad]},
     {l:'Precio u.',   v: row[K.precio] ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.precio]),2) : '—'},
@@ -1327,6 +1373,9 @@ function toggleEditForm(){
     // Poblar formulario — datos de la orden
     document.getElementById('ed-fecha').value  = (/^\d{4}-\d{2}-\d{2}/.test(String(row[K.fecha]||'')) ? String(row[K.fecha]).slice(0,10) : '');
     document.getElementById('ed-prov').value   = row[K.proveedor] || '';
+    // Si el renglón no tiene código propio se ofrece el deducido, para
+    // que confirmarlo sea guardar y listo.
+    document.getElementById('ed-codigo').value = codigoDe(row);
     document.getElementById('ed-desc').value   = row[K.desc] || '';
     document.getElementById('ed-cant').value   = pNum(row[K.cantidad]) || '';
     document.getElementById('ed-precio').value = pNum(row[K.precio]) || '';
@@ -1383,6 +1432,7 @@ function saveEdit(){
   var fields = {
     'Fecha':         document.getElementById('ed-fecha').value,
     'Proveedor':     prov,
+    'Código':        document.getElementById('ed-codigo').value.trim(),
     'Descripción':   desc,
     'Cantidad':      cant,
     'Precio un':     prec,
@@ -1792,9 +1842,11 @@ function updateSyncUI(){}
 // ── Export CSV ────────────────────────────────────────────────
 function exportCSV(){
   var cols = [K.orden,K.fecha,K.proveedor,K.desc,K.cantidad,K.precio,K.siva,K.civa,K.recepcion,K.lote,K.coa,K.conforme,K.obs];
-  var header = cols.join(',');
+  var header = ['Código'].concat(cols).join(',');
   var rows   = FILTERED.map(function(r){
-    return cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; }).join(',');
+    // El código va resuelto igual que en pantalla, no crudo del registro
+    return ['"'+codigoDe(r).replace(/"/g,'""')+'"'].concat(
+      cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; })).join(',');
   });
   var csv  = '﻿' + header + '\n' + rows.join('\n'); // BOM para Excel
   var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});

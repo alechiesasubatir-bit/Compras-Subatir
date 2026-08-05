@@ -186,6 +186,9 @@ tbody td{padding:8px 11px;white-space:nowrap;vertical-align:middle}
 .money-cell{text-align:right;color:var(--ok);font-weight:600;font-family:'IBM Plex Mono',monospace}
 .muted-cell{color:var(--muted)}
 .num-cell{font-family:'IBM Plex Mono',monospace;text-align:right}
+/* Código: angosto y en mono, para que no empuje la tabla */
+.cod-cell{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal-l);
+  white-space:nowrap;max-width:86px;overflow:hidden;text-overflow:ellipsis}
 .delay-cell{font-family:'IBM Plex Mono',monospace;color:var(--danger);font-weight:700;font-size:11px;white-space:nowrap}
 
 /* Pills */
@@ -347,6 +350,7 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
   thead th{background:#f0f0f0;color:#000}
   .kpi-val,.money-cell,.orden-cell{color:#000!important}
   .muted-cell{color:#555!important}
+  .cod-cell{color:#000!important}
 }
 
 /* ═══ DESPLEGABLES OSCUROS ═══════════════════════════════════
@@ -362,12 +366,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-05.1612"></script>
-<script src="subatir-app.js?v=2026-08-05.1612"></script>
+<script src="supabase-config.js?v=2026-08-05.1711"></script>
+<script src="subatir-app.js?v=2026-08-05.1711"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-05.1612';
+window.APP_VER='2026-08-05.1711';
 </script>
 </head>
 <body>
@@ -495,6 +499,7 @@ window.APP_VER='2026-08-05.1612';
             <th onclick="sortBy('orden')">N° OC</th>
             <th onclick="sortBy('fecha')">Fecha</th>
             <th onclick="sortBy('proveedor')">Proveedor</th>
+            <th>Código</th>
             <th>Producto</th>
             <th onclick="sortBy('cantidad')" style="text-align:right">Pedido</th>
             <th style="text-align:right">Recibido</th>
@@ -505,7 +510,7 @@ window.APP_VER='2026-08-05.1612';
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr class="empty-row"><td colspan="10">Cargando datos…</td></tr>
+          <tr class="empty-row"><td colspan="11">Cargando datos…</td></tr>
         </tbody>
       </table>
     </div>
@@ -781,6 +786,7 @@ function load(){
       console.log('[Pedidos] Keys → orden:', K.orden, '| fecha:', K.fecha, '| prov:', K.proveedor, '| recep:', K.recepcion);
       if(DATA_RAW.length===0) toast('⚠ Hoja OC/Pedidos vacía. Hojas disponibles: '+(d.sheetNames||[]).join(', '),'err');
       buildCurrencyMapP();
+      buildCodeMapP();
       applyLocalOverrides();
       buildOCCatalog();
       // Cargar entregas parciales y recién ahí renderizar
@@ -820,6 +826,7 @@ function detectKeys(rows){
   K.proveedor = fk(keys,['Proveedor','PROVEEDOR','Empresa','EMPRESA','Proveedor/Empresa']);
   K.cantidad  = fk(keys,['Cantidad','CANTIDAD','Cant','CANT','Cant.','CANT.','QTY','Qty']);
   K.desc      = fk(keys,['Descripción','Descripcion','DESCRIPCIÓN','DESCRIPCION','Artículo','Articulo','ARTICULO','Producto','PRODUCTO','Material','MATERIAL','Insumo','INSUMO']);
+  K.codigo    = fk(keys,['Código','Codigo','CÓDIGO','CODIGO','Cod. Art','COD ART','Cod','COD']);
   K.precio    = fk(keys,['Precio un','Precio Un','precio un','PRECIO UN','P. Unit','P.Unit','PRECIO UNIT','Precio u','PRECIO U$S','PRECIO USD','Precio','PRECIO','P. UNIT']);
   K.siva      = fk(keys,['s/iva','s/IVA','S/IVA','S/iva','SIVA','Subtotal','SUBTOTAL','Total s/iva','TOTAL S/IVA','MONTO S/IVA','Importe s/iva','IMPORTE S/IVA']);
   K.civa      = fk(keys,['c/iva','c/IVA','C/IVA','C/iva','CIVA','Total c/iva','TOTAL C/IVA','MONTO C/IVA','Importe c/iva','IMPORTE C/IVA','Total','TOTAL']);
@@ -893,6 +900,35 @@ function buildCurrencyMapP(){
     if(hasUSD)       CURR_MAP_P[art]='USD';
     else if(hasPSO)  CURR_MAP_P[art]='PSO';
   });
+}
+
+// ── Código del artículo ───────────────────────────────────────
+// Igual que en Pedidos: primero el que guarda el renglón y, si es un
+// histórico sin código, el del listado de precios cuando la
+// descripción apunta a uno solo. Ante la duda, guión.
+var CODE_MAP_P = {};
+function buildCodeMapP(){
+  CODE_MAP_P = {};
+  if(!RAW_PREC.length) return;
+  var k0=Object.keys(RAW_PREC[0]);
+  var kArt=fk(k0,['ARTICULO','Artículo','articulo','ARTÍCULO','DESCRIPCION','DESCRIPCIÓN']);
+  var kCod=fk(k0,['CODIGO','Código','Codigo','CÓDIGO']);
+  if(k0.indexOf(kCod)<0) return;
+  var tmp={};
+  RAW_PREC.forEach(function(row){
+    var art=normQ(String(row[kArt]||'').trim()), cod=String(row[kCod]||'').trim();
+    if(!art||!cod) return;
+    (tmp[art]=tmp[art]||{})[cod]=1;
+  });
+  Object.keys(tmp).forEach(function(art){
+    var cods=Object.keys(tmp[art]);
+    if(cods.length===1) CODE_MAP_P[art]=cods[0];
+  });
+}
+function codigoDe(r){
+  var propio=String((K.codigo?r[K.codigo]:'')||'').trim();
+  if(propio) return propio;
+  return CODE_MAP_P[normQ(String(r[K.desc]||'').trim())] || '';
 }
 
 function tokQ(s){
@@ -976,7 +1012,7 @@ function applyFilters(){
 
   FILTERED = DATA_DISPLAY.filter(function(r){
     if (buscar){
-      var haystack = [r[K.desc],r[K.proveedor],r[K.orden]].join(' ').toLowerCase();
+      var haystack = [r[K.desc],r[K.proveedor],r[K.orden],codigoDe(r)].join(' ').toLowerCase();
       if (haystack.indexOf(buscar) < 0) return false;
     }
     if (estado && lineStats(r).estado !== estado) return false;
@@ -1061,7 +1097,7 @@ function estadoPill(est){
 function renderTable(){
   var html = '';
   if (FILTERED.length === 0){
-    html = '<tr class="empty-row"><td colspan="10">Sin resultados con los filtros actuales.</td></tr>';
+    html = '<tr class="empty-row"><td colspan="11">Sin resultados con los filtros actuales.</td></tr>';
   } else {
     FILTERED.forEach(function(r){
       var orden = r[K.orden] || '—';
@@ -1070,8 +1106,10 @@ function renderTable(){
       html += '<tr data-orden="'+esc(String(orden))+'">';
       html += '<td class="orden-cell">'+esc(String(orden))+'</td>';
       html += '<td>'+fmtDate(r[K.fecha])+'</td>';
-      html += '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">'+esc(String(r[K.proveedor]||'—'))+'</td>';
-      html += '<td style="max-width:230px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(r[K.desc]||''))+'">'+esc(String(r[K.desc]||'—'))+'</td>';
+      html += '<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis">'+esc(String(r[K.proveedor]||'—'))+'</td>';
+      var cod = codigoDe(r);
+      html += '<td class="cod-cell">'+(cod ? esc(cod) : '<span class="muted-cell">—</span>')+'</td>';
+      html += '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(r[K.desc]||''))+'">'+esc(String(r[K.desc]||'—'))+'</td>';
       html += '<td class="num-cell">'+fmtNum(st.pedida)+'</td>';
       html += '<td class="num-cell" style="color:'+(st.recibido>0?'var(--ok)':'var(--muted)')+'">'+(st.recibido>0?fmtNum(st.recibido):'—')+'</td>';
       html += '<td class="num-cell" style="color:'+(st.saldo>0?'var(--orange-l)':'var(--muted)')+';font-weight:700">'+(st.saldo>0?fmtNum(st.saldo):'0')+'</td>';
@@ -1096,6 +1134,7 @@ function openEntrega(pid){
   document.getElementById('edit-title').textContent='OC #'+String(r[K.orden])+' — '+String(r[K.desc]||'');
   document.getElementById('entrega-info').innerHTML =
     '<div class="detail-item"><div class="detail-label">Proveedor</div><div class="detail-value">'+esc(String(r[K.proveedor]||'—'))+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Código</div><div class="detail-value" style="font-family:var(--mono)">'+esc(codigoDe(r)||'—')+'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Estado</div><div class="detail-value">'+estadoPill(st.estado)+'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Pedido</div><div class="detail-value">'+fmtNum(st.pedida)+'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Recibido</div><div class="detail-value" style="color:var(--ok)">'+fmtNum(st.recibido)+'</div></div>'
@@ -1707,9 +1746,11 @@ function updateSyncUI(){}
 // ── Export CSV ────────────────────────────────────────────────
 function exportCSV(){
   var cols = [K.orden,K.fecha,K.proveedor,K.desc,K.cantidad,K.recepcion,K.lote,K.coa,K.conforme,K.vto,K.recibido,K.obs];
-  var header = cols.join(',');
+  var header = ['Código'].concat(cols).join(',');
   var rows   = FILTERED.map(function(r){
-    return cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; }).join(',');
+    // El código va resuelto igual que en pantalla, no crudo del registro
+    return ['"'+codigoDe(r).replace(/"/g,'""')+'"'].concat(
+      cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; })).join(',');
   });
   var csv  = '﻿' + header + '\n' + rows.join('\n'); // BOM para Excel
   var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});

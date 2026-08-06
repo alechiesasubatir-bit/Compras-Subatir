@@ -189,5 +189,26 @@ from (
          exists(select 1 from pg_constraint
                  where conname='imp_estanterias_rot_check'
                    and pg_get_constraintdef(oid) like '%270%')
+
+  -- ── v16 — el módulo "recorrido" puede operar ───────────────
+  union all
+  select 33, 'v16', 'Las 4 funciones del recorrido aceptan ese permiso',
+         (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+           where n.nspname='public'
+             and p.proname in ('imp_pallet_scan','imp_pallet_consumir',
+                               'imp_pallet_ubicar','imp_solicitud_iniciar')
+             and pg_get_functiondef(p.oid) like '%imp_puede_recorrido%') = 4
+
+  -- ── v17 — la recepción la confirma otra persona ────────────
+  union all
+  select 34, 'v17', 'Pallets: salida_uid / llegada_uid (por cuenta)',
+         exists(select 1 from information_schema.columns
+                 where table_schema='public' and table_name='imp_pallets'
+                   and column_name='salida_uid')
+  union all
+  select 35, 'v17', 'imp_pallet_scan rechaza que reciba el que despachó',
+         exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+                 where n.nspname='public' and p.proname='imp_pallet_scan'
+                   and pg_get_functiondef(p.oid) like '%lo despachaste vos%')
 ) v
 order by v.n;

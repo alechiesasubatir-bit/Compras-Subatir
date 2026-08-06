@@ -130,12 +130,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-05.1754"></script>
-<script src="deposito-app.js?v=2026-08-05.1754"></script>
+<script src="../supabase-config.js?v=2026-08-06.1150"></script>
+<script src="deposito-app.js?v=2026-08-06.1150"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-05.1754';
+window.APP_VER='2026-08-06.1150';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -277,8 +277,17 @@ function abrir(id, silencioso){
     SOL=r[0].data; ITEMS=(r[1].data||[]).filter(function(i){ return i.estado!=='CANCELADO'; });
     var ids=ITEMS.map(function(i){ return i.pallet_id; });
     if(!ids.length){ PALS=[]; pintarRec(); if(!silencioso) verRec(); return; }
-    return SB.from('imp_pallets').select('*').in('id',ids).then(function(p){
-      PALS=p.data||[]; pintarRec(); if(!silencioso) verRec();
+    // La segunda consulta trae, de lo que está en camino, qué despachó
+    // esta misma cuenta. Lo resuelve la base con auth.uid(): comparar
+    // nombres acá sería adivinar, y el aviso tiene que ser exacto.
+    return Promise.all([
+      SB.from('imp_pallets').select('*').in('id',ids),
+      SB.from('imp_en_transito_quien').select('id,lo_despache_yo').in('id',ids)
+    ]).then(function(q){
+      PALS=q[0].data||[];
+      var mios={}; (q[1].data||[]).forEach(function(x){ if(x.lo_despache_yo) mios[x.id]=1; });
+      PALS.forEach(function(p){ p._loDespacheYo = !!mios[p.id]; });
+      pintarRec(); if(!silencioso) verRec();
     });
   });
 }
@@ -303,7 +312,10 @@ function pintarRec(){
   document.getElementById('pasos').innerHTML = lista.length ? lista.map(function(p){
     var a=artById(p.articulo_id);
     var cls='', nota='';
-    if(p.estado==='EN_TRANSITO'){ cls=' camino'; nota='✈ en camino'; }
+    if(p.estado==='EN_TRANSITO'){ cls=' camino';
+      // Avisar acá y no recién frente al lector: el que despachó no
+      // puede confirmar su propia entrega.
+      nota = p._loDespacheYo ? '✈ en camino · lo recibe otra persona' : '✈ en camino'; }
     else if(p.estado==='RECIBIDO'||p.estado==='CONSUMIDO'||
             (p.estado==='ESTACIONADO' && p.deposito===SOL.destino)){ cls=' hecho'; nota='✓ entregado'; }
     else { pend++; }
@@ -315,9 +327,15 @@ function pintarRec(){
       +'</span></div>';
   }).join('') : '<div class="empty">Este pedido no tiene pallets.</div>';
 
+  // Si todo lo que está en camino lo despachó esta cuenta, la llegada no
+  // la puede confirmar: mejor decirlo en la barra que dejarlo escanear.
+  var enCamino=lista.filter(function(p){ return p.estado==='EN_TRANSITO'; });
+  var todoMio = enCamino.length>0 && enCamino.every(function(p){ return p._loDespacheYo; });
   document.getElementById('bar-n').textContent = pend ? (pend+' por levantar') : 'Todo despachado';
   document.getElementById('bar-s').textContent = pend
-    ? 'Escaneá cada pallet al cargarlo' : 'Escaneá al llegar a '+SOL.destino;
+    ? 'Escaneá cada pallet al cargarlo'
+    : (todoMio ? 'Lo despachaste vos: la llegada la confirma otra persona en '+SOL.destino
+               : 'Escaneá al llegar a '+SOL.destino);
   document.getElementById('barra').style.display = SOL.estado==='PENDIENTE' ? 'none' : 'flex';
 }
 

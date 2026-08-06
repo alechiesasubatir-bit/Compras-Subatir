@@ -14,6 +14,14 @@
 <title>Solicitar mercadería — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="movil.css"/>
+<style>
+/* El pedido que acaba de llegar: se destaca hasta que lo den por visto */
+.sol.llego{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.09);
+  box-shadow:0 0 0 1px rgba(34,197,94,.18), 0 8px 26px rgba(0,0,0,.35)}
+.sol.llego .sol-h b{color:#86efac}
+.llego-av{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#86efac}
+.llego-av b{font-family:var(--mono)}
+</style>
 </head>
 <body>
 
@@ -64,12 +72,12 @@
 <div id="toast-host" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-08-06.1150"></script>
-<script src="deposito-app.js?v=2026-08-06.1150"></script>
+<script src="../supabase-config.js?v=2026-08-06.1242"></script>
+<script src="deposito-app.js?v=2026-08-06.1242"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-06.1150';
+window.APP_VER='2026-08-06.1242';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -134,7 +142,7 @@ function cargar(){
       perdidos.forEach(function(id){ delete CART[id]; });
       toast(perdidos.length+' pallet(s) que habías elegido ya no están disponibles','err');
     }
-    buscar(); renderMis(); renderBar();
+    buscar(); avisarLlegadas(); renderMis(); renderBar();
   });
 }
 
@@ -224,6 +232,11 @@ function confirmar(){
   var dst=document.getElementById('f-destino').value;
   if(org===dst){ toast('El origen y el destino son el mismo depósito','err'); return; }
   var b=document.getElementById('btn-ok'); b.disabled=true;
+  // El permiso de notificaciones se pide acá y no al abrir la pantalla:
+  // recién cuando alguien pide algo tiene sentido avisarle que llegó.
+  try{
+    if(window.Notification && Notification.permission==='default') Notification.requestPermission();
+  }catch(_){}
   SB.rpc('imp_solicitud_crear',{p_origen:org, p_destino:dst, p_pallets:ids,
                                 p_nota:null, p_user:whoName()})
     .then(function(r){
@@ -241,6 +254,46 @@ function confirmar(){
     }, function(e){ b.disabled=false; toast('Error: '+(e&&e.message||e),'err'); });
 }
 
+// ── Aviso de llegada ──────────────────────────────────────────
+//  El solicitante pide y se va a trabajar: si el pedido llega y nadie
+//  le dice nada, se entera cuando vuelve a abrir la pantalla. Acá se
+//  guarda qué pedidos ya vio, así el aviso salta UNA vez —en el
+//  momento en que llega— y el pedido queda destacado hasta que lo dé
+//  por visto. Se guarda en el teléfono: es del que mira, no del pedido.
+var VISTAS_KEY='dep_sol_vistas';
+function vistas(){
+  try{ return JSON.parse(localStorage.getItem(VISTAS_KEY)||'[]'); }catch(_){ return []; }
+}
+function marcarVisto(id){
+  var v=vistas(); if(v.indexOf(id)<0) v.push(id);
+  try{ localStorage.setItem(VISTAS_KEY, JSON.stringify(v.slice(-60))); }catch(_){}
+  renderMis();
+}
+var ESTADO_PREV={};
+function avisarLlegadas(){
+  var yo=whoName();
+  MIS.forEach(function(s){
+    if(s.solicitante!==yo) return;
+    var antes=ESTADO_PREV[s.id];
+    ESTADO_PREV[s.id]=s.estado;
+    // Sólo en el momento del cambio, y sólo si no lo vio ya
+    if(antes && antes!=='ENTREGADA' && s.estado==='ENTREGADA' && vistas().indexOf(s.id)<0){
+      var txt='📦 Llegó tu pedido #'+s.id+' a '+s.destino;
+      toast(txt,'ok');
+      try{ if(navigator.vibrate) navigator.vibrate([90,60,90]); }catch(_){}
+      // Si la pantalla está en segundo plano y el permiso ya está dado,
+      // se avisa por notificación. No se pide permiso de prepo acá:
+      // se pide al confirmar un pedido, que es cuando tiene sentido.
+      try{
+        if(window.Notification && Notification.permission==='granted' && document.hidden){
+          new Notification('Mercadería en '+s.destino,
+            {body:'Pedido #'+s.id+' · '+s.items+' pallet(s) · '+fmt(s.unidades)+' u.', icon:'icon-192.png'});
+        }
+      }catch(_){}
+    }
+  });
+}
+
 // ── Mis solicitudes ───────────────────────────────────────────
 var CHIP={PENDIENTE:['pend','Pendiente'],EN_PREPARACION:['prep','Preparando'],
           EN_TRANSITO:['tran','En camino'],ENTREGADA:['ok','Entregada'],CANCELADA:['can','Cancelada']};
@@ -255,12 +308,16 @@ function renderMis(){
     var c=CHIP[s.estado]||['','?'];
     var f=new Date(s.created_at);
     var puedeCancelar = s.estado==='PENDIENTE' || s.estado==='EN_PREPARACION';
-    return '<div class="sol">'
+    var llego = s.estado==='ENTREGADA' && vistas().indexOf(s.id)<0;
+    return '<div class="sol'+(llego?' llego':'')+'">'
       +'<div class="sol-h"><b>#'+s.id+' · '+esc(s.origen)+' → '+esc(s.destino)+'</b>'
       +'<span class="chip '+c[0]+'">'+c[1]+'</span></div>'
       +'<div class="sol-m">'+s.items+' pallet'+(s.items===1?'':'s')+' · '+fmt(s.unidades)+' u. · '
       +f.toLocaleDateString('es-UY')+' '+f.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})
       +(s.entregados?(' · '+s.entregados+' entregado'+(s.entregados===1?'':'s')):'')+'</div>'
+      +(llego?('<div class="llego-av">✅ Llegó a '+esc(s.destino)
+              +(s.entregada_at?(' · <b>'+new Date(s.entregada_at).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})+'</b>'):'')
+              +'</div><button class="btn btn-sm" style="margin-top:9px" onclick="marcarVisto('+s.id+')">Enterado</button>'):'')
       +(puedeCancelar?('<button class="btn btn-sm" style="margin-top:9px" onclick="cancelar('+s.id+')">Cancelar pedido</button>'):'')
     +'</div>';
   }).join('');

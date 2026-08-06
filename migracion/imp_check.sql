@@ -210,5 +210,12 @@ from (
          exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
                  where n.nspname='public' and p.proname='imp_pallet_scan'
                    and pg_get_functiondef(p.oid) like '%lo despachaste vos%')
+
+  -- ── v18 — lo que llega a la fábrica va a producción ────────
+  union all
+  select 36, 'v18', 'La llegada a un depósito FABRICA consume en el acto',
+         exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+                 where n.nspname='public' and p.proname='imp_pallet_scan'
+                   and pg_get_functiondef(p.oid) like '%''produccion''%')
 ) v
 order by v.n;

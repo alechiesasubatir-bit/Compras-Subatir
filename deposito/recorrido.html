@@ -130,12 +130,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-06.1150"></script>
-<script src="deposito-app.js?v=2026-08-06.1150"></script>
+<script src="../supabase-config.js?v=2026-08-06.1242"></script>
+<script src="deposito-app.js?v=2026-08-06.1242"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-06.1150';
+window.APP_VER='2026-08-06.1242';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -391,7 +391,17 @@ function onQR(txt){
       cargar(true);
       return;                                   // el lector queda abierto: vienen más
     }
-    // Llegada: hay que decidir qué se hace con él
+    // Llegada a una FÁBRICA: no hay nada que decidir. Todo lo que llega
+    // se usa, así que la base ya lo dejó consumido y en el depósito no
+    // queda saldo. Se avisa y se sigue con el próximo pallet.
+    if(d.accion==='produccion'){
+      toast('🏭 Llegó a '+d.destino+' y pasó a producción','ok');
+      document.getElementById('scan-st').textContent=
+        '🏭 '+d.pallet+' — '+fmt(d.unidades)+' u. a producción en '+d.destino+'. Seguí con el próximo.';
+      cargar(true);
+      return;                                   // el lector queda abierto
+    }
+    // Llegada a un almacén: hay que decidir qué se hace con él
     cerrarLector();
     LLEGO={codigo:d.pallet, destino:d.destino, tipo:d.destino_tipo};
     SB.from('imp_pallets').select('*').eq('codigo',d.pallet).single().then(function(p){

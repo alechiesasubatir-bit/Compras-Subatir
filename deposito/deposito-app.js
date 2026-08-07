@@ -23,16 +23,19 @@
   //  entra a las dos: es el permiso completo del depósito.
   var PAGE_MOD = {
     'solicitar.html': ['solicitante', 'importacion'],
-    'recorrido.html': ['recorrido', 'importacion']
+    // El operador logístico de destino entra a la misma pantalla, pero
+    // la ve en modo recepción: sólo lo que está por llegar.
+    'recorrido.html': ['recorrido', 'recepcion_deposito', 'importacion']
   };
   // Módulos que viven de este lado: los demás son de Compras.
-  var MODULOS_DEPOSITO = ['solicitante', 'recorrido', 'importacion'];
+  var MODULOS_DEPOSITO = ['solicitante', 'recorrido', 'recepcion_deposito', 'importacion'];
   function modsDe() { return PAGE_MOD[page()] || [MODULO]; }
 
   // A dónde mandar a quien no puede abrir esta página. Un cartel de "sin
   // permiso" no le sirve a nadie: si tiene una pantalla de celular
   // habilitada, va derecho ahí.
-  var CASA = [['recorrido', 'recorrido.html'], ['solicitante', 'solicitar.html']];
+  var CASA = [['recorrido', 'recorrido.html'], ['recepcion_deposito', 'recorrido.html'],
+              ['solicitante', 'solicitar.html']];
   function casaDe(profile) {
     var mods = profile.modules || [];
     for (var i = 0; i < CASA.length; i++) {

@@ -217,5 +217,16 @@ from (
          exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
                  where n.nspname='public' and p.proname='imp_pallet_scan'
                    and pg_get_functiondef(p.oid) like '%''produccion''%')
+
+  -- ── v19 — el Operador Logístico de destino ─────────────────
+  union all
+  select 37, 'v19', 'Despachar y recibir son permisos distintos',
+         (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+           where n.nspname='public'
+             and p.proname in ('imp_puede_despachar','imp_puede_recibir')) = 2
+  union all
+  select 38, 'v19', 'Vista imp_por_recibir (lo que viene en camino)',
+         exists(select 1 from information_schema.views
+                 where table_schema='public' and table_name='imp_por_recibir')
 ) v
 order by v.n;

@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Recorrido — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-06.2337"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-06.2357"/>
 <style>
 /* Propio del recorrido: el paso, el lector y la grilla de ranuras */
 .paso{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;margin-bottom:8px;
@@ -130,12 +130,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-06.2337"></script>
-<script src="deposito-app.js?v=2026-08-06.2337"></script>
+<script src="../supabase-config.js?v=2026-08-06.2357"></script>
+<script src="deposito-app.js?v=2026-08-06.2357"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-06.2337';
+window.APP_VER='2026-08-06.2357';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -189,8 +189,19 @@ function ordenDe(p){
            String(p.columna||0).padStart(3,'0'), String(p.fila||0) ].join('|');
 }
 
+// El operador logístico de destino: sólo confirma llegadas. No arma el
+// recorrido ni despacha, así que la pantalla le muestra otra cosa —
+// lo que viene en camino— en vez de la lista de pedidos por atender.
+var SOLO_RECIBE=false, ENCAMINO=[];
+
 SubatirApp.ready.then(function(p){
   if(!p) return;
+  SOLO_RECIBE = !SubatirApp.puede('recorrido') && !SubatirApp.puede('importacion')
+                && SubatirApp.puede('recepcion_deposito');
+  if(SOLO_RECIBE){
+    document.getElementById('htit').textContent='Recepción';
+    document.querySelector('#v-lista .lbl').textContent='Mercadería en camino';
+  }
   document.getElementById('hsub').textContent=whoName();
   // Se muestra solo lo que esta persona puede abrir: un link que rebota
   // al login es peor que no tenerlo.
@@ -214,9 +225,44 @@ function cargar(silencioso){
     var e=r.find(function(x){ return x.error; });
     if(e){ toast('Error: '+e.error.message,'err'); return; }
     SOLS=r[0].data||[]; EST=r[1].data||[]; SUB=r[2].data||[]; ART=r[3].data||[]; DEPS=r[4].data||[];
+    if(SOLO_RECIBE){
+      return SB.from('imp_por_recibir').select('*').order('salida_at').then(function(q){
+        ENCAMINO=q.data||[]; renderPorRecibir();
+      });
+    }
     renderLista();
     if(SOL) return abrir(SOL.id, true);
   });
+}
+
+// ── Lo que viene en camino (operador logístico) ───────────────
+//  Sin pedidos ni recorrido: lo único que importa acá es qué está
+//  por llegar y confirmarlo cuando baje del camión.
+function renderPorRecibir(){
+  var host=document.getElementById('lista');
+  document.getElementById('barra').style.display = ENCAMINO.length ? 'flex' : 'none';
+  if(!ENCAMINO.length){
+    host.innerHTML='<div class="empty">No hay mercadería en camino.<br>'
+      +'Cuando despachen un pallet hacia acá, aparece en esta lista.</div>';
+    return;
+  }
+  host.innerHTML=ENCAMINO.map(function(p){
+    var h=p.salida_at ? new Date(p.salida_at).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}) : '';
+    return '<div class="paso camino"><span class="paso-n" aria-hidden="true">🚚</span><span class="paso-b">'
+      +'<span class="paso-d">'+esc(p.origen||'—')+' → '+esc(p.destino||'—')+'</span>'
+      +'<span class="paso-t">'+esc(p.articulo||('#'+p.articulo_id))+'</span>'
+      +'<span class="paso-m">'+fmt(p.unidades)+' u. · despachó '+esc(p.salida_by||'—')
+        +(h?' · '+h:'')+'</span>'
+      +(p.lo_despache_yo
+        ? '<span class="paso-m" style="color:#fca5a5">⚠ Lo despachaste vos: lo confirma otra persona</span>'
+        : (p.destino_tipo==='FABRICA'
+           ? '<span class="paso-m" style="color:var(--orange-l)">Al escanearlo pasa directo a producción</span>'
+           : ''))
+      +'</span></div>';
+  }).join('');
+  document.getElementById('bar-n').textContent =
+    ENCAMINO.length+' pallet'+(ENCAMINO.length===1?'':'s')+' en camino';
+  document.getElementById('bar-s').textContent = 'Escaneá el QR al bajarlo del camión';
 }
 
 // ── Lista de pedidos ──────────────────────────────────────────
@@ -271,12 +317,17 @@ function verLista(){
   SOL=null;
   ['v-rec','v-scan','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
   document.getElementById('v-lista').style.display='';
-  document.getElementById('barra').style.display='none';
+  // En modo recepción la barra de escanear no se esconde: es la acción
+  // principal, no algo que aparezca al abrir un pedido.
+  document.getElementById('barra').style.display = (SOLO_RECIBE && ENCAMINO.length) ? 'flex' : 'none';
   document.getElementById('btn-volver').style.display='none';
-  document.getElementById('htit').textContent='Recorrido';
+  document.getElementById('htit').textContent = SOLO_RECIBE ? 'Recepción' : 'Recorrido';
   cerrarLector();
 }
 function verRec(){
+  // El operador logístico no tiene "un recorrido abierto": su pantalla
+  // es la lista de lo que viene en camino.
+  if(SOLO_RECIBE){ verLista(); return; }
   ['v-lista','v-scan','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
   document.getElementById('v-rec').style.display='';
   document.getElementById('barra').style.display = SOL && SOL.estado!=='PENDIENTE' ? 'flex' : 'none';

@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Control de Stock Depósitos — Subatir / Prolimpio</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+/* ============================================================
+   PRESENTACIÓN — Control de Stock Depósitos
+   Un solo archivo, sin dependencias: se abre en cualquier
+   pantalla del depósito o se proyecta desde el celular.
+   El motivo visual es el circuito: cada conexión que se enciende
+   es un paso real del sistema, no un adorno.
+   ============================================================ */
+:root{
+  --bg:#07090f;--bg2:#0c1119;
+  --teal:#0e8aaa;--teal-l:#1bc8ff;
+  --orange:#f97316;--orange-l:#fdba74;
+  --text:#e8eef6;--muted:#7d8fa6;--muted-l:#9db0c6;
+  --border:rgba(255,255,255,.08);--border-s:rgba(255,255,255,.14);
+  --ok:#22c55e;--red:#ef4444;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --dis:'Manrope',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;
+  overflow:hidden;-webkit-text-size-adjust:100%}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(1200px 700px at 10% -10%,rgba(14,138,170,.20),transparent 62%),
+             radial-gradient(1000px 600px at 105% 110%,rgba(249,115,22,.15),transparent 62%)}
+/* Trama de circuito de fondo: la placa sobre la que corren los rayos */
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(27,200,255,.055) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(27,200,255,.055) 1px,transparent 1px);
+  background-size:64px 64px;
+  -webkit-mask-image:radial-gradient(80% 70% at 50% 45%,#000 30%,transparent 100%);
+          mask-image:radial-gradient(80% 70% at 50% 45%,#000 30%,transparent 100%)}
+
+/* ── Estructura ─────────────────────────────────────────── */
+.deck{position:relative;z-index:1;height:100%}
+.slide{position:absolute;inset:0;display:none;padding:clamp(20px,4vw,54px);
+  flex-direction:column;justify-content:center;overflow:auto}
+.slide.on{display:flex;animation:entra .5s cubic-bezier(.2,.7,.3,1)}
+@keyframes entra{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.wrap{width:100%;max-width:1180px;margin:0 auto}
+
+.kicker{font-family:var(--dis);font-size:clamp(9px,1.1vw,11px);font-weight:800;letter-spacing:2.4px;
+  text-transform:uppercase;color:var(--teal-l);display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.kicker::before{content:'';width:26px;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,var(--teal-l),var(--orange))}
+h1{font-family:var(--dis);font-weight:800;line-height:1.04;letter-spacing:-1.4px;
+  font-size:clamp(30px,6.4vw,68px)}
+h2{font-family:var(--dis);font-weight:800;line-height:1.1;letter-spacing:-.8px;
+  font-size:clamp(23px,3.7vw,42px);margin-bottom:10px}
+.grad{background:linear-gradient(92deg,#e8eef6,#7dd3fc 48%,#fdba74);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.lead{font-size:clamp(14px,1.65vw,19px);color:var(--muted-l);line-height:1.6;max-width:66ch;margin-top:12px}
+.mini{font-family:var(--mono);font-size:clamp(10px,1.1vw,12px);color:var(--muted)}
+
+/* ── Portada ────────────────────────────────────────────── */
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(20px,4vw,56px);align-items:center}
+@media (max-width:900px){.hero{grid-template-columns:1fr}.hero .art{display:none}}
+.marca{display:flex;align-items:center;gap:13px;margin-bottom:clamp(18px,3vw,30px)}
+.marca img{width:52px;height:52px;border-radius:14px;object-fit:cover;
+  box-shadow:0 0 0 1px rgba(27,200,255,.35),0 10px 30px rgba(14,138,170,.35)}
+.marca b{font-family:var(--dis);font-size:19px;font-weight:800;letter-spacing:-.3px;display:block}
+.marca span{font-size:11.5px;color:var(--muted)}
+
+/* ── El circuito animado ────────────────────────────────── */
+.art{position:relative;aspect-ratio:1;max-height:70vh;margin-inline:auto;width:100%}
+.art svg{width:100%;height:100%;overflow:visible}
+.trace{fill:none;stroke:rgba(27,200,255,.18);stroke-width:2;stroke-linecap:round}
+/* El rayo: un tramo corto de luz que recorre la traza */
+.rayo{fill:none;stroke-width:2.6;stroke-linecap:round;
+  stroke-dasharray:34 460;filter:url(#glow);animation:correr 3.1s linear infinite}
+@keyframes correr{from{stroke-dashoffset:494}to{stroke-dashoffset:0}}
+.nodo{fill:#0c1119;stroke:rgba(27,200,255,.5);stroke-width:1.6}
+.nodo-on{fill:rgba(249,115,22,.14);stroke:var(--orange)}
+.nucleo{fill:url(#core);stroke:rgba(27,200,255,.55);stroke-width:2}
+.pulso{fill:none;stroke:rgba(27,200,255,.45);stroke-width:1.5;transform-origin:center;
+  animation:onda 3s ease-out infinite}
+@keyframes onda{0%{r:44;opacity:.7}100%{r:112;opacity:0}}
+.et{font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#9db0c6}
+.et-b{font-family:'Manrope',sans-serif;font-size:13px;font-weight:800;fill:#e8eef6}
+
+/* ── Piezas de contenido ────────────────────────────────── */
+.cards{display:grid;gap:14px;margin-top:clamp(16px,3vw,26px)}
+.c3{grid-template-columns:repeat(3,1fr)}
+.c4{grid-template-columns:repeat(4,1fr)}
+.c2{grid-template-columns:repeat(2,1fr)}
+@media (max-width:860px){.c3,.c4,.c2{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.c3,.c4,.c2{grid-template-columns:1fr}}
+.card{background:linear-gradient(165deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
+  border:1px solid var(--border);border-radius:16px;padding:clamp(13px,1.7vw,19px);position:relative;overflow:hidden}
+.card::after{content:'';position:absolute;left:0;top:0;width:100%;height:2px;
+  background:linear-gradient(90deg,var(--teal-l),transparent 70%);opacity:.75}
+.card.warm::after{background:linear-gradient(90deg,var(--orange),transparent 70%)}
+.card h3{font-family:var(--dis);font-size:clamp(14px,1.5vw,16.5px);font-weight:800;margin-bottom:6px}
+.card p{font-size:clamp(12px,1.25vw,14px);color:var(--muted-l);line-height:1.55}
+.ico{font-size:21px;margin-bottom:9px;display:block}
+
+/* Flujo en 5 pasos, con la corriente pasando de uno al siguiente */
+.flujo{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:clamp(16px,3vw,28px)}
+@media (max-width:860px){.flujo{grid-template-columns:1fr}}
+.paso{position:relative;background:rgba(255,255,255,.035);border:1px solid var(--border);
+  border-radius:14px;padding:clamp(12px,1.6vw,17px)}
+.paso::before{content:attr(data-n);position:absolute;top:-11px;left:14px;width:24px;height:24px;
+  border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;
+  background:linear-gradient(180deg,#1bc8ff,#0e8aaa);color:#04222c}
+.paso h4{font-family:var(--dis);font-size:13.5px;font-weight:800;margin:6px 0 5px}
+.paso p{font-size:12px;color:var(--muted);line-height:1.5}
+.paso .q{display:block;margin-top:7px;font-family:var(--mono);font-size:10.5px;color:var(--teal-l)}
+/* La chispa que salta de un paso al siguiente */
+.flujo .paso:not(:last-child)::after{content:'';position:absolute;right:-9px;top:50%;width:9px;height:2px;
+  background:linear-gradient(90deg,var(--teal-l),transparent);animation:salto 2.4s ease-in-out infinite}
+.flujo .paso:nth-child(2)::after{animation-delay:.2s}
+.flujo .paso:nth-child(3)::after{animation-delay:.4s}
+.flujo .paso:nth-child(4)::after{animation-delay:.6s}
+@keyframes salto{0%,100%{opacity:.25}50%{opacity:1;box-shadow:0 0 10px rgba(27,200,255,.8)}}
+@media (max-width:860px){.flujo .paso::after{display:none}}
+
+.regla{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--border)}
+.regla:last-child{border-bottom:0}
+.regla b{font-family:var(--dis);font-size:clamp(13px,1.4vw,15px);display:block;margin-bottom:3px}
+.regla p{font-size:clamp(11.5px,1.2vw,13.5px);color:var(--muted);line-height:1.5}
+.regla .mk{flex:0 0 30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:14px;
+  background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.35)}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:clamp(16px,3vw,26px)}
+@media (max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi{background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:15px;padding:15px}
+.kpi b{display:block;font-family:var(--dis);font-size:clamp(22px,3.4vw,34px);font-weight:800;letter-spacing:-1px;
+  background:linear-gradient(180deg,#e8eef6,#7dd3fc);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent}
+.kpi span{font-size:11px;color:var(--muted);letter-spacing:.3px}
+
+/* ── Navegación ─────────────────────────────────────────── */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;align-items:center;gap:12px;
+  padding:12px clamp(14px,3vw,28px) calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(0deg,rgba(7,9,15,.95),transparent)}
+.dots{flex:1;display:flex;gap:6px}
+.dot{width:26px;height:4px;border-radius:3px;background:rgba(255,255,255,.14);border:0;cursor:pointer;padding:0}
+.dot.on{background:linear-gradient(90deg,var(--teal-l),var(--orange))}
+.nb{width:42px;height:42px;border-radius:12px;border:1px solid var(--border-s);background:rgba(255,255,255,.05);
+  color:var(--text);font-size:16px;cursor:pointer;display:grid;place-items:center}
+.nb:hover{border-color:rgba(27,200,255,.5)}
+.cuenta{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:44px;text-align:right}
+
+@media (prefers-reduced-motion:reduce){
+  .rayo,.pulso,.flujo .paso::after,.slide.on{animation:none}
+  .rayo{stroke-dasharray:none;opacity:.55}
+}
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- ── 1. Portada ─────────────────────────────────────── -->
+  <section class="slide on">
+    <div class="wrap hero">
+      <div>
+        <div class="marca">
+          <img src="../logo.jpg" alt=""/>
+          <span><b>Subatir S.A. / Prolimpio</b><span>Sistema interno de gestión</span></span>
+        </div>
+        <div class="kicker">Depósitos · Furriol y Artigas</div>
+        <h1 class="grad">Control de Stock<br/>de Depósitos</h1>
+        <p class="lead">Cada pallet tiene un código QR y un lugar. Desde que la mercadería entra
+        hasta que se usa en producción, el sistema sabe dónde está, quién la movió y cuándo.</p>
+        <p class="mini" style="margin-top:18px">Funciona en la computadora del depósito y en el celular del operario.</p>
+      </div>
+
+      <!-- El circuito: cinco nodos que alimentan al núcleo -->
+      <div class="art">
+        <svg viewBox="0 0 460 460" role="img" aria-label="Diagrama animado: los depósitos, los pallets, el celular y la fábrica conectados al sistema central">
+          <defs>
+            <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="3.4" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <radialGradient id="core"><stop offset="0" stop-color="#0e8aaa" stop-opacity=".55"/>
+              <stop offset="1" stop-color="#07090f" stop-opacity=".9"/></radialGradient>
+            <linearGradient id="lz1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#1bc8ff"/><stop offset="1" stop-color="#7dd3fc"/></linearGradient>
+            <linearGradient id="lz2" x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#f97316"/><stop offset="1" stop-color="#fdba74"/></linearGradient>
+          </defs>
+
+          <!-- trazas (quietas) + rayos (corriendo) sobre el mismo recorrido -->
+          <!-- Las trazas terminan EN el centro: el núcleo se dibuja después
+               y las tapa, así el rayo se ve entrar al sistema y desaparecer
+               adentro en vez de cortarse en el aire. -->
+          <g id="trazas">
+            <path class="trace" d="M64 78 H150 V196 H230"/>
+            <path class="trace" d="M396 78 H310 V196 H230"/>
+            <path class="trace" d="M64 382 H150 V264 H230"/>
+            <path class="trace" d="M396 382 H310 V264 H230"/>
+            <path class="trace" d="M230 22 V230"/>
+          </g>
+          <g id="rayos">
+            <path class="rayo" stroke="url(#lz1)" d="M64 78 H150 V196 H230" style="animation-delay:0s"/>
+            <path class="rayo" stroke="url(#lz2)" d="M396 78 H310 V196 H230" style="animation-delay:.62s"/>
+            <path class="rayo" stroke="url(#lz1)" d="M64 382 H150 V264 H230" style="animation-delay:1.24s"/>
+            <path class="rayo" stroke="url(#lz2)" d="M396 382 H310 V264 H230" style="animation-delay:1.86s"/>
+            <path class="rayo" stroke="url(#lz1)" d="M230 22 V230" style="animation-delay:2.48s"/>
+          </g>
+
+          <!-- núcleo -->
+          <circle class="pulso" cx="230" cy="230" r="44"/>
+          <circle class="pulso" cx="230" cy="230" r="44" style="animation-delay:1.5s"/>
+          <circle class="nucleo" cx="230" cy="230" r="58"/>
+          <text class="et-b" x="230" y="226" text-anchor="middle">SISTEMA</text>
+          <text class="et" x="230" y="244" text-anchor="middle">un solo dato</text>
+
+          <!-- nodos -->
+          <g>
+            <rect class="nodo" x="18" y="58" width="92" height="40" rx="11"/>
+            <text class="et" x="64" y="83" text-anchor="middle">INGRESO</text>
+
+            <rect class="nodo nodo-on" x="350" y="58" width="92" height="40" rx="11"/>
+            <text class="et" x="396" y="83" text-anchor="middle">PALLET · QR</text>
+
+            <rect class="nodo" x="18" y="362" width="92" height="40" rx="11"/>
+            <text class="et" x="64" y="387" text-anchor="middle">ESTANTERÍA</text>
+
+            <rect class="nodo nodo-on" x="350" y="362" width="92" height="40" rx="11"/>
+            <text class="et" x="396" y="387" text-anchor="middle">PRODUCCIÓN</text>
+
+            <rect class="nodo" x="184" y="2" width="92" height="40" rx="11"/>
+            <text class="et" x="230" y="27" text-anchor="middle">CELULAR</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. El problema ─────────────────────────────────── -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker">Por qué</div>
+      <h2>La mercadería estaba, pero nadie sabía <span class="grad">dónde</span></h2>
+      <p class="lead">Dos depósitos, miles de unidades y un stock que vivía en planillas.
+      Buscar un lote era caminar el galpón; saber qué había, preguntar.</p>
+      <div class="cards c3">
+        <div class="card"><span class="ico">🔍</span><h3>Se buscaba a mano</h3>
+          <p>Encontrar mercadería dependía de que alguien se acordara dónde la había dejado.</p></div>
+        <div class="card"><span class="ico">📋</span><h3>El papel llegaba tarde</h3>
+          <p>Lo que salía de un depósito se anotaba después, si se anotaba. El stock nunca estaba al día.</p></div>
+        <div class="card"><span class="ico">❓</span><h3>Sin rastro de quién</h3>
+          <p>Si faltaba algo, no había forma de reconstruir quién lo movió ni cuándo.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. El circuito ─────────────────────────────────── -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker">Cómo funciona</div>
+      <h2>De la puerta del depósito <span class="grad">a la línea de producción</span></h2>
+      <p class="lead">Cinco pasos. Cada uno deja registro solo: nadie tiene que anotar nada aparte.</p>
+      <div class="flujo">
+        <div class="paso" data-n="1"><h4>Ingresa</h4>
+          <p>La mercadería entra suelta al depósito y suma stock.</p>
+          <span class="q">queda el antes y el después</span></div>
+        <div class="paso" data-n="2"><h4>Se arma el pallet</h4>
+          <p>Cajas × unidades, con su lugar en la estantería y su QR impreso.</p>
+          <span class="q">reserva, no duplica stock</span></div>
+        <div class="paso" data-n="3"><h4>Lo piden</h4>
+          <p>Desde el celular se eligen los pallets concretos que se necesitan.</p>
+          <span class="q">quedan reservados</span></div>
+        <div class="paso" data-n="4"><h4>Se despacha</h4>
+          <p>El operario recorre, escanea y la mercadería sale hacia el destino.</p>
+          <span class="q">baja el stock de origen</span></div>
+        <div class="paso" data-n="5"><h4>Llega y se usa</h4>
+          <p>En Artigas otra persona confirma la llegada y pasa directo a producción.</p>
+          <span class="q">avisa a quien lo pidió</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4. Las reglas ──────────────────────────────────── -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker">Lo que el sistema no deja hacer</div>
+      <h2>Las reglas viven en la base, <span class="grad">no en la buena memoria</span></h2>
+      <p class="lead">Están del lado del servidor: no se saltean cerrando la app ni desde el navegador.</p>
+      <div class="cards c2" style="margin-top:20px">
+        <div>
+          <div class="regla"><span class="mk">✓</span><div><b>No se palletiza lo que no hay</b>
+            <p>Un pallet no puede llevar más unidades de las que están sueltas en ese depósito.</p></div></div>
+          <div class="regla"><span class="mk">✓</span><div><b>Un pallet, un pedido</b>
+            <p>Dos personas pueden pedir a la vez: la base deja pasar una sola. No hay pallet prometido dos veces.</p></div></div>
+          <div class="regla"><span class="mk">✓</span><div><b>Una ranura, un pallet</b>
+            <p>El lugar ocupado no se puede volver a asignar mientras esté ocupado.</p></div></div>
+        </div>
+        <div>
+          <div class="regla"><span class="mk">✓</span><div><b>La recepción la confirma otro</b>
+            <p>Quien despacha no puede dar por recibida su propia entrega. Se compara la cuenta, no el nombre.</p></div></div>
+          <div class="regla"><span class="mk">✓</span><div><b>En la fábrica no queda saldo</b>
+            <p>Lo que llega a Artigas pasa a producción en el mismo acto: no hay stock fantasma.</p></div></div>
+          <div class="regla"><span class="mk">✓</span><div><b>Cada uno ve lo suyo</b>
+            <p>El operario entra a su pantalla y a ninguna otra. Los costos no salen del área de compras.</p></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 5. En el celular ───────────────────────────────── -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker">En la mano del operario</div>
+      <h2>Dos pantallas, <span class="grad">sin vueltas</span></h2>
+      <p class="lead">Se instalan como app en el teléfono. Botones grandes: en el depósito se trabaja con guantes.</p>
+      <div class="cards c2">
+        <div class="card"><span class="ico">📦</span><h3>Solicitar mercadería</h3>
+          <p>Busca por artículo o código, elige los pallets y pide. Después ve el avance de su pedido
+          paso a paso, y le avisa cuando llegó.</p></div>
+        <div class="card warm"><span class="ico">🚚</span><h3>Recorrido</h3>
+          <p>Le arma el camino ordenado por ubicación, le muestra en un plano dónde está cada pallet
+          y con el mismo botón escanea la salida y la llegada.</p></div>
+      </div>
+      <div class="cards c3" style="margin-top:14px">
+        <div class="card"><h3>📍 Lo ubica</h3><p>Estantería, nivel y posición, con la ranura marcada en el plano.</p></div>
+        <div class="card"><h3>📷 Un solo botón</h3><p>El sistema sabe si el pallet está saliendo o llegando: el operario no elige.</p></div>
+        <div class="card"><h3>📶 Sin señal abre igual</h3><p>La app se instala en el teléfono y arranca aunque el wifi del galpón falle.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 6. El mapa ─────────────────────────────────────── -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker">El depósito, dibujado</div>
+      <h2>El galpón en pantalla, <span class="grad">a escala real</span></h2>
+      <p class="lead">Las naves, los sub-depósitos y cada estantería en su medida y su lugar.
+      Los pallets se arrastran a su posición y el color dice qué tipo de mercadería es.</p>
+      <div class="cards c4">
+        <div class="card"><span class="ico">🗺️</span><h3>Plano 2D</h3><p>La planta completa, para configurar y para ver de una.</p></div>
+        <div class="card"><span class="ico">🧊</span><h3>Vista 3D</h3><p>Las estanterías con sus niveles, como se ven paradas en el pasillo.</p></div>
+        <div class="card warm"><span class="ico">🎨</span><h3>Color por tipo</h3><p>Consumo, venta, piscina o infraestructura, de un vistazo.</p></div>
+        <div class="card warm"><span class="ico">🔴</span><h3>Marca el buscado</h3><p>El pallet que hay que levantar late en rojo hasta que se lo encuentra.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 7. Trazabilidad ────────────────────────────────── -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker">Lo que queda registrado</div>
+      <h2>Cada movimiento tiene <span class="grad">nombre y hora</span></h2>
+      <p class="lead">La bitácora no se llena a mano: se llena sola, con lo que pasó de verdad.</p>
+      <div class="kpis">
+        <div class="kpi"><b>119</b><span>ARTÍCULOS EN EL CATÁLOGO</span></div>
+        <div class="kpi"><b>240</b><span>POSICIONES MAPEADAS</span></div>
+        <div class="kpi"><b>36</b><span>PALLETS CON QR</span></div>
+        <div class="kpi"><b>229.650</b><span>UNIDADES BAJO CONTROL</span></div>
+      </div>
+      <div class="cards c3" style="margin-top:16px">
+        <div class="card"><h3>Ingresos</h3><p>14 cargados, cada uno con el stock antes y después.
+          Nadie escribe el saldo: lo calcula el sistema.</p></div>
+        <div class="card"><h3>Pallets armados</h3><p>36 con su QR, sus cajas y su lugar.
+          Ninguno lleva más unidades de las que había sueltas.</p></div>
+        <div class="card warm"><h3>Con nombre y hora</h3><p>50 movimientos registrados y
+          <b style="color:var(--ok)">50 con autor</b>: el 100%.</p></div>
+      </div>
+      <p class="mini" style="margin-top:18px">2 depósitos · 6 estanterías · 6 sub-depósitos ·
+        4 tipos de mercadería &nbsp;·&nbsp; datos al 06/08/2026</p>
+    </div>
+  </section>
+
+  <!-- ── 8. Cierre ──────────────────────────────────────── -->
+  <section class="slide">
+    <div class="wrap" style="text-align:center">
+      <div class="marca" style="justify-content:center">
+        <img src="../logo.jpg" alt=""/>
+        <span style="text-align:left"><b>Subatir S.A. / Prolimpio</b><span>Control de Stock Depósitos</span></span>
+      </div>
+      <h2 style="margin-top:14px">Un pallet, un QR, <span class="grad">un lugar</span></h2>
+      <p class="lead" style="margin-inline:auto">Lo que entra se registra, lo que se mueve se escanea
+      y lo que se usa se descuenta. Sin planillas paralelas.</p>
+      <p class="mini" style="margin-top:26px">Sistema interno · Furriol y Artigas</p>
+    </div>
+  </section>
+</div>
+
+<nav class="nav" aria-label="Navegación de la presentación">
+  <button class="nb" onclick="ir(-1)" aria-label="Anterior">←</button>
+  <button class="nb" onclick="ir(1)" aria-label="Siguiente">→</button>
+  <span class="dots" id="dots"></span>
+  <span class="cuenta" id="cuenta">1 / 8</span>
+</nav>
+
+<script>
+// Navegación: teclado, botones, puntos y deslizar en el celular.
+var S=[].slice.call(document.querySelectorAll('.slide')), i=0;
+var dots=document.getElementById('dots');
+S.forEach(function(_,n){
+  var b=document.createElement('button');
+  b.className='dot'+(n?'':' on'); b.setAttribute('aria-label','Ir a la lámina '+(n+1));
+  b.onclick=function(){ ver(n); }; dots.appendChild(b);
+});
+function ver(n){
+  i=Math.max(0,Math.min(S.length-1,n));
+  S.forEach(function(s,k){ s.classList.toggle('on',k===i); });
+  [].forEach.call(dots.children,function(d,k){ d.classList.toggle('on',k===i); });
+  document.getElementById('cuenta').textContent=(i+1)+' / '+S.length;
+}
+function ir(d){ ver(i+d); }
+document.addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown') ir(1);
+  if(e.key==='ArrowLeft'||e.key==='PageUp') ir(-1);
+  if(e.key==='Home') ver(0);
+  if(e.key==='End') ver(S.length-1);
+});
+var x0=null;
+document.addEventListener('touchstart',function(e){ x0=e.touches[0].clientX; },{passive:true});
+document.addEventListener('touchend',function(e){
+  if(x0===null) return;
+  var dx=e.changedTouches[0].clientX-x0; x0=null;
+  if(Math.abs(dx)>56) ir(dx<0?1:-1);
+},{passive:true});
+</script>
+</body>
+</html>

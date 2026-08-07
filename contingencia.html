@@ -6,7 +6,7 @@
 <title>Contingencia — Subatir / Prolimpio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 /* ═══ DESIGN SYSTEM ═══════════════════════════════════════════ */
 :root{
@@ -74,7 +74,7 @@ header{
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none}
 .logo-icon{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(245,158,11,.5)}
 .logo-txt{display:flex;flex-direction:column;gap:0}
-.logo-name{font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:var(--txt);line-height:1}
+.logo-name{font-family:'Manrope',sans-serif;font-weight:800;font-size:13px;color:var(--txt);line-height:1}
 .logo-sub{font-size:9px;color:var(--mut2);letter-spacing:.5px;text-transform:uppercase}
 nav{display:flex;gap:4px;flex-wrap:wrap}
 .nav-link{
@@ -106,7 +106,7 @@ nav{display:flex;gap:4px;flex-wrap:wrap}
 .ticker-bar::before,.ticker-bar::after{content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
 .ticker-bar::before{left:0;background:linear-gradient(90deg,rgba(7,9,15,1),transparent)}
 .ticker-bar::after{right:0;background:linear-gradient(270deg,rgba(7,9,15,1),transparent)}
-.ticker-label{position:absolute;left:12px;z-index:3;font-family:'Syne',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--amb);white-space:nowrap;text-shadow:0 0 10px rgba(245,158,11,.5)}
+.ticker-label{position:absolute;left:12px;z-index:3;font-family:'Manrope',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--amb);white-space:nowrap;text-shadow:0 0 10px rgba(245,158,11,.5)}
 .ticker-track{display:flex;align-items:center;animation:ticker-scroll 36s linear infinite;white-space:nowrap;padding-left:160px}
 .ticker-track:hover{animation-play-state:paused}
 .ticker-item{display:inline-flex;align-items:center;gap:6px;padding:0 20px;font-size:11px;color:var(--mut)}
@@ -120,7 +120,7 @@ main{flex:1;padding:10px 16px 24px;display:flex;flex-direction:column;gap:10px}
 /* ── Section title ─────────────────────────────────────────── */
 .sec-title{
   display:flex;align-items:center;gap:8px;
-  font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--txt);
+  font-family:'Manrope',sans-serif;font-size:15px;font-weight:700;color:var(--txt);
 }
 .sec-title::before{content:'';width:3px;height:15px;background:linear-gradient(180deg,var(--amb),var(--or));border-radius:2px}
 .sec-sub{font-size:11px;color:var(--mut2);font-family:'DM Sans',sans-serif;font-weight:400}
@@ -173,7 +173,7 @@ thead th{
   position:sticky;top:0;z-index:10;
   background:#0d1421;
   padding:4px 5px;text-align:center;
-  font-family:'Syne',sans-serif;font-size:8.5px;font-weight:700;
+  font-family:'Manrope',sans-serif;font-size:8.5px;font-weight:700;
   letter-spacing:.4px;text-transform:uppercase;color:var(--mut2);
   border-bottom:1px solid var(--bdr2);
   white-space:normal;word-break:break-word;
@@ -224,7 +224,7 @@ tbody td{padding:4px 5px;vertical-align:middle;color:var(--txt);white-space:nowr
   border-radius:18px;padding:28px;width:100%;max-width:680px;
   box-shadow:0 32px 80px rgba(0,0,0,.8);margin:auto;
 }
-.edit-title{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:4px;color:var(--txt)}
+.edit-title{font-family:'Manrope',sans-serif;font-size:17px;font-weight:700;margin-bottom:4px;color:var(--txt)}
 .edit-sub{font-size:12px;color:var(--mut2);margin-bottom:20px}
 .edit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:20px}
 .edit-field{display:flex;flex-direction:column;gap:4px}
@@ -280,7 +280,7 @@ tbody td{padding:4px 5px;vertical-align:middle;color:var(--txt);white-space:nowr
   border-radius:18px;padding:28px;max-width:520px;width:90%;
   box-shadow:0 24px 80px rgba(0,0,0,.7);
 }
-.modal-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px}
+.modal-title{font-family:'Manrope',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px}
 .modal-sub{font-size:13px;color:var(--mut2);margin-bottom:20px}
 .modal-input{
   width:100%;padding:10px 14px;border-radius:9px;
@@ -331,12 +331,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-06.2213"></script>
-<script src="subatir-app.js?v=2026-08-06.2213"></script>
+<script src="supabase-config.js?v=2026-08-06.2300"></script>
+<script src="subatir-app.js?v=2026-08-06.2300"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-06.2213';
+window.APP_VER='2026-08-06.2300';
 </script>
 </head>
 <body>

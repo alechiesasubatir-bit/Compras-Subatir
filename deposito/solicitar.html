@@ -12,7 +12,7 @@
 <link rel="icon" href="icon-192.png"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Solicitar mercadería — Subatir / Prolimpio</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="movil.css"/>
 <style>
 /* El pedido que acaba de llegar: se destaca hasta que lo den por visto */
@@ -38,6 +38,14 @@
 </header>
 
 <main>
+  <!-- Lo primero es en qué anda lo que ya pediste: es la pregunta que
+       trae a esta pantalla la mayoría de las veces. Pedir algo nuevo
+       viene después. -->
+  <div class="card hero">
+    <div class="lbl">Mis pedidos y su avance</div>
+    <div id="mis"></div>
+  </div>
+
   <div class="card">
     <div class="lbl">De dónde a dónde</div>
     <div class="row">
@@ -49,14 +57,13 @@
 
   <div class="card">
     <div class="lbl">Qué necesitás</div>
-    <input class="inp" id="q" type="search" placeholder="Buscar por descripción o código…"
-           oninput="buscar()" aria-label="Buscar mercadería por descripción o código"/>
+    <input class="inp" id="q" type="search" placeholder="Buscar por artículo o código…"
+           oninput="buscar()" aria-label="Buscar mercadería por artículo o código"/>
+    <div class="row" style="margin-top:9px;justify-content:space-between">
+      <span id="res-n" style="font-family:var(--mono);font-size:11px;color:var(--muted)">—</span>
+      <button class="btn btn-sm" id="btn-todo" onclick="toggleTodo()">Mostrar todo</button>
+    </div>
     <div id="res" aria-live="polite"></div>
-  </div>
-
-  <div class="card">
-    <div class="lbl">Mis solicitudes</div>
-    <div id="mis"></div>
   </div>
 </main>
 
@@ -72,12 +79,12 @@
 <div id="toast-host" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-08-06.2213"></script>
-<script src="deposito-app.js?v=2026-08-06.2213"></script>
+<script src="../supabase-config.js?v=2026-08-06.2300"></script>
+<script src="deposito-app.js?v=2026-08-06.2300"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-06.2213';
+window.APP_VER='2026-08-06.2300';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -162,6 +169,23 @@ function depSelects(){
 }
 
 // ── Buscar y listar ───────────────────────────────────────────
+//  Qué artículos están desplegados. Se guarda por nombre y no por
+//  posición: la lista se rearma en cada búsqueda y las posiciones
+//  bailan, el nombre no.
+var ABIERTOS={}, TODO=false;
+function abrirArt(i){
+  var b=document.querySelectorAll('#res .acc-h')[i]; if(!b) return;
+  var art=b.getAttribute('data-art');
+  ABIERTOS[art]=!b.parentNode.classList.contains('open');
+  if(!ABIERTOS[art]) TODO=false;    // si pliega uno a mano, "mostrar todo" deja de mandar
+  buscar();
+}
+function toggleTodo(){
+  TODO=!TODO;
+  if(!TODO) ABIERTOS={};
+  buscar();
+}
+
 function buscar(){
   var q=norm(document.getElementById('q').value);
   var org=document.getElementById('f-origen').value;
@@ -172,37 +196,64 @@ function buscar(){
         || norm(p.codigo).indexOf(q)>=0;
   });
   var host=document.getElementById('res');
+  var cnt=document.getElementById('res-n');
   if(!list.length){
+    if(cnt) cnt.textContent='0 artículos';
     host.innerHTML='<div class="empty">'+(q
       ? 'Nada disponible con «'+esc(document.getElementById('q').value)+'» en '+esc(org)+'.'
       : 'No hay pallets disponibles en '+esc(org)+'.<br>Un pallet aparece acá cuando está cerrado, '
         +'quieto en su lugar y sin pedir por otro.')+'</div>';
     return;
   }
-  // Agrupados por artículo: se pide "de esto, estos dos"
+  // Agrupados por artículo y PLEGADOS: la lista completa de pallets no
+  // entra en un celular y obliga a hacer scroll para encontrar algo.
+  // Se abre el artículo que interesa y ahí aparecen sus pallets.
   var g={};
   list.forEach(function(p){ (g[p.articulo||'—']=g[p.articulo||'—']||[]).push(p); });
-  var html='';
-  Object.keys(g).sort().forEach(function(art){
+  var arts=Object.keys(g).sort();
+  if(cnt) cnt.textContent=arts.length+(arts.length===1?' artículo':' artículos')
+      +' · '+list.length+' pallet'+(list.length===1?'':'s');
+
+  var html=arts.map(function(art, i){
     var ps=g[art];
-    html+='<div class="grp">'+esc(art)+' <span style="color:var(--muted);font-weight:600">· '
-      +ps.length+' pallet'+(ps.length===1?'':'s')+'</span></div>';
     ps.sort(function(a,b){ return String(a.ubicacion||'').localeCompare(String(b.ubicacion||'')); });
-    html+=ps.map(function(p){
+    var elegidos=ps.filter(function(p){ return !!CART[p.id]; }).length;
+    // Se abre solo si: lo abrió el usuario, si tiene algo elegido, si
+    // está activo "mostrar todo", o si la búsqueda dejó un solo artículo.
+    var abierto = ABIERTOS[art] || elegidos>0 || TODO || arts.length===1;
+    var cod=ps[0].art_codigo ? String(ps[0].art_codigo) : '';
+    var un=ps.reduce(function(a,p){ return a+(parseFloat(p.unidades)||0); },0);
+
+    var cuerpo=ps.map(function(p){
       var on=!!CART[p.id];
       var donde=[p.subdeposito, p.ubicacion].filter(Boolean).join(' · ') || 'sin ubicar';
       return '<button type="button" class="pal'+(on?' on':'')+'" onclick="toggle('+p.id+')"'
-        +' aria-pressed="'+on+'"ّ'.replace('ّ','')
+        +' aria-pressed="'+on+'"'
         +' aria-label="'+esc(p.codigo+', '+art+', '+fmt(p.unidades)+' unidades, en '+donde
                           +(on?'. Elegido':'. Tocá para elegir'))+'">'
         +'<span class="pal-chk" aria-hidden="true">'+(on?'✓':'')+'</span>'
-        +'<span class="pal-b"><span class="pal-t">'+esc(p.codigo)+'</span>'
-        +'<span class="pal-m">📍 '+esc(donde)+'</span></span>'
+        +'<span class="pal-b"><span class="pal-t">📍 '+esc(donde)+'</span>'
+        +'<span class="pal-m">'+esc(p.codigo)+'</span></span>'
         +'<span class="pal-u">'+fmt(p.unidades)+' u.</span>'
       +'</button>';
     }).join('');
-  });
+
+    return '<div class="acc'+(abierto?' open':'')+'">'
+      +'<button type="button" class="acc-h" onclick="abrirArt('+i+')" data-art="'+esc(art)+'"'
+      +' aria-expanded="'+abierto+'">'
+        +'<span class="acc-i" aria-hidden="true">'+(elegidos?'✓':'📦')+'</span>'
+        +'<span class="acc-t"><span class="acc-n">'+esc(art)+'</span>'
+        +'<span class="acc-m">'+(cod?esc(cod)+' · ':'')+ps.length+' pallet'+(ps.length===1?'':'s')
+        +' · '+fmt(un)+' u.</span></span>'
+        +(elegidos?'<span class="acc-c">'+elegidos+' elegido'+(elegidos===1?'':'s')+'</span>':'')
+        +'<span class="acc-x" aria-hidden="true">▼</span>'
+      +'</button>'
+      +'<div class="acc-b">'+cuerpo+'</div>'
+    +'</div>';
+  }).join('');
   host.innerHTML=html;
+  var bt=document.getElementById('btn-todo');
+  if(bt) bt.textContent = TODO ? 'Plegar todo' : 'Mostrar todo';
 }
 
 function toggle(id){
@@ -297,6 +348,25 @@ function avisarLlegadas(){
 // ── Mis solicitudes ───────────────────────────────────────────
 var CHIP={PENDIENTE:['pend','Pendiente'],EN_PREPARACION:['prep','Preparando'],
           EN_TRANSITO:['tran','En camino'],ENTREGADA:['ok','Entregada'],CANCELADA:['can','Cancelada']};
+
+// El avance en cuatro pasos. Es lo que la gente viene a mirar, así que
+// va grande y con el paso actual latiendo: se entiende de un vistazo,
+// sin leer.
+var PASOS=[['PENDIENTE','Pedido','1'],['EN_PREPARACION','Preparando','2'],
+           ['EN_TRANSITO','En camino','3'],['ENTREGADA','Llegó','4']];
+function avanceHTML(estado){
+  if(estado==='CANCELADA') return '';
+  var i=PASOS.map(function(p){return p[0];}).indexOf(estado);
+  if(i<0) i=0;
+  return '<div class="prog" role="img" aria-label="Avance: '+esc(PASOS[i][1])+', paso '+(i+1)+' de 4">'
+    +PASOS.map(function(p,n){
+      var cls = n<i ? 'done' : (n===i ? (n===3?'done fin':'now') : '');
+      var ico = n<i ? '✓' : (n===3 && i===3 ? '✓' : p[2]);
+      return '<div class="prog-s '+cls+'"><span class="prog-d" aria-hidden="true">'+ico+'</span>'
+        +'<span class="prog-l">'+p[1]+'</span></div>';
+    }).join('')
+  +'</div>';
+}
 function renderMis(){
   var yo=whoName();
   var mias=MIS.filter(function(s){ return s.solicitante===yo; });
@@ -315,6 +385,7 @@ function renderMis(){
       +'<div class="sol-m">'+s.items+' pallet'+(s.items===1?'':'s')+' · '+fmt(s.unidades)+' u. · '
       +f.toLocaleDateString('es-UY')+' '+f.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})
       +(s.entregados?(' · '+s.entregados+' entregado'+(s.entregados===1?'':'s')):'')+'</div>'
+      +avanceHTML(s.estado)
       +(llego?('<div class="llego-av">✅ Llegó a '+esc(s.destino)
               +(s.entregada_at?(' · <b>'+new Date(s.entregada_at).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})+'</b>'):'')
               +'</div><button class="btn btn-sm" style="margin-top:9px" onclick="marcarVisto('+s.id+')">Enterado</button>'):'')

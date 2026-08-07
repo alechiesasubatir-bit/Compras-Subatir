@@ -6,7 +6,7 @@
 <title>Copiloto IA — Subatir / Prolimpio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 /* ═══ DESIGN SYSTEM ══════════════════════════════════════════ */
 :root{
@@ -40,11 +40,11 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
 .logo-icon{width:36px;height:36px;border-radius:50%;object-fit:cover;
   box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25)}
-.logo-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;letter-spacing:-.3px;color:var(--txt)}
+.logo-name{font-family:'Manrope',sans-serif;font-size:14px;font-weight:800;letter-spacing:-.3px;color:var(--txt)}
 .logo-sub{font-size:9px;color:var(--mut2);margin-top:1px}
 nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .nl{padding:5px 11px;border-radius:8px;font-size:11.5px;font-weight:600;color:var(--mut2);
-  text-decoration:none;border:1px solid transparent;transition:all .18s;white-space:nowrap;font-family:'Syne',sans-serif}
+  text-decoration:none;border:1px solid transparent;transition:all .18s;white-space:nowrap;font-family:'Manrope',sans-serif}
 .nl:hover{color:var(--txt);background:var(--gl2);border-color:var(--bdr)}
 .nl.on{color:#fff;background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(167,139,250,.25));
   border-color:rgba(167,139,250,.3);box-shadow:0 0 10px rgba(124,58,237,.25)}
@@ -61,7 +61,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .ai-badge{display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:20px;
   background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(167,139,250,.15));
   border:1px solid rgba(167,139,250,.3);font-size:11px;font-weight:700;color:var(--pur);
-  font-family:'Syne',sans-serif;letter-spacing:.3px}
+  font-family:'Manrope',sans-serif;letter-spacing:.3px}
 .ai-dot{width:7px;height:7px;border-radius:50%;background:var(--pur);animation:ai-pulse 2s ease-in-out infinite}
 @keyframes ai-pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
 
@@ -85,7 +85,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
   display:flex;flex-direction:column;gap:4px;transition:border-color .2s}
 .kpi:hover{border-color:var(--bdr2)}
 .knum{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;line-height:1}
-.ksub{font-family:'Syne',sans-serif;font-size:10px;font-weight:600;letter-spacing:.5px;
+.ksub{font-family:'Manrope',sans-serif;font-size:10px;font-weight:600;letter-spacing:.5px;
   text-transform:uppercase;color:var(--mut2)}
 .kpi.k-red .knum{color:var(--red)}
 .kpi.k-or .knum{color:var(--or)}
@@ -102,7 +102,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 
 /* ── SECTION HEADER ──────────────────────────────────────────── */
 .sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.sec-hdr h2{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:.2px;flex:1}
+.sec-hdr h2{font-family:'Manrope',sans-serif;font-size:13px;font-weight:700;letter-spacing:.2px;flex:1}
 .badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 9px;border-radius:20px;
   font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace}
 .badge-red{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.25)}
@@ -122,7 +122,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
   flex-shrink:0;box-shadow:0 0 20px rgba(124,58,237,.4);animation:ai-glow 3s ease-in-out infinite}
 @keyframes ai-glow{0%,100%{box-shadow:0 0 20px rgba(124,58,237,.4)}50%{box-shadow:0 0 35px rgba(124,58,237,.7)}}
 .exec-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-.exec-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--pur);letter-spacing:.2px}
+.exec-title{font-family:'Manrope',sans-serif;font-size:13px;font-weight:800;color:var(--pur);letter-spacing:.2px}
 .exec-subtitle{font-size:11px;color:var(--mut2)}
 .exec-text{font-size:13.5px;line-height:1.7;color:var(--txt)}
 .exec-text strong{color:var(--pur);font-weight:600}
@@ -137,7 +137,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .alert-item.p-bajo{border-left-color:var(--teal);background:rgba(14,138,170,.03)}
 .alert-icon{font-size:16px;line-height:1;flex-shrink:0;margin-top:1px}
 .alert-body{flex:1;min-width:0}
-.alert-title{font-size:12.5px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:3px}
+.alert-title{font-size:12.5px;font-weight:700;font-family:'Manrope',sans-serif;margin-bottom:3px}
 .alert-detail{font-size:11.5px;color:var(--mut2);line-height:1.5}
 .alert-action{font-size:11px;color:var(--pur);margin-top:5px;font-style:italic}
 .priority-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;
@@ -155,7 +155,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .rec-icon{width:32px;height:32px;border-radius:8px;
   background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(167,139,250,.2));
   display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
-.rec-product{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--txt)}
+.rec-product{font-family:'Manrope',sans-serif;font-size:12px;font-weight:700;color:var(--txt)}
 .rec-reason{font-size:11px;color:var(--mut2);margin-top:2px;line-height:1.4}
 .rec-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .rec-tag{font-size:10px;padding:3px 8px;border-radius:6px;font-family:'IBM Plex Mono',monospace}
@@ -176,7 +176,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .pos-2{background:rgba(167,139,250,.15);color:var(--pur)}
 .pos-3{background:rgba(14,138,170,.15);color:var(--tl)}
 .pos-n{background:var(--gl2);color:var(--mut2)}
-.prov-rank-name{flex:1;font-size:12px;font-weight:600;font-family:'Syne',sans-serif;
+.prov-rank-name{flex:1;font-size:12px;font-weight:600;font-family:'Manrope',sans-serif;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .prov-rank-score{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700}
 .prov-rank-bar{height:4px;border-radius:2px;margin-top:4px;transition:width .5s ease}
@@ -186,7 +186,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .cont-list{display:flex;flex-direction:column;gap:8px}
 .cont-item{padding:11px 13px;border-radius:10px;background:var(--gl);border:1px solid var(--bdr);
   border-left:3px solid rgba(167,139,250,.4)}
-.cont-product{font-size:12px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:4px}
+.cont-product{font-size:12px;font-weight:700;font-family:'Manrope',sans-serif;margin-bottom:4px}
 .cont-detail{font-size:11px;color:var(--mut2);line-height:1.5}
 .cont-tag{display:inline-block;font-size:9.5px;padding:2px 7px;border-radius:5px;
   background:rgba(167,139,250,.12);color:var(--pur);border:1px solid rgba(167,139,250,.2);
@@ -198,7 +198,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .chat-icon{width:38px;height:38px;border-radius:10px;
   background:linear-gradient(135deg,var(--pur2),var(--pur));
   display:flex;align-items:center;justify-content:center;font-size:18px}
-.chat-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:800}
+.chat-title{font-family:'Manrope',sans-serif;font-size:14px;font-weight:800}
 .chat-subtitle{font-size:11px;color:var(--mut2)}
 .chat-body{max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:14px;
   padding-right:4px}
@@ -213,7 +213,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
   border-top-left-radius:3px}
 .chat-msg.user .chat-bubble{background:rgba(14,138,170,.15);border:1px solid rgba(27,200,255,.15);
   border-top-right-radius:3px;color:var(--tl)}
-.chat-bubble h3{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--pur);
+.chat-bubble h3{font-family:'Manrope',sans-serif;font-size:11px;font-weight:700;color:var(--pur);
   margin:8px 0 4px;text-transform:uppercase;letter-spacing:.4px}
 .chat-bubble h3:first-child{margin-top:0}
 .chat-bubble p{margin:3px 0;color:var(--txt)}
@@ -259,7 +259,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .api-status{font-size:11px;font-weight:700;flex-shrink:0}
 .api-status.ok{color:var(--grn)}.api-status.no{color:var(--pur)}
 .api-btn{padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
-  border:none;font-family:'Syne',sans-serif;letter-spacing:.3px;transition:all .15s;white-space:nowrap}
+  border:none;font-family:'Manrope',sans-serif;letter-spacing:.3px;transition:all .15s;white-space:nowrap}
 .api-btn.setup{background:linear-gradient(135deg,var(--pur2),var(--pur));color:#fff}
 .api-btn.setup:hover{filter:brightness(1.15);transform:translateY(-1px)}
 .api-btn.configured{background:rgba(34,197,94,.15);color:var(--grn);border:1px solid rgba(34,197,94,.25)}
@@ -276,7 +276,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .modal-overlay.open{display:flex}
 .modal-box{background:#0d1520;border:1px solid var(--bdr2);border-radius:16px;
   padding:24px;max-width:440px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.6)}
-.modal-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;margin-bottom:6px}
+.modal-title{font-family:'Manrope',sans-serif;font-size:15px;font-weight:800;margin-bottom:6px}
 .modal-sub{font-size:12px;color:var(--mut2);margin-bottom:16px;line-height:1.6}
 .modal-input{width:100%;background:var(--gl2);border:1px solid var(--bdr);border-radius:9px;
   padding:10px 13px;color:var(--txt);font-size:13px;outline:none;font-family:'IBM Plex Mono',monospace;
@@ -301,7 +301,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .no-data-card{padding:32px;text-align:center;border-radius:var(--r);
   background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(14,138,170,.05));
   border:1px dashed rgba(167,139,250,.2)}
-.no-data-card h3{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:8px;color:var(--pur)}
+.no-data-card h3{font-family:'Manrope',sans-serif;font-size:15px;font-weight:700;margin-bottom:8px;color:var(--pur)}
 .no-data-card p{font-size:12.5px;color:var(--mut2);line-height:1.7}
 .no-data-card a{color:var(--pur);text-decoration:none;font-weight:600}
 
@@ -312,12 +312,12 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .sem-rojo::before{content:'🔴 '}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-06.2213"></script>
-<script src="subatir-app.js?v=2026-08-06.2213"></script>
+<script src="supabase-config.js?v=2026-08-06.2300"></script>
+<script src="subatir-app.js?v=2026-08-06.2300"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-06.2213';
+window.APP_VER='2026-08-06.2300';
 </script>
 </head>
 <body>
@@ -330,7 +330,7 @@ window.APP_VER='2026-08-06.2213';
 <header class="hdr">
   <a class="logo" href="index.html">
     <img class="logo-icon" src="logo.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt=""/>
-    <div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ea580c);align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:#fff;box-shadow:0 0 0 2px rgba(249,115,22,.5)">SB</div>
+    <div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ea580c);align-items:center;justify-content:center;font-family:'Manrope',sans-serif;font-weight:800;font-size:13px;color:#fff;box-shadow:0 0 0 2px rgba(249,115,22,.5)">SB</div>
     <div>
       <div class="logo-name">SUBATIR / PROLIMPIO</div>
       <div class="logo-sub">Sistema de Compras</div>
@@ -385,12 +385,12 @@ window.APP_VER='2026-08-06.2213';
   <!-- KPI financiero — totales OC por moneda -->
   <div class="kpi-strip" style="grid-template-columns:repeat(2,1fr)">
     <div class="kpi" style="border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.05)">
-      <div style="font-size:10px;color:var(--mut2);font-family:'Syne',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">OC Pendientes · U$S</div>
+      <div style="font-size:10px;color:var(--mut2);font-family:'Manrope',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">OC Pendientes · U$S</div>
       <div class="knum" id="kpi-oc-usd" style="font-size:22px;color:var(--grn)">—</div>
       <div class="ksub">pedidos activos en dólares</div>
     </div>
     <div class="kpi" style="border-color:rgba(27,200,255,.25);background:rgba(27,200,255,.05)">
-      <div style="font-size:10px;color:var(--mut2);font-family:'Syne',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">OC Pendientes · $</div>
+      <div style="font-size:10px;color:var(--mut2);font-family:'Manrope',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">OC Pendientes · $</div>
       <div class="knum" id="kpi-oc-pso" style="font-size:22px;color:var(--tl)">—</div>
       <div class="ksub">pedidos activos en pesos</div>
     </div>
@@ -536,7 +536,7 @@ window.APP_VER='2026-08-06.2213';
 
     <!-- Pasos -->
     <div style="background:rgba(124,58,237,.07);border:1px solid rgba(167,139,250,.15);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;color:var(--pur);font-family:'Syne',sans-serif;margin-bottom:10px;letter-spacing:.3px">CÓMO OBTENER TU API KEY</div>
+      <div style="font-size:11px;font-weight:700;color:var(--pur);font-family:'Manrope',sans-serif;margin-bottom:10px;letter-spacing:.3px">CÓMO OBTENER TU API KEY</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
           <span style="width:20px;height:20px;border-radius:50%;background:rgba(124,58,237,.4);color:var(--pur);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex-shrink:0">1</span>

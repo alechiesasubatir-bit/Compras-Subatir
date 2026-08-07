@@ -14,7 +14,7 @@
   --glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.07);--border-s:rgba(255,255,255,.13);
   --text:#e2e8f0;--muted:#75869d;--muted-l:#8ea0b8;
   --focus:#4dd6ff;--danger:#ef4444;--ok:#22c55e;--warn:#f59e0b;
-  --mono:'IBM Plex Mono',ui-monospace,monospace;--display:'Syne',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;--display:'Manrope',sans-serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -104,6 +104,130 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
   background:rgba(255,255,255,.03);margin-bottom:8px}
 .sol-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .sol-m{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:5px}
+
+/* ════════════════════════════════════════════════════════════
+   CAPA VISUAL DEL CELULAR
+   El fondo sigue siendo negro; el color entra por acentos, no por
+   relleno. Todo lo de acá se comparte entre Solicitar y Recorrido
+   para que las dos pantallas se sientan la misma app.
+   ════════════════════════════════════════════════════════════ */
+
+/* Encabezado: el logo con aro de luz y el título en degradé */
+.logo{box-shadow:0 0 0 1px rgba(27,200,255,.30), 0 6px 18px rgba(14,138,170,.30)}
+.htit{background:linear-gradient(92deg,#e8eef6 0%,#7dd3fc 55%,#fdba74 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#e8eef6}
+header::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(27,200,255,.55),rgba(249,115,22,.45),transparent)}
+header{position:sticky;overflow:visible}
+
+/* Cada título de tarjeta lleva su barrita de acento */
+.lbl{display:flex;align-items:center;gap:7px}
+.lbl::before{content:'';width:3px;height:12px;border-radius:2px;flex:0 0 3px;
+  background:linear-gradient(180deg,var(--teal-l),var(--orange))}
+
+/* La tarjeta destacada del momento (el pedido que se está atendiendo) */
+.card.hero{background:linear-gradient(160deg,rgba(27,200,255,.09),rgba(249,115,22,.05) 70%,transparent);
+  border-color:rgba(27,200,255,.28)}
+
+/* ── AVANCE DEL PEDIDO ──────────────────────────────────────
+   Cuatro pasos con la línea que se va llenando. El paso actual
+   late: en un depósito la pantalla se mira de reojo y el
+   movimiento es lo único que se ve sin frenar. */
+/* Se usa tanto en <div> (Solicitar) como en <span> dentro de un botón
+   (Recorrido): el display va forzado para que no dependa de la etiqueta. */
+.prog{display:grid!important;grid-template-columns:repeat(4,1fr);margin:13px 0 2px}
+.prog-s{position:relative;display:flex!important;flex-direction:column;align-items:center;gap:7px;min-width:0}
+.prog-d,.prog-l{display:grid}
+.prog-l{display:block}
+.prog-s::before{content:'';position:absolute;top:12px;right:50%;width:100%;height:3px;border-radius:3px;
+  background:rgba(255,255,255,.08)}
+.prog-s:first-child::before{display:none}
+.prog-s.done::before{background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.prog-s.now::before{background:linear-gradient(90deg,var(--teal-l),var(--orange))}
+.prog-d{position:relative;z-index:1;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.13);font-size:11px;color:var(--muted)}
+.prog-s.done .prog-d{background:linear-gradient(180deg,#1bc8ff,#0e8aaa);border-color:transparent;
+  color:#04222c;font-weight:800;box-shadow:0 4px 14px rgba(14,138,170,.45)}
+.prog-s.now .prog-d{background:linear-gradient(180deg,#fb923c,#ea6a08);border-color:transparent;
+  color:#2b1200;font-weight:800;animation:latir 1.9s ease-out infinite}
+@keyframes latir{0%{box-shadow:0 0 0 0 rgba(249,115,22,.55)}
+  70%{box-shadow:0 0 0 13px rgba(249,115,22,0)}100%{box-shadow:0 0 0 0 rgba(249,115,22,0)}}
+.prog-l{font-size:9.5px;line-height:1.2;text-align:center;color:var(--muted);letter-spacing:.2px}
+.prog-s.done .prog-l{color:var(--teal-l)}
+.prog-s.now .prog-l{color:var(--orange-l);font-weight:700}
+.prog-s.fin .prog-d{background:linear-gradient(180deg,#4ade80,#16a34a);color:#052e16}
+.prog-s.fin .prog-l{color:#86efac}
+
+/* ── DESPLEGABLE POR ARTÍCULO ───────────────────────────────
+   La lista completa de pallets no entra en un celular. Se agrupa
+   por artículo y cada grupo se abre sólo si interesa. */
+.acc{border:1px solid var(--border);border-radius:13px;margin-bottom:8px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015))}
+.acc.open{border-color:rgba(27,200,255,.35);background:linear-gradient(180deg,rgba(27,200,255,.07),rgba(255,255,255,.02))}
+.acc-h{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:11px;
+  background:none;border:0;color:var(--text);font-family:inherit;text-align:left;cursor:pointer}
+.acc-h:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.acc-i{flex:0 0 32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:15px;
+  background:rgba(27,200,255,.12);border:1px solid rgba(27,200,255,.26)}
+.acc.open .acc-i{background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.4)}
+.acc-t{flex:1;min-width:0}
+/* Son <span> dentro de un <button>: sin esto quedan uno al lado del otro */
+.acc-n{display:block;font-size:14px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.acc-m{display:block;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:2px}
+.acc-c{flex:0 0 auto;font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--orange-l);
+  padding:3px 8px;border-radius:20px;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.3)}
+.acc-x{flex:0 0 auto;color:var(--muted);font-size:11px;transition:transform .2s ease}
+.acc.open .acc-x{transform:rotate(180deg);color:var(--teal-l)}
+.acc-b{display:none;padding:2px 9px 9px}
+.acc.open .acc-b{display:block;animation:abrir .22s ease}
+@keyframes abrir{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+
+/* ── MINI PLANO 2D / 3D DE LA ESTANTERÍA ────────────────────
+   Para que el operario vea DÓNDE está el pallet sin abrir el
+   panel. La ranura buscada parpadea en rojo. */
+.mini-wrap{display:block;margin-top:9px}
+.m2d,.m3d{display:block}
+.mini-cap{display:block}
+.mini-tabs{display:inline-flex;gap:3px;padding:3px;border-radius:10px;background:rgba(0,0,0,.34);
+  border:1px solid var(--border);margin-bottom:8px}
+.mini-tabs button{padding:5px 12px;border-radius:8px;border:0;background:none;color:var(--muted);
+  font-family:var(--display);font-size:11px;font-weight:700;cursor:pointer;min-height:32px}
+.mini-tabs button.on{background:rgba(27,200,255,.16);color:var(--teal-l)}
+.mini-cap{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;text-align:center}
+
+.m2d-row{display:grid;gap:4px;align-items:center;margin-bottom:4px}
+.m2d-lv{font-family:var(--mono);font-size:9.5px;color:var(--muted);text-align:center}
+.m-cell{aspect-ratio:1.5;border-radius:6px;background:rgba(255,255,255,.045);
+  border:1px solid var(--border);display:grid;place-items:center;
+  font-family:var(--mono);font-size:8.5px;color:var(--muted)}
+.m-cell.occ{background:rgba(27,200,255,.13);border-color:rgba(27,200,255,.30);color:var(--teal-l)}
+
+/* La ranura buscada: rojo que late. Es la única cosa roja de la
+   pantalla, así no compite con nada. */
+.m-cell.target,.m-cell.target.occ{color:#fff;font-weight:800;border-color:#ef4444;
+  animation:buscala 1.05s ease-in-out infinite}
+@keyframes buscala{
+  0%,100%{background:rgba(239,68,68,.9);box-shadow:0 0 0 0 rgba(239,68,68,.55),0 0 16px rgba(239,68,68,.5)}
+  50%{background:rgba(239,68,68,.22);box-shadow:0 0 0 9px rgba(239,68,68,0),0 0 4px rgba(239,68,68,.2)}}
+
+/* El 3D es el mismo plano inclinado: da la sensación de estar
+   parado frente al rack sin cargar una librería 3D en el celular. */
+/* El inclinado se sale de la caja si no se lo encierra y se lo achica:
+   la grilla rotada ocupa mucho más ancho del que mide. */
+.m3d{perspective:820px;overflow:hidden;padding:6px 0;border-radius:12px;
+  background:radial-gradient(120% 90% at 50% 20%,rgba(27,200,255,.07),transparent 70%)}
+.m3d-in{transform:rotateX(51deg) rotateZ(-34deg) scale(.74);transform-origin:50% 50%;
+  transform-style:preserve-3d;display:block}
+.m3d .m2d-lv{visibility:hidden}          /* las letras sueltas en el aire no se leen */
+.m3d .m-cell{aspect-ratio:1.5;box-shadow:0 6px 0 rgba(0,0,0,.45)}
+.m3d .m-cell.occ{box-shadow:0 6px 0 rgba(8,60,80,.75), 0 10px 20px rgba(0,0,0,.5)}
+.m3d .m-cell.target{box-shadow:0 6px 0 rgba(120,20,20,.8), 0 0 22px rgba(239,68,68,.6)}
+
+@media (prefers-reduced-motion:reduce){
+  .prog-s.now .prog-d{animation:none}
+  .m-cell.target{animation:none;background:rgba(239,68,68,.85)}
+  .acc.open .acc-b{animation:none}
+}
 
 #toast-host{position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(104px + env(safe-area-inset-bottom));z-index:60;

@@ -6,7 +6,7 @@
 <title>Control de Stock — Subatir / Prolimpio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 /* ═══ TOKENS ══════════════════════════════════════════════════ */
@@ -68,7 +68,7 @@ header{
   object-fit:cover;display:block;
   box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
 }
-.logo h1{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo h1{font-family:'Manrope',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
 .logo p{font-size:10px;color:var(--muted-l);margin-top:1px}
 nav{display:flex;gap:3px;flex-wrap:wrap}
 .nl{
@@ -197,7 +197,7 @@ thead{position:sticky;top:0;z-index:10}
 thead th{
   padding:8px 10px;text-align:left;white-space:nowrap;
   background:rgba(14,138,170,.15);color:var(--teal-l);
-  font-family:'Syne',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
+  font-family:'Manrope',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
   border-bottom:1px solid var(--border);cursor:pointer;user-select:none;
 }
 thead th:hover{background:rgba(14,107,138,.25)}
@@ -375,7 +375,7 @@ textarea.fi2{resize:vertical;min-height:65px;font-family:inherit}
 .est-badge{
   display:inline-flex;align-items:center;gap:5px;
   padding:2px 8px;border-radius:20px;
-  font-family:'Syne',sans-serif;font-size:9px;font-weight:700;
+  font-family:'Manrope',sans-serif;font-size:9px;font-weight:700;
   letter-spacing:.7px;text-transform:uppercase;white-space:nowrap;
 }
 .est-badge.crit{
@@ -414,7 +414,7 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
 .ticker-bar::before,.ticker-bar::after{content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
 .ticker-bar::before{left:0;background:linear-gradient(90deg,rgba(7,9,15,1),transparent)}
 .ticker-bar::after{right:0;background:linear-gradient(270deg,rgba(7,9,15,1),transparent)}
-.ticker-label{flex-shrink:0;font-family:'Syne',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--teal-l);background:rgba(14,138,170,.25);border-right:1px solid rgba(14,138,170,.3);padding:0 12px;height:100%;display:flex;align-items:center;text-transform:uppercase;z-index:3;white-space:nowrap}
+.ticker-label{flex-shrink:0;font-family:'Manrope',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--teal-l);background:rgba(14,138,170,.25);border-right:1px solid rgba(14,138,170,.3);padding:0 12px;height:100%;display:flex;align-items:center;text-transform:uppercase;z-index:3;white-space:nowrap}
 .ticker-track{display:flex;white-space:nowrap;animation:ticker-scroll 28s linear infinite}
 .ticker-item{display:inline-flex;align-items:center;gap:8px;padding:0 32px;font-size:11px;color:rgba(200,220,255,.7);font-family:'DM Sans',sans-serif}
 .ticker-item b{color:var(--teal-l)}
@@ -432,12 +432,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-06.2213"></script>
-<script src="subatir-app.js?v=2026-08-06.2213"></script>
+<script src="supabase-config.js?v=2026-08-06.2300"></script>
+<script src="subatir-app.js?v=2026-08-06.2300"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-06.2213';
+window.APP_VER='2026-08-06.2300';
 </script>
 </head>
 <body>

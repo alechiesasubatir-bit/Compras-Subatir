@@ -15,7 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 /* ═══ DESIGN SYSTEM ═══════════════════════════════════════════ */
 :root{
@@ -37,7 +37,7 @@
   --shadow-l:0 22px 64px rgba(0,0,0,.6);
   /* Tipografías como token (antes se usaba var(--mono) sin definirlo) */
   --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace;
-  --display:'Syne',sans-serif;
+  --display:'Manrope',sans-serif;
   --ease:cubic-bezier(.22,.61,.36,1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -142,7 +142,7 @@ body::after{
 .ticker-bar::before,.ticker-bar::after{content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
 .ticker-bar::before{left:0;background:linear-gradient(90deg,rgba(7,9,15,1),transparent)}
 .ticker-bar::after{right:0;background:linear-gradient(270deg,rgba(7,9,15,1),transparent)}
-.ticker-label{position:absolute;left:12px;z-index:3;font-family:'Syne',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal-l);white-space:nowrap;text-shadow:0 0 10px rgba(27,200,255,.5)}
+.ticker-label{position:absolute;left:12px;z-index:3;font-family:'Manrope',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal-l);white-space:nowrap;text-shadow:0 0 10px rgba(27,200,255,.5)}
 .ticker-track{display:flex;align-items:center;animation:ticker-scroll 38s linear infinite;white-space:nowrap;padding-left:160px}
 .ticker-track:hover{animation-play-state:paused}
 .ticker-item{display:inline-flex;align-items:center;gap:6px;padding:0 22px;font-size:11px;font-family:'DM Sans',sans-serif;color:var(--muted)}
@@ -169,13 +169,13 @@ header{
   object-fit:cover;display:block;
   box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
 }
-.logo h1{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo h1{font-family:'Manrope',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
 .logo p{font-size:10px;color:var(--muted);margin-top:1px}
 nav{display:flex;gap:3px;flex-wrap:wrap}
 .nav-link{
   padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;
   color:var(--muted);text-decoration:none;transition:all .18s;border:1px solid transparent;
-  font-family:'Syne',sans-serif;
+  font-family:'Manrope',sans-serif;
 }
 .nav-link:hover{color:var(--text);background:rgba(255,255,255,.07);border-color:var(--border)}
 .nav-link.active{
@@ -944,8 +944,8 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-06.2213"></script>
-<script src="deposito-app.js?v=2026-08-06.2213"></script>
+<script src="../supabase-config.js?v=2026-08-06.2300"></script>
+<script src="deposito-app.js?v=2026-08-06.2300"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -954,7 +954,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-06.2213';
+window.APP_VER='2026-08-06.2300';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -2240,7 +2240,7 @@ function gridHtmlFor(e){
   var estId=e.id, EC=posCount(e);
   function baySep(c){ return (c>1 && (c-1)%POS_PER_BAY===0) ? 'border-left:2px solid rgba(249,115,22,.4);' : ''; }
   var html='<div id="grid2d-est-'+estId+'" style="margin-bottom:20px">'
-    +'<div style="font-family:\'Syne\',sans-serif;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--teal-l);margin-bottom:8px">'+esc(e.nombre)+' <span style="color:var(--muted-l);font-weight:600;text-transform:none;letter-spacing:0">· '+e.filas+' niveles × '+e.columnas+' bahías × '+POS_PER_BAY+' = '+(e.filas*posCount(e))+' pos.</span></div>';
+    +'<div style="font-family:\'Manrope\',sans-serif;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--teal-l);margin-bottom:8px">'+esc(e.nombre)+' <span style="color:var(--muted-l);font-weight:600;text-transform:none;letter-spacing:0">· '+e.filas+' niveles × '+e.columnas+' bahías × '+POS_PER_BAY+' = '+(e.filas*posCount(e))+' pos.</span></div>';
   html+='<div style="display:grid;grid-template-columns:34px repeat('+EC+',minmax(88px,1fr));gap:8px;min-width:'+(40+EC*96)+'px">';
   html+='<div></div>';
   for(var c=1;c<=EC;c++) html+='<div style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted-l);font-weight:700;'+baySep(c)+'">'+c+((c-1)%POS_PER_BAY===0?' <span style="color:var(--orange-l);font-size:9px">B'+bayOf(c)+'</span>':'')+'</div>';
@@ -3202,7 +3202,7 @@ function labelSprite(text){
     var cv=document.createElement('canvas'); cv.width=256; cv.height=64; var cx=cv.getContext('2d');
     cx.fillStyle='rgba(12,17,25,.82)'; cx.fillRect(0,0,256,64);
     cx.strokeStyle='rgba(27,200,255,.5)'; cx.lineWidth=2; cx.strokeRect(1,1,254,62);
-    cx.fillStyle='#7dd3fc'; cx.font='bold 30px Syne, DM Sans, sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText(text,128,34);
+    cx.fillStyle='#7dd3fc'; cx.font='bold 30px Manrope, DM Sans, sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText(text,128,34);
     var tex=new THREE.CanvasTexture(cv); tex.anisotropy=4;
     var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false})); sp.scale.set(3.4,0.85,1); return sp;
   }catch(_){ return null; }
@@ -4423,7 +4423,7 @@ function cfgDraw(){
     g.save();
     g.beginPath(); g.rect(p.x+1,p.y+1,w-2,h-2); g.clip();
     g.textAlign='left';
-    g.font='800 11px '+"'Syne',sans-serif";
+    g.font='800 11px '+"'Manrope',sans-serif";
     g.fillStyle = isEst ? '#fdba74' : '#7dd3fc';
     g.fillText(s.nombre, p.x+7, p.y+16);
     g.font='500 9.5px '+"'IBM Plex Mono',monospace"; g.fillStyle='rgba(142,160,184,.85)';

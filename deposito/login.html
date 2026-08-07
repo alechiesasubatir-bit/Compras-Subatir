@@ -12,7 +12,7 @@
 <link rel="icon" href="icon-192.png"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Ingresar · Depósitos Subatir</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#07090f;--bg2:#0c1119;--teal:#0e8aaa;--tl:#1bc8ff;--or:#f97316;--orl:#fb923c;
   --txt:#e2e8f0;--mut:#5a6a80;--mut2:#7a8fa8;--bdr:rgba(255,255,255,.08);--red:#ef4444;--grn:#22c55e}
@@ -27,9 +27,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.55)}
 .logo{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:6px}
 .logo-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
-  font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#fff;
+  font-family:'Manrope',sans-serif;font-weight:800;font-size:18px;color:#fff;
   background:linear-gradient(135deg,var(--teal),var(--or));box-shadow:0 8px 24px rgba(249,115,22,.3)}
-h1{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-align:center;letter-spacing:-.5px}
+h1{font-family:'Manrope',sans-serif;font-size:22px;font-weight:800;text-align:center;letter-spacing:-.5px}
 .sub{text-align:center;color:var(--mut2);font-size:12px;margin-top:4px;margin-bottom:26px}
 label{display:block;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
   color:var(--mut2);margin-bottom:6px;margin-top:16px}
@@ -37,7 +37,7 @@ input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--bdr
   background:rgba(255,255,255,.04);color:var(--txt);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .15s}
 input:focus{border-color:rgba(27,200,255,.5);background:rgba(255,255,255,.06)}
 button.go{width:100%;margin-top:24px;padding:13px;border:none;border-radius:10px;cursor:pointer;
-  font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:#fff;letter-spacing:.3px;
+  font-family:'Manrope',sans-serif;font-weight:700;font-size:14px;color:#fff;letter-spacing:.3px;
   background:linear-gradient(135deg,var(--teal),var(--or));transition:filter .15s,transform .15s}
 button.go:hover{filter:brightness(1.08);transform:translateY(-1px)}
 button.go:disabled{opacity:.6;cursor:wait;transform:none}
@@ -65,7 +65,7 @@ button.go:disabled{opacity:.6;cursor:wait;transform:none}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-08-06.2213"></script>
+<script src="../supabase-config.js?v=2026-08-06.2300"></script>
 <script>
 var msg = document.getElementById('msg');
 function show(t, type){ msg.textContent = t; msg.className = 'msg ' + type; }

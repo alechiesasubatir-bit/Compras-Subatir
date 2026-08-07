@@ -6,7 +6,7 @@
 <title>Precios & Proveedores — Subatir / Prolimpio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 /* ═══ DESIGN SYSTEM — idéntico a index.html ══════════════════ */
@@ -65,13 +65,13 @@ header{
   object-fit:cover;display:block;
   box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
 }
-.logo h1{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo h1{font-family:'Manrope',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
 .logo p{font-size:10px;color:var(--muted-l)}
 nav{display:flex;gap:3px;flex-wrap:wrap}
 .nl{
   padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;
   color:var(--muted-l);text-decoration:none;transition:all .18s;border:1px solid transparent;
-  font-family:'Syne',sans-serif;
+  font-family:'Manrope',sans-serif;
 }
 .nl:hover{color:var(--text);background:rgba(255,255,255,.07);border-color:var(--border)}
 .nl.on{
@@ -112,7 +112,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 .modal{width:100%;max-width:520px;max-height:90vh;overflow-y:auto;
   background:linear-gradient(160deg,var(--bg2,#0c1119),var(--bg3,#111926));
   border:1px solid var(--border-b);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.6);padding:22px}
-.modal h3{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;margin-bottom:3px}
+.modal h3{font-family:'Manrope',sans-serif;font-size:16px;font-weight:800;margin-bottom:3px}
 .modal .msub{font-size:11px;color:var(--muted-l);margin-bottom:16px}
 .frm{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .fg{display:flex;flex-direction:column;gap:5px}
@@ -139,10 +139,10 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 .kpi-comp::after{background:linear-gradient(90deg,var(--green),#4ade80)}
 .kpi-avg::after {background:linear-gradient(90deg,var(--gold),#fff9c4)}
 .kpi-upd::after {background:linear-gradient(90deg,var(--purple),#c084fc)}
-.klbl{font-family:'Syne',sans-serif;font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:1px;
+.klbl{font-family:'Manrope',sans-serif;font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:1px;
   text-transform:uppercase;margin-bottom:10px}
 .knum{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1;letter-spacing:-1px}
-.ksub{font-size:10px;color:var(--muted);margin-top:5px;font-family:'Syne',sans-serif}
+.ksub{font-size:10px;color:var(--muted);margin-top:5px;font-family:'Manrope',sans-serif}
 .kico{position:absolute;right:13px;top:13px;font-size:20px;opacity:.35}
 .c-teal{color:var(--teal-l)}.c-or{color:var(--orange)}.c-gr{color:var(--green)}
 .c-gold{color:var(--gold)}.c-pur{color:var(--purple)}
@@ -290,7 +290,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}
 thead{position:sticky;top:0;z-index:10}
 thead th{padding:8px 10px;text-align:left;white-space:nowrap;
   background:rgba(14,138,170,.15);color:var(--teal-l);
-  font-family:'Syne',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
+  font-family:'Manrope',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
   border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
 thead th:hover{background:rgba(14,138,170,.25)}
 tbody tr{border-bottom:1px solid rgba(255,255,255,.035);transition:background .12s;cursor:pointer}
@@ -348,7 +348,7 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 .ticker-bar::before,.ticker-bar::after{content:'';position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
 .ticker-bar::before{left:0;background:linear-gradient(90deg,rgba(7,9,15,1),transparent)}
 .ticker-bar::after{right:0;background:linear-gradient(270deg,rgba(7,9,15,1),transparent)}
-.ticker-label{flex-shrink:0;font-family:'Syne',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--teal-l);background:rgba(14,138,170,.25);border-right:1px solid rgba(14,138,170,.3);padding:0 12px;height:100%;display:flex;align-items:center;text-transform:uppercase;z-index:3;white-space:nowrap}
+.ticker-label{flex-shrink:0;font-family:'Manrope',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--teal-l);background:rgba(14,138,170,.25);border-right:1px solid rgba(14,138,170,.3);padding:0 12px;height:100%;display:flex;align-items:center;text-transform:uppercase;z-index:3;white-space:nowrap}
 .ticker-track{display:flex;white-space:nowrap;animation:ticker-scroll 28s linear infinite}
 .ticker-item{display:inline-flex;align-items:center;gap:8px;padding:0 32px;font-size:11px;color:rgba(200,220,255,.7);font-family:'DM Sans',sans-serif}
 .ticker-item b{color:var(--teal-l)}
@@ -374,12 +374,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-06.2213"></script>
-<script src="subatir-app.js?v=2026-08-06.2213"></script>
+<script src="supabase-config.js?v=2026-08-06.2300"></script>
+<script src="subatir-app.js?v=2026-08-06.2300"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-06.2213';
+window.APP_VER='2026-08-06.2300';
 </script>
 </head>
 <body>
@@ -1057,7 +1057,7 @@ function renderHistorico(art){
   content.innerHTML=
     // Selector de moneda para el gráfico
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
-      '<span style="font-size:11px;color:var(--muted-l);font-family:\'Syne\',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Historial de compras en OC</span>'+
+      '<span style="font-size:11px;color:var(--muted-l);font-family:\'Manrope\',sans-serif;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Historial de compras en OC</span>'+
       '<div style="display:flex;align-items:center;gap:7px">'+
         '<span style="font-size:10px;color:var(--muted-l)">Moneda:</span>'+
         '<select id="evo-currency" class="fi" style="padding:4px 8px;font-size:11px" onchange="updateHistChart()">'+

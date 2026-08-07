@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Usuarios · Subatir</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#07090f;--bg2:#0c1119;--bg3:#111926;--teal:#0e8aaa;--tl:#1bc8ff;--or:#f97316;--orl:#fb923c;
   --grn:#22c55e;--amb:#f59e0b;--red:#ef4444;--txt:#e2e8f0;--mut:#5a6a80;--mut2:#7a8fa8;
@@ -18,23 +18,23 @@ header{display:flex;align-items:center;justify-content:space-between;flex-wrap:w
   background:rgba(7,9,15,.9);border-bottom:1px solid var(--bdr);position:sticky;top:0;z-index:200;backdrop-filter:blur(24px)}
 .logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--txt)}
 .logo-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-  font-family:'Syne';font-weight:800;color:#fff;background:linear-gradient(135deg,var(--teal),var(--or))}
-.logo h1{font-family:'Syne';font-size:15px;font-weight:800}
+  font-family:'Manrope';font-weight:800;color:#fff;background:linear-gradient(135deg,var(--teal),var(--or))}
+.logo h1{font-family:'Manrope';font-size:15px;font-weight:800}
 .logo p{font-size:10px;color:var(--mut2)}
 nav{display:flex;gap:3px;flex-wrap:wrap}
 .nl{padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;color:var(--mut2);text-decoration:none;
-  font-family:'Syne';border:1px solid transparent}
+  font-family:'Manrope';border:1px solid transparent}
 .nl:hover{color:#fff;background:rgba(255,255,255,.07);border-color:var(--bdr)}
 .nl.on{color:#fff;background:linear-gradient(135deg,rgba(14,138,170,.4),rgba(27,200,255,.25));border-color:rgba(27,200,255,.3)}
 .hdr-r{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:24px 20px}
-h2{font-family:'Syne';font-size:20px;font-weight:800;margin-bottom:4px}
+h2{font-family:'Manrope';font-size:20px;font-weight:800;margin-bottom:4px}
 .sub{color:var(--mut2);font-size:12px;margin-bottom:20px}
 .glass{background:var(--gl);backdrop-filter:blur(16px);border:1px solid var(--bdr);border-radius:14px;padding:18px}
 .note{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;
   padding:11px 14px;font-size:12px;color:#fcd34d;margin-bottom:18px}
 table{width:100%;border-collapse:collapse}
-th{text-align:left;font-family:'Syne';font-size:11px;text-transform:uppercase;letter-spacing:.4px;
+th{text-align:left;font-family:'Manrope';font-size:11px;text-transform:uppercase;letter-spacing:.4px;
   color:var(--mut2);padding:9px 10px;border-bottom:1px solid var(--bdr)}
 td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;vertical-align:middle}
 .email{font-family:'IBM Plex Mono';font-size:12px}
@@ -54,7 +54,7 @@ td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13p
 .ovl.open{display:flex}
 .modal{width:100%;max-width:460px;background:linear-gradient(160deg,var(--bg2),var(--bg3));
   border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.6)}
-.modal h3{font-family:'Syne';font-size:16px;font-weight:800;margin-bottom:14px}
+.modal h3{font-family:'Manrope';font-size:16px;font-weight:800;margin-bottom:14px}
 .fg{margin-bottom:14px}
 .fg label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--mut2);margin-bottom:6px}
 .fg select,.fg input{width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--bdr);
@@ -80,12 +80,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-06.2213"></script>
-<script src="subatir-app.js?v=2026-08-06.2213"></script>
+<script src="supabase-config.js?v=2026-08-06.2300"></script>
+<script src="subatir-app.js?v=2026-08-06.2300"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-06.2213';
+window.APP_VER='2026-08-06.2300';
 </script>
 </head>
 <body>

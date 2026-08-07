@@ -12,7 +12,7 @@
 <link rel="icon" href="icon-192.png"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Recorrido — Subatir / Prolimpio</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="movil.css"/>
 <style>
 /* Propio del recorrido: el paso, el lector y la grilla de ranuras */
@@ -130,12 +130,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-06.2213"></script>
-<script src="deposito-app.js?v=2026-08-06.2213"></script>
+<script src="../supabase-config.js?v=2026-08-06.2300"></script>
+<script src="deposito-app.js?v=2026-08-06.2300"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-06.2213';
+window.APP_VER='2026-08-06.2300';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -220,6 +220,24 @@ function cargar(silencioso){
 }
 
 // ── Lista de pedidos ──────────────────────────────────────────
+// El avance en cuatro pasos, igual que en Solicitar: las dos pantallas
+// tienen que sentirse la misma app.
+var PASOS=[['PENDIENTE','Pedido','1'],['EN_PREPARACION','Preparando','2'],
+           ['EN_TRANSITO','En camino','3'],['ENTREGADA','Llegó','4']];
+function avanceHTML(estado){
+  if(estado==='CANCELADA') return '';
+  var i=PASOS.map(function(p){return p[0];}).indexOf(estado);
+  if(i<0) i=0;
+  return '<span class="prog" role="img" aria-label="Avance: '+esc(PASOS[i][1])+', paso '+(i+1)+' de 4">'
+    +PASOS.map(function(p,n){
+      var cls = n<i ? 'done' : (n===i ? (n===3?'done fin':'now') : '');
+      var ico = n<i ? '✓' : (n===3 && i===3 ? '✓' : p[2]);
+      return '<span class="prog-s '+cls+'"><span class="prog-d" aria-hidden="true">'+ico+'</span>'
+        +'<span class="prog-l">'+p[1]+'</span></span>';
+    }).join('')
+  +'</span>';
+}
+
 var CHIP={PENDIENTE:['pend','Pendiente'],EN_PREPARACION:['prep','Preparando'],
           EN_TRANSITO:['tran','En camino'],ENTREGADA:['ok','Entregada'],CANCELADA:['can','Cancelada']};
 function renderLista(){
@@ -236,12 +254,15 @@ function renderLista(){
   host.innerHTML=vivas.map(function(s){
     var c=CHIP[s.estado]||['','?'];
     var f=new Date(s.created_at);
-    return '<button type="button" class="pal" onclick="abrir('+s.id+')" style="align-items:center"'
+    // Misma gráfica que en Solicitar: el avance manda, y quien atiende
+    // el pedido ve de un vistazo en qué punto está sin abrirlo.
+    return '<button type="button" class="pal" onclick="abrir('+s.id+')" style="display:block"'
       +' aria-label="'+esc('Pedido '+s.id+', '+s.origen+' a '+s.destino+', '+s.items+' pallets, '+c[1])+'">'
-      +'<span class="pal-b"><span class="pal-t">#'+s.id+' · '+esc(s.origen)+' → '+esc(s.destino)+'</span>'
+      +'<span class="sol-h"><b class="pal-t">#'+s.id+' · '+esc(s.origen)+' → '+esc(s.destino)+'</b>'
+      +'<span class="chip '+c[0]+'">'+c[1]+'</span></span>'
       +'<span class="pal-m">'+s.items+' pallet'+(s.items===1?'':'s')+' · '+fmt(s.unidades)+' u. · '
-      +esc(s.solicitante)+' · '+f.toLocaleDateString('es-UY')+'</span></span>'
-      +'<span class="chip '+c[0]+'">'+c[1]+'</span>'
+      +esc(s.solicitante)+' · '+f.toLocaleDateString('es-UY')+'</span>'
+      +avanceHTML(s.estado)
     +'</button>';
   }).join('');
 }
@@ -287,9 +308,63 @@ function abrir(id, silencioso){
       PALS=q[0].data||[];
       var mios={}; (q[1].data||[]).forEach(function(x){ if(x.lo_despache_yo) mios[x.id]=1; });
       PALS.forEach(function(p){ p._loDespacheYo = !!mios[p.id]; });
-      pintarRec(); if(!silencioso) verRec();
+      // Qué ranuras están ocupadas en las estanterías de este recorrido:
+      // sin esto el mini plano se vería vacío alrededor del pallet y no
+      // daría la referencia de dónde está parado.
+      var ests=[...new Set(PALS.map(function(p){ return p.estanteria_id; }).filter(Boolean))];
+      if(!ests.length){ OCUP={}; pintarRec(); if(!silencioso) verRec(); return; }
+      return SB.from('imp_pallets').select('estanteria_id,fila,columna')
+        .in('estanteria_id',ests).in('estado',['ABIERTO','ESTACIONADO','RECIBIDO'])
+        .then(function(o){
+          OCUP={}; (o.data||[]).forEach(function(x){
+            if(x.fila&&x.columna) OCUP[x.estanteria_id+'-'+x.fila+'-'+x.columna]=1; });
+          pintarRec(); if(!silencioso) verRec();
+        });
     });
   });
+}
+
+// ── Mini plano de la estantería ───────────────────────────────
+//  Dos vistas de lo mismo: la grilla de frente (2D) y la misma
+//  grilla inclinada (3D), que es como se ve parado en el pasillo.
+//  La ranura buscada parpadea en rojo y es lo único rojo de la
+//  pantalla, así no compite con nada.
+//  El 3D es CSS puro: cargar una librería 3D en el celular del
+//  operario cuesta segundos y batería para mostrar una cuadrícula.
+var VISTA={}, OCUP={};                          // paso → '2d' | '3d'  ·  ranuras ocupadas
+function verPlano(n, modo){ VISTA[n]=modo; pintarRec(); }
+
+function planoHTML(p, n){
+  var e = p.estanteria_id ? estById(p.estanteria_id) : null;
+  if(!e || !p.fila || !p.columna){
+    return '<span class="paso-m" style="color:var(--orange-l)">Sin ranura: está suelto en el depósito</span>';
+  }
+  var modo = VISTA[n] || '2d';
+  var cols = e.columnas*2;                      // 2 posiciones por bahía, igual que el panel
+
+  var g='';
+  for(var f=1; f<=e.filas; f++){
+    g+='<div class="m2d-row" style="grid-template-columns:16px repeat('+cols+',1fr)">'
+      +'<span class="m2d-lv">'+letra(f,e.filas)+'</span>';
+    for(var c=1; c<=cols; c++){
+      var esta=(f===p.fila && c===p.columna);
+      g+='<span class="m-cell'+(esta?' target':(OCUP[e.id+'-'+f+'-'+c]?' occ':''))+'"'
+        +(esta?' aria-label="Acá está el pallet"':'')+'>'+(esta?'●':'')+'</span>';
+    }
+    g+='</div>';
+  }
+
+  return '<span class="mini-wrap">'
+    +'<span class="mini-tabs" role="group" aria-label="Vista del plano">'
+      +'<button type="button" class="'+(modo==='2d'?'on':'')+'" onclick="verPlano('+n+',\'2d\')">Plano 2D</button>'
+      +'<button type="button" class="'+(modo==='3d'?'on':'')+'" onclick="verPlano('+n+',\'3d\')">Vista 3D</button>'
+    +'</span>'
+    +(modo==='3d'
+      ? '<span class="m3d"><span class="m3d-in">'+g+'</span></span>'
+      : '<span class="m2d">'+g+'</span>')
+    +'<span class="mini-cap">'+esc(e.nombre)+' · nivel '+letra(p.fila,e.filas)
+      +' · posición '+p.columna+'</span>'
+  +'</span>';
 }
 
 function pintarRec(){
@@ -320,10 +395,15 @@ function pintarRec(){
             (p.estado==='ESTACIONADO' && p.deposito===SOL.destino)){ cls=' hecho'; nota='✓ entregado'; }
     else { pend++; }
     n++;
+    // Sin el código del pallet: al operario no le dice nada para
+    // encontrarlo, lo confirma después el QR. Lo que sirve es dónde
+    // está, y para eso va el mini plano abajo.
+    var falta = cls!==' hecho' && p.estado!=='EN_TRANSITO';
     return '<div class="paso'+cls+'"><span class="paso-n">'+n+'</span><span class="paso-b">'
       +'<span class="paso-d">📍 '+esc(cls===' hecho'?(p.deposito||SOL.destino):ubicOf(p))+'</span>'
       +'<span class="paso-t">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</span>'
-      +'<span class="paso-m">'+esc(p.codigo)+' · '+fmt(p.unidades)+' u.'+(nota?(' · '+nota):'')+'</span>'
+      +'<span class="paso-m">'+fmt(p.unidades)+' u.'+(nota?(' · '+nota):'')+'</span>'
+      +(falta ? planoHTML(p, n) : '')
       +'</span></div>';
   }).join('') : '<div class="empty">Este pedido no tiene pallets.</div>';
 

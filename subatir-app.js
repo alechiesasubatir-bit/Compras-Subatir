@@ -646,7 +646,21 @@
     canAccess: canAccess, currentModule: currentModule
   };
 
+  // ── Arrancar siempre desde arriba ──────────────────────────
+  //  Mismo criterio que en Depósitos: el navegador restaura el scroll
+  //  donde había quedado y en estas páginas —tablas de 600 renglones—
+  //  eso te deja en el medio, sin encabezados y sin saber dónde estás.
+  //  Se sube al tope al arrancar y otra vez cuando terminó de cargar:
+  //  las tablas se pintan después y arrastran el scroll con ellas.
+  function alTope() {
+    try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+    var sube = function () { window.scrollTo(0, 0); };
+    sube();
+    requestAnimationFrame(sube);
+    window.addEventListener('load', function () { setTimeout(sube, 0); });
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { guard(); startVersionCheck(); });
-  } else { guard(); startVersionCheck(); }
+    document.addEventListener('DOMContentLoaded', function () { alTope(); guard(); startVersionCheck(); });
+  } else { alTope(); guard(); startVersionCheck(); }
 })();

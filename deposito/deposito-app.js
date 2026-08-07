@@ -195,6 +195,23 @@
       .catch(function () { });   // sin señal no es motivo para molestar
   }
 
+  // ── Arrancar siempre desde arriba ──────────────────────────
+  //  El navegador guarda dónde había quedado el scroll y lo restaura al
+  //  volver a abrir la app o al recargarse por una versión nueva. En una
+  //  página larga —el panel del depósito— eso deja al operario en el
+  //  medio, mirando una tabla sin encabezado, teniendo que subir a mano.
+  //  Se apaga esa restauración y se sube al tope cuando la página ya
+  //  midió su alto (si no, el navegador vuelve a bajar después).
+  function alTope() {
+    try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+    var sube = function () { window.scrollTo(0, 0); };
+    sube();
+    // Dos pasadas más: una al terminar de pintar y otra cuando cargó
+    // todo (imágenes y fuentes cambian el alto y arrastran el scroll).
+    requestAnimationFrame(sube);
+    window.addEventListener('load', function () { setTimeout(sube, 0); });
+  }
+
   function startVersionCheck() {
     if (!window.APP_VER) return;
     checkVersion();
@@ -215,6 +232,6 @@
     }
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ guard(); startVersionCheck(); });
-  else { guard(); startVersionCheck(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ alTope(); guard(); startVersionCheck(); });
+  else { alTope(); guard(); startVersionCheck(); }
 })();

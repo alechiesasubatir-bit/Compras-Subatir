@@ -16,9 +16,10 @@
   --bg3:   #111926;
   --teal:  #0e8aaa;
   --teal-l:#1bc8ff;
-  --orange:#f97316;--orange-d:#c2580a;
+  --orange:#f97316;--orange-d:#c2580a;--orange-l:#fb923c;
+  --mono:'IBM Plex Mono',monospace;
   --glass: rgba(255,255,255,.04);--glass-b:rgba(255,255,255,.08);
-  --border:rgba(255,255,255,.07);--text:#e2e8f0;--muted:#5a6a80;
+  --border:rgba(255,255,255,.07);--text:#e2e8f0;--muted:#5a6a80;--muted-l:#94a3b8;
   --danger:#ef4444;--warn:#f59e0b;--ok:#22c55e;
   --radius:14px;--shadow:0 8px 32px rgba(0,0,0,.45);
 }
@@ -272,6 +273,49 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .check-row{display:flex;align-items:center;gap:8px;padding:8px 0}
 .check-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal-l);cursor:pointer}
 .check-row label{font-size:13px;color:var(--text);text-transform:none;letter-spacing:0}
+/* ═══ CHECK LIST PL-06 (recepción de mercadería) ═══ */
+.cl-wrap{margin-top:18px;border:1px solid rgba(249,115,22,.22);border-radius:12px;
+  background:linear-gradient(150deg,rgba(249,115,22,.07),rgba(255,255,255,.02));padding:14px}
+.cl-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+.cl-head h4{margin:0;font-size:12px;font-weight:800;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--orange-l)}
+.cl-tag{font-family:var(--mono);font-size:10px;color:var(--muted-l);
+  border:1px solid var(--border);border-radius:6px;padding:2px 7px}
+.cl-all{margin-left:auto}
+.cl-auto{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.cl-af{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+.cl-af span{display:block;font-size:9.5px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;color:var(--muted)}
+.cl-af b{font-size:12.5px;font-weight:600;color:var(--text)}
+.cl-tbl{border:1px solid var(--border);border-radius:9px;overflow:hidden;background:rgba(255,255,255,.02)}
+.cl-row{display:grid;grid-template-columns:26px 1fr 104px 168px;gap:9px;align-items:center;
+  padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px}
+.cl-row:last-child{border-bottom:none}
+.cl-row.hdr{background:rgba(255,255,255,.05);font-size:9.5px;font-weight:800;
+  letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.cl-row.hdr div:nth-child(3){text-align:center}
+.cl-row:not(.hdr):hover{background:rgba(27,200,255,.045)}
+.cl-row.falta{background:rgba(245,158,11,.07)}
+.cl-n{font-family:var(--mono);color:var(--muted-l);text-align:center}
+.cl-it{line-height:1.35}
+.cl-sn{display:flex;gap:12px;justify-content:center}
+.cl-sn label{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;
+  text-transform:none;letter-spacing:0;color:var(--muted-l);cursor:pointer}
+.cl-sn input{width:15px;height:15px;cursor:pointer;margin:0;accent-color:var(--ok)}
+.cl-sn input.n{accent-color:var(--danger)}
+.cl-sn label.on-si{color:var(--ok)}
+.cl-sn label.on-no{color:var(--danger)}
+.cl-obs{width:100%;padding:5px 8px;font-size:11.5px;border-radius:7px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);outline:none}
+.cl-obs:focus{border-color:var(--teal-l)}
+.cl-obs.req{border-color:var(--danger)}
+@media(max-width:640px){
+  .cl-auto{grid-template-columns:1fr}
+  .cl-row{grid-template-columns:24px 1fr;row-gap:7px}
+  .cl-row.hdr{display:none}
+  .cl-sn,.cl-obs{grid-column:2}
+  .cl-sn{justify-content:flex-start}
+}
 .calc-preview{background:rgba(14,107,138,.12);border:1px solid rgba(14,107,138,.25);
   border-radius:9px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .calc-item{font-size:12px;color:var(--muted)}
@@ -366,12 +410,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-07.0949"></script>
-<script src="subatir-app.js?v=2026-08-07.0949"></script>
+<script src="supabase-config.js?v=2026-08-11.0944"></script>
+<script src="subatir-app.js?v=2026-08-11.0944"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-07.0949';
+window.APP_VER='2026-08-11.0944';
 </script>
 </head>
 <body>
@@ -533,7 +577,7 @@ window.APP_VER='2026-08-07.0949';
      MODAL: DETALLE / EDITAR
 ════════════════════════════════════════════════ -->
 <div class="overlay" id="edit-overlay">
-  <div class="modal" style="max-width:660px">
+  <div class="modal" style="max-width:820px">
     <div class="modal-header">
       <div class="modal-title" id="edit-title">Recepción</div>
       <button class="modal-close" onclick="closeModal('edit-overlay')">✕</button>
@@ -553,7 +597,7 @@ window.APP_VER='2026-08-07.0949';
           </div>
           <div class="form-group">
             <label>Fecha de entrega</label>
-            <input type="date" class="form-input" id="en-fecha"/>
+            <input type="date" class="form-input" id="en-fecha" onchange="syncChkHead()"/>
           </div>
           <div class="form-group">
             <label>Número de lote</label>
@@ -573,11 +617,40 @@ window.APP_VER='2026-08-07.0949';
             <textarea class="form-textarea" id="en-obs" placeholder="Anotaciones de la entrega…"></textarea>
           </div>
         </div>
-        <div style="margin-top:8px;font-size:12px;color:var(--muted-l)">Recibe: <b id="en-who" style="color:var(--teal-l)">—</b></div>
+
+        <!-- ─── PL-06 · Check List para la recepción de mercadería ─── -->
+        <div class="cl-wrap">
+          <div class="cl-head">
+            <h4>📋 Check List de Recepción</h4>
+            <span class="cl-tag">PL-06 · v1 · Dic-25</span>
+            <button class="btn btn-ghost btn-sm cl-all" style="padding:4px 10px" onclick="chkAllSi()">✓ Todo Sí</button>
+          </div>
+
+          <!-- Encabezado: los 3 primeros salen solos de la OC -->
+          <div class="cl-auto">
+            <div class="cl-af"><span>Fecha de recepción</span><b id="cl-fecha">—</b></div>
+            <div class="cl-af"><span>Proveedor</span><b id="cl-prov">—</b></div>
+            <div class="cl-af"><span>Orden de compra N°</span><b id="cl-orden">—</b></div>
+            <div class="cl-af"><span>Producto</span><b id="cl-prod">—</b></div>
+            <div class="form-group"><label>Factura N°</label>
+              <input type="text" class="form-input" id="cl-factura" placeholder="Ej: A 0001-0012345"/></div>
+            <div class="form-group"><label>Remito / Guía N°</label>
+              <input type="text" class="form-input" id="cl-remito" placeholder="Ej: R 0001-0004321"/></div>
+          </div>
+
+          <div class="cl-tbl">
+            <div class="cl-row hdr"><div>N°</div><div>Ítem</div><div>Conforme</div><div>Observaciones</div></div>
+            <div id="cl-rows"></div>
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:var(--muted)">Si marcás <b style="color:var(--danger)">No</b> en algún punto, la observación es obligatoria.</div>
+        </div>
+
+        <div style="margin-top:12px;font-size:12px;color:var(--muted-l)">Recibe: <b id="en-who" style="color:var(--teal-l)">—</b></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" id="btn-remito" onclick="pdfEntregas()">📄 Remito</button>
+      <button class="btn btn-ghost btn-sm" id="btn-checklist" onclick="pdfChecklistActual()">📋 Check List PL-06</button>
       <button class="btn btn-orange" id="btn-save-entrega" onclick="saveEntrega()">💾 Registrar entrega</button>
       <button class="btn btn-ghost" onclick="closeModal('edit-overlay')">Cerrar</button>
     </div>
@@ -1128,6 +1201,122 @@ function findLine(pid){ return (DATA_DISPLAY||[]).filter(function(r){ return Str
 function coaOkR(v){ return ['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(v||'').toUpperCase().trim())>=0; }
 function onEnVtoNA(){ var na=document.getElementById('en-vto-na').checked; var d=document.getElementById('en-vto'); d.disabled=na; if(na)d.value=''; }
 
+// ── PL-06 · Check List de recepción ───────────────────────────
+// Los 8 puntos de control del procedimiento PL-06 (Dirección Técnica).
+// El texto vive acá y NO en la base: la entrega guarda sólo {n,conforme,obs}.
+var CHK_ITEMS = [
+  'Fecha vencimiento del producto (mínimo 6 meses de vida útil).',
+  'Factura y remito coinciden con la Orden de Compra',
+  'Verificación de cantidades recibidas (kg/L)',
+  'Certificados de Análisis (COA) correspondencia con lote recibido',
+  'Ausencia de derrames, daños, roturas o fugas, cierre correcto.',
+  'Etiquetado completo (nombre, lote, peso neto, etc).',
+  'Envases originales (pesado aleatorio)',
+  'Envases rellenados o a granel (pesado total)'
+];
+var CHK_DOC = { codigo:'PL-06', version:'1', creacion:'Dic-25',
+  rev:{ fecha:'28.12.25', n:'1', elaboro:'Carolina Marín', aprobo:'Carolina Marín',
+        motivo:'Actualizacion de formato del documento', cambios:'Cambio de formato' } };
+
+function buildChecklistUI(){
+  var host=document.getElementById('cl-rows'); if(!host || host.dataset.built) return;
+  host.innerHTML = CHK_ITEMS.map(function(txt,i){
+    var n=i+1;
+    return '<div class="cl-row" id="cl-r'+n+'">'
+      + '<div class="cl-n">'+n+'</div>'
+      + '<div class="cl-it">'+esc(txt)+'</div>'
+      + '<div class="cl-sn">'
+        + '<label id="cl-l'+n+'s"><input type="radio" name="cl-'+n+'" value="SI" onchange="onChkPick('+n+')"/>Sí</label>'
+        + '<label id="cl-l'+n+'n"><input type="radio" class="n" name="cl-'+n+'" value="NO" onchange="onChkPick('+n+')"/>No</label>'
+      + '</div>'
+      + '<div><input type="text" class="cl-obs" id="cl-o'+n+'" placeholder="—"/></div>'
+      + '</div>';
+  }).join('');
+  host.dataset.built='1';
+}
+
+function chkPick(n){
+  var el=document.querySelector('input[name="cl-'+n+'"]:checked');
+  return el ? el.value : '';
+}
+function onChkPick(n){
+  var v=chkPick(n);
+  document.getElementById('cl-l'+n+'s').className = v==='SI' ? 'on-si' : '';
+  document.getElementById('cl-l'+n+'n').className = v==='NO' ? 'on-no' : '';
+  document.getElementById('cl-r'+n).classList.remove('falta');
+  var o=document.getElementById('cl-o'+n);
+  if(v==='NO'){ o.placeholder='Detallar el desvío…'; } else { o.placeholder='—'; o.classList.remove('req'); }
+}
+function chkAllSi(){
+  for(var n=1;n<=CHK_ITEMS.length;n++){
+    var r=document.querySelector('input[name="cl-'+n+'"][value="SI"]');
+    if(r){ r.checked=true; onChkPick(n); }
+  }
+}
+function resetChecklist(){
+  buildChecklistUI();
+  for(var n=1;n<=CHK_ITEMS.length;n++){
+    var rs=document.getElementsByName('cl-'+n);
+    for(var i=0;i<rs.length;i++) rs[i].checked=false;
+    var o=document.getElementById('cl-o'+n); if(o){ o.value=''; o.classList.remove('req'); }
+    onChkPick(n);
+  }
+  document.getElementById('cl-factura').value='';
+  document.getElementById('cl-remito').value='';
+}
+// Array listo para guardar en la columna jsonb
+function readChecklist(){
+  var out=[];
+  for(var n=1;n<=CHK_ITEMS.length;n++){
+    out.push({ n:n, conforme:chkPick(n), obs:(document.getElementById('cl-o'+n).value||'').trim() });
+  }
+  return out;
+}
+// Valida antes de guardar. Devuelve true si se puede seguir.
+function validaChecklist(){
+  var faltaObs=[], sinMarcar=[];
+  for(var n=1;n<=CHK_ITEMS.length;n++){
+    var v=chkPick(n), o=document.getElementById('cl-o'+n);
+    o.classList.remove('req');
+    document.getElementById('cl-r'+n).classList.remove('falta');
+    if(!v) sinMarcar.push(n);
+    if(v==='NO' && !o.value.trim()){ faltaObs.push(n); o.classList.add('req'); }
+  }
+  if(faltaObs.length){
+    toast('Punto '+faltaObs.join(', ')+' marcado "No": completá la observación','err');
+    document.getElementById('cl-o'+faltaObs[0]).focus();
+    return false;
+  }
+  if(sinMarcar.length){
+    document.getElementById('cl-r'+sinMarcar[0]).classList.add('falta');
+    return confirm('Quedan '+sinMarcar.length+' punto(s) del check list sin marcar ('+sinMarcar.join(', ')+').\n\n¿Registrar la entrega igual?');
+  }
+  return true;
+}
+// Rellena el checklist con lo guardado (modo lectura de una entrega vieja)
+function fillChecklist(e){
+  resetChecklist();
+  document.getElementById('cl-factura').value = e.factura || '';
+  document.getElementById('cl-remito').value  = e.remito  || '';
+  var arr = parseChk(e.checklist);
+  arr.forEach(function(c){
+    var n=c.n, r=document.querySelector('input[name="cl-'+n+'"][value="'+c.conforme+'"]');
+    if(r){ r.checked=true; onChkPick(n); }
+    var o=document.getElementById('cl-o'+n); if(o) o.value=c.obs||'';
+  });
+}
+function parseChk(v){
+  if(!v) return [];
+  if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ return []; } }
+  return Array.isArray(v) ? v : [];
+}
+// Resumen corto para el historial: "7 Sí · 1 No"
+function chkResumen(v){
+  var a=parseChk(v); if(!a.length) return null;
+  var si=0,no=0; a.forEach(function(c){ if(c.conforme==='SI')si++; else if(c.conforme==='NO')no++; });
+  return {si:si, no:no, total:a.length};
+}
+
 function openEntrega(pid){
   var r=findLine(pid); if(!r) return; CUR_LINE=r;
   var st=lineStats(r);
@@ -1150,7 +1339,19 @@ function openEntrega(pid){
   document.getElementById('en-coa').checked=false; document.getElementById('en-conforme').checked=false;
   document.getElementById('en-obs').value='';
   document.getElementById('en-who').textContent=whoName();
+  // Check List PL-06: encabezado autocompletado + 8 puntos en blanco
+  resetChecklist();
+  syncChkHead();
   openModal('edit-overlay');
+}
+
+// Encabezado del PL-06 con lo que ya sabemos de la OC
+function syncChkHead(){
+  var r=CUR_LINE; if(!r) return;
+  setText('cl-fecha', fmtDate(document.getElementById('en-fecha').value) || '—');
+  setText('cl-prov',  String(r[K.proveedor]||'—'));
+  setText('cl-orden', String(r[K.orden]||'—'));
+  setText('cl-prod',  String(r[K.desc]||'—'));
 }
 
 function renderHist(r, st){
@@ -1159,6 +1360,10 @@ function renderHist(r, st){
   if(!st.entregas.length){ host.innerHTML='<div style="font-size:12px;color:var(--muted-l)">Todavía no hay entregas registradas.</div>'; return; }
   host.innerHTML = st.entregas.map(function(e){
     var vto=isVtoNA(e.f_vto)?'No aplica':(fmtDate(e.f_vto)||'—');
+    var ck=chkResumen(e.checklist);
+    var ckPill = ck
+      ? '<span class="pill '+(ck.no?'pill-warn':'pill-ok')+'" title="Check list PL-06: '+ck.si+' Sí / '+ck.no+' No">PL-06 '+ck.si+'✓'+(ck.no?' · '+ck.no+'✗':'')+'</span>'
+      : '';
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;font-size:12px;background:rgba(255,255,255,.02);flex-wrap:wrap">'
       +'<span class="pill pill-recv" style="font-family:var(--mono)">'+fmtNum(e.cantidad)+'</span>'
       +'<span style="color:var(--muted-l)">'+fmtDate(e.fecha)+'</span>'
@@ -1166,7 +1371,9 @@ function renderHist(r, st){
       +'<span style="color:var(--muted-l)">Vto: '+vto+'</span>'
       +(coaOkR(e.coa)?'<span class="pill pill-ok">COA</span>':'')
       +(['SI','S','1','TRUE'].indexOf(String(e.conforme||'').toUpperCase())>=0?'<span class="pill pill-ok">Conf</span>':'')
+      +ckPill
       +'<span style="margin-left:auto;color:var(--teal-l);font-family:var(--mono);font-size:11px">'+esc(String(e.recibido_por||''))+'</span>'
+      +(ck?'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Imprimir Check List PL-06" onclick="pdfChecklist('+e.id+')">📋</button>':'')
       +'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Eliminar entrega" onclick="delEntrega('+e.id+')">🗑</button>'
       +'</div>';
   }).join('');
@@ -1177,6 +1384,7 @@ function saveEntrega(){
   var r=CUR_LINE, pid=r.__row, st=lineStats(r);
   var cant=parseFloat(document.getElementById('en-cant').value);
   if(!(cant>0)){ toast('Ingresá la cantidad recibida (mayor a 0)','err'); return; }
+  if(!validaChecklist()) return;
   var row={
     pedido_id: pid, n_orden: String(r[K.orden]||''), descripcion: String(r[K.desc]||''),
     cantidad: cant, fecha: document.getElementById('en-fecha').value || null,
@@ -1185,11 +1393,26 @@ function saveEntrega(){
     coa: document.getElementById('en-coa').checked ? 'SI' : null,
     conforme: document.getElementById('en-conforme').checked ? 'SI' : null,
     recibido_por: whoName(),
-    observaciones: document.getElementById('en-obs').value.trim() || null
+    observaciones: document.getElementById('en-obs').value.trim() || null,
+    // PL-06
+    factura: document.getElementById('cl-factura').value.trim() || null,
+    remito: document.getElementById('cl-remito').value.trim() || null,
+    checklist: readChecklist()
   };
   document.getElementById('btn-save-entrega').disabled=true;
   toast('Registrando entrega…','info');
   SubatirApp.addEntrega(row).then(function(d){
+    if(d && d.error && /column|checklist|factura|remito|schema cache/i.test(String(d.error))){
+      // La base todavía no tiene las columnas del PL-06 (falta correr
+      // migracion/checklist_pl06.sql). Guardamos la entrega igual y avisamos.
+      delete row.factura; delete row.remito; delete row.checklist;
+      return SubatirApp.addEntrega(row).then(function(d2){
+        if(!(d2 && d2.error)) toast('⚠ Entrega guardada SIN el check list: falta correr checklist_pl06.sql','err');
+        return d2;
+      });
+    }
+    return d;
+  }).then(function(d){
     document.getElementById('btn-save-entrega').disabled=false;
     if(d && d.error){ toast('Error: '+d.error,'err'); return; }
     // La sincronización con pedidos.f_recepcion la hace un trigger en la base
@@ -1216,6 +1439,157 @@ function delEntrega(id){
 }
 
 function pdfEntregas(){ if(CUR_LINE) receptionForOrder(String(CUR_LINE[K.orden])); }
+
+// ── PDF del Check List PL-06 ──────────────────────────────────
+// Desde el historial: imprime una entrega ya guardada.
+function pdfChecklist(id){
+  if(!CUR_LINE) return;
+  var e=(lineStats(CUR_LINE).entregas||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!e){ toast('No se encontró la entrega','err'); return; }
+  buildChecklistPdf(CUR_LINE, {
+    fecha:e.fecha, factura:e.factura, remito:e.remito, lote:e.lote,
+    cantidad:e.cantidad, recibido_por:e.recibido_por, items:parseChk(e.checklist)
+  });
+}
+// Desde el pie del modal: imprime lo que hay cargado en pantalla (sirve
+// también para sacar la planilla en blanco y completarla a mano).
+function pdfChecklistActual(){
+  if(!CUR_LINE) return;
+  var abierto = document.getElementById('entrega-form-wrap').style.display !== 'none';
+  if(!abierto){
+    var ents=lineStats(CUR_LINE).entregas||[];
+    var ult=ents[ents.length-1];
+    if(ult) return pdfChecklist(ult.id);
+  }
+  buildChecklistPdf(CUR_LINE, {
+    fecha: document.getElementById('en-fecha').value,
+    factura: document.getElementById('cl-factura').value.trim(),
+    remito: document.getElementById('cl-remito').value.trim(),
+    lote: document.getElementById('en-lote').value.trim(),
+    cantidad: document.getElementById('en-cant').value,
+    recibido_por: whoName(),
+    items: readChecklist()
+  });
+}
+
+// Marca PROlimpio del encabezado (vectorial: no dependemos de una imagen)
+function drawProlimpio(doc, x, y, w, h){
+  var OR=[242,101,34], cy=y+h/2;
+  var r=Math.min(13, h/2-9), cx=x+12+r;
+  doc.setFillColor(OR[0],OR[1],OR[2]); doc.circle(cx,cy-2,r,'F');
+  doc.setFillColor(255,255,255); doc.circle(cx-r*0.30,cy-2-r*0.28,r*0.52,'F');
+  doc.setFillColor(OR[0],OR[1],OR[2]); doc.circle(cx-r*0.10,cy-2-r*0.10,r*0.52,'F');
+  // El texto se achica hasta entrar en la celda (si no, lo corta el divisor)
+  var tx=cx+r+5, maxW=(x+w-6)-tx, fs=15;
+  doc.setFont('helvetica','bold'); doc.setFontSize(fs);
+  while(fs>8 && doc.getTextWidth('PROlimpio')>maxW){ fs-=0.5; doc.setFontSize(fs); }
+  doc.setTextColor(45,45,45);      doc.text('PRO', tx, cy+3);
+  doc.setTextColor(OR[0],OR[1],OR[2]);
+  doc.text('limpio', tx+doc.getTextWidth('PRO'), cy+3);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(20,20,20);
+  doc.text('SUBATIR S.A.', x+2, y+h-3);
+}
+
+// Réplica del formulario PL-06 (A4 vertical, blanco y negro como el original)
+function buildChecklistPdf(r, d){
+  if(!window.jspdf || !window.jspdf.jsPDF){ toast('No se pudo cargar el generador de PDF (revisá tu conexión).','err'); return; }
+  var doc=new window.jspdf.jsPDF({unit:'pt', format:'a4', orientation:'portrait'});
+  var W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  var M=42, CW=W-2*M, LN=[0,0,0], GR=0.7;
+  doc.setDrawColor(0,0,0); doc.setLineWidth(GR);
+
+  // ── Encabezado: logo | título | datos del documento ──
+  var hy=52, hh=62, c1=M+118, c2=W-M-152;
+  doc.rect(M,hy,CW,hh,'S'); doc.line(c1,hy,c1,hy+hh); doc.line(c2,hy,c2,hy+hh);
+  drawProlimpio(doc, M, hy, c1-M, hh);
+  // El título va en UNA sola línea (como el original): achico hasta que entre
+  var tit='CHECK LIST PARA RECEPCIÓN DE MERCADERIA', ts=10.5;
+  doc.setFont('helvetica','bold'); doc.setTextColor(0,0,0); doc.setFontSize(ts);
+  while(ts>7 && doc.getTextWidth(tit)>c2-c1-12){ ts-=0.25; doc.setFontSize(ts); }
+  doc.text(tit, (c1+c2)/2, hy+hh/2+4, {align:'center'});
+  var meta=[['CÓDIGO',CHK_DOC.codigo],['VERSIÓN',CHK_DOC.version],['FECHA CREACION',CHK_DOC.creacion],['PÁGINA','1-1']];
+  var rh=hh/4, mx=c2+80;
+  doc.line(mx,hy,mx,hy+hh);
+  meta.forEach(function(m,i){
+    var ry=hy+rh*i;
+    if(i) doc.line(c2,ry,W-M,ry);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.6);
+    doc.text(m[0], c2+4, ry+rh/2+2.5);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.6);
+    doc.text(m[1], mx+4, ry+rh/2+2.5);
+  });
+
+  // ── Datos de la recepción (autocompletados) ──
+  var dat=[
+    ['Fecha de recepción:', fmtDate(d.fecha)==='—' ? '' : fmtDate(d.fecha)],
+    ['Proveedor:',          String(r[K.proveedor]||'')],
+    ['Orden de compra N°:', String(r[K.orden]||'')],
+    ['Factura N°:',         String(d.factura||'')],
+    ['Remito/Guía N°:',     String(d.remito||'')],
+    ['Producto:',           String(r[K.desc]||'')],
+    ['Lote / Cantidad recibida:', [String(d.lote||''), (d.cantidad?fmtNum(d.cantidad):'')].filter(Boolean).join('   ·   ')]
+  ];
+  var dy=hy+hh+20, drh=22, dlw=170;
+  doc.rect(M,dy,CW,drh*dat.length,'S'); doc.line(M+dlw,dy,M+dlw,dy+drh*dat.length);
+  dat.forEach(function(p,i){
+    var ry=dy+drh*i;
+    if(i) doc.line(M,ry,W-M,ry);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.6); doc.setTextColor(0,0,0);
+    doc.text(p[0], M+6, ry+drh/2+3);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    var t=String(p[1]||''), maxW=CW-dlw-14, s=9;
+    while(s>6.5 && doc.getTextWidth(t)>maxW){ s-=0.4; doc.setFontSize(s); }
+    doc.text(t, M+dlw+7, ry+drh/2+3, {maxWidth:maxW});
+  });
+
+  // ── Tabla de los 8 puntos de control ──
+  var items = d.items && d.items.length ? d.items : CHK_ITEMS.map(function(_,i){ return {n:i+1,conforme:'',obs:''}; });
+  var byN={}; items.forEach(function(c){ byN[c.n]=c; });
+  var body=CHK_ITEMS.map(function(txt,i){
+    var c=byN[i+1]||{};
+    return [String(i+1), txt, c.conforme==='SI'?'Sí':(c.conforme==='NO'?'No':''), String(c.obs||'')];
+  });
+  doc.autoTable({
+    startY: dy+drh*dat.length+22,
+    head: [['N°','Item','Conforme\n(Sí / No)','Observaciones']],
+    body: body, theme:'grid', margin:{left:M,right:M},
+    styles:{font:'helvetica', fontSize:8.4, cellPadding:6, textColor:[0,0,0],
+            lineColor:[0,0,0], lineWidth:0.7, valign:'middle', minCellHeight:26},
+    headStyles:{fillColor:[255,255,255], textColor:[0,0,0], fontStyle:'bold',
+                fontSize:8.4, halign:'center', valign:'middle'},
+    columnStyles:{0:{cellWidth:32, halign:'center'}, 1:{cellWidth:CW-32-66-130},
+                  2:{cellWidth:66, halign:'center', fontStyle:'bold'},
+                  3:{cellWidth:130, fontSize:7.6}}
+  });
+
+  // ── Firma del responsable ──
+  var fy=(doc.lastAutoTable?doc.lastAutoTable.finalY:400)+26, fh=76;
+  doc.setDrawColor(0,0,0); doc.setLineWidth(GR); doc.rect(M,fy,CW,fh,'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.text('Firma responsable de recepción:', M+7, fy+16);
+  if(d.recibido_por){
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.4); doc.setTextColor(70,70,70);
+    doc.text('Recibió: '+String(d.recibido_por), M+7, fy+fh-9);
+  }
+
+  // ── Tabla de revisiones (pie del procedimiento) ──
+  var rv=CHK_DOC.rev, ry0=Math.min(fy+fh+40, H-150);
+  doc.autoTable({
+    startY: ry0,
+    head: [['Fecha:','N° revisión:','Elaborado por:','Aprobado por:','Motivos de la revisión:','Cambios realizados:']],
+    body: [[rv.fecha, rv.n, rv.elaboro, rv.aprobo, rv.motivo, rv.cambios]],
+    theme:'grid', margin:{left:M,right:M},
+    styles:{font:'helvetica', fontSize:7.4, cellPadding:5, halign:'center', valign:'middle',
+            textColor:[0,0,0], lineColor:[0,0,0], lineWidth:0.7},
+    headStyles:{fillColor:[255,255,255], textColor:[0,0,0], fontStyle:'bold', fontSize:7.4, halign:'center'}
+  });
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+  doc.text('SUBATIR S.A.S Dirección Técnica', W/2, H-30, {align:'center'});
+
+  var slug=String(r[K.desc]||'producto').replace(/[^\w\dáéíóúñÁÉÍÓÚÑ ]+/g,'').trim().slice(0,28).replace(/\s+/g,'-');
+  doc.save('PL-06-OC'+String(r[K.orden]||'')+'-'+slug+'.pdf');
+}
 
 // ── Resumen por proveedor ─────────────────────────────────────
 function renderProveedores(){

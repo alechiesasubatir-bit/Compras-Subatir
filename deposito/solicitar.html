@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Solicitar mercadería — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-11.1206"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-11.1413"/>
 <style>
 /* El pedido que acaba de llegar: se destaca hasta que lo den por visto */
 .sol.llego{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.09);
@@ -43,7 +43,6 @@
 /* Cabecera de la sección: contador + botón de limpiar */
 .mis-h{display:flex;align-items:center;gap:9px;justify-content:space-between;margin-bottom:9px}
 .mis-h .lbl{margin:0}
-.oculto-av{margin-top:10px;text-align:center;font-size:11.5px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -106,12 +105,12 @@
 <div id="toast-host" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-08-11.1206"></script>
-<script src="deposito-app.js?v=2026-08-11.1206"></script>
+<script src="../supabase-config.js?v=2026-08-11.1413"></script>
+<script src="deposito-app.js?v=2026-08-11.1413"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-11.1206';
+window.APP_VER='2026-08-11.1413';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -394,28 +393,27 @@ function avanceHTML(estado){
     }).join('')
   +'</div>';
 }
-// Limpiar la vista: los pedidos entregados se pueden esconder. Es una
-// preferencia de quien mira —no toca el pedido ni a los demás—, así que
-// vive en el teléfono, igual que las "vistas".
-var OCULTOS_KEY='dep_sol_ocultos';
-function ocultos(){
-  try{ return JSON.parse(localStorage.getItem(OCULTOS_KEY)||'[]'); }catch(_){ return []; }
-}
-function setOcultos(v){
-  try{ localStorage.setItem(OCULTOS_KEY, JSON.stringify(v.slice(-200))); }catch(_){}
+// Limpiar la vista: los pedidos entregados se SACAN de la lista. Esta
+// pantalla es "en qué anda lo que pedí", no un historial: una vez que
+// llegó, ya no tiene nada que decir. El historial de lo que entró vive
+// en Depósitos → Recibido, que es donde se consulta de verdad.
+// Se anota en el teléfono: es la vista de quien mira, no el pedido.
+var QUITADOS_KEY='dep_sol_ocultos';
+function quitados(){
+  try{ return JSON.parse(localStorage.getItem(QUITADOS_KEY)||'[]'); }catch(_){ return []; }
 }
 function limpiarEntregados(){
   var yo=whoName();
   var ids=MIS.filter(function(s){ return s.solicitante===yo && s.estado==='ENTREGADA'; })
              .map(function(s){ return s.id; });
   if(!ids.length){ toast('No hay pedidos entregados para limpiar','info'); return; }
-  var v=ocultos();
+  var v=quitados();
   ids.forEach(function(id){ if(v.indexOf(id)<0) v.push(id); });
-  setOcultos(v);
-  toast(ids.length===1 ? 'Se ocultó 1 pedido' : 'Se ocultaron '+ids.length+' pedidos','ok');
+  try{ localStorage.setItem(QUITADOS_KEY, JSON.stringify(v.slice(-300))); }catch(_){}
+  toast(ids.length===1 ? 'Se quitó 1 pedido de la lista'
+                       : 'Se quitaron '+ids.length+' pedidos de la lista','ok');
   renderMis();
 }
-function mostrarOcultos(){ setOcultos([]); toast('Se muestran todos otra vez','info'); renderMis(); }
 
 // Cuántas unidades y de qué. Un pedido puede mezclar artículos: si es
 // uno solo va grande; si son varios, el total arriba y el detalle debajo.
@@ -443,9 +441,8 @@ function renderMis(){
     btn.style.display='none';
     return;
   }
-  var ocu=ocultos();
-  var visibles=mias.filter(function(s){ return ocu.indexOf(s.id)<0; });
-  var escondidos=mias.length-visibles.length;
+  var fuera=quitados();
+  var visibles=mias.filter(function(s){ return fuera.indexOf(s.id)<0; });
   // El botón sólo aparece cuando hay algo entregado que limpiar
   btn.style.display = visibles.some(function(s){ return s.estado==='ENTREGADA'; }) ? '' : 'none';
 
@@ -474,12 +471,8 @@ function renderMis(){
   }).join('');
 
   if(!visibles.length){
-    host.innerHTML='<div class="empty">Limpiaste la vista.<br>No te queda ningún pedido en curso.</div>';
-  }
-  if(escondidos){
-    host.innerHTML+='<div class="oculto-av">'+escondidos+' pedido'+(escondidos===1?'':'s')
-      +' oculto'+(escondidos===1?'':'s')+' · '
-      +'<button class="btn btn-sm" style="margin-left:4px" onclick="mostrarOcultos()">Mostrar todos</button></div>';
+    host.innerHTML='<div class="empty">No tenés pedidos en curso.<br>'
+      +'Lo que ya llegó se consulta en Depósitos → Recibido.</div>';
   }
 }
 // Cancelar libera los pallets. Se pide confirmación en dos toques sobre

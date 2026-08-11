@@ -664,6 +664,19 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .zona-k i{font-style:normal;font-size:11px;color:var(--muted)}
 .zona-hoy{padding:0 14px 10px;font-size:11px;color:var(--muted-l)}
 .zona-hoy b{font-family:var(--mono);color:var(--ok)}
+/* Filtros del historial de Recibido: por rango de fechas y/o artículo.
+   El listado completo no sirve de nada; se pregunta por período o por qué. */
+.fab-f{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:9px 10px;
+  border-top:1px solid var(--border);background:rgba(255,255,255,.02)}
+.fab-f label{font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  color:var(--muted);margin:0}
+.fab-f input{padding:5px 8px;border-radius:7px;font-size:11.5px;color-scheme:dark;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);outline:none}
+.fab-f input:focus{border-color:var(--teal-l)}
+.fab-f .fab-q{flex:1 1 150px;min-width:120px}
+.fab-hist{max-height:290px;overflow-y:auto}
+.fab-hist::-webkit-scrollbar{width:8px}
+.fab-hist::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px}
 .zona-ult{border-top:1px solid var(--border);padding:6px}
 .zona-empty{padding:10px;text-align:center;font-size:11px;color:var(--muted)}
 .zona-u{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;
@@ -944,8 +957,8 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-11.1206"></script>
-<script src="deposito-app.js?v=2026-08-11.1206"></script>
+<script src="../supabase-config.js?v=2026-08-11.1413"></script>
+<script src="deposito-app.js?v=2026-08-11.1413"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -954,7 +967,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-11.1206';
+window.APP_VER='2026-08-11.1413';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1002,14 +1015,16 @@ window.APP_VER='2026-08-11.1206';
     <span class="ticker-item"><span class="ti-dot"></span>Control de stock entre depósitos — <b>Subatir S.A. / Prolimpio</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Artículos: <b id="tk-art">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Stock Furriol: <b id="tk-fur">—</b></span>
-    <span class="ticker-item"><span class="ti-dot"></span>Consumido Artigas: <b id="tk-art2">—</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Stock Artigas: <b id="tk-art2">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Pallets en tránsito: <b id="tk-tran">—</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Sin palletizar: <b id="tk-suelto">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Consumo · Venta · Infraestructura</span>
     <span class="ticker-item"><span class="ti-dot"></span>Control de stock entre depósitos — <b>Subatir S.A. / Prolimpio</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Artículos: <b id="tk-art_b">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Stock Furriol: <b id="tk-fur_b">—</b></span>
-    <span class="ticker-item"><span class="ti-dot"></span>Consumido Artigas: <b id="tk-art2_b">—</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Stock Artigas: <b id="tk-art2_b">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Pallets en tránsito: <b id="tk-tran_b">—</b></span>
+    <span class="ticker-item"><span class="ti-dot"></span>Sin palletizar: <b id="tk-suelto_b">—</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Trazabilidad por QR entre depósitos</span>
   </div>
 </div>
@@ -1029,20 +1044,20 @@ window.APP_VER='2026-08-11.1206';
       <div class="kpi-val c-teal" id="kpi-fur">—</div>
       <div class="kpi-sub">unidades</div>
     </div>
-    <div class="card kpi kpi-orange">
-      <div class="kpi-top"><span class="kpi-label">Consumido Artigas</span><span class="kpi-ico">🔥</span></div>
-      <div class="kpi-val c-orange" id="kpi-art">—</div>
-      <div class="kpi-sub" id="kpi-art-sub">unidades usadas en fábrica</div>
+    <div class="card kpi kpi-teal">
+      <div class="kpi-top"><span class="kpi-label">Stock Artigas</span><span class="kpi-ico">▤</span></div>
+      <div class="kpi-val c-teal" id="kpi-art">—</div>
+      <div class="kpi-sub">unidades</div>
     </div>
     <div class="card kpi kpi-warn">
       <div class="kpi-top"><span class="kpi-label">En tránsito</span><span class="kpi-ico">⇄</span></div>
       <div class="kpi-val" style="color:#fcd34d" id="kpi-tran">—</div>
       <div class="kpi-sub">pallets despachados</div>
     </div>
-    <div class="card kpi kpi-orange">
-      <div class="kpi-top"><span class="kpi-label">Pallets abiertos</span><span class="kpi-ico">▣</span></div>
-      <div class="kpi-val c-orange" id="kpi-arm">—</div>
-      <div class="kpi-sub">en conteo, sin cerrar</div>
+    <div class="card kpi kpi-orange" id="kpi-suelto-card">
+      <div class="kpi-top"><span class="kpi-label">Sin palletizar</span><span class="kpi-ico">⚠</span></div>
+      <div class="kpi-val c-orange" id="kpi-suelto">—</div>
+      <div class="kpi-sub" id="kpi-suelto-sub">unidades sueltas en almacén</div>
     </div>
     <div class="card kpi kpi-teal">
       <div class="kpi-top"><span class="kpi-label">Ocupación rack</span><span class="kpi-ico">⛁</span></div>
@@ -1871,20 +1886,29 @@ function populateFilters(){
 
 // ── KPIs ───────────────────────────────────────────────────────
 function renderKPIs(){
-  var fur=0;
-  Object.keys(STOCK).forEach(function(k){ fur+=num(STOCK[k]['Furriol']); });
-  // Artigas es fábrica: su stock siempre queda en cero, lo que importa es cuánto se usó
-  var cons=PALLETS.filter(function(p){ return p.estado==='CONSUMIDO'; });
-  var art=cons.reduce(function(a,p){ return a+num(p.unidades); },0);
+  var fur=0, art=0;
+  Object.keys(STOCK).forEach(function(k){
+    fur+=num(STOCK[k]['Furriol']);
+    art+=num(STOCK[k]['Artigas']);
+  });
+  // Lo que entró al almacén y todavía no está armado en ningún pallet.
+  // Sólo cuenta en almacenes: en la fábrica lo que llega se consume, no
+  // se palletiza, así que ahí "suelto" no querría decir nada.
+  var suelto=0;
+  DEPS.filter(function(d){ return d.tipo!=='FABRICA'; }).forEach(function(d){
+    Object.keys(STOCK).forEach(function(k){ suelto += Math.max(0, dispOf(k, d.nombre)); });
+  });
   var tran=PALLETS.filter(function(p){return p.estado==='EN_TRANSITO';}).length;
-  var arm =PALLETS.filter(function(p){return p.estado==='ABIERTO';}).length;
   document.getElementById('kpi-total').textContent=fmtNum(ART.length);
   document.getElementById('kpi-fur').textContent=fmtNum(fur);
   document.getElementById('kpi-art').textContent=fmtNum(art);
-  var sub=document.getElementById('kpi-art-sub');
-  if(sub) sub.textContent=cons.length?(fmtNum(cons.length)+' pallets consumidos'):'unidades usadas en fábrica';
   document.getElementById('kpi-tran').textContent=fmtNum(tran);
-  document.getElementById('kpi-arm').textContent=fmtNum(arm);
+  document.getElementById('kpi-suelto').textContent=fmtNum(suelto);
+  var ss=document.getElementById('kpi-suelto-sub');
+  if(ss) ss.textContent = suelto>0 ? 'esperando que las armen en pallets' : 'todo armado en pallets';
+  // Sin nada suelto no es un aviso: se apaga el resalte
+  var sc=document.getElementById('kpi-suelto-card');
+  if(sc) sc.style.opacity = suelto>0 ? '' : '.55';
   // Ocupación: posiciones de rack usadas sobre el total configurado
   var caps=EST.reduce(function(a,e){ return a+(e.filas||0)*posCount(e); },0);
   var used=PALLETS.filter(function(p){ return p.estanteria_id!=null; }).length;
@@ -1896,6 +1920,7 @@ function renderKPIs(){
   setT('tk-art',fmtNum(ART.length)); setT('tk-art_b',fmtNum(ART.length));
   setT('tk-fur',fmtNum(fur)); setT('tk-fur_b',fmtNum(fur));
   setT('tk-art2',fmtNum(art)); setT('tk-art2_b',fmtNum(art));
+  setT('tk-suelto',fmtNum(suelto)); setT('tk-suelto_b',fmtNum(suelto));
   setT('tk-tran',fmtNum(tran)); setT('tk-tran_b',fmtNum(tran));
 }
 
@@ -2168,47 +2193,127 @@ function mapaModo(){
 // Insumos), que eran una semilla inventada en la migración: en Artigas la
 // mercadería llega y se usa, sin escala intermedia. Queda lo que importa:
 // qué viene en camino y qué ya se consumió.
+//  El historial de Recibido puede tener cientos de pallets: no se vuelca
+//  entero. Se consulta por rango de fechas y/o por artículo, que es como
+//  se pregunta de verdad ("qué entró la semana pasada", "cuánta botella
+//  verde llegó"). Arranca en el último mes.
+var FAB_F={desde:'', hasta:'', q:''};
+function fabFechaDef(dias){
+  var d=new Date(); d.setDate(d.getDate()-(dias||30));
+  return d.toISOString().slice(0,10);
+}
+function onFabFiltro(){
+  FAB_F.desde=(document.getElementById('fab-desde')||{}).value||'';
+  FAB_F.hasta=(document.getElementById('fab-hasta')||{}).value||'';
+  FAB_F.q    =(document.getElementById('fab-q')||{}).value||'';
+  renderFabHist();
+}
+function fabLimpiar(){
+  FAB_F={desde:'', hasta:'', q:''};
+  var d=document.getElementById('fab-desde'), h=document.getElementById('fab-hasta'),
+      q=document.getElementById('fab-q');
+  if(d) d.value=''; if(h) h.value=''; if(q) q.value='';
+  renderFabHist();
+}
+// Los recibidos que pasan el filtro, del más nuevo al más viejo
+function fabRecibidos(){
+  var dep=GRID.dep;
+  var q=FAB_F.q.trim().toLowerCase();
+  var desde=FAB_F.desde?new Date(FAB_F.desde+'T00:00:00'):null;
+  var hasta=FAB_F.hasta?new Date(FAB_F.hasta+'T23:59:59'):null;
+  return PALLETS.filter(function(p){
+    if(p.deposito!==dep || p.estado!=='CONSUMIDO') return false;
+    var f=p.consumido_at?new Date(p.consumido_at):null;
+    if(desde && (!f || f<desde)) return false;
+    if(hasta && (!f || f>hasta)) return false;
+    if(q){
+      var a=artById(p.articulo_id);
+      var txt=((a?a.descripcion:'')+' '+(a&&a.codigo?a.codigo:'')+' '+(p.codigo||'')).toLowerCase();
+      if(txt.indexOf(q)<0) return false;
+    }
+    return true;
+  }).sort(function(a,b){ return new Date(b.consumido_at||0)-new Date(a.consumido_at||0); });
+}
+function renderFabHist(){
+  var host=document.getElementById('fab-hist'); if(!host) return;
+  var res=fabRecibidos();
+  var tot=res.reduce(function(a,p){ return a+num(p.unidades); },0);
+  var cnt=document.getElementById('fab-hist-n');
+  if(cnt) cnt.textContent = fmtNum(res.length)+' pallet'+(res.length===1?'':'s')+' · '+fmtNum(tot)+' u.';
+  if(!res.length){
+    host.innerHTML='<div class="zona-empty">Nada recibido con ese filtro.</div>'; return;
+  }
+  host.innerHTML=res.map(function(p){
+    var a=artById(p.articulo_id);
+    var f=p.consumido_at
+      ? new Date(p.consumido_at).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})
+      : '—';
+    return '<div class="zona-u" role="button" tabindex="0" onclick="openPalletDetail('+p.id+')" title="Ver detalle">'
+      +'<span class="zona-uc">'+esc(p.codigo)+'</span>'
+      +'<span class="zona-ud">'+esc(a?a.descripcion:('#'+p.articulo_id))
+        +'<i style="display:block;font-style:normal;font-size:10.5px;color:var(--muted)">'+f+'</i></span>'
+      +'<span class="zona-uq">'+fmtNum(p.unidades)+' u.</span></div>';
+  }).join('');
+}
+
+// Lo que viene en camino: cambia solo, así que se repinta en cada refresh
+function renderFabCam(){
+  var host=document.getElementById('fab-cam'); if(!host) return;
+  var dep=GRID.dep;
+  var cam=PALLETS.filter(function(p){ return p.estado==='EN_TRANSITO' && p.destino===dep; });
+  var tot=cam.reduce(function(a,p){ return a+num(p.unidades); },0);
+  var ult=cam.slice().sort(function(a,b){
+    return new Date(b.salida_at||0)-new Date(a.salida_at||0); }).slice(0,5);
+  var n=document.getElementById('fab-cam-n');
+  if(n) n.textContent=fmtNum(cam.length)+' pallet'+(cam.length===1?'':'s');
+  host.innerHTML =
+    '<div class="zona-k"><span>Por llegar</span><b>'+fmtNum(tot)+'</b><i>unidades</i></div>'
+    +(ult.length
+        ? '<div class="zona-ult">'+ult.map(function(p){
+            var a=artById(p.articulo_id);
+            return '<div class="zona-u" role="button" tabindex="0" onclick="openPalletDetail('+p.id+')" title="Ver detalle">'
+              +'<span class="zona-uc">'+esc(p.codigo)+'</span>'
+              +'<span class="zona-ud">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</span>'
+              +'<span class="zona-uq">'+fmtNum(p.unidades)+' u.</span></div>';
+          }).join('')+'</div>'
+        : '<div class="zona-ult"><div class="zona-empty">Nada en tránsito hacia '+esc(dep)+'</div></div>');
+}
+
+var FAB_DEP=null;
 function renderFabrica(){
   var host=document.getElementById('zonas-host'); if(!host) return;
   var dep=GRID.dep;
-  var sum=function(ps){ return ps.reduce(function(a,p){ return a+num(p.unidades); },0); };
-  var linea=function(p, cuando){
-    var a=artById(p.articulo_id);
-    return '<div class="zona-u" role="button" tabindex="0" onclick="openPalletDetail('+p.id+')" title="Ver detalle">'
-      +'<span class="zona-uc">'+esc(p.codigo)+'</span>'
-      +'<span class="zona-ud">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</span>'
-      +'<span class="zona-uq">'+fmtNum(p.unidades)+' u.</span></div>';
-  };
+  // La pantalla se refresca sola (realtime). El armazón con los filtros se
+  // monta una sola vez por depósito: rehacerlo mientras alguien escribe le
+  // roba el foco y le borra lo tecleado. Los datos sí se repintan siempre.
+  if(FAB_DEP===dep && document.getElementById('fab-hist')){
+    renderFabCam(); renderFabHist(); return;
+  }
+  FAB_DEP=dep;
 
-  var pal=function(n){ return fmtNum(n)+' pallet'+(n===1?'':'s'); };
-  var cons=PALLETS.filter(function(p){ return p.deposito===dep && p.estado==='CONSUMIDO'; });
-  var cam =PALLETS.filter(function(p){ return p.estado==='EN_TRANSITO' && p.destino===dep; });
-  var hoy=new Date(); hoy.setHours(0,0,0,0);
-  var hoyN=cons.filter(function(p){ return p.consumido_at && new Date(p.consumido_at)>=hoy; });
-
-  var ultCons=cons.slice().sort(function(a,b){
-    return new Date(b.consumido_at||0)-new Date(a.consumido_at||0); }).slice(0,5);
-  var ultCam=cam.slice().sort(function(a,b){
-    return new Date(b.salida_at||0)-new Date(a.salida_at||0); }).slice(0,5);
+  // Primera vez: el rango arranca en el último mes
+  if(!FAB_F.desde && !FAB_F.hasta && !FAB_F.q) FAB_F.desde=fabFechaDef(30);
 
   host.innerHTML =
     '<div class="zona">'
       +'<div class="zona-h"><span class="zona-n">🚚 En camino</span>'
-        +'<span class="zona-b">'+pal(cam.length)+'</span></div>'
-      +'<div class="zona-k"><span>Por llegar</span><b>'+fmtNum(sum(cam))+'</b><i>unidades</i></div>'
-      +(ultCam.length
-          ? '<div class="zona-ult">'+ultCam.map(linea).join('')+'</div>'
-          : '<div class="zona-ult"><div class="zona-empty">Nada en tránsito hacia '+esc(dep)+'</div></div>')
+        +'<span class="zona-b" id="fab-cam-n">—</span></div>'
+      +'<div id="fab-cam"></div>'
     +'</div>'
     +'<div class="zona">'
       +'<div class="zona-h"><span class="zona-n">📥 Recibido '+esc(dep)+'</span>'
-        +'<span class="zona-b">'+pal(cons.length)+'</span></div>'
-      +'<div class="zona-k"><span>Total</span><b>'+fmtNum(sum(cons))+'</b><i>unidades</i></div>'
-      +(hoyN.length?('<div class="zona-hoy">Hoy: <b>'+fmtNum(sum(hoyN))+'</b> u. en '+hoyN.length+' pallet'+(hoyN.length===1?'':'s')+'</div>'):'')
-      +(ultCons.length
-          ? '<div class="zona-ult">'+ultCons.map(linea).join('')+'</div>'
-          : '<div class="zona-ult"><div class="zona-empty">Sin consumos registrados</div></div>')
+        +'<span class="zona-b" id="fab-hist-n">—</span></div>'
+      +'<div class="fab-f">'
+        +'<label for="fab-desde">Desde</label>'
+        +'<input type="date" id="fab-desde" value="'+esc(FAB_F.desde)+'" onchange="onFabFiltro()"/>'
+        +'<label for="fab-hasta">Hasta</label>'
+        +'<input type="date" id="fab-hasta" value="'+esc(FAB_F.hasta)+'" onchange="onFabFiltro()"/>'
+        +'<input type="search" id="fab-q" class="fab-q" placeholder="Artículo, código o QR…" value="'+esc(FAB_F.q)+'" oninput="onFabFiltro()"/>'
+        +'<button class="btn btn-sm" onclick="fabLimpiar()" title="Quitar los filtros y ver todo">✕ Filtros</button>'
+      +'</div>'
+      +'<div class="zona-ult fab-hist" id="fab-hist"></div>'
     +'</div>';
+  renderFabCam(); renderFabHist();
 }
 function onGridDep(){
   GRID.dep=document.getElementById('g-dep').value;
@@ -2845,7 +2950,14 @@ function saveTransfer(){
 function renderTray(){
   var wrap=document.getElementById('tray-wrap'); if(!wrap) return;
   var dep=GRID.dep;
-  var un=PALLETS.filter(function(p){ return p.deposito===dep && p.estanteria_id==null && p.estado!=='EN_TRANSITO'; });
+  // Un pallet CONSUMIDO no está pendiente de nada: lo que llega a la
+  // fábrica se usa, no se guarda en un rack. Aparecía acá porque no tiene
+  // ranura, pero no hay nada que ubicar — su rastro queda en el historial
+  // de Recibido, no en el mapa.
+  var un=PALLETS.filter(function(p){
+    return p.deposito===dep && p.estanteria_id==null
+        && p.estado!=='EN_TRANSITO' && p.estado!=='CONSUMIDO';
+  });
   if(!un.length){
     wrap.className='dock empty';
     wrap.innerHTML='<div style="font-size:12px;color:var(--muted-l)">Sin pallets pendientes de ubicar en <b style="color:var(--text)">'+esc(dep)+'</b>. Los recibidos o quitados de una ranura aparecen acá para arrastrarlos al mapa.</div>';

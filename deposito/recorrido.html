@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Recorrido — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-11.1509"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-11.1723"/>
 <style>
 /* Propio del recorrido: el paso, el lector y la grilla de ranuras */
 .paso{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;margin-bottom:8px;
@@ -26,9 +26,34 @@
 .paso.hecho .paso-n{background:rgba(34,197,94,.2);color:#86efac}
 .paso-b{flex:1;min-width:0}
 .paso-b>span{display:block}   /* son <span> dentro de un boton: sin esto se pegan */
-.paso-d{font-family:var(--display);font-size:15px;font-weight:800;color:var(--orange-l);line-height:1.3}
-.paso-t{font-size:13px;margin-top:2px;overflow-wrap:anywhere}
-.paso-m{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:3px}
+/* Igual que en Solicitar: primero QUÉ es, después dónde y cuánto */
+.paso-t{font-size:16px;font-weight:800;line-height:1.25;color:var(--text);overflow-wrap:anywhere}
+.paso-d{font-family:var(--display);font-size:13.5px;font-weight:700;color:var(--orange-l);
+  line-height:1.3;margin-top:4px}
+.paso-m{font-family:var(--mono);font-size:11.5px;color:var(--muted-l);margin-top:3px}
+.paso-u{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--teal-l);margin-top:4px}
+.paso-u i{font-style:normal;font-size:11px;font-weight:500;color:var(--muted-l);margin-left:5px}
+
+/* Resultado del escaneo: los datos en grande y un botón para seguir.
+   La cámara se cierra siempre — leer un QR y que no pase nada visible
+   deja al operario sin saber si contó. */
+.ok-wrap{text-align:center;padding:6px 0 2px}
+.ok-ico{font-size:44px;line-height:1;margin-bottom:6px}
+.ok-art{font-size:19px;font-weight:800;line-height:1.25;margin-bottom:5px;overflow-wrap:anywhere}
+.ok-u{font-family:var(--mono);font-size:25px;font-weight:700;color:var(--teal-l);letter-spacing:-.5px}
+.ok-u i{font-style:normal;font-size:13px;font-weight:500;color:var(--muted-l);margin-left:6px}
+.ok-que{font-size:14px;font-weight:600;margin-top:9px;line-height:1.35}
+.ok-cod{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:7px}
+.ok-wrap.mal .ok-art{color:#fca5a5}
+
+/* Tarjeta de pedido en la lista: mismo orden que en Solicitar */
+.pal-t{font-size:16px!important;font-weight:800!important;line-height:1.25}
+.pal-u{display:block;font-family:var(--mono);font-size:16px;font-weight:700;
+  color:var(--teal-l);margin-top:6px}
+.pal-u i{font-style:normal;font-size:11px;font-weight:500;color:var(--muted-l);margin-left:6px}
+.pal-arts{display:block;margin-top:6px}
+.pal-li{display:block;font-size:12px;line-height:1.35;color:var(--text)}
+.pal-li b{font-family:var(--mono);color:var(--teal-l)}
 #qr-box{width:100%;max-width:340px;margin:0 auto;border-radius:14px;overflow:hidden;
   border:1px solid var(--border-s)}
 .ranuras{display:grid;gap:5px;margin-top:9px}
@@ -95,12 +120,31 @@
     </div>
   </section>
 
+  <!-- Resultado del escaneo: se lee, se muestra en grande, se acepta -->
+  <section id="v-ok" style="display:none">
+    <div class="card">
+      <div class="ok-wrap" id="ok-wrap">
+        <div class="ok-ico" id="ok-ico">✅</div>
+        <div class="ok-art" id="ok-art">—</div>
+        <div class="ok-u" id="ok-u"></div>
+        <div class="ok-que" id="ok-que"></div>
+        <div class="ok-cod" id="ok-cod"></div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:15px" onclick="okAceptar()">✓ Aceptar</button>
+      <button class="btn" style="width:100%;margin-top:8px" onclick="abrirScan()">📷 Escanear otro</button>
+    </div>
+  </section>
+
   <!-- Llegó: consumir o guardar -->
   <section id="v-dest" style="display:none">
     <div class="card">
       <div class="lbl">Llegó a destino</div>
-      <div class="bar-n" id="d-cod">—</div>
-      <div class="sol-m" id="d-info"></div>
+      <div class="ok-wrap" style="text-align:left;padding:0">
+        <div class="ok-art" id="d-art">—</div>
+        <div class="ok-u" id="d-u"></div>
+      </div>
+      <div class="sol-m" id="d-info" style="margin-top:7px"></div>
+      <div class="ok-cod" id="d-cod" style="text-align:left"></div>
       <button class="btn btn-orange" style="width:100%;margin-top:13px" onclick="consumir()">🔥 Consumir (va a fabricación)</button>
       <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="verUbicar()">📍 Guardar en una estantería</button>
       <button class="btn" style="width:100%;margin-top:8px" onclick="verRec()">Dejarlo en el piso por ahora</button>
@@ -130,12 +174,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-11.1509"></script>
-<script src="deposito-app.js?v=2026-08-11.1509"></script>
+<script src="../supabase-config.js?v=2026-08-11.1723"></script>
+<script src="deposito-app.js?v=2026-08-11.1723"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-11.1509';
+window.APP_VER='2026-08-11.1723';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -247,12 +291,12 @@ function renderPorRecibir(){
     return;
   }
   host.innerHTML=ENCAMINO.map(function(p){
-    var h=p.salida_at ? new Date(p.salida_at).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}) : '';
+    var h=p.salida_at ? new Date(p.salida_at).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
     return '<div class="paso camino"><span class="paso-n" aria-hidden="true">🚚</span><span class="paso-b">'
-      +'<span class="paso-d">'+esc(p.origen||'—')+' → '+esc(p.destino||'—')+'</span>'
       +'<span class="paso-t">'+esc(p.articulo||('#'+p.articulo_id))+'</span>'
-      +'<span class="paso-m">'+fmt(p.unidades)+' u. · despachó '+esc(p.salida_by||'—')
-        +(h?' · '+h:'')+'</span>'
+      +'<span class="paso-u">'+fmt(p.unidades)+'<i>unidades</i></span>'
+      +'<span class="paso-d">'+esc(p.origen||'—')+' → '+esc(p.destino||'—')+'</span>'
+      +'<span class="paso-m">despachó '+esc(p.salida_by||'—')+(h?' · '+h+' h':'')+'</span>'
       +(p.lo_despache_yo
         ? '<span class="paso-m" style="color:#fca5a5">⚠ Lo despachaste vos: lo confirma otra persona</span>'
         : (p.destino_tipo==='FABRICA'
@@ -300,14 +344,26 @@ function renderLista(){
   host.innerHTML=vivas.map(function(s){
     var c=CHIP[s.estado]||['','?'];
     var f=new Date(s.created_at);
-    // Misma gráfica que en Solicitar: el avance manda, y quien atiende
-    // el pedido ve de un vistazo en qué punto está sin abrirlo.
+    // Misma tarjeta que en Solicitar: primero QUÉ hay que mover, después
+    // cuánto, y al final la referencia. Las dos pantallas tienen que
+    // sentirse la misma app — y el avance se ve sin abrir el pedido.
+    var arts=Array.isArray(s.articulos)?s.articulos:[];
+    var titulo = arts.length===1 ? arts[0].art
+               : (arts.length ? arts.length+' artículos'
+                              : s.items+' pallet'+(s.items===1?'':'s'));
     return '<button type="button" class="pal" onclick="abrir('+s.id+')" style="display:block"'
-      +' aria-label="'+esc('Pedido '+s.id+', '+s.origen+' a '+s.destino+', '+s.items+' pallets, '+c[1])+'">'
-      +'<span class="sol-h"><b class="pal-t">#'+s.id+' · '+esc(s.origen)+' → '+esc(s.destino)+'</b>'
+      +' aria-label="'+esc('Pedido '+s.id+', '+titulo+', '+fmt(s.unidades)+' unidades, '+s.origen+' a '+s.destino+', '+c[1])+'">'
+      +'<span class="sol-h"><b class="pal-t">'+esc(titulo)+'</b>'
       +'<span class="chip '+c[0]+'">'+c[1]+'</span></span>'
-      +'<span class="pal-m">'+s.items+' pallet'+(s.items===1?'':'s')+' · '+fmt(s.unidades)+' u. · '
-      +esc(s.solicitante)+' · '+f.toLocaleDateString('es-UY')+'</span>'
+      +(arts.length>1
+        ? '<span class="pal-arts">'+arts.map(function(a){
+            return '<span class="pal-li"><b>'+fmt(a.un)+' u.</b> '+esc(a.art)+'</span>';
+          }).join('')+'</span>'
+        : '')
+      +'<span class="pal-u">'+fmt(s.unidades)+'<i>unidades</i></span>'
+      +'<span class="pal-m">#'+s.id+' · '+esc(s.origen)+' → '+esc(s.destino)+' · '
+      +s.items+' pallet'+(s.items===1?'':'s')+' · pidió '+esc(s.solicitante)
+      +' · '+f.toLocaleDateString('es-UY')+'</span>'
       +avanceHTML(s.estado)
     +'</button>';
   }).join('');
@@ -315,7 +371,7 @@ function renderLista(){
 
 function verLista(){
   SOL=null;
-  ['v-rec','v-scan','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  ['v-rec','v-scan','v-dest','v-ubic','v-ok'].forEach(function(i){ document.getElementById(i).style.display='none'; });
   document.getElementById('v-lista').style.display='';
   // En modo recepción la barra de escanear no se esconde: es la acción
   // principal, no algo que aparezca al abrir un pedido.
@@ -328,16 +384,33 @@ function verRec(){
   // El operador logístico no tiene "un recorrido abierto": su pantalla
   // es la lista de lo que viene en camino.
   if(SOLO_RECIBE){ verLista(); return; }
-  ['v-lista','v-scan','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  ['v-lista','v-scan','v-dest','v-ubic','v-ok'].forEach(function(i){ document.getElementById(i).style.display='none'; });
   document.getElementById('v-rec').style.display='';
   document.getElementById('barra').style.display = SOL && SOL.estado!=='PENDIENTE' ? 'flex' : 'none';
   cerrarLector();
 }
 function verDest(){
-  ['v-lista','v-rec','v-scan','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  ['v-lista','v-rec','v-scan','v-ubic','v-ok'].forEach(function(i){ document.getElementById(i).style.display='none'; });
   document.getElementById('v-dest').style.display='';
   document.getElementById('barra').style.display='none';
 }
+// Pantalla de resultado del escaneo. Siempre cierra la cámara: el operario
+// tiene que ver qué contó ese escaneo antes de seguir con el próximo.
+//  d = {ok, ico, art, unidades, que, cod}
+function verOK(d){
+  cerrarLector();
+  ['v-lista','v-rec','v-scan','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  var w=document.getElementById('ok-wrap');
+  w.className='ok-wrap'+(d.ok===false?' mal':'');
+  document.getElementById('ok-ico').textContent=d.ico||(d.ok===false?'⚠':'✅');
+  document.getElementById('ok-art').textContent=d.art||'—';
+  document.getElementById('ok-u').innerHTML=d.unidades!=null?(fmt(d.unidades)+'<i>unidades</i>'):'';
+  document.getElementById('ok-que').textContent=d.que||'';
+  document.getElementById('ok-cod').textContent=d.cod||'';
+  document.getElementById('v-ok').style.display='';
+  document.getElementById('barra').style.display='none';
+}
+function okAceptar(){ verRec(); }
 
 // ── Abrir un pedido ───────────────────────────────────────────
 function abrir(id, silencioso){
@@ -376,21 +449,18 @@ function abrir(id, silencioso){
 }
 
 // ── Mini plano de la estantería ───────────────────────────────
-//  Dos vistas de lo mismo: la grilla de frente (2D) y la misma
-//  grilla inclinada (3D), que es como se ve parado en el pasillo.
-//  La ranura buscada parpadea en rojo y es lo único rojo de la
-//  pantalla, así no compite con nada.
-//  El 3D es CSS puro: cargar una librería 3D en el celular del
-//  operario cuesta segundos y batería para mostrar una cuadrícula.
-var VISTA={}, OCUP={};                          // paso → '2d' | '3d'  ·  ranuras ocupadas
-function verPlano(n, modo){ VISTA[n]=modo; pintarRec(); }
+//  La grilla de frente, y nada más. Antes había además una vista 3D
+//  (la misma grilla inclinada en CSS): en el celular, parado en el
+//  pasillo, no agregaba nada sobre el plano de frente y sumaba un
+//  toque de más para elegir. La ranura buscada parpadea en rojo y es
+//  lo único rojo de la pantalla, así no compite con nada.
+var OCUP={};                                    // ranuras ocupadas
 
 function planoHTML(p, n){
   var e = p.estanteria_id ? estById(p.estanteria_id) : null;
   if(!e || !p.fila || !p.columna){
     return '<span class="paso-m" style="color:var(--orange-l)">Sin ranura: está suelto en el depósito</span>';
   }
-  var modo = VISTA[n] || '2d';
   var cols = e.columnas*2;                      // 2 posiciones por bahía, igual que el panel
 
   var g='';
@@ -406,13 +476,7 @@ function planoHTML(p, n){
   }
 
   return '<span class="mini-wrap">'
-    +'<span class="mini-tabs" role="group" aria-label="Vista del plano">'
-      +'<button type="button" class="'+(modo==='2d'?'on':'')+'" onclick="verPlano('+n+',\'2d\')">Plano 2D</button>'
-      +'<button type="button" class="'+(modo==='3d'?'on':'')+'" onclick="verPlano('+n+',\'3d\')">Vista 3D</button>'
-    +'</span>'
-    +(modo==='3d'
-      ? '<span class="m3d"><span class="m3d-in">'+g+'</span></span>'
-      : '<span class="m2d">'+g+'</span>')
+    +'<span class="m2d">'+g+'</span>'
     +'<span class="mini-cap">'+esc(e.nombre)+' · nivel '+letra(p.fila,e.filas)
       +' · posición '+p.columna+'</span>'
   +'</span>';
@@ -451,9 +515,10 @@ function pintarRec(){
     // está, y para eso va el mini plano abajo.
     var falta = cls!==' hecho' && p.estado!=='EN_TRANSITO';
     return '<div class="paso'+cls+'"><span class="paso-n">'+n+'</span><span class="paso-b">'
-      +'<span class="paso-d">📍 '+esc(cls===' hecho'?(p.deposito||SOL.destino):ubicOf(p))+'</span>'
       +'<span class="paso-t">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</span>'
-      +'<span class="paso-m">'+fmt(p.unidades)+' u.'+(nota?(' · '+nota):'')+'</span>'
+      +'<span class="paso-u">'+fmt(p.unidades)+'<i>unidades</i></span>'
+      +'<span class="paso-d">📍 '+esc(cls===' hecho'?(p.deposito||SOL.destino):ubicOf(p))+'</span>'
+      +(nota?('<span class="paso-m">'+nota+'</span>'):'')
       +(falta ? planoHTML(p, n) : '')
       +'</span></div>';
   }).join('') : '<div class="empty">Este pedido no tiene pallets.</div>';
@@ -486,7 +551,7 @@ function iniciar(){
 //  del pallet y decide si es salida o llegada. Pedirle al operario que
 //  elija cuál es sería pedirle que lleve la cuenta.
 function abrirScan(){
-  ['v-lista','v-rec','v-dest','v-ubic'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  ['v-lista','v-rec','v-dest','v-ubic','v-ok'].forEach(function(i){ document.getElementById(i).style.display='none'; });
   document.getElementById('v-scan').style.display='';
   document.getElementById('barra').style.display='none';
   document.getElementById('scan-st').textContent='Apuntá la cámara al QR…';
@@ -504,6 +569,13 @@ function cerrarLector(){
 }
 function cerrarScan(){ cerrarLector(); verRec(); }
 
+// Nombre del artículo de un pallet ya leído por la base
+function artDeCodigo(cod){
+  var p=(PALS||[]).find(function(x){ return x.codigo===cod; });
+  var a=p?artById(p.articulo_id):null;
+  return { art:a?a.descripcion:null, unidades:p?p.unidades:null };
+}
+
 function onQR(txt){
   if(SCAN_BUSY) return; SCAN_BUSY=true;
   vibrar();
@@ -512,25 +584,30 @@ function onQR(txt){
     setTimeout(function(){ SCAN_BUSY=false; }, 1400);   // evita releer el mismo QR
     if(r.error||(r.data&&r.data.ok===false)){
       var msg=r.error?r.error.message:r.data.error;
-      document.getElementById('scan-st').textContent='⚠ '+msg;
-      toast(msg,'err'); return;
+      toast(msg,'err');
+      verOK({ok:false, ico:'⚠', art:'No se pudo registrar', que:msg, cod:txt});
+      return;
     }
     var d=r.data;
+    var extra=artDeCodigo(d.pallet);
     if(d.accion==='salida'){
       toast('🚚 Sale hacia '+d.destino,'ok');
-      document.getElementById('scan-st').textContent='🚚 '+d.pallet+' → '+d.destino+'. Seguí con el próximo.';
+      verOK({ico:'🚚', art:d.articulo||extra.art||d.pallet,
+             unidades:(d.unidades!=null?d.unidades:extra.unidades),
+             que:'Cargado y en camino a '+d.destino, cod:d.pallet});
       cargar(true);
-      return;                                   // el lector queda abierto: vienen más
+      return;
     }
     // Llegada a una FÁBRICA: no hay nada que decidir. Todo lo que llega
     // se usa, así que la base ya lo dejó consumido y en el depósito no
-    // queda saldo. Se avisa y se sigue con el próximo pallet.
+    // queda saldo.
     if(d.accion==='produccion'){
       toast('🏭 Llegó a '+d.destino+' y pasó a producción','ok');
-      document.getElementById('scan-st').textContent=
-        '🏭 '+d.pallet+' — '+fmt(d.unidades)+' u. a producción en '+d.destino+'. Seguí con el próximo.';
+      verOK({ico:'🏭', art:d.articulo||extra.art||d.pallet,
+             unidades:(d.unidades!=null?d.unidades:extra.unidades),
+             que:'Llegó a '+d.destino+' y pasó a producción', cod:d.pallet});
       cargar(true);
-      return;                                   // el lector queda abierto
+      return;
     }
     // Llegada a un almacén: hay que decidir qué se hace con él
     cerrarLector();
@@ -538,9 +615,10 @@ function onQR(txt){
     SB.from('imp_pallets').select('*').eq('codigo',d.pallet).single().then(function(p){
       LLEGO.pallet=p.data;
       var a=p.data?artById(p.data.articulo_id):null;
+      document.getElementById('d-art').textContent=a?a.descripcion:d.pallet;
+      document.getElementById('d-u').innerHTML=p.data?(fmt(p.data.unidades)+'<i>unidades</i>'):'';
+      document.getElementById('d-info').textContent='Llegó a '+d.destino;
       document.getElementById('d-cod').textContent=d.pallet;
-      document.getElementById('d-info').textContent=
-        (a?a.descripcion+' · ':'')+(p.data?fmt(p.data.unidades)+' u. · ':'')+'llegó a '+d.destino;
       // Consumir sólo tiene sentido en una fábrica
       document.querySelector('#v-dest .btn-orange').style.display =
         (d.destino_tipo==='FABRICA') ? '' : 'none';
@@ -568,7 +646,7 @@ function consumir(){
 }
 
 function verUbicar(){
-  ['v-lista','v-rec','v-scan','v-dest'].forEach(function(i){ document.getElementById(i).style.display='none'; });
+  ['v-lista','v-rec','v-scan','v-dest','v-ok'].forEach(function(i){ document.getElementById(i).style.display='none'; });
   document.getElementById('v-ubic').style.display='';
   var dep=LLEGO?LLEGO.destino:null;
   var ests=EST.filter(function(e){ return e.deposito===dep; });

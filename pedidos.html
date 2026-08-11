@@ -367,12 +367,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-11.0944"></script>
-<script src="subatir-app.js?v=2026-08-11.0944"></script>
+<script src="supabase-config.js?v=2026-08-11.1037"></script>
+<script src="subatir-app.js?v=2026-08-11.1037"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-11.0944';
+window.APP_VER='2026-08-11.1037';
 </script>
 </head>
 <body>
@@ -655,7 +655,7 @@ window.APP_VER='2026-08-11.0944';
      MODAL: ENTREGAS PARCIALES
 ════════════════════════════════════════════════ -->
 <div class="overlay" id="entrega-overlay">
-  <div class="modal" style="max-width:660px">
+  <div class="modal" style="max-width:820px">
     <div class="modal-header">
       <div class="modal-title" id="entrega-title">Entregas</div>
       <button class="modal-close" onclick="closeModal('entrega-overlay')">✕</button>
@@ -675,7 +675,7 @@ window.APP_VER='2026-08-11.0944';
           </div>
           <div class="form-group">
             <label>Fecha de entrega</label>
-            <input type="date" class="form-input" id="en-fecha"/>
+            <input type="date" class="form-input" id="en-fecha" onchange="syncChkHead()"/>
           </div>
           <div class="form-group">
             <label>Número de lote</label>
@@ -695,11 +695,16 @@ window.APP_VER='2026-08-11.0944';
             <textarea class="form-textarea" id="en-obs" placeholder="Anotaciones de la entrega…"></textarea>
           </div>
         </div>
-        <div style="margin-top:8px;font-size:12px;color:var(--muted-l)">Recibe: <b id="en-who" style="color:var(--teal-l)">—</b></div>
+
+        <!-- PL-06 · Check List de recepción (lo arma SubatirApp.PL06) -->
+        <div id="cl-host"></div>
+
+        <div style="margin-top:12px;font-size:12px;color:var(--muted-l)">Recibe: <b id="en-who" style="color:var(--teal-l)">—</b></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" id="btn-remito" onclick="pdfEntregas()">📄 Remito</button>
+      <button class="btn btn-ghost btn-sm" id="btn-checklist" onclick="pdfChecklistActual()">📋 Check List PL-06</button>
       <button class="btn btn-orange" id="btn-save-entrega" onclick="saveEntrega()">💾 Registrar entrega</button>
       <button class="btn btn-ghost" onclick="closeModal('entrega-overlay')">Cerrar</button>
     </div>
@@ -1931,7 +1936,25 @@ function openEntrega(pid){
   document.getElementById('en-coa').checked=false; document.getElementById('en-conforme').checked=false;
   document.getElementById('en-obs').value='';
   document.getElementById('en-who').textContent=whoName();
+  // Check List PL-06: se arma una vez y se limpia en cada apertura
+  SubatirApp.PL06.mount('cl-host');
+  syncChkHead();
   openModal('entrega-overlay');
+}
+
+// Encabezado del PL-06 con lo que ya sabemos de la OC
+function syncChkHead(){
+  var r=CUR_LINE; if(!r) return;
+  SubatirApp.PL06.setHead({
+    fecha: document.getElementById('en-fecha').value,
+    proveedor: r[K.proveedor], orden: r[K.orden], producto: r[K.desc]
+  });
+}
+// Datos fijos del PL-06 para esta línea de OC
+function chkBase(){
+  var r=CUR_LINE;
+  return { proveedor:String(r[K.proveedor]||''), orden:String(r[K.orden]||''),
+           producto:String(r[K.desc]||'') };
 }
 function renderHist(r, st){
   var host=document.getElementById('entrega-hist');
@@ -1939,6 +1962,10 @@ function renderHist(r, st){
   if(!st.entregas.length){ host.innerHTML='<div style="font-size:12px;color:var(--muted-l)">Todavía no hay entregas registradas.</div>'; return; }
   host.innerHTML = st.entregas.map(function(e){
     var vto=isVtoNA(e.f_vto)?'No aplica':(fmtDate(e.f_vto)||'—');
+    var ck=SubatirApp.PL06.resumen(e.checklist);
+    var ckPill = ck
+      ? '<span class="pill '+(ck.no?'pill-warn':'pill-ok')+'" title="Check list PL-06: '+ck.si+' Sí / '+ck.no+' No">PL-06 '+ck.si+'✓'+(ck.no?' · '+ck.no+'✗':'')+'</span>'
+      : '';
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;font-size:12px;background:rgba(255,255,255,.02);flex-wrap:wrap">'
       +'<span class="pill pill-recv" style="font-family:var(--mono)">'+fmtNum(e.cantidad)+'</span>'
       +'<span style="color:var(--muted-l)">'+fmtDate(e.fecha)+'</span>'
@@ -1946,7 +1973,9 @@ function renderHist(r, st){
       +'<span style="color:var(--muted-l)">Vto: '+vto+'</span>'
       +(coaOkR(e.coa)?'<span class="pill pill-ok">COA</span>':'')
       +(['SI','S','1','TRUE'].indexOf(String(e.conforme||'').toUpperCase())>=0?'<span class="pill pill-ok">Conf</span>':'')
+      +ckPill
       +'<span style="margin-left:auto;color:var(--teal-l);font-family:var(--mono);font-size:11px">'+esc(String(e.recibido_por||''))+'</span>'
+      +(ck?'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Imprimir Check List PL-06" onclick="pdfChecklist('+e.id+')">📋</button>':'')
       +'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Eliminar entrega" onclick="delEntrega('+e.id+')">🗑</button>'
       +'</div>';
   }).join('');
@@ -1956,6 +1985,7 @@ function saveEntrega(){
   var r=CUR_LINE, pid=r.__row, st=lineStats(r);
   var cant=parseFloat(document.getElementById('en-cant').value);
   if(!(cant>0)){ toast('Ingresá la cantidad recibida (mayor a 0)','err'); return; }
+  if(!SubatirApp.PL06.validate(toast)) return;
   var row={
     pedido_id: pid, n_orden: String(r[K.orden]||''), descripcion: String(r[K.desc]||''),
     cantidad: cant, fecha: document.getElementById('en-fecha').value || null,
@@ -1964,11 +1994,26 @@ function saveEntrega(){
     coa: document.getElementById('en-coa').checked ? 'SI' : null,
     conforme: document.getElementById('en-conforme').checked ? 'SI' : null,
     recibido_por: whoName(),
-    observaciones: document.getElementById('en-obs').value.trim() || null
+    observaciones: document.getElementById('en-obs').value.trim() || null,
+    // PL-06
+    factura: SubatirApp.PL06.factura(),
+    remito: SubatirApp.PL06.remito(),
+    checklist: SubatirApp.PL06.read()
   };
   document.getElementById('btn-save-entrega').disabled=true;
   toast('Registrando entrega…','info');
   SubatirApp.addEntrega(row).then(function(d){
+    if(d && d.error && SubatirApp.PL06.esErrorDeEsquema(d.error)){
+      // La base todavía no tiene las columnas del PL-06 (falta correr
+      // migracion/checklist_pl06.sql). Guardamos la entrega igual y avisamos.
+      delete row.factura; delete row.remito; delete row.checklist;
+      return SubatirApp.addEntrega(row).then(function(d2){
+        if(!(d2 && d2.error)) toast('⚠ Entrega guardada SIN el check list: falta correr checklist_pl06.sql','err');
+        return d2;
+      });
+    }
+    return d;
+  }).then(function(d){
     document.getElementById('btn-save-entrega').disabled=false;
     if(d && d.error){ toast('Error: '+d.error,'err'); return; }
     // La sincronización con pedidos.f_recepcion la hace el trigger en la base.
@@ -1989,6 +2034,39 @@ function delEntrega(id){
   });
 }
 function pdfEntregas(){ if(CUR_LINE) receptionForOrder(String(CUR_LINE[K.orden])); }
+
+// ── Check List PL-06 (el formulario lo arma SubatirApp.PL06) ──
+// Desde el historial: imprime una entrega ya guardada.
+function pdfChecklist(id){
+  if(!CUR_LINE) return;
+  var e=(lineStats(CUR_LINE).entregas||[]).filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!e){ toast('No se encontró la entrega','err'); return; }
+  var d=chkBase();
+  d.fecha=e.fecha; d.factura=e.factura; d.remito=e.remito; d.lote=e.lote;
+  d.cantidad=e.cantidad; d.recibido_por=e.recibido_por;
+  d.items=SubatirApp.PL06.parse(e.checklist);
+  SubatirApp.PL06.pdf(d, toast);
+}
+// Desde el pie del modal: imprime lo que hay cargado en pantalla (sirve
+// también para sacar la planilla en blanco y completarla a mano).
+function pdfChecklistActual(){
+  if(!CUR_LINE) return;
+  var abierto = document.getElementById('entrega-form-wrap').style.display !== 'none';
+  if(!abierto){
+    var ents=lineStats(CUR_LINE).entregas||[];
+    var ult=ents[ents.length-1];
+    if(ult) return pdfChecklist(ult.id);
+  }
+  var d=chkBase();
+  d.fecha=document.getElementById('en-fecha').value;
+  d.factura=SubatirApp.PL06.factura();
+  d.remito=SubatirApp.PL06.remito();
+  d.lote=document.getElementById('en-lote').value.trim();
+  d.cantidad=document.getElementById('en-cant').value;
+  d.recibido_por=whoName();
+  d.items=SubatirApp.PL06.read();
+  SubatirApp.PL06.pdf(d, toast);
+}
 function isPendiente(r){ var v = r[K.recepcion]; return !v || v === '' || v === '0000-00-00'; }
 function pNum(v){
   if (v === null || v === undefined || v === '') return 0;

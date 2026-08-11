@@ -630,6 +630,392 @@
     });
   }
 
+  // ══════════════════════════════════════════════════════════
+  //  PL-06 · Check List para la recepción de mercadería
+  //  Documento controlado de Dirección Técnica. Vive acá y no en
+  //  cada módulo para que una revisión del procedimiento se toque
+  //  en UN solo lugar: lo usan Recepción y Pedidos.
+  //  Se guarda en entregas.checklist (jsonb) como [{n,conforme,obs}].
+  // ══════════════════════════════════════════════════════════
+  var PL06 = (function () {
+    var ITEMS = [
+      'Fecha vencimiento del producto (mínimo 6 meses de vida útil).',
+      'Factura y remito coinciden con la Orden de Compra',
+      'Verificación de cantidades recibidas (kg/L)',
+      'Certificados de Análisis (COA) correspondencia con lote recibido',
+      'Ausencia de derrames, daños, roturas o fugas, cierre correcto.',
+      'Etiquetado completo (nombre, lote, peso neto, etc).',
+      'Envases originales (pesado aleatorio)',
+      'Envases rellenados o a granel (pesado total)'
+    ];
+    var DOC = {
+      codigo: 'PL-06', version: '1', creacion: 'Dic-25',
+      rev: { fecha: '28.12.25', n: '1', elaboro: 'Carolina Marín', aprobo: 'Carolina Marín',
+             motivo: 'Actualizacion de formato del documento', cambios: 'Cambio de formato' }
+    };
+
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function fmtDate(d) {
+      if (!d || d === '' || d === '0000-00-00') return '—';
+      var p = String(d).split('-');
+      if (p.length === 3 && p[0].length === 4) return p[2] + '/' + p[1] + '/' + p[0];
+      return String(d);
+    }
+    function fmtNum(n) {
+      var v = parseFloat(n); if (isNaN(v)) return '';
+      return v.toLocaleString('es-UY', { maximumFractionDigits: 2 });
+    }
+    function $(id) { return document.getElementById(id); }
+
+    // ── Estilos: se inyectan una sola vez, con clases propias (cl-*)
+    var CSS = [
+      '.cl-wrap{margin-top:18px;border:1px solid rgba(249,115,22,.22);border-radius:12px;',
+      'background:linear-gradient(150deg,rgba(249,115,22,.07),rgba(255,255,255,.02));padding:14px}',
+      '.cl-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px}',
+      '.cl-head h4{margin:0;font-size:12px;font-weight:800;letter-spacing:.5px;',
+      'text-transform:uppercase;color:var(--orange-l,#fb923c)}',
+      '.cl-tag{font-family:var(--mono,monospace);font-size:10px;color:var(--muted-l,#94a3b8);',
+      'border:1px solid var(--border,rgba(255,255,255,.07));border-radius:6px;padding:2px 7px}',
+      '.cl-all{margin-left:auto}',
+      '.cl-auto{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}',
+      '.cl-af{background:rgba(255,255,255,.04);border:1px solid var(--border,rgba(255,255,255,.07));',
+      'border-radius:8px;padding:6px 10px}',
+      '.cl-af span{display:block;font-size:9.5px;font-weight:700;letter-spacing:.4px;',
+      'text-transform:uppercase;color:var(--muted,#5a6a80)}',
+      '.cl-af b{font-size:12.5px;font-weight:600;color:var(--text,#e2e8f0)}',
+      '.cl-tbl{border:1px solid var(--border,rgba(255,255,255,.07));border-radius:9px;',
+      'overflow:hidden;background:rgba(255,255,255,.02)}',
+      '.cl-row{display:grid;grid-template-columns:26px 1fr 104px 168px;gap:9px;align-items:center;',
+      'padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px}',
+      '.cl-row:last-child{border-bottom:none}',
+      '.cl-row.hdr{background:rgba(255,255,255,.05);font-size:9.5px;font-weight:800;',
+      'letter-spacing:.4px;text-transform:uppercase;color:var(--muted,#5a6a80)}',
+      '.cl-row.hdr div:nth-child(3){text-align:center}',
+      '.cl-row:not(.hdr):hover{background:rgba(27,200,255,.045)}',
+      '.cl-row.falta{background:rgba(245,158,11,.07)}',
+      '.cl-n{font-family:var(--mono,monospace);color:var(--muted-l,#94a3b8);text-align:center}',
+      '.cl-it{line-height:1.35}',
+      '.cl-sn{display:flex;gap:12px;justify-content:center}',
+      '.cl-sn label{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;',
+      'text-transform:none;letter-spacing:0;color:var(--muted-l,#94a3b8);cursor:pointer}',
+      '.cl-sn input{width:15px;height:15px;cursor:pointer;margin:0;accent-color:var(--ok,#22c55e)}',
+      '.cl-sn input.n{accent-color:var(--danger,#ef4444)}',
+      '.cl-sn label.on-si{color:var(--ok,#22c55e)}',
+      '.cl-sn label.on-no{color:var(--danger,#ef4444)}',
+      '.cl-obs{width:100%;padding:5px 8px;font-size:11.5px;border-radius:7px;',
+      'background:rgba(255,255,255,.06);border:1px solid var(--border,rgba(255,255,255,.07));',
+      'color:var(--text,#e2e8f0);outline:none}',
+      '.cl-obs:focus{border-color:var(--teal-l,#1bc8ff)}',
+      '.cl-obs.req{border-color:var(--danger,#ef4444)}',
+      '@media(max-width:640px){',
+      '.cl-auto{grid-template-columns:1fr}',
+      '.cl-row{grid-template-columns:24px 1fr;row-gap:7px}',
+      '.cl-row.hdr{display:none}',
+      '.cl-sn,.cl-obs{grid-column:2}',
+      '.cl-sn{justify-content:flex-start}}'
+    ].join('');
+
+    function injectCSS() {
+      if (document.getElementById('pl06-css')) return;
+      var s = document.createElement('style');
+      s.id = 'pl06-css'; s.textContent = CSS;
+      document.head.appendChild(s);
+    }
+
+    // ── Monta el bloque completo dentro de un contenedor ──
+    function mount(hostId) {
+      var host = $(hostId); if (!host) return;
+      injectCSS();
+      host.innerHTML =
+        '<div class="cl-wrap">'
+        + '<div class="cl-head">'
+          + '<h4>📋 Check List de Recepción</h4>'
+          + '<span class="cl-tag">' + DOC.codigo + ' · v' + DOC.version + ' · ' + DOC.creacion + '</span>'
+          + '<button type="button" class="btn btn-ghost btn-sm cl-all" style="padding:4px 10px" '
+          + 'onclick="SubatirApp.PL06.todoSi()">✓ Todo Sí</button>'
+        + '</div>'
+        + '<div class="cl-auto">'
+          + '<div class="cl-af"><span>Fecha de recepción</span><b id="cl-fecha">—</b></div>'
+          + '<div class="cl-af"><span>Proveedor</span><b id="cl-prov">—</b></div>'
+          + '<div class="cl-af"><span>Orden de compra N°</span><b id="cl-orden">—</b></div>'
+          + '<div class="cl-af"><span>Producto</span><b id="cl-prod">—</b></div>'
+          + '<div class="form-group"><label>Factura N°</label>'
+            + '<input type="text" class="form-input" id="cl-factura" placeholder="Ej: A 0001-0012345"/></div>'
+          + '<div class="form-group"><label>Remito / Guía N°</label>'
+            + '<input type="text" class="form-input" id="cl-remito" placeholder="Ej: R 0001-0004321"/></div>'
+        + '</div>'
+        + '<div class="cl-tbl">'
+          + '<div class="cl-row hdr"><div>N°</div><div>Ítem</div><div>Conforme</div><div>Observaciones</div></div>'
+          + ITEMS.map(function (txt, i) {
+              var n = i + 1;
+              return '<div class="cl-row" id="cl-r' + n + '">'
+                + '<div class="cl-n">' + n + '</div>'
+                + '<div class="cl-it">' + esc(txt) + '</div>'
+                + '<div class="cl-sn">'
+                  + '<label id="cl-l' + n + 's"><input type="radio" name="cl-' + n + '" value="SI" '
+                  + 'onchange="SubatirApp.PL06.pick(' + n + ')"/>Sí</label>'
+                  + '<label id="cl-l' + n + 'n"><input type="radio" class="n" name="cl-' + n + '" value="NO" '
+                  + 'onchange="SubatirApp.PL06.pick(' + n + ')"/>No</label>'
+                + '</div>'
+                + '<div><input type="text" class="cl-obs" id="cl-o' + n + '" placeholder="—"/></div>'
+                + '</div>';
+            }).join('')
+        + '</div>'
+        + '<div style="margin-top:8px;font-size:11px;color:var(--muted,#5a6a80)">Si marcás '
+        + '<b style="color:var(--danger,#ef4444)">No</b> en algún punto, la observación es obligatoria.</div>'
+        + '</div>';
+      reset();
+    }
+
+    function valor(n) {
+      var el = document.querySelector('input[name="cl-' + n + '"]:checked');
+      return el ? el.value : '';
+    }
+    function pick(n) {
+      var v = valor(n);
+      $('cl-l' + n + 's').className = v === 'SI' ? 'on-si' : '';
+      $('cl-l' + n + 'n').className = v === 'NO' ? 'on-no' : '';
+      $('cl-r' + n).classList.remove('falta');
+      var o = $('cl-o' + n);
+      if (v === 'NO') { o.placeholder = 'Detallar el desvío…'; }
+      else { o.placeholder = '—'; o.classList.remove('req'); }
+    }
+    function todoSi() {
+      for (var n = 1; n <= ITEMS.length; n++) {
+        var r = document.querySelector('input[name="cl-' + n + '"][value="SI"]');
+        if (r) { r.checked = true; pick(n); }
+      }
+    }
+    function reset() {
+      if (!$('cl-r1')) return;
+      for (var n = 1; n <= ITEMS.length; n++) {
+        var rs = document.getElementsByName('cl-' + n);
+        for (var i = 0; i < rs.length; i++) rs[i].checked = false;
+        var o = $('cl-o' + n); if (o) { o.value = ''; o.classList.remove('req'); }
+        pick(n);
+      }
+      $('cl-factura').value = ''; $('cl-remito').value = '';
+    }
+    // Encabezado autocompletado con lo que ya sabemos de la OC
+    function setHead(h) {
+      if (!$('cl-fecha')) return;
+      $('cl-fecha').textContent = fmtDate(h.fecha);
+      $('cl-prov').textContent  = String(h.proveedor || '—');
+      $('cl-orden').textContent = String(h.orden || '—');
+      $('cl-prod').textContent  = String(h.producto || '—');
+    }
+    // Lo que se guarda en la columna jsonb
+    function read() {
+      var out = [];
+      for (var n = 1; n <= ITEMS.length; n++) {
+        out.push({ n: n, conforme: valor(n), obs: ($('cl-o' + n).value || '').trim() });
+      }
+      return out;
+    }
+    function factura() { return ($('cl-factura').value || '').trim() || null; }
+    function remito()  { return ($('cl-remito').value  || '').trim() || null; }
+
+    // Antes de guardar. toast = la función de avisos del módulo.
+    function validate(toast) {
+      if (!$('cl-r1')) return true;
+      var faltaObs = [], sinMarcar = [];
+      for (var n = 1; n <= ITEMS.length; n++) {
+        var v = valor(n), o = $('cl-o' + n);
+        o.classList.remove('req');
+        $('cl-r' + n).classList.remove('falta');
+        if (!v) sinMarcar.push(n);
+        if (v === 'NO' && !o.value.trim()) { faltaObs.push(n); o.classList.add('req'); }
+      }
+      if (faltaObs.length) {
+        toast('Punto ' + faltaObs.join(', ') + ' marcado "No": completá la observación', 'err');
+        $('cl-o' + faltaObs[0]).focus();
+        return false;
+      }
+      if (sinMarcar.length) {
+        $('cl-r' + sinMarcar[0]).classList.add('falta');
+        return confirm('Quedan ' + sinMarcar.length + ' punto(s) del check list sin marcar ('
+          + sinMarcar.join(', ') + ').\n\n¿Registrar la entrega igual?');
+      }
+      return true;
+    }
+    function parse(v) {
+      if (!v) return [];
+      if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { return []; } }
+      return Array.isArray(v) ? v : [];
+    }
+    // Para el chip del historial: "7 Sí / 1 No"
+    function resumen(v) {
+      var a = parse(v); if (!a.length) return null;
+      var si = 0, no = 0;
+      a.forEach(function (c) { if (c.conforme === 'SI') si++; else if (c.conforme === 'NO') no++; });
+      return { si: si, no: no, total: a.length };
+    }
+    // Rellena el bloque con una entrega ya guardada
+    function fill(e) {
+      reset();
+      $('cl-factura').value = e.factura || '';
+      $('cl-remito').value  = e.remito  || '';
+      parse(e.checklist).forEach(function (c) {
+        var r = document.querySelector('input[name="cl-' + c.n + '"][value="' + c.conforme + '"]');
+        if (r) { r.checked = true; pick(c.n); }
+        var o = $('cl-o' + c.n); if (o) o.value = c.obs || '';
+      });
+    }
+
+    // ── Marca PROlimpio del encabezado (vectorial: sin depender de una imagen)
+    function drawProlimpio(doc, x, y, w, h) {
+      var OR = [242, 101, 34], cy = y + h / 2;
+      var r = Math.min(13, h / 2 - 9), cx = x + 12 + r;
+      doc.setFillColor(OR[0], OR[1], OR[2]); doc.circle(cx, cy - 2, r, 'F');
+      doc.setFillColor(255, 255, 255); doc.circle(cx - r * 0.30, cy - 2 - r * 0.28, r * 0.52, 'F');
+      doc.setFillColor(OR[0], OR[1], OR[2]); doc.circle(cx - r * 0.10, cy - 2 - r * 0.10, r * 0.52, 'F');
+      // El texto se achica hasta entrar en la celda (si no, lo corta el divisor)
+      var tx = cx + r + 5, maxW = (x + w - 6) - tx, fs = 15;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(fs);
+      while (fs > 8 && doc.getTextWidth('PROlimpio') > maxW) { fs -= 0.5; doc.setFontSize(fs); }
+      doc.setTextColor(45, 45, 45);        doc.text('PRO', tx, cy + 3);
+      doc.setTextColor(OR[0], OR[1], OR[2]);
+      doc.text('limpio', tx + doc.getTextWidth('PRO'), cy + 3);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+      doc.text('SUBATIR S.A.', x + 2, y + h - 3);
+    }
+
+    // ── PDF: réplica del formulario PL-06 (A4 vertical, blanco y negro)
+    //  d = {fecha, proveedor, orden, producto, factura, remito, lote,
+    //       cantidad, recibido_por, items:[{n,conforme,obs}]}
+    function pdf(d, toast) {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        (toast || alert)('No se pudo cargar el generador de PDF (revisá tu conexión).', 'err');
+        return;
+      }
+      var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+      var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+      var M = 42, CW = W - 2 * M, GR = 0.7;
+      doc.setDrawColor(0, 0, 0); doc.setLineWidth(GR);
+
+      // Encabezado: logo | título | datos del documento
+      var hy = 52, hh = 62, c1 = M + 118, c2 = W - M - 152;
+      doc.rect(M, hy, CW, hh, 'S'); doc.line(c1, hy, c1, hy + hh); doc.line(c2, hy, c2, hy + hh);
+      drawProlimpio(doc, M, hy, c1 - M, hh);
+      // El título va en UNA sola línea (como el original): achico hasta que entre
+      var tit = 'CHECK LIST PARA RECEPCIÓN DE MERCADERIA', ts = 10.5;
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0); doc.setFontSize(ts);
+      while (ts > 7 && doc.getTextWidth(tit) > c2 - c1 - 12) { ts -= 0.25; doc.setFontSize(ts); }
+      doc.text(tit, (c1 + c2) / 2, hy + hh / 2 + 4, { align: 'center' });
+      var meta = [['CÓDIGO', DOC.codigo], ['VERSIÓN', DOC.version],
+                  ['FECHA CREACION', DOC.creacion], ['PÁGINA', '1-1']];
+      var rh = hh / 4, mx = c2 + 80;
+      doc.line(mx, hy, mx, hy + hh);
+      meta.forEach(function (m, i) {
+        var ry = hy + rh * i;
+        if (i) doc.line(c2, ry, W - M, ry);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.6);
+        doc.text(m[0], c2 + 4, ry + rh / 2 + 2.5);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.6);
+        doc.text(m[1], mx + 4, ry + rh / 2 + 2.5);
+      });
+
+      // Datos de la recepción
+      var dat = [
+        ['Fecha de recepción:', fmtDate(d.fecha) === '—' ? '' : fmtDate(d.fecha)],
+        ['Proveedor:',          String(d.proveedor || '')],
+        ['Orden de compra N°:', String(d.orden || '')],
+        ['Factura N°:',         String(d.factura || '')],
+        ['Remito/Guía N°:',     String(d.remito || '')],
+        ['Producto:',           String(d.producto || '')],
+        ['Lote / Cantidad recibida:',
+          [String(d.lote || ''), (d.cantidad ? fmtNum(d.cantidad) : '')].filter(Boolean).join('   ·   ')]
+      ];
+      var dy = hy + hh + 20, drh = 22, dlw = 170;
+      doc.rect(M, dy, CW, drh * dat.length, 'S');
+      doc.line(M + dlw, dy, M + dlw, dy + drh * dat.length);
+      dat.forEach(function (p, i) {
+        var ry = dy + drh * i;
+        if (i) doc.line(M, ry, W - M, ry);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor(0, 0, 0);
+        doc.text(p[0], M + 6, ry + drh / 2 + 3);
+        doc.setFont('helvetica', 'bold');
+        var t = String(p[1] || ''), maxW = CW - dlw - 14, s = 9;
+        doc.setFontSize(s);
+        while (s > 6.5 && doc.getTextWidth(t) > maxW) { s -= 0.4; doc.setFontSize(s); }
+        doc.text(t, M + dlw + 7, ry + drh / 2 + 3, { maxWidth: maxW });
+      });
+
+      // Los 8 puntos de control
+      var items = (d.items && d.items.length)
+        ? d.items
+        : ITEMS.map(function (_, i) { return { n: i + 1, conforme: '', obs: '' }; });
+      var byN = {}; items.forEach(function (c) { byN[c.n] = c; });
+      var body = ITEMS.map(function (txt, i) {
+        var c = byN[i + 1] || {};
+        return [String(i + 1), txt,
+                c.conforme === 'SI' ? 'Sí' : (c.conforme === 'NO' ? 'No' : ''),
+                String(c.obs || '')];
+      });
+      doc.autoTable({
+        startY: dy + drh * dat.length + 22,
+        head: [['N°', 'Item', 'Conforme\n(Sí / No)', 'Observaciones']],
+        body: body, theme: 'grid', margin: { left: M, right: M },
+        styles: { font: 'helvetica', fontSize: 8.4, cellPadding: 6, textColor: [0, 0, 0],
+                  lineColor: [0, 0, 0], lineWidth: 0.7, valign: 'middle', minCellHeight: 26 },
+        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold',
+                      fontSize: 8.4, halign: 'center', valign: 'middle' },
+        columnStyles: { 0: { cellWidth: 32, halign: 'center' },
+                        1: { cellWidth: CW - 32 - 66 - 130 },
+                        2: { cellWidth: 66, halign: 'center', fontStyle: 'bold' },
+                        3: { cellWidth: 130, fontSize: 7.6 } }
+      });
+
+      // Firma del responsable
+      var fy = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 400) + 26, fh = 76;
+      doc.setDrawColor(0, 0, 0); doc.setLineWidth(GR); doc.rect(M, fy, CW, fh, 'S');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+      doc.text('Firma responsable de recepción:', M + 7, fy + 16);
+      if (d.recibido_por) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.4); doc.setTextColor(70, 70, 70);
+        doc.text('Recibió: ' + String(d.recibido_por), M + 7, fy + fh - 9);
+      }
+
+      // Tabla de revisiones (pie del procedimiento)
+      var rv = DOC.rev;
+      doc.autoTable({
+        startY: Math.min(fy + fh + 40, H - 150),
+        head: [['Fecha:', 'N° revisión:', 'Elaborado por:', 'Aprobado por:',
+                'Motivos de la revisión:', 'Cambios realizados:']],
+        body: [[rv.fecha, rv.n, rv.elaboro, rv.aprobo, rv.motivo, rv.cambios]],
+        theme: 'grid', margin: { left: M, right: M },
+        styles: { font: 'helvetica', fontSize: 7.4, cellPadding: 5, halign: 'center',
+                  valign: 'middle', textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.7 },
+        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold',
+                      fontSize: 7.4, halign: 'center' }
+      });
+
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
+      doc.text('SUBATIR S.A.S Dirección Técnica', W / 2, H - 30, { align: 'center' });
+
+      var slug = String(d.producto || 'producto')
+        .replace(/[^\w\dáéíóúñÁÉÍÓÚÑ ]+/g, '').trim().slice(0, 28).replace(/\s+/g, '-');
+      doc.save('PL-06-OC' + String(d.orden || '') + '-' + slug + '.pdf');
+    }
+
+    // Las columnas del PL-06 son nuevas: si la base todavía no las tiene
+    // (falta correr migracion/checklist_pl06.sql) el insert falla por schema.
+    function esErrorDeEsquema(msg) {
+      return /column|checklist|factura|remito|schema cache/i.test(String(msg || ''));
+    }
+
+    return {
+      ITEMS: ITEMS, DOC: DOC,
+      mount: mount, reset: reset, setHead: setHead, pick: pick, todoSi: todoSi,
+      read: read, factura: factura, remito: remito,
+      validate: validate, parse: parse, resumen: resumen, fill: fill,
+      pdf: pdf, esErrorDeEsquema: esErrorDeEsquema
+    };
+  })();
+
   // ── Export ─────────────────────────────────────────────────
   window.SubatirApp = {
     ready: _ready,
@@ -641,6 +1027,7 @@
     categorias: categorias, setCategoria: setCategoria,
     ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto,
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
+    PL06: PL06,
     live: live,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule

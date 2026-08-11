@@ -865,22 +865,50 @@
       });
     }
 
-    // ── Marca PROlimpio del encabezado (vectorial: sin depender de una imagen)
+    // ── Logo PROlimpio del encabezado ──
+    // Se precarga recortado en círculo como PNG (data URL) para meterlo en
+    // el PDF. Si no llegó a cargar, se dibuja una marca vectorial parecida
+    // para no dejar el formulario sin logo.
+    var LOGO = null;
+    (function preloadLogo() {
+      try {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function () {
+          try {
+            var D = 320, c = document.createElement('canvas'); c.width = c.height = D;
+            var ctx = c.getContext('2d');
+            ctx.beginPath(); ctx.arc(D / 2, D / 2, D / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+            var s = Math.min(img.width, img.height);
+            ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, D, D);
+            LOGO = c.toDataURL('image/png');
+          } catch (e) { /* canvas tainted: queda el dibujo vectorial */ }
+        };
+        // Relativo al propio script, no a la página que lo incluye
+        img.src = new URL('logo-prolimpio.jpg', _selfSrc).href;
+      } catch (e) {}
+    })();
+
     function drawProlimpio(doc, x, y, w, h) {
-      var OR = [242, 101, 34], cy = y + h / 2;
-      var r = Math.min(13, h / 2 - 9), cx = x + 12 + r;
-      doc.setFillColor(OR[0], OR[1], OR[2]); doc.circle(cx, cy - 2, r, 'F');
-      doc.setFillColor(255, 255, 255); doc.circle(cx - r * 0.30, cy - 2 - r * 0.28, r * 0.52, 'F');
-      doc.setFillColor(OR[0], OR[1], OR[2]); doc.circle(cx - r * 0.10, cy - 2 - r * 0.10, r * 0.52, 'F');
-      // El texto se achica hasta entrar en la celda (si no, lo corta el divisor)
+      var OR = [242, 101, 34];
+      // "SUBATIR S.A." va abajo a la izquierda, como en el original
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+      doc.text('SUBATIR S.A.', x + 2, y + h - 3);
+
+      var box = h - 14, size = Math.min(box, w - 16), lx = x + (w - size) / 2, ly = y + 4;
+      if (LOGO) {
+        try { doc.addImage(LOGO, 'PNG', lx, ly, size, size); return; } catch (e) {}
+      }
+      // Fallback vectorial: dos círculos + la palabra al lado
+      var cy = y + h / 2, r = Math.min(13, h / 2 - 9), cx = x + 12 + r;
+      doc.setFillColor(250, 176, 60); doc.circle(cx, cy - 2, r, 'F');
+      doc.setFillColor(233, 84, 56);  doc.circle(cx - r * 0.18, cy - 2 + r * 0.12, r * 0.72, 'F');
       var tx = cx + r + 5, maxW = (x + w - 6) - tx, fs = 15;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(fs);
       while (fs > 8 && doc.getTextWidth('PROlimpio') > maxW) { fs -= 0.5; doc.setFontSize(fs); }
       doc.setTextColor(45, 45, 45);        doc.text('PRO', tx, cy + 3);
       doc.setTextColor(OR[0], OR[1], OR[2]);
       doc.text('limpio', tx + doc.getTextWidth('PRO'), cy + 3);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
-      doc.text('SUBATIR S.A.', x + 2, y + h - 3);
     }
 
     // ── PDF: réplica del formulario PL-06 (A4 vertical, blanco y negro)

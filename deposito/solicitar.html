@@ -13,14 +13,37 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Solicitar mercadería — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-11.1124"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-11.1206"/>
 <style>
 /* El pedido que acaba de llegar: se destaca hasta que lo den por visto */
 .sol.llego{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.09);
   box-shadow:0 0 0 1px rgba(34,197,94,.18), 0 8px 26px rgba(0,0,0,.35)}
-.sol.llego .sol-h b{color:#86efac}
+.sol.llego .sol-u{color:#86efac}
 .llego-av{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12px;color:#86efac}
 .llego-av b{font-family:var(--mono)}
+
+/* ── Tarjeta de pedido ──────────────────────────────────────
+   El que mira quiere saber QUÉ y CUÁNTO le va a llegar. Eso va
+   grande arriba; el número de pedido y la ruta son referencia y
+   quedan chicos abajo, antes del avance. */
+.sol-top{display:flex;align-items:flex-start;gap:9px;justify-content:space-between}
+.sol-u{font-family:var(--mono);font-size:23px;font-weight:700;line-height:1.05;
+  color:var(--text);letter-spacing:-.5px}
+.sol-u span{font-size:13px;font-weight:500;color:var(--muted-l);margin-left:7px;letter-spacing:0}
+.sol-art{font-size:15px;font-weight:700;line-height:1.25;color:var(--text);margin-top:3px}
+.sol-art .cod{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--muted-l);
+  display:block;margin-top:2px}
+/* Pedido con varios artículos: el detalle, uno por renglón */
+.sol-list{margin-top:7px;display:grid;gap:4px}
+.sol-li{display:flex;gap:8px;align-items:baseline;font-size:12.5px;line-height:1.3;color:var(--text)}
+.sol-li b{font-family:var(--mono);font-weight:700;color:var(--teal-l);white-space:nowrap}
+.sol-when{font-family:var(--mono);font-size:12px;color:var(--muted-l);margin-top:7px}
+.sol-ruta{font-size:11.5px;color:var(--muted);margin-top:3px}
+.sol-ruta b{color:var(--muted-l);font-weight:600}
+/* Cabecera de la sección: contador + botón de limpiar */
+.mis-h{display:flex;align-items:center;gap:9px;justify-content:space-between;margin-bottom:9px}
+.mis-h .lbl{margin:0}
+.oculto-av{margin-top:10px;text-align:center;font-size:11.5px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -42,7 +65,11 @@
        trae a esta pantalla la mayoría de las veces. Pedir algo nuevo
        viene después. -->
   <div class="card hero">
-    <div class="lbl">Mis pedidos y su avance</div>
+    <div class="mis-h">
+      <div class="lbl">Mis pedidos y su avance</div>
+      <button class="btn btn-sm" id="btn-limpiar-ent" onclick="limpiarEntregados()"
+              style="display:none">🧹 Limpiar entregados</button>
+    </div>
     <div id="mis"></div>
   </div>
 
@@ -79,12 +106,12 @@
 <div id="toast-host" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-08-11.1124"></script>
-<script src="deposito-app.js?v=2026-08-11.1124"></script>
+<script src="../supabase-config.js?v=2026-08-11.1206"></script>
+<script src="deposito-app.js?v=2026-08-11.1206"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-11.1124';
+window.APP_VER='2026-08-11.1206';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -367,23 +394,76 @@ function avanceHTML(estado){
     }).join('')
   +'</div>';
 }
+// Limpiar la vista: los pedidos entregados se pueden esconder. Es una
+// preferencia de quien mira —no toca el pedido ni a los demás—, así que
+// vive en el teléfono, igual que las "vistas".
+var OCULTOS_KEY='dep_sol_ocultos';
+function ocultos(){
+  try{ return JSON.parse(localStorage.getItem(OCULTOS_KEY)||'[]'); }catch(_){ return []; }
+}
+function setOcultos(v){
+  try{ localStorage.setItem(OCULTOS_KEY, JSON.stringify(v.slice(-200))); }catch(_){}
+}
+function limpiarEntregados(){
+  var yo=whoName();
+  var ids=MIS.filter(function(s){ return s.solicitante===yo && s.estado==='ENTREGADA'; })
+             .map(function(s){ return s.id; });
+  if(!ids.length){ toast('No hay pedidos entregados para limpiar','info'); return; }
+  var v=ocultos();
+  ids.forEach(function(id){ if(v.indexOf(id)<0) v.push(id); });
+  setOcultos(v);
+  toast(ids.length===1 ? 'Se ocultó 1 pedido' : 'Se ocultaron '+ids.length+' pedidos','ok');
+  renderMis();
+}
+function mostrarOcultos(){ setOcultos([]); toast('Se muestran todos otra vez','info'); renderMis(); }
+
+// Cuántas unidades y de qué. Un pedido puede mezclar artículos: si es
+// uno solo va grande; si son varios, el total arriba y el detalle debajo.
+function articulosHTML(s){
+  var arts=Array.isArray(s.articulos)?s.articulos:[];
+  if(arts.length===1){
+    var a=arts[0];
+    return '<div class="sol-art">'+esc(a.art)
+      +(a.cod?('<span class="cod">'+esc(a.cod)+'</span>'):'')+'</div>';
+  }
+  if(!arts.length) return '<div class="sol-art">'+s.items+' pallet'+(s.items===1?'':'s')+'</div>';
+  return '<div class="sol-art">'+arts.length+' artículos</div>'
+    +'<div class="sol-list">'+arts.map(function(a){
+        return '<div class="sol-li"><b>'+fmt(a.un)+' u.</b><span>'+esc(a.art)+'</span></div>';
+      }).join('')+'</div>';
+}
+
 function renderMis(){
   var yo=whoName();
   var mias=MIS.filter(function(s){ return s.solicitante===yo; });
   var host=document.getElementById('mis');
+  var btn=document.getElementById('btn-limpiar-ent');
   if(!mias.length){
-    host.innerHTML='<div class="empty">Todavía no pediste nada.</div>'; return;
+    host.innerHTML='<div class="empty">Todavía no pediste nada.</div>';
+    btn.style.display='none';
+    return;
   }
-  host.innerHTML=mias.map(function(s){
+  var ocu=ocultos();
+  var visibles=mias.filter(function(s){ return ocu.indexOf(s.id)<0; });
+  var escondidos=mias.length-visibles.length;
+  // El botón sólo aparece cuando hay algo entregado que limpiar
+  btn.style.display = visibles.some(function(s){ return s.estado==='ENTREGADA'; }) ? '' : 'none';
+
+  host.innerHTML=visibles.map(function(s){
     var c=CHIP[s.estado]||['','?'];
     var f=new Date(s.created_at);
     var puedeCancelar = s.estado==='PENDIENTE' || s.estado==='EN_PREPARACION';
     var llego = s.estado==='ENTREGADA' && vistas().indexOf(s.id)<0;
     return '<div class="sol'+(llego?' llego':'')+'">'
-      +'<div class="sol-h"><b>#'+s.id+' · '+esc(s.origen)+' → '+esc(s.destino)+'</b>'
+      // Qué y cuánto: lo que el solicitante viene a mirar
+      +'<div class="sol-top"><div class="sol-u">'+fmt(s.unidades)+'<span>unidades</span></div>'
       +'<span class="chip '+c[0]+'">'+c[1]+'</span></div>'
-      +'<div class="sol-m">'+s.items+' pallet'+(s.items===1?'':'s')+' · '+fmt(s.unidades)+' u. · '
-      +f.toLocaleDateString('es-UY')+' '+f.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})
+      +articulosHTML(s)
+      +'<div class="sol-when">'+f.toLocaleDateString('es-UY')+' · '
+      +f.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false})+' h</div>'
+      // Referencia: de dónde a dónde, el número y los pallets
+      +'<div class="sol-ruta">#'+s.id+' · <b>'+esc(s.origen)+' → '+esc(s.destino)+'</b> · '
+      +s.items+' pallet'+(s.items===1?'':'s')
       +(s.entregados?(' · '+s.entregados+' entregado'+(s.entregados===1?'':'s')):'')+'</div>'
       +avanceHTML(s.estado)
       +(llego?('<div class="llego-av">✅ Llegó a '+esc(s.destino)
@@ -392,6 +472,15 @@ function renderMis(){
       +(puedeCancelar?('<button class="btn btn-sm" style="margin-top:9px" onclick="cancelar('+s.id+')">Cancelar pedido</button>'):'')
     +'</div>';
   }).join('');
+
+  if(!visibles.length){
+    host.innerHTML='<div class="empty">Limpiaste la vista.<br>No te queda ningún pedido en curso.</div>';
+  }
+  if(escondidos){
+    host.innerHTML+='<div class="oculto-av">'+escondidos+' pedido'+(escondidos===1?'':'s')
+      +' oculto'+(escondidos===1?'':'s')+' · '
+      +'<button class="btn btn-sm" style="margin-left:4px" onclick="mostrarOcultos()">Mostrar todos</button></div>';
+  }
 }
 // Cancelar libera los pallets. Se pide confirmación en dos toques sobre
 // el mismo botón: un confirm() nativo bloquea el navegador.

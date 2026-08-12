@@ -365,6 +365,41 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 
 /* Propio de Pedidos Varios: el importe vacío es un dato, no un cero */
 .sin-dato{color:var(--muted);font-style:italic;font-size:12px}
+
+/* ── Renglones del pedido ────────────────────────────────── */
+.it-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:18px 0 8px;font-size:11px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;color:var(--orange-l)}
+.it-cols{display:grid;grid-template-columns:1fr 110px 130px 34px;gap:8px;padding:0 2px 5px;
+  font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.it-row{display:grid;grid-template-columns:1fr 110px 130px 34px;gap:8px;align-items:center;margin-bottom:7px}
+.it-row input{padding:9px 11px;border-radius:9px;font-size:13px;width:100%;
+  background:rgba(255,255,255,.07);border:1px solid var(--border);color:var(--text);outline:none}
+.it-row input:focus{border-color:var(--teal-l)}
+.it-row .it-del{padding:9px 0;border-radius:9px;border:1px solid var(--border);
+  background:rgba(239,68,68,.10);color:#fca5a5;cursor:pointer;font-size:13px;line-height:1}
+.it-row .it-del:hover{background:rgba(239,68,68,.22)}
+.it-sub{grid-column:1/-1;font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  text-align:right;margin:-3px 42px 4px 0}
+
+/* ── IVA y totales ───────────────────────────────────────── */
+.iva-box{display:grid;grid-template-columns:1fr 240px;gap:16px;align-items:start;
+  margin-top:16px;padding:14px;border-radius:12px;
+  border:1px solid rgba(27,200,255,.18);background:rgba(27,200,255,.05)}
+.iva-opts .check-row label{text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)}
+.tot-box{font-family:var(--mono);font-size:12.5px}
+.tot-l{display:flex;justify-content:space-between;gap:12px;padding:3px 0;color:var(--muted-l)}
+.tot-l.big{font-size:16px;font-weight:700;color:var(--text);
+  border-top:1px solid var(--border);margin-top:6px;padding-top:8px}
+.tot-l.big b{color:var(--teal-l)}
+.tot-falta{font-family:var(--display);font-size:11.5px;color:var(--warn);
+  line-height:1.45;text-align:right}
+@media(max-width:640px){
+  .iva-box{grid-template-columns:1fr}
+  .it-cols{display:none}
+  .it-row{grid-template-columns:1fr 1fr;row-gap:6px}
+  .it-row input:first-child{grid-column:1/-1}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -494,10 +529,10 @@ window.APP_VER='2026-08-12.1230';
           <tr>
             <th onclick="sortBy('fecha')">Fecha</th>
             <th onclick="sortBy('proveedor')">Proveedor</th>
-            <th>Artículo</th>
+            <th>Artículos</th>
             <th style="text-align:right">Cantidad</th>
-            <th style="text-align:right">P. Unit</th>
-            <th style="text-align:right">Total</th>
+            <th style="text-align:right">Neto</th>
+            <th style="text-align:right">Total c/IVA</th>
             <th style="text-align:center">Estado</th>
             <th>Recibido</th>
             <th style="text-align:center">Acción</th>
@@ -514,7 +549,7 @@ window.APP_VER='2026-08-12.1230';
 
 <!-- ═══ MODAL: NUEVO / EDITAR ═══════════════════════════ -->
 <div class="overlay" id="ov-edit">
-  <div class="modal" style="max-width:620px">
+  <div class="modal" style="max-width:760px">
     <div class="modal-header">
       <div class="modal-title" id="ed-title">➕ Nuevo pedido</div>
       <button class="modal-close" onclick="closeModal('ov-edit')">✕</button>
@@ -527,7 +562,7 @@ window.APP_VER='2026-08-12.1230';
         </div>
         <div class="form-group">
           <label>Moneda</label>
-          <select class="form-select" id="ed-moneda" onchange="calcPreview()">
+          <select class="form-select" id="ed-moneda" onchange="calcTotales()">
             <option value="$">$ Pesos</option>
             <option value="U$S">U$S Dólares</option>
           </select>
@@ -537,25 +572,39 @@ window.APP_VER='2026-08-12.1230';
           <input type="text" class="form-input" id="ed-prov" list="dl-prov" placeholder="A quién se le compra"/>
           <datalist id="dl-prov"></datalist>
         </div>
-        <div class="form-group span2">
-          <label>Artículo o servicio *</label>
-          <input type="text" class="form-input" id="ed-art" placeholder="Qué se pide"/>
-        </div>
-        <div class="form-group">
-          <label>Cantidad</label>
-          <input type="number" class="form-input" id="ed-cant" min="0" step="0.01" placeholder="Opcional" oninput="calcPreview()"/>
-        </div>
-        <div class="form-group">
-          <label>Precio unitario</label>
-          <input type="number" class="form-input" id="ed-precio" min="0" step="0.01" placeholder="Opcional" oninput="calcPreview()"/>
-        </div>
-        <div class="form-group span2">
-          <label>Total</label>
-          <input type="number" class="form-input" id="ed-total" min="0" step="0.01" placeholder="Opcional — se puede dejar vacío"/>
-          <div id="ed-hint" style="font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5">
-            El precio y el total pueden quedar vacíos: muchas veces se pide primero y el importe se sabe después.
+      </div>
+
+      <!-- Los artículos del pedido. Uno o los que hagan falta. -->
+      <div class="it-head">
+        <span>Artículos del pedido</span>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addItem()">➕ Agregar artículo</button>
+      </div>
+      <div class="it-cols"><span>Artículo o servicio *</span><span>Cantidad</span><span>Precio unit.</span><span></span></div>
+      <div id="ed-items"></div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5">
+        La cantidad y el precio pueden quedar vacíos: muchas veces se pide primero y el importe se sabe después.
+      </div>
+
+      <!-- IVA y totales -->
+      <div class="iva-box">
+        <div class="iva-opts">
+          <div class="check-row">
+            <input type="checkbox" id="ed-iva-inc" onchange="calcTotales()"/>
+            <label for="ed-iva-inc">Los precios que cargo <b>ya incluyen IVA</b></label>
+          </div>
+          <div class="form-group" style="max-width:170px">
+            <label>Tasa de IVA</label>
+            <select class="form-select" id="ed-iva-tasa" onchange="calcTotales()">
+              <option value="22">22 %</option>
+              <option value="10">10 %</option>
+              <option value="0">Sin IVA / exento</option>
+            </select>
           </div>
         </div>
+        <div class="tot-box" id="ed-totales"></div>
+      </div>
+
+      <div class="form-grid" style="margin-top:14px">
         <div class="form-group span2">
           <label>Nota</label>
           <textarea class="form-textarea" id="ed-nota" placeholder="Para qué es, quién lo pidió, número de presupuesto…"></textarea>
@@ -666,17 +715,26 @@ function setLoading(on){
 }
 function load(){
   setLoading(true);
-  return SB.from('pedidos_varios').select('*').order('fecha',{ascending:false}).order('id',{ascending:false})
-    .then(function(r){
+  return Promise.all([
+    SB.from('pedidos_varios').select('*').order('fecha',{ascending:false}).order('id',{ascending:false}),
+    SB.from('pedidos_varios_items').select('*').order('pedido_id').order('orden')
+  ]).then(function(r){
       setLoading(false);
-      if(r.error){
-        toast('Error: '+r.error.message,'err');
+      var err = r[0].error || r[1].error;
+      if(err){
+        toast('Error: '+err.message,'err');
         document.getElementById('tbody').innerHTML =
-          '<tr class="empty-row"><td colspan="9">⚠ '+esc(r.error.message)+'<br>'
-          +'<span style="font-size:12px">Si dice que la tabla no existe, falta correr <b>migracion/pedidos_varios.sql</b>.</span></td></tr>';
+          '<tr class="empty-row"><td colspan="9">⚠ '+esc(err.message)+'<br>'
+          +'<span style="font-size:12px">Si dice que falta una tabla o una columna, falta correr '
+          +'<b>migracion/pedidos_varios.sql</b> y después <b>pedidos_varios_v2.sql</b>.</span></td></tr>';
         return;
       }
-      DATA = r.data||[];
+      DATA = r[0].data||[];
+      // Cada pedido con sus renglones colgados: el resto del módulo
+      // trabaja sobre d.items y no vuelve a la base por cada fila.
+      var porPedido={};
+      (r[1].data||[]).forEach(function(i){ (porPedido[i.pedido_id]=porPedido[i.pedido_id]||[]).push(i); });
+      DATA.forEach(function(d){ d.items = porPedido[d.id] || []; });
       poblarProveedores();
       applyFilters();
       renderKPIs();
@@ -707,7 +765,9 @@ function applyFilters(){
     if(desde && (d.fecha||'')<desde) return false;
     if(hasta && (d.fecha||'')>hasta) return false;
     if(q){
-      var t=((d.proveedor||'')+' '+(d.articulo||'')+' '+(d.nota||'')).toLowerCase();
+      // Busca también dentro de los renglones: uno pregunta por el artículo
+      var arts=(d.items||[]).map(function(i){ return i.articulo||''; }).join(' ');
+      var t=((d.proveedor||'')+' '+arts+' '+(d.nota||'')).toLowerCase();
       if(t.indexOf(q)<0) return false;
     }
     return true;
@@ -752,13 +812,24 @@ function render(){
   }
   tb.innerHTML = VIEW.map(function(d){
     var recv = d.estado==='RECIBIDO';
+    var its = d.items||[];
+    // Un renglón se nombra solo; varios se resumen y se listan debajo
+    var art = its.length===1 ? esc(its[0].articulo)
+            : (its.length ? '<b>'+its.length+' artículos</b>' : '<span class="sin-dato">sin artículos</span>');
+    var detalle = its.length>1
+      ? '<div class="muted-cell" style="font-size:11px;margin-top:3px;line-height:1.5">'
+        + its.map(function(i){
+            return '· '+esc(i.articulo)+(i.cantidad!=null?(' <span style="font-family:var(--mono)">×'+fmtNum(i.cantidad)+'</span>'):'');
+          }).join('<br>') + '</div>'
+      : '';
     return '<tr>'
       +'<td class="muted-cell">'+fmtDate(d.fecha)+'</td>'
       +'<td><b>'+esc(d.proveedor||'—')+'</b></td>'
-      +'<td>'+esc(d.articulo||'—')
-        +(d.nota?('<div class="muted-cell" style="font-size:11px;margin-top:2px">'+esc(d.nota)+'</div>'):'')+'</td>'
-      +'<td class="num-cell" style="text-align:right">'+(d.cantidad==null?'<span class="sin-dato">—</span>':fmtNum(d.cantidad))+'</td>'
-      +'<td class="money-cell" style="text-align:right">'+money(d.precio,d.moneda)+'</td>'
+      +'<td>'+art+detalle
+        +(d.nota?('<div class="muted-cell" style="font-size:11px;margin-top:3px;font-style:italic">'+esc(d.nota)+'</div>'):'')+'</td>'
+      +'<td class="num-cell" style="text-align:right">'+(its.length===1&&its[0].cantidad!=null?fmtNum(its[0].cantidad):'<span class="sin-dato">—</span>')+'</td>'
+      +'<td class="money-cell" style="text-align:right">'+money(d.subtotal,d.moneda)
+        +'<div class="muted-cell" style="font-size:10px">'+(d.iva_tasa>0?('IVA '+d.iva_tasa+'%'):'sin IVA')+'</div></td>'
       +'<td class="money-cell" style="text-align:right"><b>'+money(d.total,d.moneda)+'</b></td>'
       +'<td style="text-align:center">'+pill(d.estado)+'</td>'
       +'<td class="muted-cell" style="font-size:12px">'
@@ -803,10 +874,12 @@ function openNuevo(){
   CUR=null;
   document.getElementById('ed-title').textContent='➕ Nuevo pedido';
   document.getElementById('ed-fecha').value=hoy();
-  ['ed-prov','ed-art','ed-cant','ed-precio','ed-total','ed-nota'].forEach(function(i){ document.getElementById(i).value=''; });
+  ['ed-prov','ed-nota'].forEach(function(i){ document.getElementById(i).value=''; });
   document.getElementById('ed-moneda').value='$';
+  document.getElementById('ed-iva-inc').checked=false;
+  document.getElementById('ed-iva-tasa').value='22';
   document.getElementById('ed-del').style.display='none';
-  calcPreview();
+  pintarItems([{}]);          // arranca con un renglón vacío
   openModal('ov-edit');
 }
 function openEditar(id){
@@ -815,62 +888,131 @@ function openEditar(id){
   document.getElementById('ed-title').textContent='✎ Editar pedido';
   document.getElementById('ed-fecha').value=d.fecha||hoy();
   document.getElementById('ed-prov').value=d.proveedor||'';
-  document.getElementById('ed-art').value=d.articulo||'';
-  document.getElementById('ed-cant').value=d.cantidad==null?'':d.cantidad;
-  document.getElementById('ed-precio').value=d.precio==null?'':d.precio;
-  document.getElementById('ed-total').value=d.total==null?'':d.total;
   document.getElementById('ed-moneda').value=d.moneda||'$';
+  document.getElementById('ed-iva-inc').checked=!!d.iva_incluido;
+  document.getElementById('ed-iva-tasa').value=String(d.iva_tasa==null?22:d.iva_tasa);
   document.getElementById('ed-nota').value=d.nota||'';
   document.getElementById('ed-del').style.display='inline-flex';
-  calcPreview();
+  pintarItems((d.items||[]).length ? d.items : [{}]);
   openModal('ov-edit');
 }
-// Se SUGIERE el total, no se impone: el campo queda vacío y sólo se
-// avisa cuánto daría cantidad x precio.
-function calcPreview(){
-  var c=num(document.getElementById('ed-cant').value);
-  var p=num(document.getElementById('ed-precio').value);
-  var m=document.getElementById('ed-moneda').value;
-  var h=document.getElementById('ed-hint');
-  if(c!=null && p!=null){
-    h.innerHTML='Cantidad × precio da <b style="color:var(--teal-l)">'+m+' '+fmtNum(c*p,2)+'</b>. '
-      +'<a href="#" onclick="usarCalculo('+(c*p)+');return false" style="color:var(--orange-l)">Usar ese total</a> '
-      +'— o dejalo vacío si todavía no se sabe.';
-  } else {
-    h.textContent='El precio y el total pueden quedar vacíos: muchas veces se pide primero y el importe se sabe después.';
-  }
+
+// ── Renglones ─────────────────────────────────────────────────
+function filaItem(it){
+  it=it||{};
+  return '<div class="it-row">'
+    + '<input type="text" class="it-art" placeholder="Qué se pide" value="'+esc(it.articulo||'')+'" oninput="calcTotales()"/>'
+    + '<input type="number" class="it-cant" min="0" step="0.01" placeholder="Cant." value="'+(it.cantidad==null?'':it.cantidad)+'" oninput="calcTotales()"/>'
+    + '<input type="number" class="it-prec" min="0" step="0.01" placeholder="Precio" value="'+(it.precio==null?'':it.precio)+'" oninput="calcTotales()"/>'
+    + '<button type="button" class="it-del" title="Quitar" onclick="delItem(this)">✕</button>'
+    + '</div>';
 }
-function usarCalculo(v){ document.getElementById('ed-total').value=Math.round(v*100)/100; }
+function pintarItems(list){
+  document.getElementById('ed-items').innerHTML = (list||[]).map(filaItem).join('');
+  calcTotales();
+}
+function addItem(){
+  document.getElementById('ed-items').insertAdjacentHTML('beforeend', filaItem({}));
+  var a=document.querySelectorAll('#ed-items .it-art');
+  if(a.length) a[a.length-1].focus();
+  calcTotales();
+}
+function delItem(btn){
+  var filas=document.querySelectorAll('#ed-items .it-row');
+  if(filas.length<=1){ pintarItems([{}]); return; }   // nunca quedar sin ninguna
+  btn.parentNode.remove();
+  calcTotales();
+}
+// Los renglones tal como están en pantalla. Las filas sin artículo se
+// descartan: una fila vacía no es un renglón.
+function leerItems(){
+  return [].slice.call(document.querySelectorAll('#ed-items .it-row')).map(function(r,i){
+    return { articulo: r.querySelector('.it-art').value.trim(),
+             cantidad: num(r.querySelector('.it-cant').value),
+             precio:   num(r.querySelector('.it-prec').value),
+             orden:    i };
+  }).filter(function(it){ return it.articulo; });
+}
+
+// ── IVA y totales ─────────────────────────────────────────────
+//  Un renglón vale cantidad x precio; sin cantidad se toma 1, que es
+//  lo que uno quiere decir al poner sólo el precio de un servicio.
+//  Si a algún renglón le falta el precio NO se suma nada: un total a
+//  medias es peor que ninguno, y el importe vacío ya es un dato válido.
+function calcularTotales(items, ivaIncluido, tasa){
+  var conPrecio = items.filter(function(i){ return i.precio!=null; });
+  var faltan = items.length - conPrecio.length;
+  if(!items.length || faltan) return {subtotal:null, iva:null, total:null, faltan:faltan};
+  var bruto = items.reduce(function(s,i){ return s + (i.cantidad==null?1:i.cantidad)*i.precio; }, 0);
+  var t = (tasa||0)/100;
+  var subtotal = ivaIncluido ? bruto/(1+t) : bruto;
+  var total    = ivaIncluido ? bruto       : bruto*(1+t);
+  var r2=function(v){ return Math.round(v*100)/100; };
+  return {subtotal:r2(subtotal), iva:r2(total-subtotal), total:r2(total), faltan:0};
+}
+function calcTotales(){
+  var items=leerItems();
+  var inc=document.getElementById('ed-iva-inc').checked;
+  var tasa=parseFloat(document.getElementById('ed-iva-tasa').value)||0;
+  var m=document.getElementById('ed-moneda').value;
+  var t=calcularTotales(items, inc, tasa);
+  var host=document.getElementById('ed-totales');
+  if(t.total==null){
+    host.innerHTML = '<div class="tot-falta">'
+      + (!items.length
+          ? 'Cargá al menos un artículo.'
+          : t.faltan+' artículo'+(t.faltan===1?'':'s')+' sin precio.<br>El total queda vacío hasta tenerlos todos — y así está bien.')
+      + '</div>';
+    return;
+  }
+  host.innerHTML =
+    '<div class="tot-l"><span>Neto</span><span>'+m+' '+fmtNum(t.subtotal,2)+'</span></div>'
+    +'<div class="tot-l"><span>IVA '+tasa+'%</span><span>'+m+' '+fmtNum(t.iva,2)+'</span></div>'
+    +'<div class="tot-l big"><span>Total</span><b>'+m+' '+fmtNum(t.total,2)+'</b></div>';
+}
 
 function guardar(){
   var prov=document.getElementById('ed-prov').value.trim();
-  var art =document.getElementById('ed-art').value.trim();
   var fec =document.getElementById('ed-fecha').value;
+  var items=leerItems();
   if(!prov){ toast('Falta el proveedor','err'); document.getElementById('ed-prov').focus(); return; }
-  if(!art){ toast('Falta el artículo','err'); document.getElementById('ed-art').focus(); return; }
   if(!fec){ toast('Falta la fecha','err'); return; }
+  if(!items.length){ toast('Cargá al menos un artículo','err'); return; }
+  var inc=document.getElementById('ed-iva-inc').checked;
+  var tasa=parseFloat(document.getElementById('ed-iva-tasa').value)||0;
+  var t=calcularTotales(items, inc, tasa);
   var row={
-    fecha:fec, proveedor:prov, articulo:art,
-    cantidad:num(document.getElementById('ed-cant').value),
-    precio:  num(document.getElementById('ed-precio').value),
-    total:   num(document.getElementById('ed-total').value),
+    fecha:fec, proveedor:prov,
     moneda:  document.getElementById('ed-moneda').value,
+    iva_incluido: inc, iva_tasa: tasa,
+    subtotal: t.subtotal, iva_monto: t.iva, total: t.total,
     nota:    document.getElementById('ed-nota').value.trim()||null
   };
   var btn=document.getElementById('ed-save'); btn.disabled=true;
-  var q = CUR ? SB.from('pedidos_varios').update(row).eq('id',CUR.id)
-              : SB.from('pedidos_varios').insert(Object.assign({creado_por:whoName()},row));
+  var q = CUR ? SB.from('pedidos_varios').update(row).eq('id',CUR.id).then(function(r){ return r.error?r:{data:{id:CUR.id}}; })
+              : SB.from('pedidos_varios').insert(Object.assign({creado_por:whoName()},row)).select('id').single();
   q.then(function(r){
-    btn.disabled=false;
-    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
-    toast(CUR?'Pedido actualizado':'Pedido cargado','ok');
-    closeModal('ov-edit'); load();
+    if(r.error){ btn.disabled=false; toast('Error: '+r.error.message,'err'); return; }
+    var pid = CUR ? CUR.id : r.data.id;
+    // Los renglones se reescriben enteros: son pocos y así no hay que
+    // llevar la cuenta de cuál se editó, cuál se borró y cuál es nuevo.
+    return SB.from('pedidos_varios_items').delete().eq('pedido_id',pid).then(function(){
+      return SB.from('pedidos_varios_items').insert(items.map(function(i){
+        return {pedido_id:pid, articulo:i.articulo, cantidad:i.cantidad, precio:i.precio, orden:i.orden};
+      }));
+    }).then(function(r2){
+      btn.disabled=false;
+      if(r2 && r2.error){ toast('Error en los artículos: '+r2.error.message,'err'); return; }
+      toast(CUR?'Pedido actualizado':'Pedido cargado','ok');
+      closeModal('ov-edit'); load();
+    });
   });
 }
 
 function borrar(){
   if(!CUR) return;
-  if(!confirm('¿Eliminar el pedido de "'+CUR.articulo+'" a '+CUR.proveedor+'?\n\nNo se puede deshacer.')) return;
+  var q=(CUR.items&&CUR.items.length===1)?('"'+CUR.items[0].articulo+'"'):((CUR.items||[]).length+' artículos');
+  if(!confirm('¿Eliminar el pedido de '+q+' a '+CUR.proveedor+'?\n\nNo se puede deshacer.')) return;
   SB.from('pedidos_varios').delete().eq('id',CUR.id).then(function(r){
     if(r.error){ toast('Error: '+r.error.message,'err'); return; }
     toast('Pedido eliminado','ok');
@@ -883,12 +1025,21 @@ function openRecibir(id){
   var d=byId(id); if(!d) return;
   CUR=d;
   var recv = d.estado==='RECIBIDO';
-  document.getElementById('rc-title').textContent=(recv?'✎ ':'📥 ')+d.articulo;
+  var its = d.items||[];
+  document.getElementById('rc-title').textContent =
+    (recv?'✎ ':'📥 ') + (its.length===1 ? its[0].articulo : its.length+' artículos de '+d.proveedor);
   document.getElementById('rc-info').innerHTML =
     '<div class="detail-item"><div class="detail-label">Proveedor</div><div class="detail-value">'+esc(d.proveedor||'—')+'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Fecha del pedido</div><div class="detail-value">'+fmtDate(d.fecha)+'</div></div>'
-    +'<div class="detail-item"><div class="detail-label">Cantidad</div><div class="detail-value">'+(d.cantidad==null?'—':fmtNum(d.cantidad))+'</div></div>'
-    +'<div class="detail-item"><div class="detail-label">Total</div><div class="detail-value">'+money(d.total,d.moneda)+'</div></div>'
+    +'<div class="detail-item span2"><div class="detail-label">Qué se pidió</div><div class="detail-value" style="font-size:13px;line-height:1.7">'
+      +(its.length ? its.map(function(i){
+          return '· '+esc(i.articulo)
+            +(i.cantidad!=null?(' <span style="font-family:var(--mono);color:var(--teal-l)">×'+fmtNum(i.cantidad)+'</span>'):'')
+            +(i.precio!=null?(' <span style="font-family:var(--mono);color:var(--muted-l)">a '+esc(d.moneda||'$')+' '+fmtNum(i.precio,2)+'</span>'):'');
+        }).join('<br>') : '—')
+      +'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Neto'+(d.iva_tasa>0?(' + IVA '+d.iva_tasa+'%'):'')+'</div><div class="detail-value">'+money(d.subtotal,d.moneda)+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Total c/IVA</div><div class="detail-value">'+money(d.total,d.moneda)+'</div></div>'
     +'<div class="detail-item span2"><div class="detail-label">Estado</div><div class="detail-value">'+pill(d.estado)+'</div></div>';
   document.getElementById('rc-fecha').value = d.f_recepcion || hoy();
   document.getElementById('rc-total').value = d.total==null?'':d.total;
@@ -933,18 +1084,27 @@ function reabrir(){
 // ── Export ────────────────────────────────────────────────────
 function exportCSV(){
   if(!VIEW.length){ toast('No hay nada que exportar','err'); return; }
-  var cab=['Fecha','Proveedor','Articulo','Cantidad','Moneda','Precio','Total','Estado','F.Recepcion','Recibido por','Nota','Obs. recepcion'];
+  // Una fila por ART\u00CDCULO, con los datos del pedido repetidos: as\u00ED se
+  // puede filtrar y sumar en la planilla sin desarmar nada.
+  var cab=['Pedido','Fecha','Proveedor','Articulo','Cantidad','Moneda','Precio unit',
+           'IVA %','Precios con IVA','Neto pedido','IVA pedido','Total pedido',
+           'Estado','F.Recepcion','Recibido por','Nota','Obs. recepcion'];
   var q=function(v){ return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'; };
-  var filas=VIEW.map(function(d){
-    return [d.fecha,d.proveedor,d.articulo,d.cantidad,d.moneda,d.precio,d.total,
-            d.estado,d.f_recepcion,d.recibido_por,d.nota,d.obs_recepcion].map(q).join(';');
+  var filas=[];
+  VIEW.forEach(function(d){
+    var its=(d.items&&d.items.length)?d.items:[{}];
+    its.forEach(function(i){
+      filas.push([d.id,d.fecha,d.proveedor,i.articulo,i.cantidad,d.moneda,i.precio,
+                  d.iva_tasa,(d.iva_incluido?'SI':'NO'),d.subtotal,d.iva_monto,d.total,
+                  d.estado,d.f_recepcion,d.recibido_por,d.nota,d.obs_recepcion].map(q).join(';'));
+    });
   });
   var csv='\uFEFF'+cab.map(q).join(';')+'\n'+filas.join('\n');
   var a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   a.download='pedidos-varios-'+hoy()+'.csv';
   a.click(); URL.revokeObjectURL(a.href);
-  toast('CSV exportado ('+VIEW.length+' filas)','ok');
+  toast('CSV exportado ('+filas.length+' filas de '+VIEW.length+' pedidos)','ok');
 }
 </script>
 </body>

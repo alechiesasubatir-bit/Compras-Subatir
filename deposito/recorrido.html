@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Recorrido — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-11.1723"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-12.1230"/>
 <style>
 /* Propio del recorrido: el paso, el lector y la grilla de ranuras */
 .paso{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;margin-bottom:8px;
@@ -74,6 +74,8 @@
     <div class="hsub" id="hsub">—</div>
   </div>
   <div class="header-right">
+    <!-- Quién opera, en cuentas compartidas. Lo pinta SubatirApp.operador -->
+    <span id="oper-chip"></span>
     <button class="btn btn-sm" id="btn-volver" onclick="verLista()" style="display:none">← Pedidos</button>
     <a href="solicitar.html" class="btn btn-sm" id="nav-sol" style="display:none;text-decoration:none">Pedir</a>
     <a href="index.html" class="btn btn-sm" id="nav-panel" style="display:none;text-decoration:none">Panel</a>
@@ -174,12 +176,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-11.1723"></script>
-<script src="deposito-app.js?v=2026-08-11.1723"></script>
+<script src="../supabase-config.js?v=2026-08-12.1230"></script>
+<script src="deposito-app.js?v=2026-08-12.1230"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-11.1723';
+window.APP_VER='2026-08-12.1230';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -200,8 +202,12 @@ var H5=null, SCAN_BUSY=false, LLEGO=null, U_SLOT=null;
 function esc(s){ return String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmt(n){ n=parseFloat(n)||0; return n.toLocaleString('es-UY'); }
-function whoName(){ var p=SubatirApp.getProfile();
+// La CUENTA con la que se entró
+function cuentaName(){ var p=SubatirApp.getProfile();
   return p?(p.full_name||(p.email||'').split('@')[0]||'—'):'—'; }
+// La PERSONA que opera: es la que queda grabada en el pallet al escanear.
+// En cuentas personales las dos devuelven lo mismo.
+function whoName(){ return SubatirApp.operador.nombre(); }
 function toast(msg,tipo){
   var h=document.getElementById('toast-host'), d=document.createElement('div');
   d.className='toast toast-'+(tipo==='err'?'err':tipo==='ok'?'ok':'info');
@@ -246,7 +252,9 @@ SubatirApp.ready.then(function(p){
     document.getElementById('htit').textContent='Recepción';
     document.querySelector('#v-lista .lbl').textContent='Mercadería en camino';
   }
-  document.getElementById('hsub').textContent=whoName();
+  document.getElementById('hsub').textContent=cuentaName();
+  // Cuenta compartida: quien opera queda en cada escaneo
+  SubatirApp.operador.init();
   // Se muestra solo lo que esta persona puede abrir: un link que rebota
   // al login es peor que no tenerlo.
   if(SubatirApp.puede('importacion')) document.getElementById('nav-panel').style.display='';

@@ -367,12 +367,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-11.1723"></script>
-<script src="subatir-app.js?v=2026-08-11.1723"></script>
+<script src="supabase-config.js?v=2026-08-12.1230"></script>
+<script src="subatir-app.js?v=2026-08-12.1230"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-11.1723';
+window.APP_VER='2026-08-12.1230';
 </script>
 </head>
 <body>
@@ -397,6 +397,8 @@ window.APP_VER='2026-08-11.1723';
     <a href="copiloto.html"     class="nav-link">🤖 Copiloto IA</a>
   </nav>
   <div class="header-right">
+    <!-- Quién opera, en cuentas compartidas. Lo pinta SubatirApp.operador -->
+    <span id="oper-chip"></span>
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" onclick="refresh()" id="btn-refresh">
@@ -1423,8 +1425,19 @@ function onVtoNA(){
 function isVtoNA(v){ return /^(no aplica|no necesario|no requerido|n\/a|na)$/i.test(String(v||'').trim()); }
 
 var PROFILE=null;
-if(window.SubatirApp) SubatirApp.ready.then(function(p){ PROFILE=p; });
-function whoName(){ return PROFILE ? (PROFILE.full_name || (PROFILE.email||'').split('@')[0] || 'Operario') : 'Operario'; }
+if(window.SubatirApp) SubatirApp.ready.then(function(p){
+  PROFILE=p;
+  // Cuenta compartida: preguntar quién recibe. Lo que se registre queda
+  // a nombre de la persona, no de la cuenta.
+  SubatirApp.operador.init(function(){
+    var w=document.getElementById('en-who'); if(w) w.textContent=whoName();
+  });
+});
+// El nombre que va al registro: la persona si la cuenta es compartida
+function whoName(){
+  if(window.SubatirApp && SubatirApp.operador) return SubatirApp.operador.nombre();
+  return PROFILE ? (PROFILE.full_name || (PROFILE.email||'').split('@')[0] || 'Operario') : 'Operario';
+}
 
 function saveEdit(){
   var orden = String(CURRENT_ROW[K.orden]);

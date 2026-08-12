@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Solicitar mercadería — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-11.1723"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-12.1230"/>
 <style>
 /* El pedido que acaba de llegar: se destaca hasta que lo den por visto */
 .sol.llego{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.09);
@@ -55,6 +55,8 @@
     <div class="hsub" id="hsub">—</div>
   </div>
   <div class="header-right">
+    <!-- Quién opera, en cuentas compartidas. Lo pinta SubatirApp.operador -->
+    <span id="oper-chip"></span>
     <a href="recorrido.html" class="btn btn-sm" id="nav-rec" style="display:none;text-decoration:none">Recorrido</a>
     <a href="index.html" class="btn btn-sm" id="nav-panel" style="display:none;text-decoration:none">Panel</a>
   </div>
@@ -106,12 +108,12 @@
 <div id="toast-host" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-08-11.1723"></script>
-<script src="deposito-app.js?v=2026-08-11.1723"></script>
+<script src="../supabase-config.js?v=2026-08-12.1230"></script>
+<script src="deposito-app.js?v=2026-08-12.1230"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-11.1723';
+window.APP_VER='2026-08-12.1230';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -132,10 +134,15 @@ function esc(s){ return String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmt(n){ n=parseFloat(n)||0; return n.toLocaleString('es-UY'); }
 function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
-function whoName(){
+// La CUENTA. Es la clave con la que se arma "Mis pedidos": en una
+// cuenta compartida el turno tiene que ver todo lo que se pidió, no
+// sólo lo de quien está mirando ahora.
+function cuentaName(){
   var p=SubatirApp.getProfile();
   return p?(p.full_name||(p.email||'').split('@')[0]||'—'):'—';
 }
+// La PERSONA que está operando. En cuentas personales es la misma cosa.
+function whoName(){ return SubatirApp.operador.nombre(); }
 function toast(msg,tipo){
   var h=document.getElementById('toast-host');
   var d=document.createElement('div');
@@ -147,12 +154,14 @@ function toast(msg,tipo){
 
 SubatirApp.ready.then(function(p){
   if(!p) return;
-  document.getElementById('hsub').textContent=whoName();
+  document.getElementById('hsub').textContent=cuentaName();
   // El operario y el admin también pueden pedir: a ellos se les deja el
   // acceso al panel, al solicitante puro no (no lo puede abrir).
   if(SubatirApp.puede('importacion')) document.getElementById('nav-panel').style.display='';
   if(SubatirApp.puede('recorrido')||SubatirApp.puede('importacion'))
     document.getElementById('nav-rec').style.display='';
+  // Cuenta compartida: quién está pidiendo
+  SubatirApp.operador.init(function(){ renderMis(); });
   cargar();
   SubatirApp.live(['imp_solicitudes','imp_solicitud_items','imp_pallets'], cargar, {delay:900});
 });
@@ -315,8 +324,11 @@ function confirmar(){
   try{
     if(window.Notification && Notification.permission==='default') Notification.requestPermission();
   }catch(_){}
+  // p_user es la CUENTA (con eso se arma "Mis pedidos" del turno) y
+  // p_operador la PERSONA, que es lo que da la trazabilidad.
   SB.rpc('imp_solicitud_crear',{p_origen:org, p_destino:dst, p_pallets:ids,
-                                p_nota:null, p_user:whoName()})
+                                p_nota:null, p_user:cuentaName(),
+                                p_operador:(SubatirApp.operador.esCompartida()?whoName():null)})
     .then(function(r){
       b.disabled=false;
       if(r.error||(r.data&&r.data.ok===false)){
@@ -349,7 +361,7 @@ function marcarVisto(id){
 }
 var ESTADO_PREV={};
 function avisarLlegadas(){
-  var yo=whoName();
+  var yo=cuentaName();   // filtra por CUENTA: el turno ve todo
   MIS.forEach(function(s){
     if(s.solicitante!==yo) return;
     var antes=ESTADO_PREV[s.id];
@@ -406,7 +418,7 @@ function quitados(){
 // Terminado = ya no hay nada que seguir: llegó o se canceló.
 function esTerminado(e){ return e==='ENTREGADA' || e==='CANCELADA'; }
 function limpiarTerminados(){
-  var yo=whoName();
+  var yo=cuentaName();   // filtra por CUENTA: el turno ve todo
   var ids=MIS.filter(function(s){ return s.solicitante===yo && esTerminado(s.estado); })
              .map(function(s){ return s.id; });
   if(!ids.length){ toast('No hay pedidos terminados para limpiar','info'); return; }
@@ -440,7 +452,7 @@ function artDetalleHTML(s){
 }
 
 function renderMis(){
-  var yo=whoName();
+  var yo=cuentaName();   // filtra por CUENTA: el turno ve todo
   var mias=MIS.filter(function(s){ return s.solicitante===yo; });
   var host=document.getElementById('mis');
   var btn=document.getElementById('btn-limpiar-ent');
@@ -470,7 +482,9 @@ function renderMis(){
       // Referencia: de dónde a dónde, el número y los pallets
       +'<div class="sol-ruta">#'+s.id+' · <b>'+esc(s.origen)+' → '+esc(s.destino)+'</b> · '
       +s.items+' pallet'+(s.items===1?'':'s')
-      +(s.entregados?(' · '+s.entregados+' entregado'+(s.entregados===1?'':'s')):'')+'</div>'
+      +(s.entregados?(' · '+s.entregados+' entregado'+(s.entregados===1?'':'s')):'')
+      // En cuenta compartida: quién de las del turno lo pidió
+      +(s.pedido_por?(' · pidió <b>'+esc(s.pedido_por)+'</b>'):'')+'</div>'
       +avanceHTML(s.estado)
       +(llego?('<div class="llego-av">✅ Llegó a '+esc(s.destino)
               +(s.entregada_at?(' · <b>'+new Date(s.entregada_at).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})+'</b>'):'')

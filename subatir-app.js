@@ -631,6 +631,207 @@
   }
 
   // ══════════════════════════════════════════════════════════
+  //  QUIÉN OPERA · cuentas compartidas
+  //  produccionsubatir, operadorprueba y logistica.artigas las usan
+  //  varias personas. Si el perfil está marcado como compartida, al
+  //  entrar se pregunta quién está operando y ese nombre —no el de
+  //  la cuenta— es el que queda en lo que se registre.
+  //  El nombre vive en sessionStorage: dura lo que dura la pestaña,
+  //  que es aproximadamente lo que dura el turno.
+  // ══════════════════════════════════════════════════════════
+  var OPER = (function () {
+    var KEY = 'subatir_operador';
+    var _nombre = null, _onChange = null, _leido = false;
+
+    function perfil() { return _profile || {}; }
+    function esCompartida() { return !!perfil().compartida; }
+    function lista() {
+      var l = perfil().operadores;
+      if (typeof l === 'string') { try { l = JSON.parse(l); } catch (e) { l = []; } }
+      return Array.isArray(l) ? l : [];
+    }
+    // El nombre queda atado a la CUENTA que lo eligió: si en la misma
+    // pestaña alguien cierra sesión y entra con otra, no se le arrastra
+    // el operador de la anterior.
+    function cuentaId() { return perfil().id || perfil().email || '?'; }
+    function get() {
+      if (_nombre) return _nombre;
+      if (_leido) return null;
+      _leido = true;
+      try {
+        var g = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+        if (g && g.cuenta === cuentaId()) _nombre = g.nombre || null;
+        else if (g) sessionStorage.removeItem(KEY);
+      } catch (e) {}
+      return _nombre;
+    }
+    function set(n) {
+      _nombre = (n || '').trim() || null;
+      _leido = true;
+      try {
+        if (_nombre) sessionStorage.setItem(KEY, JSON.stringify({ cuenta: cuentaId(), nombre: _nombre }));
+        else sessionStorage.removeItem(KEY);
+      } catch (e) {}
+      pintarChip();
+      if (_onChange) _onChange(_nombre);
+    }
+    // El nombre que va al registro: la persona si la cuenta es
+    // compartida, si no el de la cuenta.
+    function nombre() {
+      var p = perfil();
+      var base = p.full_name || (p.email || '').split('@')[0] || 'Operario';
+      return (esCompartida() && get()) ? get() : base;
+    }
+
+    function css() {
+      if (document.getElementById('oper-css')) return;
+      var s = document.createElement('style');
+      s.id = 'oper-css';
+      s.textContent = [
+        '.oper-ovl{position:fixed;inset:0;z-index:9000;display:none;align-items:center;',
+        'justify-content:center;padding:18px;background:rgba(3,6,12,.82);backdrop-filter:blur(6px)}',
+        '.oper-ovl.open{display:flex}',
+        '.oper-box{width:100%;max-width:430px;border-radius:18px;padding:20px;',
+        'background:linear-gradient(150deg,rgba(13,27,46,.98),rgba(10,18,32,.99));',
+        'border:1px solid rgba(255,255,255,.10);box-shadow:0 24px 80px rgba(0,0,0,.75)}',
+        '.oper-h{font-size:17px;font-weight:800;margin:0 0 3px}',
+        '.oper-s{font-size:12.5px;color:#94a3b8;margin-bottom:14px;line-height:1.45}',
+        '.oper-l{display:grid;gap:7px;margin-bottom:12px}',
+        '.oper-i{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:11px;cursor:pointer;',
+        'background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);transition:border-color .15s,background .15s}',
+        '.oper-i:hover{border-color:rgba(27,200,255,.45);background:rgba(27,200,255,.07)}',
+        '.oper-i.on{border-color:#1bc8ff;background:rgba(27,200,255,.13)}',
+        '.oper-i input{width:17px;height:17px;accent-color:#1bc8ff;flex:0 0 auto;margin:0;cursor:pointer}',
+        '.oper-n{display:block;font-size:14px;font-weight:700;color:#e2e8f0;line-height:1.25}',
+        '.oper-r{font-size:11px;color:#94a3b8;margin-top:2px}',
+        '.oper-txt{width:100%;padding:11px 13px;border-radius:11px;font-size:14px;',
+        'background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);color:#e2e8f0;outline:none}',
+        '.oper-txt:focus{border-color:#1bc8ff}',
+        '.oper-btn{width:100%;margin-top:13px;padding:13px;border-radius:11px;border:0;cursor:pointer;',
+        'font-size:14px;font-weight:800;color:#fff;background:linear-gradient(135deg,#f97316,#c2580a)}',
+        '.oper-btn:disabled{opacity:.45;cursor:not-allowed}',
+        '.oper-chip{display:inline-flex;align-items:center;gap:7px;padding:4px 10px;border-radius:20px;',
+        'font-size:11.5px;font-weight:700;color:#7dd3fc;background:rgba(27,200,255,.12);',
+        'border:1px solid rgba(27,200,255,.32);white-space:nowrap}',
+        '.oper-chip button{background:none;border:0;color:#94a3b8;font-size:10.5px;cursor:pointer;',
+        'text-decoration:underline;padding:0;font-weight:600}',
+        '.oper-chip button:hover{color:#e2e8f0}'
+      ].join('');
+      document.head.appendChild(s);
+    }
+
+    // Chip "👤 NOMBRE · cambiar" en el header
+    function pintarChip() {
+      var host = document.getElementById('oper-chip');
+      if (!host) return;
+      css();   // el chip puede aparecer sin que el diálogo se haya abierto
+      if (!esCompartida() || !get()) { host.innerHTML = ''; return; }
+      host.innerHTML = '<span class="oper-chip">👤 ' + esc(get())
+        + ' <button type="button" onclick="SubatirApp.operador.preguntar(true)">cambiar</button></span>';
+    }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Muestra el diálogo. forzar=true lo abre aunque ya haya nombre.
+    function preguntar(forzar) {
+      if (!esCompartida()) return;
+      if (!forzar && get()) { pintarChip(); return; }
+      css();
+      var ov = document.getElementById('oper-ovl');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'oper-ovl'; ov.className = 'oper-ovl';
+        document.body.appendChild(ov);
+      }
+      var ops = lista(), actual = get();
+      var esOtro = !!actual && !ops.some(function (o) { return o.nombre === actual; });
+      ov.innerHTML =
+        '<div class="oper-box" role="dialog" aria-modal="true" aria-labelledby="oper-h">'
+        + '<h3 class="oper-h" id="oper-h">¿Quién está operando?</h3>'
+        + '<div class="oper-s">Esta cuenta la usan varias personas. Lo que registres queda a tu nombre.</div>'
+        + (ops.length
+            ? '<div class="oper-l">'
+              + ops.map(function (o, i) {
+                  var on = o.nombre === actual;
+                  return '<label class="oper-i' + (on ? ' on' : '') + '" id="oper-i' + i + '">'
+                    + '<input type="radio" name="oper-pick" value="' + esc(o.nombre) + '"'
+                    + (on ? ' checked' : '') + ' onchange="SubatirApp.operador._pick()"/>'
+                    + '<span><span class="oper-n">' + esc(o.nombre) + '</span>'
+                    + (o.rol ? '<span class="oper-r">' + esc(o.rol) + '</span>' : '') + '</span></label>';
+                }).join('')
+              + '<label class="oper-i' + (esOtro ? ' on' : '') + '" id="oper-iotro">'
+              + '<input type="radio" name="oper-pick" value="__otro__"' + (esOtro ? ' checked' : '')
+              + ' onchange="SubatirApp.operador._pick()"/>'
+              + '<span class="oper-n">Otro</span></label>'
+              + '</div>'
+              + '<input class="oper-txt" id="oper-otro" placeholder="Nombre y apellido completo"'
+              + ' value="' + (esOtro ? esc(actual) : '') + '"'
+              + ' style="display:' + (esOtro ? 'block' : 'none') + '"'
+              + ' oninput="SubatirApp.operador._pick()"/>'
+            : '<input class="oper-txt" id="oper-otro" placeholder="Nombre y apellido completo"'
+              + ' value="' + esc(actual || '') + '" oninput="SubatirApp.operador._pick()"/>')
+        + '<button class="oper-btn" id="oper-ok" onclick="SubatirApp.operador._ok()">Continuar</button>'
+        + '</div>';
+      ov.classList.add('open');
+      _pick();
+      setTimeout(function () {
+        var t = document.getElementById('oper-otro');
+        if (t && t.style.display !== 'none' && !ops.length) t.focus();
+      }, 60);
+    }
+
+    // Habilita/deshabilita Continuar y muestra el campo libre
+    function _pick() {
+      var sel = document.querySelector('input[name="oper-pick"]:checked');
+      var txt = document.getElementById('oper-otro');
+      var ops = lista();
+      if (ops.length && txt) {
+        var otro = sel && sel.value === '__otro__';
+        txt.style.display = otro ? 'block' : 'none';
+        if (otro && document.activeElement !== txt) txt.focus();
+      }
+      // El resalte de la fila elegida
+      document.querySelectorAll('.oper-i').forEach(function (el) {
+        var r = el.querySelector('input');
+        el.classList.toggle('on', !!(r && r.checked));
+      });
+      var btn = document.getElementById('oper-ok');
+      if (btn) btn.disabled = !_valor();
+    }
+    function _valor() {
+      var ops = lista();
+      var txt = document.getElementById('oper-otro');
+      if (!ops.length) return txt ? txt.value.trim() : '';
+      var sel = document.querySelector('input[name="oper-pick"]:checked');
+      if (!sel) return '';
+      if (sel.value !== '__otro__') return sel.value;
+      return txt ? txt.value.trim() : '';
+    }
+    function _ok() {
+      var v = _valor();
+      if (!v) return;
+      set(v);
+      var ov = document.getElementById('oper-ovl');
+      if (ov) ov.classList.remove('open');
+    }
+
+    // Llamar una vez cuando la página ya tiene perfil.
+    // onChange se dispara al elegir o cambiar de operador.
+    function init(onChange) {
+      _onChange = onChange || null;
+      if (!esCompartida()) { pintarChip(); return; }
+      preguntar(false);
+      pintarChip();
+    }
+
+    return { init: init, preguntar: preguntar, nombre: nombre, get: get, set: set,
+             esCompartida: esCompartida, lista: lista, pintarChip: pintarChip,
+             _pick: _pick, _ok: _ok };
+  })();
+
+  // ══════════════════════════════════════════════════════════
   //  PL-06 · Check List para la recepción de mercadería
   //  Documento controlado de Dirección Técnica. Vive acá y no en
   //  cada módulo para que una revisión del procedimiento se toque
@@ -1055,7 +1256,7 @@
     categorias: categorias, setCategoria: setCategoria,
     ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto,
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
-    PL06: PL06,
+    PL06: PL06, operador: OPER,
     live: live,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule

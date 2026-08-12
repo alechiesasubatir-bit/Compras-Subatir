@@ -63,6 +63,14 @@ td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13p
 .modchk{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:8px;border:1px solid var(--bdr);
   background:rgba(255,255,255,.03);cursor:pointer;font-size:12px}
 .modchk input{width:auto}
+/* Lista de operadores de una cuenta compartida */
+.oplist{display:grid;gap:7px}
+.oprow{display:grid;grid-template-columns:1fr 130px 34px;gap:7px;align-items:center}
+.oprow input{width:100%}
+.oprow button{padding:8px;border-radius:8px;border:1px solid var(--bdr);background:rgba(239,68,68,.10);
+  color:#fca5a5;cursor:pointer;font-size:13px;line-height:1}
+.oprow button:hover{background:rgba(239,68,68,.2)}
+.ophint{font-size:11px;color:var(--mut2);margin-top:7px;line-height:1.5}
 .modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
 .tc{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px}
 .toast{padding:11px 15px;border-radius:9px;font-size:12px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -80,12 +88,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-11.1723"></script>
-<script src="subatir-app.js?v=2026-08-11.1723"></script>
+<script src="supabase-config.js?v=2026-08-12.1230"></script>
+<script src="subatir-app.js?v=2026-08-12.1230"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-11.1723';
+window.APP_VER='2026-08-12.1230';
 </script>
 </head>
 <body>
@@ -138,6 +146,22 @@ window.APP_VER='2026-08-11.1723';
     <div class="fg"><label>Estado</label>
       <select id="m-activo"><option value="true">Activo</option><option value="false">Desactivado</option></select>
     </div>
+
+    <!-- Cuentas que usa más de una persona: al entrar se pregunta quién
+         opera y ese nombre queda en lo que registre. -->
+    <div class="fg">
+      <label>Cuenta compartida</label>
+      <label class="modchk" style="margin-bottom:8px">
+        <input type="checkbox" id="m-compartida" onchange="toggleComp()"/>
+        La usan varias personas: preguntar quién opera al entrar
+      </label>
+      <div id="m-oper-wrap" style="display:none">
+        <div class="oplist" id="m-oper"></div>
+        <button type="button" class="btn" style="margin-top:8px" onclick="addOper()">+ Agregar operador</button>
+        <div class="ophint">Sin nadie en la lista, cada persona escribe su nombre completo a mano.</div>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn" onclick="closeM()">Cancelar</button>
       <button class="btn or" onclick="saveM()">Guardar</button>
@@ -220,9 +244,48 @@ function openM(id){
     var on = (CUR.modules||[]).indexOf(m)>=0;
     return '<label class="modchk"><input type="checkbox" value="'+m+'" '+(on?'checked':'')+'/>'+esc(MODLABEL[m])+'</label>';
   }).join('');
+  document.getElementById('m-compartida').checked = !!CUR.compartida;
+  pintarOper(parseOper(CUR.operadores));
+  toggleComp();
   document.getElementById('ovl').classList.add('open');
 }
 function closeM(){ document.getElementById('ovl').classList.remove('open'); CUR=null; }
+
+// ── Cuenta compartida: la lista de quiénes pueden operarla ────────
+//  Si queda vacía, la pantalla les pide el nombre escrito a mano.
+function parseOper(v){
+  if(!v) return [];
+  if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ return []; } }
+  return Array.isArray(v)?v:[];
+}
+function toggleComp(){
+  document.getElementById('m-oper-wrap').style.display =
+    document.getElementById('m-compartida').checked ? '' : 'none';
+}
+function pintarOper(list){
+  document.getElementById('m-oper').innerHTML = (list||[]).map(function(o){
+    return filaOper(o.nombre||'', o.rol||'');
+  }).join('');
+}
+function filaOper(nombre, rol){
+  return '<div class="oprow">'
+    + '<input class="op-n" placeholder="Nombre y apellido" value="'+esc(nombre)+'"/>'
+    + '<input class="op-r" placeholder="Rol (opcional)" value="'+esc(rol)+'"/>'
+    + '<button type="button" title="Quitar" onclick="this.parentNode.remove()">✕</button>'
+    + '</div>';
+}
+function addOper(){
+  document.getElementById('m-oper').insertAdjacentHTML('beforeend', filaOper('',''));
+  var f=document.querySelectorAll('#m-oper .op-n');
+  if(f.length) f[f.length-1].focus();
+}
+// Se descartan las filas sin nombre: una fila vacía no es un operador
+function leerOper(){
+  return [].slice.call(document.querySelectorAll('#m-oper .oprow')).map(function(r){
+    return { nombre: r.querySelector('.op-n').value.trim().toUpperCase(),
+             rol:    r.querySelector('.op-r').value.trim() };
+  }).filter(function(o){ return o.nombre; });
+}
 
 // ── Registrar usuario nuevo (signUp con cliente temporal) ──────────
 function openNew(){
@@ -284,13 +347,28 @@ function register(){
 function saveM(){
   if(!CUR) return;
   var mods = Array.prototype.map.call(document.querySelectorAll('#m-mods input:checked'),function(c){return c.value;});
+  var comp = document.getElementById('m-compartida').checked;
   var patch = {
     full_name: document.getElementById('m-name').value.trim(),
     role: document.getElementById('m-role').value,
     modules: mods,
-    activo: document.getElementById('m-activo').value==='true'
+    activo: document.getElementById('m-activo').value==='true',
+    compartida: comp,
+    // Si deja de ser compartida, la lista se limpia: guardarla sin uso
+    // sólo confunde al que la mire después.
+    operadores: comp ? leerOper() : []
   };
   SB.from('profiles').update(patch).eq('id',CUR.id).then(function(r){
+    if(r.error && /column|compartida|operadores|schema cache/i.test(String(r.error.message))){
+      // Falta correr migracion/operadores.sql: se guarda el resto igual
+      delete patch.compartida; delete patch.operadores;
+      return SB.from('profiles').update(patch).eq('id',CUR.id).then(function(r2){
+        if(!r2.error) toast('⚠ Guardado SIN la cuenta compartida: falta correr operadores.sql','err');
+        return r2;
+      });
+    }
+    return r;
+  }).then(function(r){
     if(r.error){ toast('Error: '+r.error.message,'err'); return; }
     toast('Usuario actualizado','ok');
     closeM(); loadUsers();

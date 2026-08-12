@@ -457,12 +457,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-12.1230"></script>
-<script src="subatir-app.js?v=2026-08-12.1230"></script>
+<script src="supabase-config.js?v=2026-08-12.1352"></script>
+<script src="subatir-app.js?v=2026-08-12.1352"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-12.1230';
+window.APP_VER='2026-08-12.1352';
 </script>
 </head>
 <body>
@@ -520,7 +520,7 @@ window.APP_VER='2026-08-12.1230';
       <a href="precios.html"      class="nl">💲 Precios</a>
       <a href="proveedores.html"  class="nl">🏭 Proveedores</a>
       <a href="contingencia.html" class="nl">🛡 Contingencia</a>
-      <a href="copiloto.html"     class="nl">🤖 Copiloto IA</a>
+      <a href="varios.html"       class="nl">🧾 Pedidos Varios</a>
     </nav>
     <div class="hdr-right">
       <span id="last-update">—</span>
@@ -700,47 +700,6 @@ window.APP_VER='2026-08-12.1230';
 
       </div>
     </div><!-- /grid-main -->
-
-    <!-- Banner Copiloto IA -->
-    <a href="copiloto.html" style="text-decoration:none;display:block">
-      <div style="padding:18px 22px;border-radius:var(--r);
-        background:linear-gradient(135deg,rgba(124,58,237,.18) 0%,rgba(14,138,170,.10) 50%,rgba(124,58,237,.08) 100%);
-        border:1px solid rgba(167,139,250,.3);
-        box-shadow:0 0 30px rgba(124,58,237,.10);
-        display:flex;align-items:center;gap:18px;
-        transition:all .2s;cursor:pointer"
-        onmouseover="this.style.borderColor='rgba(167,139,250,.55)';this.style.boxShadow='0 0 40px rgba(124,58,237,.2)'"
-        onmouseout="this.style.borderColor='rgba(167,139,250,.3)';this.style.boxShadow='0 0 30px rgba(124,58,237,.10)'"
-      >
-        <div style="width:52px;height:52px;border-radius:50%;flex-shrink:0;
-          background:linear-gradient(135deg,#7c3aed,#a78bfa);
-          display:flex;align-items:center;justify-content:center;font-size:24px;
-          box-shadow:0 0 22px rgba(124,58,237,.5);animation:ai-glow-idx 3s ease-in-out infinite">🧠</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-family:'Manrope',sans-serif;font-size:15px;font-weight:800;color:#a78bfa;letter-spacing:-.2px">
-            COPILOTO IA — Asistente Estratégico
-          </div>
-          <div style="font-size:12px;color:var(--mut2);margin-top:3px">
-            Análisis de proveedores · Recomendaciones de compra · Alertas inteligentes · Preguntas en lenguaje natural
-          </div>
-        </div>
-        <div style="flex-shrink:0;display:flex;align-items:center;gap:8px">
-          <div style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;
-            background:linear-gradient(135deg,rgba(124,58,237,.4),rgba(167,139,250,.25));
-            border:1px solid rgba(167,139,250,.35);font-size:11px;font-weight:700;
-            color:#a78bfa;font-family:'Manrope',sans-serif;letter-spacing:.3px">
-            <span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;
-              animation:ai-pulse-idx 2s ease-in-out infinite;display:inline-block"></span>
-            ABRIR COPILOTO
-          </div>
-          <span style="font-size:20px;color:rgba(167,139,250,.6)">→</span>
-        </div>
-      </div>
-    </a>
-    <style>
-    @keyframes ai-glow-idx{0%,100%{box-shadow:0 0 22px rgba(124,58,237,.5)}50%{box-shadow:0 0 36px rgba(124,58,237,.8)}}
-    @keyframes ai-pulse-idx{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
-    </style>
 
     <!-- Cobertura de stock por artículo -->
     <div class="card" style="padding:20px">

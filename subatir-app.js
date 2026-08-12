@@ -21,11 +21,11 @@
     'precios.html': 'precios',
     'proveedores.html': 'proveedores',
     'contingencia.html': 'contingencia',
-    'copiloto.html': 'copiloto',
+    'varios.html': 'varios',
     'usuarios.html': 'usuarios'
   };
   // Módulos visibles/accesibles para cualquier usuario autenticado
-  var OPEN_MODULES = ['dashboard', 'copiloto'];
+  var OPEN_MODULES = ['dashboard'];
 
   // Pantallas de celular de la app de Depósitos: viven en /deposito, con
   // su propio guard, y no abren nada de Compras. No cuentan para decidir

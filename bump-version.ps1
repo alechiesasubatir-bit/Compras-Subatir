@@ -62,7 +62,7 @@ $SUB_CSS = @{
 # Modulos de Compras: todos tienen APP_VER y cargan los scripts compartidos.
 $modulos = @(
   'index.html', 'pedidos.html', 'recepcion.html', 'stock.html', 'precios.html',
-  'proveedores.html', 'contingencia.html', 'copiloto.html', 'usuarios.html'
+  'proveedores.html', 'contingencia.html', 'varios.html', 'usuarios.html'
 )
 
 # req = si el archivo existe y no aparece el patron, no se publica.
@@ -76,6 +76,9 @@ $tareas += @{ f = 'deposito\index.html'; req = @($SUB_APP); opt = @($SUB_BUST) }
 $tareas += @{ f = 'deposito\solicitar.html'; req = @($SUB_APP, $SUB_BUST, $SUB_CSS); opt = @() }
 $tareas += @{ f = 'deposito\recorrido.html'; req = @($SUB_APP, $SUB_BUST, $SUB_CSS); opt = @() }
 $tareas += @{ f = 'deposito\sw.js'; req = @($SUB_APP); opt = @() }
+# Compras tambien es instalable: su worker lleva el mismo numero, si no
+# el navegador se queda con el cache de la version anterior.
+$tareas += @{ f = 'sw.js'; req = @($SUB_APP); opt = @() }
 $tareas += @{ f = 'deposito\login.html'; req = @(); opt = @($SUB_BUST) }
 $tareas += @{ f = 'login.html'; req = @(); opt = @($SUB_BUST) }
 foreach ($m in $modulos) {

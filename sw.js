@@ -1,36 +1,31 @@
 // ============================================================
-//  Service worker de Depósitos (PWA)
+//  Service worker de Compras (PWA)
 //
-//  Existe para dos cosas: que la app se pueda instalar en el
-//  celular y que abra aunque el wifi del depósito se caiga.
-//  NO está para acelerar cargas a costa de mostrar datos viejos.
-//
-//  Por eso la estrategia es distinta según qué se pide:
+//  Hermano del de Depósitos y con el mismo criterio: existe para
+//  que la app se pueda instalar y para que abra sin señal, NO
+//  para acelerar cargas a costa de mostrar datos viejos.
 //
 //   · version.json  → SÓLO red, nunca cache. Es el archivo que le
-//     dice a la pestaña que hay una versión nueva; si lo sirviera
-//     el cache, el chequeo de versión dejaría de funcionar y
-//     volveríamos al problema que vino a resolver.
+//     avisa a la pestaña que hay una versión nueva; si lo sirviera
+//     el cache, el chequeo de versión dejaría de funcionar.
 //   · el documento HTML → red primero, cache de respaldo. Un
-//     deploy se ve enseguida, y sin señal igual abre la última
-//     versión que se vio.
-//   · imágenes y JS propios → cache primero y se refrescan de
-//     fondo (stale-while-revalidate). Son los que no cambian entre
-//     deploys salvo que se bumpee su ?v=.
-//   · CDN (three.js, el lector de QR, supabase-js) → se dejan
-//     pasar sin tocar. Guardarlos daría respuestas opacas que no
-//     se pueden validar, y el navegador ya las cachea bien solo.
+//     deploy se ve enseguida, y sin señal abre lo último visto.
+//   · imágenes y JS propios → cache primero, refresco de fondo.
+//   · CDN (supabase-js, jsPDF) → se dejan pasar sin tocar.
+//   · /deposito/ → NO se toca: tiene su propio service worker.
 //
 //  APP_VER lo reescribe bump-version.ps1 en cada publicación: al
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
 self.APP_VER = '2026-08-12.1802';
-var CACHE = 'deposito-' + self.APP_VER;
+var CACHE = 'compras-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
-var SHELL = ['./', './index.html', './solicitar.html', './recorrido.html', './movil.css', './deposito-app.js', '../supabase-config.js',
-             './icon-192.png', './icon-512.png', '../logo.jpg'];
+var SHELL = ['./', './index.html', './pedidos.html', './recepcion.html', './stock.html',
+             './precios.html', './proveedores.html', './contingencia.html', './varios.html',
+             './login.html', './subatir-app.js', './supabase-config.js',
+             './logo.jpg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (ev) {
   ev.waitUntil(
@@ -48,7 +43,8 @@ self.addEventListener('activate', function (ev) {
   ev.waitUntil(
     caches.keys().then(function (ks) {
       return Promise.all(ks.map(function (k) {
-        return k !== CACHE ? caches.delete(k) : null;   // se va el de la versión anterior
+        // Sólo los caches de Compras: el de Depósitos no es asunto nuestro
+        return (k.indexOf('compras-') === 0 && k !== CACHE) ? caches.delete(k) : null;
       }));
     }).then(function () { return self.clients.claim(); })
   );
@@ -62,8 +58,13 @@ self.addEventListener('fetch', function (ev) {
   try { url = new URL(req.url); } catch (e) { return; }
 
   // Otro origen (CDN, Supabase): sin intervenir. Las llamadas a la base
-  // NUNCA se cachean — mostrarían stock que ya no es.
+  // NUNCA se cachean — mostrarían datos que ya no son.
   if (url.origin !== self.location.origin) return;
+
+  // Depósitos es otra app y tiene su propio worker. Este alcanza a toda
+  // la carpeta por el scope, así que se aparta explícitamente en vez de
+  // depender de quién gana por especificidad.
+  if (url.pathname.indexOf('/deposito/') >= 0) return;
 
   // El archivo que gobierna las actualizaciones: siempre de la red.
   if (url.pathname.indexOf('version.json') >= 0) return;

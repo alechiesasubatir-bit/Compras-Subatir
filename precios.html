@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Compras"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Precios & Proveedores — Subatir / Prolimpio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -374,12 +382,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-12.1748"></script>
-<script src="subatir-app.js?v=2026-08-12.1748"></script>
+<script src="supabase-config.js?v=2026-08-12.1802"></script>
+<script src="subatir-app.js?v=2026-08-12.1802"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-12.1748';
+window.APP_VER='2026-08-12.1802';
 </script>
 </head>
 <body>
@@ -1660,6 +1668,15 @@ function toast(msg,type){
   var c=document.getElementById('tc'),d=document.createElement('div');
   d.className='toast t-'+(type||'inf');d.textContent=msg;c.appendChild(d);
   setTimeout(function(){d.style.opacity='0';d.style.transition='opacity .35s';setTimeout(function(){d.remove();},350);},3600);
+}
+</script>
+<script>
+// PWA: instalable y abre sin señal. El worker vive en la raíz y se
+// aparta de /deposito/, que tiene el suyo.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
 }
 </script>
 </body>

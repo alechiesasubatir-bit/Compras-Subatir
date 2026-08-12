@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Recorrido — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-12.1416"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-12.1748"/>
 <style>
 /* Propio del recorrido: el paso, el lector y la grilla de ranuras */
 .paso{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;margin-bottom:8px;
@@ -63,6 +63,16 @@
 .ran:disabled{opacity:.3;cursor:not-allowed}
 .ran.on{background:rgba(27,200,255,.2);border:1px solid var(--teal-l);color:var(--teal-l);font-weight:700}
 .ran-l{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center}
+/* La ranura donde vivía este pallet: un atajo, no una obligación */
+.sug{display:block;width:100%;margin-bottom:10px;padding:11px 13px;border-radius:10px;
+  font-family:var(--display);font-size:13px;font-weight:700;text-align:left;cursor:pointer;
+  color:var(--teal-l);background:rgba(27,200,255,.10);border:1px solid rgba(27,200,255,.42)}
+.sug:hover{background:rgba(27,200,255,.18)}
+.sug b{font-family:var(--mono);font-size:15px}
+.sug.ocupada{color:var(--orange-l);background:rgba(249,115,22,.08);
+  border-color:rgba(249,115,22,.35);cursor:default;font-weight:600}
+/* Y la celda correspondiente, marcada en la grilla */
+.ran.era{border-style:solid;border-color:rgba(27,200,255,.55);color:var(--teal-l)}
 </style>
 </head>
 <body>
@@ -176,12 +186,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-12.1416"></script>
-<script src="deposito-app.js?v=2026-08-12.1416"></script>
+<script src="../supabase-config.js?v=2026-08-12.1748"></script>
+<script src="deposito-app.js?v=2026-08-12.1748"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-12.1416';
+window.APP_VER='2026-08-12.1748';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -663,7 +673,14 @@ function verUbicar(){
     ? ests.map(function(e){ var s=subById(e.subdeposito_id);
         return '<option value="'+e.id+'">'+esc((s?s.nombre+' · ':'')+e.nombre)+'</option>'; }).join('')
     : '<option value="">No hay estanterías en '+esc(dep||'')+'</option>';
-  U_SLOT=null; ranuras();
+  U_SLOT=null;
+  // Si el pallet ya vivió en una ranura de este depósito, se abre ahí:
+  // lo más probable es que vuelva a su lugar de siempre.
+  var p=LLEGO&&LLEGO.pallet;
+  if(p && p.ult_estanteria_id && ests.some(function(e){ return String(e.id)===String(p.ult_estanteria_id); })){
+    sel.value=String(p.ult_estanteria_id);
+  }
+  ranuras();
 }
 
 function ranuras(){
@@ -675,14 +692,28 @@ function ranuras(){
   SB.from('imp_pallets').select('id,fila,columna').eq('estanteria_id',e.id)
     .in('estado',['ABIERTO','ESTACIONADO','RECIBIDO']).then(function(r){
       var ocup={}; (r.data||[]).forEach(function(p){ ocup[p.fila+'-'+p.columna]=1; });
-      var h='<div class="ranuras" style="grid-template-columns:18px repeat('+cols+',1fr)">';
+      // Dónde vivía este pallet, si era en esta misma estantería
+      var p=LLEGO&&LLEGO.pallet, suq=null;
+      if(p && String(p.ult_estanteria_id)===String(e.id) && p.ult_fila && p.ult_columna){
+        suq={f:p.ult_fila, c:p.ult_columna, libre:!ocup[p.ult_fila+'-'+p.ult_columna]};
+      }
+      var h='';
+      if(suq){
+        h += suq.libre
+          ? '<button type="button" class="sug" onclick="pickRanura('+suq.f+','+suq.c+')">'
+            +'📍 Volver a su lugar: <b>'+letra(suq.f,e.filas)+suq.c+'</b></button>'
+          : '<div class="sug ocupada">📍 Estaba en <b>'+letra(suq.f,e.filas)+suq.c+'</b>, '
+            +'pero ahora está ocupada. Elegí otra.</div>';
+      }
+      h+='<div class="ranuras" style="grid-template-columns:18px repeat('+cols+',1fr)">';
       for(var f=1; f<=e.filas; f++){
         h+='<span class="ran-l">'+letra(f,e.filas)+'</span>';
         for(var c=1; c<=cols; c++){
           var libre=!ocup[f+'-'+c], sel=(U_SLOT&&U_SLOT.f===f&&U_SLOT.c===c);
-          h+='<button type="button" class="ran'+(sel?' on':'')+'" '+(libre?'':'disabled')
+          var era=(suq&&suq.libre&&suq.f===f&&suq.c===c);
+          h+='<button type="button" class="ran'+(sel?' on':'')+(era?' era':'')+'" '+(libre?'':'disabled')
             +' onclick="pickRanura('+f+','+c+')" aria-label="'+(libre?'Ranura libre ':'Ocupada ')
-            +letra(f,e.filas)+c+'">'+(libre?(letra(f,e.filas)+c):'·')+'</button>';
+            +letra(f,e.filas)+c+(era?'. Acá estaba antes':'')+'">'+(libre?(letra(f,e.filas)+c):'·')+'</button>';
         }
       }
       h+='</div>';

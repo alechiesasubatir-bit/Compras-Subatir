@@ -896,6 +896,11 @@ select.cfg-inp{font-family:inherit}
 .dock-code{font-family:var(--mono);font-size:10px;letter-spacing:-.2px}
 .dock-desc{font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:1px 0}
 .dock-qty{font-family:var(--mono);font-size:11px}
+/* Dónde vivía el pallet antes de salir */
+.dock-ult{font-size:9.5px;line-height:1.35;margin-top:3px;opacity:.85;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dock-ult b{font-family:var(--mono)}
+.dock-ult.ocup{opacity:.6;text-decoration:line-through}
 
 /* ═══ OBJETIVOS TÁCTILES ═════════════════════════════════════
    En pantallas táctiles los botones chicos suben a 44px de alto
@@ -957,8 +962,8 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-12.1416"></script>
-<script src="deposito-app.js?v=2026-08-12.1416"></script>
+<script src="../supabase-config.js?v=2026-08-12.1748"></script>
+<script src="deposito-app.js?v=2026-08-12.1748"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -967,7 +972,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-12.1416';
+window.APP_VER='2026-08-12.1748';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -2946,6 +2951,23 @@ function saveTransfer(){
   });
 }
 
+// Dónde estaba este pallet la última vez (imp_v21). Es una pista para
+// no buscarlo a ojo en el mapa; si la ranura se ocupó mientras estaba
+// de viaje, se dice, y se elige otra.
+function ultRanuraHTML(p){
+  if(!p.ult_estanteria_id || !p.ult_fila || !p.ult_columna) return '';
+  var e=estById(p.ult_estanteria_id);
+  if(!e || e.deposito!==p.deposito) return '';        // se mudó de depósito: no aplica
+  var libre=!PALLETS.some(function(o){
+    return o.id!==p.id && String(o.estanteria_id)===String(e.id)
+        && o.fila===p.ult_fila && o.columna===p.ult_columna;
+  });
+  var donde=esc(e.nombre)+' · '+letterOf(p.ult_fila,e.filas)+p.ult_columna;
+  return libre
+    ? '<div class="dock-ult">📍 estaba en <b>'+donde+'</b></div>'
+    : '<div class="dock-ult ocup">📍 estaba en '+donde+' (ocupada)</div>';
+}
+
 // ── Bandeja de pallets SIN UBICAR (arrastrables al mapa) ───────
 function renderTray(){
   var wrap=document.getElementById('tray-wrap'); if(!wrap) return;
@@ -2973,6 +2995,8 @@ function renderTray(){
         +'<div class="dock-code">'+esc(p.codigo)+'</div>'
         +'<div class="dock-desc">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div>'
         +'<div class="dock-qty">'+fmtNum(p.unidades)+' u.</div>'
+        // Dónde vivía antes de salir: ahorra buscarlo a ojo en el mapa
+        +ultRanuraHTML(p)
       +'</div>';
     }).join('')+'</div>';
 }

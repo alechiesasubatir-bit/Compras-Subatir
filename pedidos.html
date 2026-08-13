@@ -451,12 +451,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-13.1801"></script>
-<script src="subatir-app.js?v=2026-08-13.1801"></script>
+<script src="supabase-config.js?v=2026-08-13.1809"></script>
+<script src="subatir-app.js?v=2026-08-13.1809"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-13.1801';
+window.APP_VER='2026-08-13.1809';
 </script>
 </head>
 <body>
@@ -697,15 +697,13 @@ window.APP_VER='2026-08-13.1801';
             <label>Número de Lote</label>
             <input type="text" class="form-input" id="ed-lote" placeholder="Ej: BB-2526-/32"/>
           </div>
+          <!-- El tilde "Vencimiento no aplica" se fue: el vencimiento lo
+               controla el punto 1 del Check List PL-06, y acá dejarlo
+               vacío ya significa que el producto no vence. -->
           <div class="form-group">
             <label>Fecha de Vencimiento</label>
             <input type="date" class="form-input" id="ed-vto"/>
-          </div>
-          <div class="form-group" style="display:flex;flex-direction:column;justify-content:flex-end">
-            <div class="check-row">
-              <input type="checkbox" id="ed-vto-na" onchange="onVtoNA()"/>
-              <label for="ed-vto-na">Vencimiento no aplica</label>
-            </div>
+            <div class="check-hint" style="padding-left:0">Vacío = no vence.</div>
           </div>
           <div class="form-group span2">
             <div class="check-row">
@@ -1474,23 +1472,19 @@ function toggleEditForm(){
     document.getElementById('ed-recepcion').value = row[K.recepcion] || '';
     document.getElementById('ed-lote').value       = row[K.lote]     || '';
     var vtoRaw = String(K.vto ? (row[K.vto]||'') : '').trim();
-    var vtoNA  = isVtoNA(vtoRaw);
-    document.getElementById('ed-vto-na').checked = vtoNA;
-    document.getElementById('ed-vto').value      = vtoNA ? '' : (/^\d{4}-\d{2}-\d{2}/.test(vtoRaw) ? vtoRaw.slice(0,10) : '');
-    document.getElementById('ed-vto').disabled   = vtoNA;
+    // Las OC viejas guardadas como "NO APLICA" abren con la fecha vacía,
+    // que ahora quiere decir lo mismo. El valor original no se pierde:
+    // saveEdit lo respeta si nadie carga una fecha.
+    document.getElementById('ed-vto').value = /^\d{4}-\d{2}-\d{2}/.test(vtoRaw) ? vtoRaw.slice(0,10) : '';
     document.getElementById('ed-coa').checked      = String(row[K.coa]||'').toUpperCase() === 'SI';
     document.getElementById('ed-conforme').checked = String(row[K.conforme]||'').toUpperCase() === 'SI';
     document.getElementById('ed-obs').value        = row[K.obs]      || '';
   }
 }
 
-// "No aplica" el vencimiento → deshabilita el campo de fecha
-function onVtoNA(){
-  var na = document.getElementById('ed-vto-na').checked;
-  var d  = document.getElementById('ed-vto');
-  d.disabled = na; if(na) d.value = '';
-}
-// Detecta valores de "vencimiento no aplica"
+// Detecta valores de "vencimiento no aplica". El tilde que los cargaba ya
+// no existe, pero hay OC y entregas viejas guardadas así: se sigue usando
+// para mostrarlas bien y para no pisarlas al editar.
 function isVtoNA(v){ return /^(no aplica|no necesario|no requerido|n\/a|na)$/i.test(String(v||'').trim()); }
 
 // Recalcula s/IVA y c/IVA en vivo mientras se edita la orden
@@ -1517,7 +1511,11 @@ function saveEdit(){
   var prec  = pNum(document.getElementById('ed-precio').value);
   var mon   = document.getElementById('ed-moneda').value === 'U$S' ? 'U$S' : '$';
   var siva  = +(cant*prec).toFixed(2), civa = +(siva*ivaMult(desc)).toFixed(2);
-  var vtoNA = document.getElementById('ed-vto-na').checked;
+  // Si la fecha quedó vacía y lo guardado era un "NO APLICA" de antes, se
+  // respeta tal cual. Editar el precio de una OC no tiene por qué reescribir
+  // en silencio un dato de calidad que alguien cargó a mano.
+  var vtoOrig  = String(K.vto ? (row[K.vto]||'') : '').trim();
+  var vtoValor = document.getElementById('ed-vto').value || (isVtoNA(vtoOrig) ? vtoOrig : '');
   var fields = {
     'Fecha':         document.getElementById('ed-fecha').value,
     'Proveedor':     prov,
@@ -1529,7 +1527,7 @@ function saveEdit(){
     's/iva':         siva,
     'c/iva':         civa,
     'F.Recepción':   document.getElementById('ed-recepcion').value,
-    'F. Vto':        vtoNA ? 'NO APLICA' : document.getElementById('ed-vto').value,
+    'F. Vto':        vtoValor,
     'Lote':          document.getElementById('ed-lote').value,
     'COA':           document.getElementById('ed-coa').checked      ? 'SI' : '',
     'Conforme':      document.getElementById('ed-conforme').checked ? 'SI' : '',

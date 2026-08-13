@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Recorrido — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-12.2226"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-12.2244"/>
 <style>
 /* Propio del recorrido: el paso, el lector y la grilla de ranuras */
 .paso{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;margin-bottom:8px;
@@ -165,6 +165,18 @@
 
   <!-- Elegir ranura -->
   <section id="v-ubic" style="display:none">
+    <!-- Qué se está guardando. Se vio recién en "Llegó a destino", pero
+         elegir ranura lleva su rato y el operario tiene varios pallets
+         en el piso: sin esto es fácil guardar el que no era. -->
+    <div class="card">
+      <div class="lbl">Estás guardando</div>
+      <div class="ok-wrap" style="text-align:left;padding:0">
+        <div class="ok-art" id="u-art">—</div>
+        <div class="ok-u" id="u-u"></div>
+      </div>
+      <div class="ok-cod" id="u-cod" style="text-align:left"></div>
+    </div>
+
     <div class="card">
       <div class="lbl">Dónde lo guardás</div>
       <select class="inp" id="u-est" onchange="ranuras()" aria-label="Estantería"></select>
@@ -186,12 +198,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-12.2226"></script>
-<script src="deposito-app.js?v=2026-08-12.2226"></script>
+<script src="../supabase-config.js?v=2026-08-12.2244"></script>
+<script src="deposito-app.js?v=2026-08-12.2244"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-12.2226';
+window.APP_VER='2026-08-12.2244';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -666,6 +678,15 @@ function consumir(){
 function verUbicar(){
   ['v-lista','v-rec','v-scan','v-dest','v-ok'].forEach(function(i){ document.getElementById(i).style.display='none'; });
   document.getElementById('v-ubic').style.display='';
+
+  // El encabezado: primero QUÉ es, después cuánto. Igual que en el resto
+  // de las pantallas del recorrido.
+  var p=LLEGO&&LLEGO.pallet;
+  var a=p?artById(p.articulo_id):null;
+  document.getElementById('u-art').textContent = a ? a.descripcion : (LLEGO?LLEGO.codigo:'—');
+  document.getElementById('u-u').innerHTML = p ? (fmt(p.unidades)+'<i>unidades</i>') : '';
+  document.getElementById('u-cod').textContent = LLEGO ? LLEGO.codigo : '';
+
   var dep=LLEGO?LLEGO.destino:null;
   var ests=EST.filter(function(e){ return e.deposito===dep; });
   var sel=document.getElementById('u-est');
@@ -676,7 +697,6 @@ function verUbicar(){
   U_SLOT=null;
   // Si el pallet ya vivió en una ranura de este depósito, se abre ahí:
   // lo más probable es que vuelva a su lugar de siempre.
-  var p=LLEGO&&LLEGO.pallet;
   if(p && p.ult_estanteria_id && ests.some(function(e){ return String(e.id)===String(p.ult_estanteria_id); })){
     sel.value=String(p.ult_estanteria_id);
   }

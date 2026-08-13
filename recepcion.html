@@ -325,6 +325,11 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .check-row{display:flex;align-items:center;gap:8px;padding:8px 0}
 .check-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal-l);cursor:pointer}
 .check-row label{font-size:13px;color:var(--text);text-transform:none;letter-spacing:0}
+/* La aclaración de cuándo corresponde tildar "Mercadería conforme".
+   Alineada con el texto del check, no con el cuadradito. */
+.check-hint{font-size:11.5px;line-height:1.5;color:var(--muted-l);
+  padding:0 0 4px 24px;max-width:660px;text-transform:none;letter-spacing:0}
+.check-hint b{color:var(--warn)}
 .calc-preview{background:rgba(14,107,138,.12);border:1px solid rgba(14,107,138,.25);
   border-radius:9px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .calc-item{font-size:12px;color:var(--muted)}
@@ -419,12 +424,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-12.2332"></script>
-<script src="subatir-app.js?v=2026-08-12.2332"></script>
+<script src="supabase-config.js?v=2026-08-13.1801"></script>
+<script src="subatir-app.js?v=2026-08-13.1801"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-12.2332';
+window.APP_VER='2026-08-13.1801';
 </script>
 </head>
 <body>
@@ -618,10 +623,13 @@ window.APP_VER='2026-08-12.2332';
             <label>Vencimiento</label>
             <input type="date" class="form-input" id="en-vto"/>
           </div>
+          <!-- Antes había tres tildes acá. El vencimiento y el COA los
+               controla ahora el Check List PL-06 (puntos 1 y 4), así que
+               pedirlos dos veces sólo daba lugar a que no coincidieran. -->
           <div class="form-group span2">
-            <div class="check-row"><input type="checkbox" id="en-vto-na" onchange="onEnVtoNA()"/><label for="en-vto-na">Vencimiento no aplica</label></div>
-            <div class="check-row"><input type="checkbox" id="en-coa"/><label for="en-coa">COA recibido (Certificado de Análisis)</label></div>
-            <div class="check-row"><input type="checkbox" id="en-conforme"/><label for="en-conforme">Mercadería conforme</label></div>
+            <div class="check-row"><input type="checkbox" id="en-conforme" onchange="onConforme()"/><label for="en-conforme">Mercadería conforme</label></div>
+            <div class="check-hint">Tildar <b>sólo si NO es Materia Prima ni Producto Químico</b>.
+              En ese caso no hace falta completar el Check List PL-06.</div>
           </div>
           <div class="form-group span2">
             <label>Observaciones</label>
@@ -1186,7 +1194,14 @@ function renderTable(){
 var CUR_LINE=null;
 function findLine(pid){ return (DATA_DISPLAY||[]).filter(function(r){ return String(r.__row)===String(pid); })[0]; }
 function coaOkR(v){ return ['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(v||'').toUpperCase().trim())>=0; }
-function onEnVtoNA(){ var na=document.getElementById('en-vto-na').checked; var d=document.getElementById('en-vto'); d.disabled=na; if(na)d.value=''; }
+// "Mercadería conforme" es el atajo para lo que NO es materia prima ni
+// producto químico: ahí el PL-06 no aplica, así que se esconde en vez de
+// dejar ocho puntos en blanco pidiendo que los completen.
+function onConforme(){
+  var ok=document.getElementById('en-conforme').checked;
+  var h=document.getElementById('cl-host');
+  if(h) h.style.display = ok ? 'none' : '';
+}
 
 // ── PL-06 · Check List de recepción ───────────────────────────
 // Los 8 puntos de control del procedimiento PL-06 (Dirección Técnica).
@@ -1209,12 +1224,13 @@ function openEntrega(pid){
   document.getElementById('en-cant').value = st.saldo>0 ? st.saldo : '';
   document.getElementById('en-fecha').value = new Date().toISOString().slice(0,10);
   document.getElementById('en-lote').value='';
-  document.getElementById('en-vto').value=''; document.getElementById('en-vto-na').checked=false; document.getElementById('en-vto').disabled=false;
-  document.getElementById('en-coa').checked=false; document.getElementById('en-conforme').checked=false;
+  document.getElementById('en-vto').value='';
+  document.getElementById('en-conforme').checked=false;
   document.getElementById('en-obs').value='';
   document.getElementById('en-who').textContent=whoName();
   // Check List PL-06: se arma una vez y se limpia en cada apertura
   SubatirApp.PL06.mount('cl-host');
+  onConforme();   // deja el check list a la vista (el tilde arranca apagado)
   syncChkHead();
   openModal('edit-overlay');
 }
@@ -1264,20 +1280,31 @@ function saveEntrega(){
   var r=CUR_LINE, pid=r.__row, st=lineStats(r);
   var cant=parseFloat(document.getElementById('en-cant').value);
   if(!(cant>0)){ toast('Ingresá la cantidad recibida (mayor a 0)','err'); return; }
-  if(!SubatirApp.PL06.validate(toast)) return;
+
+  // Con "Mercadería conforme" tildado el PL-06 no aplica: ni se valida ni
+  // se guarda vacío. Igual, si alguien llegó a completarlo y después tildó,
+  // no se le tira el trabajo: se guarda lo que haya marcado.
+  var conforme = document.getElementById('en-conforme').checked;
+  var chk = SubatirApp.PL06.read();
+  var chkUsado = chk.some(function(i){ return i.conforme || i.obs; });
+  if(!conforme && !SubatirApp.PL06.validate(toast)) return;
+
   var row={
     pedido_id: pid, n_orden: String(r[K.orden]||''), descripcion: String(r[K.desc]||''),
     cantidad: cant, fecha: document.getElementById('en-fecha').value || null,
     lote: document.getElementById('en-lote').value.trim() || null,
-    f_vto: document.getElementById('en-vto-na').checked ? 'NO APLICA' : (document.getElementById('en-vto').value || null),
-    coa: document.getElementById('en-coa').checked ? 'SI' : null,
-    conforme: document.getElementById('en-conforme').checked ? 'SI' : null,
+    f_vto: document.getElementById('en-vto').value || null,
+    // El COA ya no se pregunta suelto: sale del punto 4 del check list.
+    // Si es mercadería conforme (no MP ni químico) directamente no aplica.
+    // Sin esto, el KPI "SIN COA / CONFORME" no se limpiaría nunca.
+    coa: conforme ? 'NO APLICA' : (chkUsado && (chk[3]||{}).conforme==='SI' ? 'SI' : null),
+    conforme: conforme ? 'SI' : null,
     recibido_por: whoName(),
     observaciones: document.getElementById('en-obs').value.trim() || null,
     // PL-06
     factura: SubatirApp.PL06.factura(),
     remito: SubatirApp.PL06.remito(),
-    checklist: SubatirApp.PL06.read()
+    checklist: (conforme && !chkUsado) ? null : chk
   };
   document.getElementById('btn-save-entrega').disabled=true;
   toast('Registrando entrega…','info');

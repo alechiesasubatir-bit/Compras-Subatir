@@ -18,7 +18,7 @@
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
-self.APP_VER = '2026-08-12.1802';
+self.APP_VER = '2026-08-12.2221';
 var CACHE = 'compras-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
@@ -68,6 +68,10 @@ self.addEventListener('fetch', function (ev) {
 
   // El archivo que gobierna las actualizaciones: siempre de la red.
   if (url.pathname.indexOf('version.json') >= 0) return;
+
+  // El manifest tampoco: no tiene ?v= que subir, y si se cachea, un
+  // cambio ahi (orientacion, nombre, iconos) no llega nunca al telefono.
+  if (url.pathname.indexOf('manifest.json') >= 0) return;
 
   // Documento: red primero, cache si no hay señal.
   if (req.mode === 'navigate') {

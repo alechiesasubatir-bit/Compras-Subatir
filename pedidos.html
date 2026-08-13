@@ -200,21 +200,27 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
    puntos suspensivos — el dato completo sigue estando en 👁 Ver.
 
    Los % suman 100. Si se oculta una columna en pantallas chicas,
-   el sobrante se reparte solo entre las que quedan. */
+   el sobrante se reparte solo entre las que quedan.
+
+   Los anchos NO son a ojo: se midió el contenido real de las 60
+   primeras filas (td.scrollWidth) y cada columna se llevó lo que
+   necesita para no cortar. Sólo Descripción y Proveedor quedan con
+   puntos suspensivos — ya se cortaban antes de este cambio, y el
+   texto entero está en 👁 Ver. */
 #main-table{table-layout:fixed}
-#main-table th:nth-child(1) {width:4%}     /* N° OC        */
-#main-table th:nth-child(2) {width:5.5%}   /* Fecha        */
-#main-table th:nth-child(3) {width:8.5%}   /* Proveedor    */
-#main-table th:nth-child(4) {width:4.5%}   /* Código       */
-#main-table th:nth-child(5) {width:15.5%}  /* Descripción  */
-#main-table th:nth-child(6) {width:4.5%}   /* Cant.        */
-#main-table th:nth-child(7) {width:6%}     /* P. Unit      */
-#main-table th:nth-child(8) {width:6.5%}   /* s/IVA        */
-#main-table th:nth-child(9) {width:6.5%}   /* c/IVA        */
-#main-table th:nth-child(10){width:7.5%}   /* Recepción    */
-#main-table th:nth-child(11){width:6%}     /* Lote         */
-#main-table th:nth-child(12){width:7%}     /* COA / Conf.  */
-#main-table th:nth-child(13){width:18%}    /* Acciones     */
+#main-table th:nth-child(1) {width:4%}     /* N° OC       ·  57px */
+#main-table th:nth-child(2) {width:6.1%}   /* Fecha       ·  88px */
+#main-table th:nth-child(3) {width:9%}     /* Proveedor   · 129px */
+#main-table th:nth-child(4) {width:4.5%}   /* Código      ·  65px */
+#main-table th:nth-child(5) {width:15.2%}  /* Descripción · 218px */
+#main-table th:nth-child(6) {width:4.5%}   /* Cant.       ·  65px */
+#main-table th:nth-child(7) {width:6%}     /* P. Unit     ·  86px */
+#main-table th:nth-child(8) {width:6.5%}   /* s/IVA       ·  93px */
+#main-table th:nth-child(9) {width:6.5%}   /* c/IVA       ·  93px */
+#main-table th:nth-child(10){width:7.5%}   /* Recepción   · 108px */
+#main-table th:nth-child(11){width:8.9%}   /* Lote        · 128px */
+#main-table th:nth-child(12){width:7%}     /* COA / Conf. · 101px */
+#main-table th:nth-child(13){width:14.3%}  /* Acciones    · 205px */
 /* El corte con puntos suspensivos. La celda de acciones no: ahí
    hay botones, recortarlos los dejaría a medias. */
 #main-table tbody td{overflow:hidden;text-overflow:ellipsis}
@@ -270,15 +276,12 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
   font-size:11.5px;font-weight:700;transition:all .15s;
   display:inline-flex;align-items:center;gap:4px;white-space:nowrap;
 }
-/* En la PC el texto se queda: probamos sólo con los íconos y no se
-   entienden — el ✏ a ese tamaño parece un guión y el 📥 una caja
-   gris igual al 📦. Recién cuando la pantalla se angosta valen más
-   los datos que las etiquetas, y ahí sí quedan los íconos solos
-   (el nombre sigue estando en el title de cada botón). */
-@media (max-width:1280px){
-  .icon-btn .t{display:none}
-  .icon-btn{font-size:14px;padding:5px 8px}
-}
+/* Sin emoji, sólo el texto. Probamos con los íconos solos y no se
+   entienden — el ✏ a ese tamaño parece un guión y el 📥 es igual al
+   📦 de Entregas. Y sacándolos la columna baja de 259px a 205: esos
+   54px son justo lo que le faltaba a Fecha y a Lote para no cortarse.
+   El color ya distingue los tres botones. */
+@media (max-width:1280px){ .icon-btn{font-size:10px;padding:4px 6px} }
 .icon-btn.btn-view{
   background:rgba(14,138,170,.2);color:var(--teal-l);border:1px solid rgba(14,138,170,.35);
 }
@@ -430,12 +433,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-12.2318"></script>
-<script src="subatir-app.js?v=2026-08-12.2318"></script>
+<script src="supabase-config.js?v=2026-08-12.2321"></script>
+<script src="subatir-app.js?v=2026-08-12.2321"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-12.2318';
+window.APP_VER='2026-08-12.2321';
 </script>
 </head>
 <body>
@@ -1323,9 +1326,9 @@ function renderTable(){
             + '</div></td>';
       var rid = (r.__row != null ? r.__row : orden);
       html += '<td><div class="row-actions">'
-            + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(rid))+'\')">👁<span class="t">Ver</span></button>'
-            + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(rid))+'\')">✏<span class="t">Editar</span></button>'
-            + (r.__row!=null ? '<button class="icon-btn" title="'+(st.estado==='COMPLETA'?'Entregas parciales':'Recibir mercadería')+'" style="border-color:rgba(249,115,22,.35);color:var(--orange-l)" onclick="openEntrega('+r.__row+')">'+(st.estado==='COMPLETA'?'📦<span class="t">Entregas</span>':'📥<span class="t">Recibir</span>')+'</button>' : '')
+            + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(rid))+'\')">Ver</button>'
+            + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(rid))+'\')">Editar</button>'
+            + (r.__row!=null ? '<button class="icon-btn" title="'+(st.estado==='COMPLETA'?'Entregas parciales':'Recibir mercadería')+'" style="border-color:rgba(249,115,22,.35);color:var(--orange-l)" onclick="openEntrega('+r.__row+')">'+(st.estado==='COMPLETA'?'Entregas':'Recibir')+'</button>' : '')
             + '</div></td>';
       html += '</tr>';
     });

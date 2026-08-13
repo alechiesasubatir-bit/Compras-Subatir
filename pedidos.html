@@ -247,10 +247,12 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
   #main-table th:nth-child(12),#main-table td:nth-child(12){display:none} /* COA/Conf */
 }
 @media (max-width:950px){         /* celular acostado */
-  /* Quedan 7 columnas. A este ancho c/IVA se quedaba corto, así que
-     se le da lo suyo y lo cede Descripción, que ya venía recortada. */
-  #main-table th:nth-child(9){width:8%}
-  #main-table th:nth-child(5){width:13.7%}
+  /* Quedan 7 columnas. A este ancho se quedaban cortos el importe
+     c/IVA y el badge de Recepción (el ✓ con la fecha). Se les da lo
+     suyo y lo cede Descripción, que ya venía recortada. */
+  #main-table th:nth-child(9) {width:8%}
+  #main-table th:nth-child(10){width:9.3%}
+  #main-table th:nth-child(5) {width:12.9%}
 }
 
 /* Cells */
@@ -444,12 +446,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-12.2329"></script>
-<script src="subatir-app.js?v=2026-08-12.2329"></script>
+<script src="supabase-config.js?v=2026-08-12.2332"></script>
+<script src="subatir-app.js?v=2026-08-12.2332"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-12.2329';
+window.APP_VER='2026-08-12.2332';
 </script>
 </head>
 <body>

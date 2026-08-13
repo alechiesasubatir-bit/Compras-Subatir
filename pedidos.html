@@ -226,20 +226,31 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
 #main-table tbody td{overflow:hidden;text-overflow:ellipsis}
 #main-table tbody td:last-child{overflow:visible}
 
-/* Pantallas angostas (tablet, celular acostado): 13 columnas en
-   745px darían 57px cada una, ilegible. Se van cayendo las menos
-   usadas, de la menos importante a la más. Lo que queda, se lee. */
-@media (max-width:1200px){
+/* Pantallas angostas (notebook chica, tablet, celular acostado):
+   las 13 columnas necesitan 1437px. Debajo de eso, apretarlas todas
+   dejaría los importes cortados — y un importe a medias es peor que
+   no mostrarlo. Así que van cayendo por tramos, de la columna menos
+   usada a la más.
+
+   Cada corte está puesto donde la columna crítica (c/IVA, que es el
+   número más largo) todavía entra entera. Verificado midiendo. */
+@media (max-width:1500px){        /* notebook 1366 */
   #main-table th:nth-child(4), #main-table td:nth-child(4),   /* Código */
   #main-table th:nth-child(8), #main-table td:nth-child(8){display:none}  /* s/IVA */
 }
-@media (max-width:1000px){
+@media (max-width:1300px){
   #main-table th:nth-child(2), #main-table td:nth-child(2),   /* Fecha */
   #main-table th:nth-child(7), #main-table td:nth-child(7){display:none}  /* P. Unit */
 }
-@media (max-width:880px){
+@media (max-width:1199px){
   #main-table th:nth-child(11),#main-table td:nth-child(11),  /* Lote */
   #main-table th:nth-child(12),#main-table td:nth-child(12){display:none} /* COA/Conf */
+}
+@media (max-width:950px){         /* celular acostado */
+  /* Quedan 7 columnas. A este ancho c/IVA se quedaba corto, así que
+     se le da lo suyo y lo cede Descripción, que ya venía recortada. */
+  #main-table th:nth-child(9){width:8%}
+  #main-table th:nth-child(5){width:13.7%}
 }
 
 /* Cells */
@@ -433,12 +444,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-12.2321"></script>
-<script src="subatir-app.js?v=2026-08-12.2321"></script>
+<script src="supabase-config.js?v=2026-08-12.2329"></script>
+<script src="subatir-app.js?v=2026-08-12.2329"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-12.2321';
+window.APP_VER='2026-08-12.2329';
 </script>
 </head>
 <body>

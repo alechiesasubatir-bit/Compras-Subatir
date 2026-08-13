@@ -187,8 +187,54 @@ tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .15
 tbody tr:hover{background:rgba(255,255,255,.05)}
 tbody tr.local-row{border-left:2px solid var(--orange)}
 tbody tr.modified-row{border-left:2px solid var(--teal-l)}
-tbody td{padding:8px 11px;white-space:nowrap;vertical-align:middle}
+tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
 .empty-row td{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+
+/* ═══ QUE LA TABLA ENTRE EN LA PANTALLA ══════════════════════
+   Con 13 columnas de ancho automático la tabla medía ~1570px y
+   había que arrastrar a la derecha para llegar a las acciones.
+
+   table-layout:fixed + anchos en % hace que la tabla mida SIEMPRE
+   lo que mide su contenedor: no puede desbordar. Las columnas se
+   reparten el ancho que haya y el texto que no entra se corta con
+   puntos suspensivos — el dato completo sigue estando en 👁 Ver.
+
+   Los % suman 100. Si se oculta una columna en pantallas chicas,
+   el sobrante se reparte solo entre las que quedan. */
+#main-table{table-layout:fixed}
+#main-table th:nth-child(1) {width:4%}     /* N° OC        */
+#main-table th:nth-child(2) {width:6%}     /* Fecha        */
+#main-table th:nth-child(3) {width:9%}     /* Proveedor    */
+#main-table th:nth-child(4) {width:5%}     /* Código       */
+#main-table th:nth-child(5) {width:16.5%}  /* Descripción  */
+#main-table th:nth-child(6) {width:5%}     /* Cant.        */
+#main-table th:nth-child(7) {width:6.5%}   /* P. Unit      */
+#main-table th:nth-child(8) {width:6.5%}   /* s/IVA        */
+#main-table th:nth-child(9) {width:7%}     /* c/IVA        */
+#main-table th:nth-child(10){width:8%}     /* Recepción    */
+#main-table th:nth-child(11){width:6.5%}   /* Lote         */
+#main-table th:nth-child(12){width:8%}     /* COA / Conf.  */
+#main-table th:nth-child(13){width:12%}    /* Acciones     */
+/* El corte con puntos suspensivos. La celda de acciones no: ahí
+   hay botones, recortarlos los dejaría a medias. */
+#main-table tbody td{overflow:hidden;text-overflow:ellipsis}
+#main-table tbody td:last-child{overflow:visible}
+
+/* Pantallas angostas (tablet, celular acostado): 13 columnas en
+   745px darían 57px cada una, ilegible. Se van cayendo las menos
+   usadas, de la menos importante a la más. Lo que queda, se lee. */
+@media (max-width:1200px){
+  #main-table th:nth-child(4), #main-table td:nth-child(4),   /* Código */
+  #main-table th:nth-child(8), #main-table td:nth-child(8){display:none}  /* s/IVA */
+}
+@media (max-width:1000px){
+  #main-table th:nth-child(2), #main-table td:nth-child(2),   /* Fecha */
+  #main-table th:nth-child(7), #main-table td:nth-child(7){display:none}  /* P. Unit */
+}
+@media (max-width:880px){
+  #main-table th:nth-child(11),#main-table td:nth-child(11),  /* Lote */
+  #main-table th:nth-child(12),#main-table td:nth-child(12){display:none} /* COA/Conf */
+}
 
 /* Cells */
 .orden-cell{font-weight:700;color:var(--teal-l);font-size:13px}
@@ -220,10 +266,16 @@ tbody td{padding:8px 11px;white-space:nowrap;vertical-align:middle}
 /* Row actions */
 .row-actions{display:flex;gap:5px}
 .icon-btn{
-  border:none;cursor:pointer;padding:5px 9px;border-radius:7px;
-  font-size:13px;font-weight:700;transition:all .15s;
+  border:none;cursor:pointer;padding:5px 8px;border-radius:7px;
+  font-size:14px;font-weight:700;transition:all .15s;
   display:inline-flex;align-items:center;gap:4px;
 }
+/* Los tres botones con su texto ocupaban 257px — casi una quinta parte
+   de la tabla — y eran lo que la empujaba fuera de la pantalla. Quedan
+   sólo los íconos: cada botón ya tiene su title, así que el nombre
+   aparece al pasar el mouse. Para que vuelvan los textos alcanza con
+   borrar esta regla. */
+.icon-btn .t{display:none}
 .icon-btn.btn-view{
   background:rgba(14,138,170,.2);color:var(--teal-l);border:1px solid rgba(14,138,170,.35);
 }
@@ -375,12 +427,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-12.2244"></script>
-<script src="subatir-app.js?v=2026-08-12.2244"></script>
+<script src="supabase-config.js?v=2026-08-12.2307"></script>
+<script src="subatir-app.js?v=2026-08-12.2307"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-12.2244';
+window.APP_VER='2026-08-12.2307';
 </script>
 </head>
 <body>
@@ -1268,9 +1320,9 @@ function renderTable(){
             + '</div></td>';
       var rid = (r.__row != null ? r.__row : orden);
       html += '<td><div class="row-actions">'
-            + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(rid))+'\')">👁 Ver</button>'
-            + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(rid))+'\')">✏ Editar</button>'
-            + (r.__row!=null ? '<button class="icon-btn" title="Entregas parciales" style="border-color:rgba(249,115,22,.35);color:var(--orange-l)" onclick="openEntrega('+r.__row+')">'+(st.estado==='COMPLETA'?'📦 Entregas':'📥 Recibir')+'</button>' : '')
+            + '<button class="icon-btn btn-view" title="Ver detalle" onclick="openDetail(\''+esc(String(rid))+'\')">👁<span class="t">Ver</span></button>'
+            + '<button class="icon-btn btn-edit" title="Editar" onclick="openEdit(\''+esc(String(rid))+'\')">✏<span class="t">Editar</span></button>'
+            + (r.__row!=null ? '<button class="icon-btn" title="'+(st.estado==='COMPLETA'?'Entregas parciales':'Recibir mercadería')+'" style="border-color:rgba(249,115,22,.35);color:var(--orange-l)" onclick="openEntrega('+r.__row+')">'+(st.estado==='COMPLETA'?'📦<span class="t">Entregas</span>':'📥<span class="t">Recibir</span>')+'</button>' : '')
             + '</div></td>';
       html += '</tr>';
     });

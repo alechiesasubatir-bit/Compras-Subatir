@@ -187,8 +187,48 @@ tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .15
 tbody tr:hover{background:rgba(255,255,255,.05)}
 tbody tr.local-row{border-left:2px solid var(--orange)}
 tbody tr.modified-row{border-left:2px solid var(--teal-l)}
-tbody td{padding:8px 11px;white-space:nowrap;vertical-align:middle}
+tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
 .empty-row td{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+
+/* ═══ QUE LA TABLA ENTRE EN LA PANTALLA ══════════════════════
+   Igual que en Pedidos. En la PC entraba justo, pero con el celular
+   acostado la tabla medía 1105px contra 745 de pantalla y había que
+   arrastrar a la derecha para llegar al botón de Recibir.
+
+   table-layout:fixed + anchos en % hace que la tabla mida SIEMPRE
+   lo que mide su contenedor: no puede desbordar. El texto que no
+   entra se corta con puntos suspensivos.
+
+   Los % suman 100. Al ocultar una columna en pantallas chicas, el
+   sobrante se reparte solo entre las que quedan. */
+#main-table{table-layout:fixed}
+#main-table th:nth-child(1) {width:4.5%}   /* N° OC        */
+#main-table th:nth-child(2) {width:7%}     /* Fecha        */
+#main-table th:nth-child(3) {width:11%}    /* Proveedor    */
+#main-table th:nth-child(4) {width:6%}     /* Código       */
+#main-table th:nth-child(5) {width:19%}    /* Producto     */
+#main-table th:nth-child(6) {width:6.5%}   /* Pedido       */
+#main-table th:nth-child(7) {width:7%}     /* Recibido     */
+#main-table th:nth-child(8) {width:6.5%}   /* Saldo        */
+#main-table th:nth-child(9) {width:9%}     /* Estado       */
+#main-table th:nth-child(10){width:13%}    /* Recibido por */
+#main-table th:nth-child(11){width:10.5%}  /* Acción       */
+/* El corte con puntos suspensivos. La celda de acción no: ahí hay
+   un botón, recortarlo lo dejaría a medias. */
+#main-table tbody td{overflow:hidden;text-overflow:ellipsis}
+#main-table tbody td:last-child{overflow:visible}
+
+/* Pantallas angostas (tablet, celular acostado): se van cayendo las
+   columnas menos usadas para que lo que queda se pueda leer. */
+@media (max-width:1200px){
+  #main-table th:nth-child(4), #main-table td:nth-child(4){display:none}   /* Código */
+}
+@media (max-width:1000px){
+  #main-table th:nth-child(2), #main-table td:nth-child(2){display:none}   /* Fecha */
+}
+@media (max-width:880px){
+  #main-table th:nth-child(10),#main-table td:nth-child(10){display:none}  /* Recibido por */
+}
 
 /* Cells */
 .orden-cell{font-weight:700;color:var(--teal-l);font-size:13px}
@@ -375,12 +415,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-12.2244"></script>
-<script src="subatir-app.js?v=2026-08-12.2244"></script>
+<script src="supabase-config.js?v=2026-08-12.2307"></script>
+<script src="subatir-app.js?v=2026-08-12.2307"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-12.2244';
+window.APP_VER='2026-08-12.2307';
 </script>
 </head>
 <body>

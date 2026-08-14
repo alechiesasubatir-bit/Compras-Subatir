@@ -375,8 +375,6 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 
 /* Confirm modal */
 .confirm-modal{max-width:420px}
-.confirm-msg{font-size:14px;line-height:1.7;margin-bottom:4px}
-.confirm-warn{font-size:12px;color:var(--warn);margin-top:8px}
 
 /* ═══ TOAST ══════════════════════════════════════════════════ */
 #toast-container{position:fixed;bottom:24px;right:24px;z-index:999;
@@ -424,12 +422,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-13.1809"></script>
-<script src="subatir-app.js?v=2026-08-13.1809"></script>
+<script src="supabase-config.js?v=2026-08-13.2232"></script>
+<script src="subatir-app.js?v=2026-08-13.2232"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-13.1809';
+window.APP_VER='2026-08-13.2232';
 </script>
 </head>
 <body>
@@ -720,26 +718,6 @@ window.APP_VER='2026-08-13.1809';
   </div>
 </div>
 
-<!-- ════════════════════════════════════════════════
-     MODAL: CONFIRMAR ELIMINACIÓN
-════════════════════════════════════════════════ -->
-<div class="overlay" id="confirm-overlay">
-  <div class="modal confirm-modal">
-    <div class="modal-header">
-      <div class="modal-title" style="color:var(--danger)">⚠ Confirmar eliminación</div>
-      <button class="modal-close" onclick="closeModal('confirm-overlay')">✕</button>
-    </div>
-    <div class="modal-body">
-      <p class="confirm-msg" id="confirm-msg">¿Estás seguro de que querés eliminar esta orden?</p>
-      <p class="confirm-warn">Esta acción la eliminará de la base de datos. No se puede deshacer.</p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('confirm-overlay')">Cancelar</button>
-      <button class="btn btn-danger" onclick="doDelete()">🗑 Sí, eliminar</button>
-    </div>
-  </div>
-</div>
-
 <!-- Toast container -->
 <div id="toast-container"></div>
 
@@ -769,7 +747,6 @@ var FILTERED     = [];   // datos filtrados para tabla
 var SORT_KEY     = 'pendiente';  // por defecto: pendientes de recibir primero
 var SORT_DIR     = 'asc';
 var LOCAL        = JSON.parse(localStorage.getItem('subatir_local') || '{"overrides":{},"new":[],"deleted":[]}');
-var CURRENT_ROW  = null; // fila abierta en modal
 
 // La tasa depende del artículo (casi todo 22%, algunos 10%): sale de
 // subatir-app.js para no repetir la excepción en cada módulo.
@@ -1419,88 +1396,9 @@ function populateProveedorFilter(){
   // con la lista completa (proveedores con precios + de OC).
 }
 
-// ── Modal: detalle ────────────────────────────────────────────
-function openDetail(orden){
-  var row = findRow(orden);
-  if (!row) return;
-  CURRENT_ROW = row;
-  document.getElementById('edit-title').textContent = 'Recepción OC #' + orden;
-  document.getElementById('detail-view').style.display = 'block';
-  document.getElementById('edit-form').style.display   = 'none';
-  document.getElementById('btn-save-edit').style.display = 'none';
-  document.getElementById('btn-toggle-edit').textContent = '📥 Registrar recepción';
-
-  var fields = [
-    {l:'N° Orden',    v: row[K.orden]},
-    {l:'Fecha',       v: fmtDate(row[K.fecha])},
-    {l:'Proveedor',   v: row[K.proveedor]},
-    {l:'Descripción', v: row[K.desc], span:true},
-    {l:'Cantidad',    v: row[K.cantidad]},
-    {l:'', v:'', divider:true},
-    {l:'F. Recepción',v: fmtDate(row[K.recepcion]) || 'Pendiente'},
-    {l:'F. Vencim.',  v: isVtoNA(row[K.vto]) ? 'No aplica' : (fmtDate(row[K.vto]) || '—')},
-    (function(){
-      var td=new Date(); td.setHours(0,0,0,0);
-      var pend=isPendiente(row); var atr=0;
-      var vtoVal = String(K.vto?(row[K.vto]||''):'');
-      if(pend && /^\d{4}-\d{2}-\d{2}/.test(vtoVal)){var vd=new Date(vtoVal);vd.setHours(0,0,0,0);var dif=(td-vd)/86400000;if(dif>0)atr=Math.round(dif);}
-      return {l:'Atraso', v: atr>0 ? '+'+atr+' días de atraso' : (pend ? 'En plazo' : '—')};
-    }()),
-    {l:'Lote',        v: row[K.lote] || 'Sin lote'},
-    {l:'COA',         v: (['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(row[K.coa]||'').toUpperCase().trim())>=0) ? '✓ Recibido' : '✗ Pendiente'},
-    {l:'Conforme',    v: (['SI','S','1','TRUE'].indexOf(String(row[K.conforme]||'').toUpperCase().trim())>=0) ? '✓ Conforme' : '✗ Pendiente'},
-    {l:'Recibido por', v: row[K.recibido] || '—'},
-    {l:'Observaciones',v: row[K.obs] || '—', span:true},
-  ];
-  var html = '';
-  fields.forEach(function(f){
-    if (f.divider){ html += '<div class="detail-divider"></div>'; return; }
-    html += '<div class="detail-item'+(f.span?' span2':'')+'"><div class="detail-label">'+f.l+'</div><div class="detail-value">'+esc(String(f.v||'—'))+'</div></div>';
-  });
-  document.getElementById('detail-grid').innerHTML = html;
-  openModal('edit-overlay');
-}
-
-// ── Modal: editar ─────────────────────────────────────────────
-function openEdit(orden){
-  openDetail(orden);
-  toggleEditForm();
-}
-
-function toggleEditForm(){
-  var row   = CURRENT_ROW;
-  var shown = document.getElementById('edit-form').style.display !== 'none';
-  if (shown){
-    document.getElementById('edit-form').style.display   = 'none';
-    document.getElementById('detail-view').style.display = 'block';
-    document.getElementById('btn-save-edit').style.display = 'none';
-    document.getElementById('btn-toggle-edit').textContent = '📥 Registrar recepción';
-  } else {
-    document.getElementById('edit-form').style.display   = 'block';
-    document.getElementById('detail-view').style.display = 'none';
-    document.getElementById('btn-save-edit').style.display = 'inline-flex';
-    document.getElementById('btn-toggle-edit').textContent = '← Ver detalle';
-    // Poblar formulario (recepción por defecto = hoy si está pendiente)
-    document.getElementById('ed-recepcion').value = /^\d{4}-\d{2}-\d{2}/.test(String(row[K.recepcion]||'')) ? String(row[K.recepcion]).slice(0,10) : new Date().toISOString().slice(0,10);
-    document.getElementById('ed-lote').value       = row[K.lote]     || '';
-    var vtoRaw = String(K.vto ? (row[K.vto]||'') : '').trim();
-    var vtoNA  = isVtoNA(vtoRaw);
-    document.getElementById('ed-vto-na').checked = vtoNA;
-    document.getElementById('ed-vto').value      = vtoNA ? '' : (/^\d{4}-\d{2}-\d{2}/.test(vtoRaw) ? vtoRaw.slice(0,10) : '');
-    document.getElementById('ed-vto').disabled   = vtoNA;
-    document.getElementById('ed-coa').checked      = String(row[K.coa]||'').toUpperCase() === 'SI';
-    document.getElementById('ed-conforme').checked = String(row[K.conforme]||'').toUpperCase() === 'SI';
-    document.getElementById('ed-obs').value        = row[K.obs]      || '';
-  }
-}
-
-// "No aplica" el vencimiento → deshabilita el campo de fecha
-function onVtoNA(){
-  var na = document.getElementById('ed-vto-na').checked;
-  var d  = document.getElementById('ed-vto');
-  d.disabled = na; if(na) d.value = '';
-}
-// Detecta valores de "vencimiento no aplica"
+// Detecta valores de "vencimiento no aplica". El formulario que los cargaba
+// ya no existe, pero hay OC y entregas viejas guardadas asi: se usa para
+// mostrarlas bien en el detalle y en el historial.
 function isVtoNA(v){ return /^(no aplica|no necesario|no requerido|n\/a|na)$/i.test(String(v||'').trim()); }
 
 var PROFILE=null;
@@ -1516,26 +1414,6 @@ if(window.SubatirApp) SubatirApp.ready.then(function(p){
 function whoName(){
   if(window.SubatirApp && SubatirApp.operador) return SubatirApp.operador.nombre();
   return PROFILE ? (PROFILE.full_name || (PROFILE.email||'').split('@')[0] || 'Operario') : 'Operario';
-}
-
-function saveEdit(){
-  var orden = String(CURRENT_ROW[K.orden]);
-  toast('Registrando recepción…','info');
-  apiWrite({
-    action:'updatePedido', orden:orden,
-    recepcion: document.getElementById('ed-recepcion').value,
-    vto:       document.getElementById('ed-vto-na').checked ? 'NO APLICA' : document.getElementById('ed-vto').value,
-    lote:      document.getElementById('ed-lote').value,
-    coa:       document.getElementById('ed-coa').checked    ? 'SI' : '',
-    conforme:  document.getElementById('ed-conforme').checked ? 'SI' : '',
-    obs:       document.getElementById('ed-obs').value,
-    recibido_por: whoName()
-  }, function(d){
-    if(!d) return;
-    closeModal('edit-overlay');
-    toast('✓ Recepción de OC #' + orden + ' registrada por ' + whoName(), 'ok');
-    load();
-  });
 }
 
 // ── Modal: nuevo pedido ───────────────────────────────────────
@@ -1848,26 +1726,6 @@ function clearNewForm(){
   setTodayDate();
 }
 
-// ── Eliminar ──────────────────────────────────────────────────
-function confirmDelete(){
-  var orden = String(CURRENT_ROW ? CURRENT_ROW[K.orden] : '?');
-  document.getElementById('confirm-msg').textContent =
-    '¿Eliminar la Orden #' + orden + ' de ' + (CURRENT_ROW[K.proveedor]||'?') + '?';
-  openModal('confirm-overlay');
-}
-
-function doDelete(){
-  var orden = String(CURRENT_ROW[K.orden]);
-  toast('Eliminando…','info');
-  apiWrite({ action:'deletePedido', orden:orden }, function(d){
-    if(!d) return;
-    closeModal('confirm-overlay');
-    closeModal('edit-overlay');
-    toast('Orden #' + orden + ' eliminada ✓', 'ok');
-    load();
-  });
-}
-
 // ── Sincronización con Google Sheets ─────────────────────────
 function syncPending(){
   var pending = LOCAL.pendingSync || [];
@@ -1950,9 +1808,6 @@ document.addEventListener('keydown', function(e){
 });
 
 // ── Helpers ───────────────────────────────────────────────────
-function findRow(orden){
-  return DATA_DISPLAY.find(function(r){ return String(r[K.orden]) === String(orden); }) || null;
-}
 function isPendiente(r){ var v = r[K.recepcion]; return !v || v === '' || v === '0000-00-00'; }
 function pNum(v){
   if (v === null || v === undefined || v === '') return 0;

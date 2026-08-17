@@ -502,11 +502,19 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
 .cnt-delta.down{color:var(--red)}
 .cnt-delta.same{color:var(--muted-l)}
 .cnt-empty{padding:28px;text-align:center;color:var(--muted);font-size:12px}
+/* En el celular manda la lista: los KPIs y los filtros se achican para que
+   entren de una sola línea y quede pantalla para los artículos. */
 @media(max-width:720px){
-  .cnt-kpis{grid-template-columns:repeat(2,1fr)}
-  .cnt-row{grid-template-columns:1fr;gap:8px}
+  .cnt-kpis{grid-template-columns:repeat(4,1fr);gap:6px}
+  .cnt-kpi{padding:7px 4px}
+  .cnt-kpi .n{font-size:15px}
+  .cnt-kpi .l{font-size:8px;letter-spacing:.3px}
+  .cnt-row{grid-template-columns:1fr;gap:7px;padding:9px 11px}
+  .cnt-name{font-size:12.5px}
   .cnt-side{justify-content:flex-end}
-  .cnt-inp{flex:1;max-width:150px}
+  .cnt-inp{flex:1;max-width:none}   /* el input se come el ancho libre: dedo gordo, campo grande */
+  .modal-full .modal-hdr{padding-top:13px;padding-bottom:11px}
+  .modal-full .modal-ftr{padding-top:10px;padding-bottom:10px}
   .overlay{padding:0}
   .modal-full{max-height:100vh;height:100vh;border-radius:0}
   .modal-full .modal-hdr,.modal-full .modal-body,.modal-full .modal-ftr{padding-left:14px;padding-right:14px}
@@ -523,12 +531,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-17.1014"></script>
-<script src="subatir-app.js?v=2026-08-17.1014"></script>
+<script src="supabase-config.js?v=2026-08-17.1017"></script>
+<script src="subatir-app.js?v=2026-08-17.1017"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-17.1014';
+window.APP_VER='2026-08-17.1017';
 </script>
 </head>
 <body>

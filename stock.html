@@ -429,6 +429,86 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
 .ti-dot{width:5px;height:5px;border-radius:50%;background:var(--orange);flex-shrink:0}
 @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
+/* ═══ CONTROL DE STOCK (conteo de depósito) ═══════════════════
+   Pantalla de recorrido: una fila por artículo con un input grande.
+   Pensada para usarse con el celular en la mano, de ahí los targets
+   de 44px y el font-size:16px del input (evita el zoom de iOS). */
+.modal-full{
+  max-width:1180px;width:100%;max-height:92vh;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.modal-full .modal-body{overflow:hidden;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
+.cnt-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cnt-kpi{
+  padding:9px 12px;border-radius:10px;text-align:center;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+}
+.cnt-kpi .n{font-family:var(--mono);font-size:18px;font-weight:800;line-height:1.1}
+.cnt-kpi .l{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-top:2px}
+.cnt-chips{display:flex;gap:6px;flex-wrap:wrap}
+.cnt-chip{
+  padding:5px 11px;border-radius:20px;cursor:pointer;
+  font-size:10px;font-weight:700;letter-spacing:.3px;
+  background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--muted-l);
+  transition:all .16s;
+}
+.cnt-chip:hover{color:var(--text);border-color:var(--border-b)}
+.cnt-chip.on{
+  color:#fff;background:linear-gradient(135deg,rgba(14,138,170,.45),rgba(27,200,255,.28));
+  border-color:rgba(27,200,255,.35);
+}
+.cnt-list{overflow-y:auto;display:flex;flex-direction:column;gap:7px;flex:1;min-height:120px;padding-right:3px}
+.cnt-row{
+  display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+  padding:10px 13px;border-radius:11px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-left:3px solid var(--muted);transition:border-color .18s,background .18s;
+}
+.cnt-row.crit  {border-left-color:var(--red)}
+.cnt-row.medio {border-left-color:var(--amber)}
+.cnt-row.optimo{border-left-color:var(--green)}
+.cnt-row.done{background:rgba(34,197,94,.05);border-color:var(--green-b)}
+.cnt-row.locked{opacity:.55}
+.cnt-name{font-size:13px;font-weight:600;line-height:1.3;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.cnt-meta{
+  font-family:var(--mono);font-size:10px;color:var(--muted-l);
+  margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;
+}
+.cnt-meta b{color:var(--text);font-weight:700}
+.cnt-side{display:flex;align-items:center;gap:8px}
+.cnt-inp{
+  width:104px;height:44px;padding:6px 8px;border-radius:9px;
+  background:rgba(255,255,255,.07);border:1px solid var(--border-b);
+  color:var(--text);outline:none;
+  font-family:var(--mono);font-size:16px;font-weight:700;text-align:center;
+  transition:border .16s,box-shadow .16s;
+}
+.cnt-inp:focus{border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(18,160,204,.16)}
+.cnt-inp::placeholder{color:var(--muted);font-weight:400}
+.cnt-inp:disabled{cursor:not-allowed;background:rgba(255,255,255,.03)}
+.cnt-eq{
+  height:44px;padding:0 11px;border-radius:9px;cursor:pointer;white-space:nowrap;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted-l);
+  font-size:10px;font-weight:700;transition:all .16s;
+}
+.cnt-eq:hover{color:var(--text);border-color:var(--teal-l)}
+.cnt-st{width:22px;text-align:center;font-size:13px;flex-shrink:0}
+.cnt-st .spin{display:inline-block}
+.cnt-delta{font-family:var(--mono);font-size:10px;font-weight:700;white-space:nowrap}
+.cnt-delta.up{color:var(--green)}
+.cnt-delta.down{color:var(--red)}
+.cnt-delta.same{color:var(--muted-l)}
+.cnt-empty{padding:28px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:720px){
+  .cnt-kpis{grid-template-columns:repeat(2,1fr)}
+  .cnt-row{grid-template-columns:1fr;gap:8px}
+  .cnt-side{justify-content:flex-end}
+  .cnt-inp{flex:1;max-width:150px}
+  .overlay{padding:0}
+  .modal-full{max-height:100vh;height:100vh;border-radius:0}
+  .modal-full .modal-hdr,.modal-full .modal-body,.modal-full .modal-ftr{padding-left:14px;padding-right:14px}
+}
+
 /* ═══ DESPLEGABLES OSCUROS ═══════════════════════════════════
    Los <select> con class .form-input quedaban sin regla para sus
    opciones y Windows los pintaba con el blanco del sistema.
@@ -440,12 +520,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-13.2232"></script>
-<script src="subatir-app.js?v=2026-08-13.2232"></script>
+<script src="supabase-config.js?v=2026-08-17.1005"></script>
+<script src="subatir-app.js?v=2026-08-17.1005"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-13.2232';
+window.APP_VER='2026-08-17.1005';
 </script>
 </head>
 <body>
@@ -474,6 +554,7 @@ window.APP_VER='2026-08-13.2232';
       <span id="spin" style="display:none" class="spin"></span>
       <span id="ref-lbl">⟳ Actualizar</span>
     </button>
+    <button class="btn btn-orange btn-sm" onclick="openConteo()">📋 Control de Stock</button>
     <button class="btn btn-teal btn-sm" onclick="openNewArt()">➕ Nuevo artículo</button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
   </div>
@@ -774,6 +855,66 @@ window.APP_VER='2026-08-13.2232';
   </div>
 </div>
 
+<!-- ══ MODAL CONTROL DE STOCK (conteo de depósito) ═══════════ -->
+<div class="overlay" id="ov-conteo">
+  <div class="modal modal-full">
+    <div class="modal-hdr">
+      <div class="modal-title">📋 Control de Stock <span style="font-size:11px;color:var(--muted-l);font-weight:500">— recorrido de depósito</span></div>
+      <button class="modal-x" onclick="closeConteo()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="cnt-kpis">
+        <div class="cnt-kpi"><div class="n c-teal"  id="cnt-k-tot">—</div><div class="l">Artículos</div></div>
+        <div class="cnt-kpi"><div class="n c-green" id="cnt-k-ok">—</div><div class="l">Contados</div></div>
+        <div class="cnt-kpi"><div class="n c-amber" id="cnt-k-dif">—</div><div class="l">Con diferencia</div></div>
+        <div class="cnt-kpi"><div class="n c-orange"id="cnt-k-pend">—</div><div class="l">Sin contar</div></div>
+      </div>
+
+      <div class="filters" style="margin-bottom:0">
+        <div class="search-wrap">
+          <input class="fi fi-search" id="cnt-q" placeholder="Buscar artículo, código…" oninput="renderConteo()"/>
+        </div>
+        <select class="fi" id="cnt-cat" onchange="renderConteo()">
+          <option value="">Todos los tipos</option>
+          <option value="Envases">📦 Envases</option>
+          <option value="Consumibles">🏷 Consumibles</option>
+          <option value="Materias Primas">⚗ Materias Primas</option>
+          <option value="__sin">— Sin categoría —</option>
+        </select>
+        <select class="fi" id="cnt-est" onchange="renderConteo()">
+          <option value="">Cualquier estado</option>
+          <option value="CRITICO">🔴 Crítico</option>
+          <option value="MEDIO">🟡 Medio</option>
+          <option value="OPTIMO">🟢 Óptimo</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="cntClearFilters()">✕</button>
+      </div>
+
+      <div class="cnt-chips">
+        <div class="cnt-chip on" id="cnt-ch-todos"     onclick="cntSetVista('todos')">Todos</div>
+        <div class="cnt-chip"    id="cnt-ch-pendientes" onclick="cntSetVista('pendientes')">Sin contar</div>
+        <div class="cnt-chip"    id="cnt-ch-contados"  onclick="cntSetVista('contados')">Contados</div>
+        <div class="cnt-chip"    id="cnt-ch-dif"       onclick="cntSetVista('dif')">Con diferencia</div>
+      </div>
+
+      <div class="cnt-list" id="cnt-list">
+        <div class="cnt-empty">Cargando…</div>
+      </div>
+
+    </div>
+    <div class="modal-ftr" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="font-size:10px;color:var(--muted-l);line-height:1.4">
+        Cada número se guarda solo al salir del campo y pasa directo al stock disponible.
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="exportConteoCSV()">⬇ CSV del conteo</button>
+        <button class="btn btn-teal" onclick="closeConteo()">✓ Terminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Nuevo artículo (inserta en la tabla inventario) -->
 <div class="overlay" id="ov-new">
   <div class="modal">
@@ -941,6 +1082,10 @@ function detectKeys(){
     IK.min         = fk(k,['STOCK MÍNIMO','STOCK MINIMO','Mínimo','Minimo','MINIMO','STOCK MIN']);
     IK.stock       = fk(k,['INVENTARIO','inventario','Stock actual','STOCK ACTUAL','STOCK','EXISTENCIA','CANTIDAD ACTUAL']);
     IK.solicitar   = fk(k,['SOLICITAR','solicitar','A SOLICITAR']);
+    // Unidad y presentación: se usan en el detalle y en el Control de Stock,
+    // para que el operario sepa en qué está contando (KG, L, UN…)
+    IK.unidad      = k.indexOf('Unid.')>=0 ? 'Unid.' : (k.indexOf('UNIDAD')>=0 ? 'UNIDAD' : '');
+    IK.pres        = k.indexOf('PRES.')>=0 ? 'PRES.' : (k.indexOf('PRESENTACION')>=0 ? 'PRESENTACION' : '');
     // Proveedor sugerido en hoja COMPRAS: acepta typo original "PROOVEDOR" (doble O)
     IK.provSugerido= fk(k,['PROOVEDOR SUGERIDO','PROVEEDOR SUGERIDO','Proveedor sugerido','PROOVEDOR','PROVEEDOR SUGE']);
     // Columna PROVEEDOR suelta (distinta del sugerido): también aporta al set del artículo
@@ -1202,6 +1347,54 @@ function collectProvs(desc, item, ov, ocData, precIdx, provSugeridoHoja){
 }
 
 // ─── Merge COMPRAS + OC para calcular stock real ──────────────
+// ─── Recalcula lo derivado de stock/mínimo/consumo/tránsito ─────────────────
+// Vive aparte de buildMerged porque el Control de Stock cambia el stock de un
+// artículo sin recargar todo: al guardar el conteo se llama acá y la fila
+// vuelve a semaforizarse sola, con la misma regla que en la carga inicial.
+function recalcItem(m){
+  var stock = +m.stock||0, minimo = +m.minimo||0, consumo = +m.consumo||0, pend = +m.pendiente||0;
+
+  // Cobertura = (stock + en tránsito) / consumo mensual
+  // null cuando consumo=0 (sin dato), para distinguir de cobertura real = 0
+  m.cobertura = (consumo > 0) ? (stock + pend) / consumo : null;
+
+  // % para barra visual (respecto a 6 meses como referencia)
+  m.pct = minimo > 0
+    ? Math.min(100, (stock / (minimo * 2)) * 100)
+    : (m.cobertura !== null ? Math.min(100, (m.cobertura / 6) * 100) : 0);
+
+  // Estado: PRIORIZA stock vs mínimo. La bandera SOLICITAR (heredada del
+  // Sheet) NO puede sobrescribir un mínimo válido; solo se usa como respaldo
+  // cuando no hay mínimo ni consumo para comparar.
+  var sol = String(m._sol||'').toUpperCase();
+  if(minimo > 0){
+    if(stock <= minimo)             m.estado='CRITICO';
+    else if(stock <= minimo*1.5)    m.estado='MEDIO';
+    else                            m.estado='OPTIMO';
+  } else if(m.cobertura !== null){
+    if(m.cobertura < 1)             m.estado='CRITICO';
+    else if(m.cobertura < 2)        m.estado='MEDIO';
+    else                            m.estado='OPTIMO';
+  } else if(sol.indexOf('SOLICITAR')>=0){
+    m.estado='CRITICO';
+  } else {
+    m.estado='OPTIMO';
+  }
+
+  // Compra sugerida (2 meses de consumo) solo cuando realmente falta stock:
+  // - con mínimo definido: cuando stock ≤ mínimo
+  // - sin mínimo: cuando stock = 0 o quedó CRÍTICO por cobertura/bandera
+  m.sugerida = 0;
+  if(consumo > 0){
+    if(minimo > 0){
+      if(stock <= minimo) m.sugerida = consumo * 2;
+    } else if(stock === 0 || m.estado === 'CRITICO'){
+      m.sugerida = consumo * 2;
+    }
+  }
+  return m;
+}
+
 function buildMerged(){
   MERGED = [];
   buildProvCanon();
@@ -1224,46 +1417,6 @@ function buildMerged(){
     var pendiente     = ocData.pendiente      || 0;
     var valorPendiente= ocData.valorPendiente || 0;
 
-    // Cobertura = (stock + en tránsito) / consumo mensual
-    // null cuando consumo=0 (sin dato), para distinguir de cobertura real = 0
-    var cobertura = (consumo > 0) ? (stock + pendiente) / consumo : null;
-
-    // % para barra visual (respecto a 6 meses como referencia)
-    var pct = minimo > 0
-      ? Math.min(100, (stock / (minimo * 2)) * 100)
-      : (cobertura !== null ? Math.min(100, (cobertura / 6) * 100) : 0);
-
-    // Estado: PRIORIZA stock vs mínimo. La bandera SOLICITAR (heredada del
-    // Sheet) NO puede sobrescribir un mínimo válido; solo se usa como respaldo
-    // cuando no hay mínimo ni consumo para comparar.
-    var sol    = String(item[IK.solicitar]||'').toUpperCase();
-    var estado;
-    if(minimo > 0){
-      if(stock <= minimo)          estado='CRITICO';
-      else if(stock <= minimo*1.5) estado='MEDIO';
-      else                         estado='OPTIMO';
-    } else if(cobertura !== null){
-      if(cobertura < 1)            estado='CRITICO';
-      else if(cobertura < 2)       estado='MEDIO';
-      else                         estado='OPTIMO';
-    } else if(sol.indexOf('SOLICITAR')>=0){
-      estado='CRITICO';
-    } else {
-      estado='OPTIMO';
-    }
-
-    // Compra sugerida (2 meses de consumo) solo cuando realmente falta stock:
-    // - con mínimo definido: cuando stock ≤ mínimo
-    // - sin mínimo: cuando stock = 0 o quedó CRÍTICO por cobertura/bandera
-    var sugerida = 0;
-    if(consumo > 0){
-      if(minimo > 0){
-        if(stock <= minimo) sugerida = consumo * 2;
-      } else if(stock === 0 || estado === 'CRITICO'){
-        sugerida = consumo * 2;
-      }
-    }
-
     // Proveedor sugerido: prioridad override local → OC más reciente → hoja COMPRAS
     var provSugeridoHoja = IK.provSugerido ? String(item[IK.provSugerido]||'').trim() : '';
     var proveedor = canonProv(ov.proveedor || ocData.lastProv || provSugeridoHoja || '');
@@ -1273,7 +1426,7 @@ function buildMerged(){
     // proveedor(es) de la ficha. El filtro de proveedor usa esta lista, no el último.
     var provs = collectProvs(desc, item, ov, ocData, precIdx, provSugeridoHoja);
 
-    MERGED.push({
+    MERGED.push(recalcItem({
       __row:         item.__row,   // fila en la hoja COMPRAS (para escribir de vuelta)
       codigo:        codigo,
       desc:          desc,
@@ -1282,17 +1435,17 @@ function buildMerged(){
       consumo:       consumo,
       pendiente:     pendiente,
       valorPendiente:valorPendiente,
-      sugerida:      sugerida,
       proveedor:     proveedor,
       provs:         provs,
       precio:        precio,
-      cobertura:     cobertura,
-      pct:           pct,
+      unidad:        IK.unidad ? String(item[IK.unidad]||'').trim() : '',
+      pres:          IK.pres   ? String(item[IK.pres]  ||'').trim() : '',
       obs:           ov.obs || '',
-      estado:        estado,
       categoria:     catOf(desc),
+      // bandera SOLICITAR heredada del Sheet: la lee recalcItem como último recurso
+      _sol:          String(item[IK.solicitar]||''),
       _mod:          !!(ov.stock!==undefined || ov.minimo || ov.consumo || ov.proveedor)
-    });
+    }));
   });
 
   // ── Agregar artículos de OC que no tienen fila en COMPRAS ──────
@@ -1681,17 +1834,19 @@ function openDetail(desc){
 
   var estLabel = x.estado==='CRITICO'?'🔴 CRÍTICO':x.estado==='MEDIO'?'🟡 MEDIO':x.estado==='OPTIMO'?'🟢 ÓPTIMO':'⚪ Sin dato';
   var cobStr   = x.cobertura !== null ? x.cobertura.toFixed(1)+' meses' : '—';
+  // La unidad puede no estar cargada: sin esto salía "120 undefined"
+  var un = function(v){ return fmtN(v) + (x.unidad ? ' '+x.unidad : ''); };
   var tiles = [
     {l:'Estado',     v:estLabel,              cls:''},
     {l:'Código',     v:x.codigo||'—',         cls:''},
     {l:'Unidad',     v:x.unidad||'—',         cls:''},
     {l:'Presentación',v:x.pres||'—',          cls:''},
-    {l:'Stock actual',v:fmtN(x.stock)+' '+x.unidad, cls:''},
-    {l:'Stock mínimo',v:x.minimo>0?fmtN(x.minimo)+' '+x.unidad:'—', cls:''},
-    {l:'Consumo/mes', v:x.consumo>0?fmtN(x.consumo)+' '+x.unidad:'—', cls:''},
-    {l:'En tránsito', v:x.pendiente>0?fmtN(x.pendiente)+' '+x.unidad:'—', cls:''},
+    {l:'Stock actual',v:un(x.stock),          cls:''},
+    {l:'Stock mínimo',v:x.minimo>0?un(x.minimo):'—', cls:''},
+    {l:'Consumo/mes', v:x.consumo>0?un(x.consumo):'—', cls:''},
+    {l:'En tránsito', v:x.pendiente>0?un(x.pendiente):'—', cls:''},
     {l:'Cobertura',   v:cobStr,               cls:''},
-    {l:'Compra sug.', v:x.sugerida>0?fmtN(x.sugerida)+' '+x.unidad:'—', cls:''},
+    {l:'Compra sug.', v:x.sugerida>0?un(x.sugerida):'—', cls:''},
     {l:'Precio ref.', v:x.precio||'—',        cls:''},
     {l:'Último proveedor', v:x.proveedor||'—', cls:'s2'},
     {l:'Proveedores que lo tienen ('+(x.provs||[]).length+')',
@@ -1816,6 +1971,270 @@ function saveNewArt(){
       warn('⚠ No se pudo crear (revisá conexión). '+(e&&e.message?e.message:''));
     }
   );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  CONTROL DE STOCK — recorrido de depósito
+//  Una fila por artículo con un input grande: se camina el depósito y se
+//  van tipeando las cantidades reales. Cada número se escribe directo a
+//  la base (columna INVENTARIO) y pasa a ser el stock disponible, así que
+//  el semáforo, la cobertura y la compra sugerida se recalculan al toque.
+//  No hay guardado local: si algo falla, la fila queda marcada ⚠ y se
+//  reintenta tocándola.
+// ══════════════════════════════════════════════════════════════════════
+var CNT_REG   = [];   // índice de fila del modal → artículo de MERGED
+var CNT_BASE  = {};   // índice → stock que tenía el sistema al abrir (para la diferencia)
+var CNT_VAL   = {};   // índice → cantidad contada
+var CNT_ST    = {};   // índice → 'save' | 'ok' | 'err'
+var CNT_T     = {};   // índice → timer de autoguardado
+var CNT_VISTA = 'todos';
+var CNT_RT    = null; // timer para refrescar la pantalla de atrás
+
+function openConteo(){
+  if(!MERGED.length){ toast('Todavía no cargó el inventario.','err'); return; }
+  // Los artículos sin ficha en inventario (solo en tránsito) se listan pero
+  // no se pueden contar: no hay fila donde escribir el stock.
+  CNT_REG = MERGED.slice().sort(function(a,b){
+    if(!!b.__row !== !!a.__row) return a.__row ? -1 : 1;
+    return a.desc.localeCompare(b.desc,'es');
+  });
+  CNT_BASE = {}; CNT_VAL = {}; CNT_ST = {}; CNT_T = {};
+  CNT_REG.forEach(function(m,i){ CNT_BASE[i] = +m.stock||0; });
+  document.getElementById('cnt-q').value   = '';
+  document.getElementById('cnt-cat').value = '';
+  document.getElementById('cnt-est').value = '';
+  cntSetVista('todos');
+  openOv('ov-conteo');
+}
+
+function closeConteo(){
+  // Guardar lo que quedó tipeado sin confirmar (input con foco o autoguardado en curso)
+  var a = document.activeElement;
+  if(a && a.classList && a.classList.contains('cnt-inp')) a.blur();
+  Object.keys(CNT_T).forEach(function(i){ if(CNT_T[i]) cntCommit(+i); });
+  closeOv('ov-conteo');
+  var n = Object.keys(CNT_ST).filter(function(i){ return CNT_ST[i]==='ok'; }).length;
+  if(n) toast('Control de stock: '+n+' artículo'+(n===1?'':'s')+' actualizado'+(n===1?'':'s')+' ✓','ok');
+  load(); // releer de la base para quedar 100% alineado
+}
+
+function cntSetVista(v){
+  CNT_VISTA = v;
+  ['todos','pendientes','contados','dif'].forEach(function(k){
+    var el = document.getElementById('cnt-ch-'+k);
+    if(el) el.className = 'cnt-chip' + (k===v?' on':'');
+  });
+  renderConteo();
+}
+
+function cntClearFilters(){
+  document.getElementById('cnt-q').value   = '';
+  document.getElementById('cnt-cat').value = '';
+  document.getElementById('cnt-est').value = '';
+  cntSetVista('todos');
+}
+
+// Devuelve los índices de CNT_REG que pasan los filtros actuales
+function cntFiltered(){
+  var q   = (document.getElementById('cnt-q').value||'').toLowerCase().trim();
+  var cat = document.getElementById('cnt-cat').value;
+  var est = document.getElementById('cnt-est').value;
+  var out = [];
+  CNT_REG.forEach(function(m,i){
+    if(q && (m.desc+' '+(m.codigo||'')).toLowerCase().indexOf(q)<0) return;
+    if(cat === '__sin'){ if(m.categoria) return; }
+    else if(cat && m.categoria !== cat) return;
+    if(est && m.estado !== est) return;
+    var contado = CNT_VAL[i] !== undefined;
+    if(CNT_VISTA==='pendientes' && (contado || !m.__row)) return;
+    if(CNT_VISTA==='contados'   && !contado) return;
+    if(CNT_VISTA==='dif' && (!contado || Math.abs(CNT_VAL[i]-CNT_BASE[i]) < 0.001)) return;
+    out.push(i);
+  });
+  return out;
+}
+
+function renderConteo(){
+  // Confirmar lo que estaba tipeado antes de rearmar la lista: si la fila
+  // desaparece por el filtro, su input se va del DOM y el número se perdería
+  Object.keys(CNT_T).forEach(function(i){ if(CNT_T[i]) cntCommit(+i); });
+  var idx = cntFiltered();
+  var box = document.getElementById('cnt-list');
+  box.innerHTML = idx.length
+    ? idx.map(cntRowHTML).join('')
+    : '<div class="cnt-empty">Sin artículos para esta vista.</div>';
+  idx.forEach(function(i){ var el=document.getElementById('cnt-i-'+i); cntDelta(i, el?el.value:''); });
+  cntStats();
+}
+
+function cntRowHTML(i){
+  var m      = CNT_REG[i];
+  var locked = !m.__row;
+  var v      = CNT_VAL[i];
+  var base   = CNT_BASE[i];
+  var un     = m.unidad ? ' '+esc(m.unidad) : '';
+  return '<div class="cnt-row '+cntRowCls(i)+'" id="cnt-r-'+i+'">'+
+    '<div style="min-width:0">'+
+      '<div class="cnt-name">'+esc(m.desc)+(m.categoria?catChip(m.categoria):'')+'</div>'+
+      '<div class="cnt-meta">'+
+        (m.codigo ? '<span>'+esc(m.codigo)+'</span>' : '')+
+        '<span>Sistema: <b>'+fmtN(base)+un+'</b></span>'+
+        (m.minimo>0    ? '<span>Mín '+fmtN(m.minimo)+'</span>' : '')+
+        (m.pendiente>0 ? '<span class="c-teal">✈ '+fmtN(m.pendiente)+'</span>' : '')+
+        '<span class="cnt-delta same" id="cnt-d-'+i+'"></span>'+
+      '</div>'+
+    '</div>'+
+    '<div class="cnt-side">'+
+      (locked
+        ? '<span style="font-size:10px;color:var(--muted-l);text-align:right">sin ficha en inventario</span>'
+        : '<input type="text" inputmode="decimal" autocomplete="off" class="cnt-inp" id="cnt-i-'+i+'" '+
+              'value="'+(v!==undefined?v:'')+'" placeholder="—" '+
+              'oninput="cntInput('+i+')" onchange="cntCommit('+i+')" onkeydown="cntKey(event,'+i+')"/>'+
+          '<button class="cnt-eq" id="cnt-e-'+i+'" onclick="cntIgual('+i+')" title="Coincide con el sistema">= '+fmtN(base)+'</button>'+
+          '<span class="cnt-st" id="cnt-s-'+i+'">'+cntStIcon(i)+'</span>')+
+    '</div>'+
+  '</div>';
+}
+
+function cntRowCls(i){
+  var m = CNT_REG[i];
+  var est = m.estado==='CRITICO'?'crit':m.estado==='MEDIO'?'medio':m.estado==='OPTIMO'?'optimo':'';
+  return est + (CNT_ST[i]==='ok'?' done':'') + (m.__row?'':' locked');
+}
+
+function cntStIcon(i){
+  var s = CNT_ST[i];
+  if(s==='save') return '<span class="spin"></span>';
+  if(s==='ok')   return '<span class="c-green">✓</span>';
+  if(s==='err')  return '<span class="c-red" style="cursor:pointer" onclick="cntCommit('+i+')" title="Reintentar">⚠</span>';
+  return '';
+}
+
+// Parseo tolerante: acepta coma decimal (el teclado del celular la ofrece)
+function cntNum(raw){
+  var s = String(raw==null?'':raw).replace(/\s/g,'').replace(',','.');
+  if(s==='') return null;
+  var n = parseFloat(s);
+  return isNaN(n) ? NaN : n;
+}
+
+function cntDelta(i, raw){
+  var d = document.getElementById('cnt-d-'+i); if(!d) return;
+  var n = cntNum(raw);
+  if(n===null || isNaN(n)){ d.textContent=''; d.className='cnt-delta same'; return; }
+  var dif = n - CNT_BASE[i];
+  if(Math.abs(dif) < 0.001){ d.textContent='= sin diferencia'; d.className='cnt-delta same'; }
+  else { d.textContent = (dif>0?'▲ +':'▼ ')+fmtN(dif); d.className='cnt-delta '+(dif>0?'up':'down'); }
+}
+
+// Mientras se tipea: diferencia en vivo + autoguardado si se queda quieto.
+// El autoguardado existe porque contando en el depósito es normal dejar el
+// campo con foco y seguir caminando, sin que nunca dispare el onchange.
+function cntInput(i){
+  var el = document.getElementById('cnt-i-'+i); if(!el) return;
+  cntDelta(i, el.value);
+  if(CNT_T[i]) clearTimeout(CNT_T[i]);
+  CNT_T[i] = setTimeout(function(){ CNT_T[i]=null; cntCommit(i); }, 1400);
+}
+
+// Enter = confirmar y saltar al siguiente artículo de la lista
+function cntKey(ev, i){
+  if(ev.key !== 'Enter') return;
+  ev.preventDefault();
+  cntCommit(i);
+  var inputs = Array.prototype.slice.call(document.querySelectorAll('#cnt-list .cnt-inp'));
+  var pos = inputs.indexOf(document.getElementById('cnt-i-'+i));
+  var next = inputs[pos+1];
+  if(next){ next.focus(); next.select(); } else { document.getElementById('cnt-i-'+i).blur(); }
+}
+
+function cntIgual(i){
+  var el = document.getElementById('cnt-i-'+i); if(!el) return;
+  el.value = CNT_BASE[i];
+  cntCommit(i);
+}
+
+function cntCommit(i){
+  if(CNT_T[i]){ clearTimeout(CNT_T[i]); CNT_T[i]=null; }
+  var el = document.getElementById('cnt-i-'+i); if(!el) return;
+  var m  = CNT_REG[i]; if(!m || !m.__row) return;
+  var n  = cntNum(el.value);
+
+  if(n===null){ // vació el campo: se descarta el conteo (no se escribe nada)
+    delete CNT_VAL[i]; delete CNT_ST[i];
+    cntPaint(i); cntStats(); return;
+  }
+  if(isNaN(n) || n < 0){ toast('Cantidad inválida en "'+m.desc.slice(0,28)+'".','err'); el.focus(); return; }
+  if(CNT_VAL[i]===n && CNT_ST[i]==='ok') return; // ya guardado, no reescribir
+
+  CNT_VAL[i] = n;
+  CNT_ST[i]  = 'save';
+  cntPaint(i); cntStats();
+
+  if(!IK.stock){ CNT_ST[i]='err'; cntPaint(i); toast('No se detectó la columna de stock en inventario.','err'); return; }
+  var fields = {}; fields[IK.stock] = n;
+  SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:m.__row, fields:JSON.stringify(fields)})
+    .then(function(d){
+      if(d && d.error){
+        CNT_ST[i]='err'; cntPaint(i);
+        toast('No se pudo guardar "'+m.desc.slice(0,28)+'": '+d.error,'err');
+        return;
+      }
+      CNT_ST[i] = 'ok';
+      m.stock   = n;   // lo contado ES el stock disponible
+      recalcItem(m);   // re-semaforiza: estado, cobertura y compra sugerida
+      cntPaint(i); cntStats(); cntRefreshMain();
+    });
+}
+
+// Repinta una sola fila (no toda la lista: se perdería el foco del input)
+function cntPaint(i){
+  var row = document.getElementById('cnt-r-'+i);
+  if(row) row.className = 'cnt-row ' + cntRowCls(i);
+  var st = document.getElementById('cnt-s-'+i);
+  if(st) st.innerHTML = cntStIcon(i);
+  var el = document.getElementById('cnt-i-'+i);
+  cntDelta(i, el ? el.value : '');
+}
+
+function cntStats(){
+  var tot=0, ok=0, dif=0;
+  CNT_REG.forEach(function(m,i){
+    if(!m.__row) return;              // los que no se pueden contar no cuentan
+    tot++;
+    if(CNT_VAL[i]!==undefined){
+      ok++;
+      if(Math.abs(CNT_VAL[i]-CNT_BASE[i]) >= 0.001) dif++;
+    }
+  });
+  setText('cnt-k-tot', tot); setText('cnt-k-ok', ok);
+  setText('cnt-k-dif', dif); setText('cnt-k-pend', tot-ok);
+}
+
+// KPIs, semáforo y sugerencias de atrás se actualizan solos, agrupando
+// varias cargas seguidas en un solo redibujo.
+function cntRefreshMain(){
+  if(CNT_RT) clearTimeout(CNT_RT);
+  CNT_RT = setTimeout(function(){ CNT_RT=null; renderAll(); }, 700);
+}
+
+function exportConteoCSV(){
+  var idx = cntFiltered();
+  if(!idx.length){ toast('No hay filas para exportar.','err'); return; }
+  var hdr = ['Código','Artículo','Categoría','Unidad','Stock sistema','Contado','Diferencia','Estado'];
+  var rows = idx.map(function(i){
+    var m = CNT_REG[i], v = CNT_VAL[i];
+    return [
+      m.codigo, m.desc, m.categoria, m.unidad,
+      CNT_BASE[i], v!==undefined?v:'', v!==undefined?(v-CNT_BASE[i]):'', m.estado
+    ].map(function(x){ return '"'+String(x==null?'':x).replace(/"/g,'""')+'"'; }).join(',');
+  });
+  var csv = '﻿'+hdr.join(',')+'\n'+rows.join('\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = 'control_stock_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  toast('Conteo exportado ('+idx.length+' artículos)','ok');
 }
 
 // Cuenta de artículos con cambios pendientes de sincronizar
@@ -2008,11 +2427,14 @@ function exportSugCSV(){
 // ─── Modal helpers ────────────────────────────────────────────
 function openOv(id){document.getElementById(id).classList.add('open')}
 function closeOv(id){document.getElementById(id).classList.remove('open')}
+// Clic en el fondo / Escape cierran el modal. El Control de Stock pasa por
+// closeConteo() para no perder el número que quedó tipeado sin confirmar.
+function dismissOv(id){ if(id==='ov-conteo') closeConteo(); else closeOv(id); }
 document.querySelectorAll('.overlay').forEach(function(el){
-  el.addEventListener('click',function(e){if(e.target===el)closeOv(el.id);});
+  el.addEventListener('click',function(e){if(e.target===el)dismissOv(el.id);});
 });
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(function(el){closeOv(el.id);});
+  if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(function(el){dismissOv(el.id);});
 });
 
 // ─── Helpers ──────────────────────────────────────────────────

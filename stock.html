@@ -533,12 +533,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-17.1617"></script>
-<script src="subatir-app.js?v=2026-08-17.1617"></script>
+<script src="supabase-config.js?v=2026-08-17.1822"></script>
+<script src="subatir-app.js?v=2026-08-17.1822"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-17.1617';
+window.APP_VER='2026-08-17.1822';
 </script>
 </head>
 <body>
@@ -2366,15 +2366,20 @@ function exportConteoPDF(){
   var M = 28, OR=[242,101,34], BK=[25,25,25], GY=[120,120,120];
   var hoy = new Date();
 
+  // Caja de datos a la derecha
+  var bx=W-386, by=26, bw=W-M-bx, bh=72;
+  var tx=M+90, maxT=bx-tx-14;   // el título no puede pasar de acá o se monta sobre la caja
+
   cntLogoPDF(doc, M+40, 62, 34);
 
   doc.setFont('helvetica','bold'); doc.setTextColor(BK[0],BK[1],BK[2]); doc.setFontSize(24);
-  doc.text('SUBATIR S.A.', M+90, 54);
-  doc.setTextColor(OR[0],OR[1],OR[2]); doc.setFontSize(19);
-  doc.text('PLANILLA DE CONTROL DE STOCK', M+90, 80);
-
-  // Caja de datos a la derecha
-  var bx=W-386, by=26, bw=W-M-bx, bh=72;
+  doc.text('SUBATIR S.A.', tx, 54);
+  // Se achica hasta entrar: el título entraba raspando y cualquier cambio
+  // (texto más largo, otro tamaño de hoja) lo metía adentro del recuadro
+  doc.setTextColor(OR[0],OR[1],OR[2]);
+  var tit='PLANILLA DE CONTROL DE STOCK', ts=19;
+  doc.setFontSize(ts); while(ts>10 && doc.getTextWidth(tit)>maxT){ ts-=0.5; doc.setFontSize(ts); }
+  doc.text(tit, tx, 80);
   doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1); doc.roundedRect(bx,by,bw,bh,6,6,'S');
   function lbl(t,x,y){ doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(OR[0],OR[1],OR[2]); doc.text(t,x,y); }
   function val(t,x,y,maxW,size){

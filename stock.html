@@ -530,13 +530,15 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-17.1017"></script>
-<script src="subatir-app.js?v=2026-08-17.1017"></script>
+<script src="supabase-config.js?v=2026-08-17.1617"></script>
+<script src="subatir-app.js?v=2026-08-17.1617"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-17.1017';
+window.APP_VER='2026-08-17.1617';
 </script>
 </head>
 <body>
@@ -918,8 +920,10 @@ window.APP_VER='2026-08-17.1017';
       <div style="font-size:10px;color:var(--muted-l);line-height:1.4">
         Cada número se guarda solo al salir del campo y pasa directo al stock disponible.
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="exportConteoCSV()">⬇ CSV del conteo</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="exportConteoPDF()">🖨 PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportConteoXLSX()">📊 Excel</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportConteoCSV()">⬇ CSV</button>
         <button class="btn btn-teal" onclick="closeConteo()">✓ Terminar</button>
       </div>
     </div>
@@ -2233,23 +2237,220 @@ function cntRefreshMain(){
   CNT_RT = setTimeout(function(){ CNT_RT=null; renderAll(); }, 700);
 }
 
-function exportConteoCSV(){
+// ── Exportar el listado del conteo ───────────────────────────────────
+//  Las tres salidas (CSV, Excel, PDF) muestran lo MISMO: las filas que
+//  quedaron a la vista con los filtros puestos. Los artículos todavía
+//  sin contar salen con la casilla "Contado" vacía a propósito: así la
+//  planilla también sirve impresa, para recorrer y anotar a mano.
+var CNT_COLS = ['#','Código','Artículo','Tipo','Unidad','Stock sistema','Contado','Diferencia','Estado'];
+
+function cntDatos(){
+  var q   = (document.getElementById('cnt-q').value||'').trim();
+  var cat = document.getElementById('cnt-cat').value;
+  var est = document.getElementById('cnt-est').value;
+  var f = [];
+  if(q)   f.push('Búsqueda: "'+q+'"');
+  if(cat) f.push('Tipo: '+(cat==='__sin'?'Sin categoría':cat));
+  if(est) f.push('Estado: '+est);
+  if(CNT_VISTA!=='todos') f.push('Vista: '+({pendientes:'Sin contar',contados:'Contados',dif:'Con diferencia'}[CNT_VISTA]||CNT_VISTA));
+
   var idx = cntFiltered();
-  if(!idx.length){ toast('No hay filas para exportar.','err'); return; }
-  var hdr = ['Código','Artículo','Categoría','Unidad','Stock sistema','Contado','Diferencia','Estado'];
-  var rows = idx.map(function(i){
-    var m = CNT_REG[i], v = CNT_VAL[i];
-    return [
-      m.codigo, m.desc, m.categoria, m.unidad,
-      CNT_BASE[i], v!==undefined?v:'', v!==undefined?(v-CNT_BASE[i]):'', m.estado
-    ].map(function(x){ return '"'+String(x==null?'':x).replace(/"/g,'""')+'"'; }).join(',');
+  var filas = idx.map(function(i,n){
+    var m = CNT_REG[i], v = CNT_VAL[i], base = CNT_BASE[i];
+    return {
+      n: n+1, codigo: m.codigo||'', desc: m.desc, tipo: m.categoria||'—', unidad: m.unidad||'',
+      sistema: base, contado: (v!==undefined? v : null),
+      dif: (v!==undefined ? +(v-base).toFixed(3) : null),
+      estado: m.estado==='CRITICO'?'CRÍTICO':m.estado==='MEDIO'?'BAJO':m.estado==='TRANSITO'?'TRÁNSITO':'ÓPTIMO'
+    };
   });
-  var csv = '﻿'+hdr.join(',')+'\n'+rows.join('\n');
+  var contados = filas.filter(function(r){ return r.contado!==null; }).length;
+  var conDif   = filas.filter(function(r){ return r.dif!==null && Math.abs(r.dif)>=0.001; }).length;
+  return { filas:filas, filtros: f.length ? f.join('  ·  ') : 'Listado completo, sin filtros',
+           contados:contados, conDif:conDif, sinContar:filas.length-contados };
+}
+
+function cntResponsable(){
+  try{
+    var n = SubatirApp.operador && SubatirApp.operador.nombre && SubatirApp.operador.nombre();
+    if(n) return n;
+    var p = SubatirApp.getProfile() || {};
+    return p.nombre || p.email || '—';
+  }catch(e){ return '—'; }
+}
+function cntFechaArchivo(){ return new Date().toISOString().slice(0,10); }
+
+function exportConteoCSV(){
+  var d = cntDatos();
+  if(!d.filas.length){ toast('No hay filas para exportar.','err'); return; }
+  var rows = d.filas.map(function(r){
+    return [r.n,r.codigo,r.desc,r.tipo,r.unidad,r.sistema,
+            r.contado===null?'':r.contado, r.dif===null?'':r.dif, r.estado]
+      .map(function(x){ return '"'+String(x==null?'':x).replace(/"/g,'""')+'"'; }).join(',');
+  });
+  var csv = '﻿'+CNT_COLS.join(',')+'\n'+rows.join('\n');
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download = 'control_stock_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.download = 'control_stock_'+cntFechaArchivo()+'.csv';
   a.click();
-  toast('Conteo exportado ('+idx.length+' artículos)','ok');
+  toast('CSV exportado ('+d.filas.length+' artículos)','ok');
+}
+
+// ── Excel ─────────────────────────────────────────────────────────────
+function exportConteoXLSX(){
+  var d = cntDatos();
+  if(!d.filas.length){ toast('No hay filas para exportar.','err'); return; }
+  if(!(window.SubatirApp && SubatirApp.xlsx)){ toast('No se pudo cargar el generador de Excel.','err'); return; }
+
+  var hoy = new Date();
+  var logo = SubatirApp.logoCirc && SubatirApp.logoCirc();
+  var filas = [];
+  function fila(celdas, alto){ filas.push({celdas:celdas, alto:alto}); }
+
+  // Encabezado: el logo flota sobre las 5 primeras filas de la columna A
+  fila([null,{v:'SUBATIR S.A. / PROLIMPIO',s:'titulo'}], 24);
+  fila([null,{v:'Planilla de Control de Stock',s:'subtitulo'}], 20);
+  fila([null,{v:'Fecha',s:'rotulo'},{v:hoy.toLocaleDateString('es-UY')+' '+hoy.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}),s:'valor'}]);
+  fila([null,{v:'Responsable',s:'rotulo'},{v:cntResponsable(),s:'valor'}]);
+  fila([null,{v:'Filtros',s:'rotulo'},{v:d.filtros,s:'valor'}]);
+  fila([null,{v:'Resumen',s:'rotulo'},{v:d.filas.length+' artículos  ·  '+d.contados+' contados  ·  '+
+       d.conDif+' con diferencia  ·  '+d.sinContar+' sin contar',s:'valor'}]);
+  fila([]);
+  fila(CNT_COLS.map(function(t){ return {v:t,s:'th'}; }), 28);
+
+  d.filas.forEach(function(r){
+    fila([
+      {v:r.n,s:'centro'}, {v:r.codigo,s:'centro'}, {v:r.desc,s:'td'},
+      {v:r.tipo,s:'centro'}, {v:r.unidad,s:'centro'},
+      {v:r.sistema,s:'num'},
+      {v:r.contado===null?'':r.contado, s:'negrita'},
+      {v:r.dif===null?'':r.dif, s:(r.dif===null||Math.abs(r.dif)<0.001)?'num':(r.dif<0?'menos':'mas')},
+      {v:r.estado,s:'centro'}
+    ]);
+  });
+
+  var ultima = filas.length;
+  filas.push({celdas:[]});
+  filas.push({celdas:[null,{v:'Contó: ______________________________',s:'pie'},null,null,
+                      {v:'Controló: ______________________________',s:'pie'}]});
+
+  var blob = SubatirApp.xlsx.build({
+    hoja: 'Control de Stock', apaisado: true,
+    congelar: 'A9', filtro: 'A8:I'+ultima,
+    cols: [{w:5},{w:12},{w:52},{w:17},{w:9},{w:14},{w:12},{w:13},{w:11}],
+    imagen: logo ? {dataUrl:logo, ancho:86, alto:86} : null,
+    filas: filas
+  });
+  SubatirApp.xlsx.save(blob, 'Control-de-Stock-'+cntFechaArchivo()+'.xlsx');
+  toast('Excel exportado ('+d.filas.length+' artículos)','ok');
+}
+
+// ── PDF ───────────────────────────────────────────────────────────────
+// Dibuja el logo circular; si el canvas no pudo cargarlo, un matraz dibujado
+function cntLogoPDF(doc, cx, cy, r){
+  var logo = SubatirApp.logoCirc && SubatirApp.logoCirc();
+  if(logo){ try{ doc.addImage(logo,'PNG',cx-r,cy-r,2*r,2*r); return; }catch(e){} }
+  var OR=[242,101,34];
+  doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(2.2); doc.circle(cx,cy,r,'S');
+  doc.setFont('helvetica','bolditalic'); doc.setTextColor(OR[0],OR[1],OR[2]);
+  doc.setFontSize(r*0.42); doc.text('subatir', cx, cy+r*0.15, {align:'center'});
+}
+
+function exportConteoPDF(){
+  var d = cntDatos();
+  if(!d.filas.length){ toast('No hay filas para exportar.','err'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ toast('No se pudo cargar el generador de PDF (revisá tu conexión).','err'); return; }
+
+  var doc = new window.jspdf.jsPDF({unit:'pt', format:'a4', orientation:'landscape'});
+  var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  var M = 28, OR=[242,101,34], BK=[25,25,25], GY=[120,120,120];
+  var hoy = new Date();
+
+  cntLogoPDF(doc, M+40, 62, 34);
+
+  doc.setFont('helvetica','bold'); doc.setTextColor(BK[0],BK[1],BK[2]); doc.setFontSize(24);
+  doc.text('SUBATIR S.A.', M+90, 54);
+  doc.setTextColor(OR[0],OR[1],OR[2]); doc.setFontSize(19);
+  doc.text('PLANILLA DE CONTROL DE STOCK', M+90, 80);
+
+  // Caja de datos a la derecha
+  var bx=W-386, by=26, bw=W-M-bx, bh=72;
+  doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1); doc.roundedRect(bx,by,bw,bh,6,6,'S');
+  function lbl(t,x,y){ doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(OR[0],OR[1],OR[2]); doc.text(t,x,y); }
+  function val(t,x,y,maxW,size){
+    doc.setFont('helvetica','bold'); doc.setTextColor(BK[0],BK[1],BK[2]);
+    var s=size||10; doc.setFontSize(s); t=String(t==null?'—':t);
+    while(s>6 && doc.getTextWidth(t)>maxW){ s-=0.5; doc.setFontSize(s); }
+    if(doc.getTextWidth(t)>maxW){ while(t.length>1 && doc.getTextWidth(t+'…')>maxW) t=t.slice(0,-1); t+='…'; }
+    doc.text(t,x,y);
+  }
+  var mid = bx+bw/2;
+  doc.setLineWidth(.8); doc.line(mid,by,mid,by+bh); doc.line(bx,by+36,bx+bw,by+36);
+  lbl('FECHA', bx+9, by+13);         val(hoy.toLocaleDateString('es-UY')+'  '+hoy.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}), bx+9, by+29, bw/2-16, 11);
+  lbl('RESPONSABLE', mid+9, by+13);  val(cntResponsable(), mid+9, by+29, bw/2-16, 11);
+  lbl('FILTROS', bx+9, by+49);       val(d.filtros, bx+9, by+64, bw/2-16, 9);
+  lbl('RESUMEN', mid+9, by+49);      val(d.filas.length+' art. · '+d.contados+' contados · '+d.conDif+' c/dif. · '+d.sinContar+' sin contar', mid+9, by+64, bw/2-16, 9);
+
+  var body = d.filas.map(function(r){
+    return [r.n, r.codigo||'—', r.desc, r.tipo, r.unidad||'—',
+            fmtN(r.sistema), r.contado===null?'':fmtN(r.contado),
+            r.dif===null?'':(r.dif>0?'+':'')+fmtN(r.dif), r.estado];
+  });
+
+  doc.autoTable({
+    startY: 116, head:[CNT_COLS.map(function(t){ return t.toUpperCase(); })], body: body,
+    theme:'grid', margin:{left:M, right:M, top:44},
+    styles:{fontSize:8.5, cellPadding:4, valign:'middle', lineColor:[214,219,224], lineWidth:.5, textColor:BK},
+    headStyles:{fillColor:OR, textColor:255, fontStyle:'bold', fontSize:8.5, halign:'center'},
+    alternateRowStyles:{fillColor:[250,250,251]},
+    columnStyles:{
+      0:{cellWidth:26, halign:'center'}, 1:{cellWidth:52, halign:'center'},
+      2:{cellWidth:'auto', fontStyle:'bold'}, 3:{cellWidth:78, halign:'center'},
+      4:{cellWidth:40, halign:'center'}, 5:{cellWidth:66, halign:'right'},
+      6:{cellWidth:66, halign:'right', fillColor:[255,250,242]},  // casilla para anotar a mano
+      7:{cellWidth:60, halign:'right'}, 8:{cellWidth:56, halign:'center'}
+    },
+    didParseCell: function(h){
+      if(h.section!=='body') return;
+      var r = d.filas[h.row.index];
+      if(h.column.index===7 && r.dif!==null && Math.abs(r.dif)>=0.001){
+        h.cell.styles.textColor = r.dif<0 ? [180,35,24] : [6,118,71];
+        h.cell.styles.fontStyle = 'bold';
+      }
+      if(h.column.index===8){
+        if(r.estado==='CRÍTICO') h.cell.styles.textColor=[180,35,24];
+        else if(r.estado==='BAJO') h.cell.styles.textColor=[176,110,10];
+      }
+    },
+    didDrawPage: function(data){
+      var pg = doc.internal.getCurrentPageInfo().pageNumber;
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(GY[0],GY[1],GY[2]);
+      doc.text('Control de Stock · Generado el '+hoy.toLocaleString('es-UY'), M, H-14);
+      doc.text('Página '+pg, W-M, H-14, {align:'right'});
+      // En las páginas siguientes, un encabezado corto para no perder el contexto
+      if(pg>1){
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(OR[0],OR[1],OR[2]);
+        doc.text('SUBATIR S.A. — Planilla de Control de Stock', M, 28);
+        data.settings.margin.top = 44;
+      }
+    }
+  });
+
+  // Firmas al final (si no entran, van en una hoja nueva)
+  var y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 140) + 22;
+  if(y > H-96){ doc.addPage(); y = 60; }
+  var half=(W-2*M-20)/2;
+  [['CONTÓ', M],['CONTROLÓ', M+half+20]].forEach(function(b){
+    doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1); doc.roundedRect(b[1], y, half, 64, 6,6,'S');
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(OR[0],OR[1],OR[2]);
+    doc.text(b[0], b[1]+half/2, y+19, {align:'center'});
+    doc.setDrawColor(70,70,70); doc.setLineWidth(.7); doc.line(b[1]+16, y+42, b[1]+half-16, y+42);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(BK[0],BK[1],BK[2]);
+    doc.text('Firma:', b[1]+16, y+56); doc.text('Fecha:', b[1]+half/2+8, y+56);
+  });
+
+  doc.save('Control-de-Stock-'+cntFechaArchivo()+'.pdf');
+  toast('PDF generado ('+d.filas.length+' artículos)','ok');
 }
 
 // Cuenta de artículos con cambios pendientes de sincronizar

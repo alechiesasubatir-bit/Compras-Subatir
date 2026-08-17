@@ -1245,6 +1245,304 @@
     };
   })();
 
+  // ══ Excel (.xlsx) ═════════════════════════════════════════
+  //  Genera un xlsx de verdad, sin librerias: un xlsx es un ZIP con
+  //  XML adentro. Antes la unica salida era CSV, que Excel abre pero
+  //  sin formato, sin anchos de columna y rompiendo los numeros con
+  //  coma decimal segun la configuracion regional de cada PC.
+  //
+  //  El ZIP va sin comprimir (metodo "store"): ahorra meter un
+  //  deflate a mano y a Excel le da igual. Los textos van "inline",
+  //  asi que tampoco hace falta la tabla de strings compartidos.
+  //
+  //  Uso: SubatirApp.xlsx({hoja, cols, filas, imagen, ...}) -> Blob
+  //  Cada celda es {v:valor, s:'estilo'} y los estilos salen del
+  //  catalogo de abajo (ESTILOS), no de indices sueltos.
+  var XLSX = (function () {
+
+    // ── CRC32 (lo exige el ZIP para cada archivo) ────────────
+    var CRC_TBL = null;
+    function crcTable() {
+      if (CRC_TBL) return CRC_TBL;
+      CRC_TBL = new Uint32Array(256);
+      for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        CRC_TBL[n] = c >>> 0;
+      }
+      return CRC_TBL;
+    }
+    function crc32(buf) {
+      var t = crcTable(), c = 0xFFFFFFFF;
+      for (var i = 0; i < buf.length; i++) c = t[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+      return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function utf8(s) { return new TextEncoder().encode(s); }
+
+    // ── ZIP sin compresion ───────────────────────────────────
+    function zip(files) {
+      var enc = utf8, locals = [], central = [], off = 0;
+      // Fecha/hora DOS (segundos con resolucion de 2)
+      var d = new Date();
+      var dosT = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() / 2)) & 0xFFFF;
+      var dosD = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+
+      function u8(n) { return [n & 255]; }
+      function u16(n) { return [n & 255, (n >>> 8) & 255]; }
+      function u32(n) { return [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]; }
+
+      files.forEach(function (f) {
+        var name = enc(f.name);
+        var data = f.data instanceof Uint8Array ? f.data : enc(String(f.data));
+        var crc = crc32(data);
+        var head = [].concat(
+          u32(0x04034B50), u16(20), u16(0), u16(0), u16(dosT), u16(dosD),
+          u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0)
+        );
+        locals.push(new Uint8Array(head), name, data);
+        central.push([].concat(
+          u32(0x02014B50), u16(20), u16(20), u16(0), u16(0), u16(dosT), u16(dosD),
+          u32(crc), u32(data.length), u32(data.length), u16(name.length),
+          u16(0), u16(0), u16(0), u16(0), u32(0), u32(off)
+        ), name);
+        off += head.length + name.length + data.length;
+      });
+
+      var cenParts = [], cenLen = 0;
+      for (var i = 0; i < central.length; i += 2) {
+        var h = new Uint8Array(central[i]);
+        cenParts.push(h, central[i + 1]);
+        cenLen += h.length + central[i + 1].length;
+      }
+      var end = new Uint8Array([].concat(
+        u32(0x06054B50), u16(0), u16(0), u16(files.length), u16(files.length),
+        u32(cenLen), u32(off), u16(0)
+      ));
+
+      var total = off + cenLen + end.length, out = new Uint8Array(total), p = 0;
+      locals.concat(cenParts).concat([end]).forEach(function (part) { out.set(part, p); p += part.length; });
+      return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    }
+
+    // ── Catalogo de estilos (el indice es el orden en cellXfs) ─
+    var ESTILOS = ['normal', 'titulo', 'subtitulo', 'rotulo', 'valor', 'th',
+                   'td', 'num', 'centro', 'menos', 'mas', 'negrita', 'pie'];
+    function sIdx(nombre) { var i = ESTILOS.indexOf(nombre || 'normal'); return i < 0 ? 0 : i; }
+
+    var STYLES_XML =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.###"/></numFmts>' +
+      '<fonts count="8">' +
+        '<font><sz val="11"/><name val="Calibri"/><color rgb="FF1F2933"/></font>' +
+        '<font><b/><sz val="20"/><name val="Calibri"/><color rgb="FF0B2A3A"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/><color rgb="FFFFFFFF"/></font>' +
+        '<font><sz val="9"/><name val="Calibri"/><color rgb="FF6B7F93"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/><color rgb="FF1F2933"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/><color rgb="FFB42318"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/><color rgb="FF067647"/></font>' +
+        '<font><b/><sz val="13"/><name val="Calibri"/><color rgb="FFC2580A"/></font>' +
+      '</fonts>' +
+      '<fills count="6">' +
+        '<fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill>' +
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFF97316"/><bgColor indexed="64"/></patternFill></fill>' +
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFFDECEC"/><bgColor indexed="64"/></patternFill></fill>' +
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFEAF7EE"/><bgColor indexed="64"/></patternFill></fill>' +
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF4E5"/><bgColor indexed="64"/></patternFill></fill>' +
+      '</fills>' +
+      '<borders count="2">' +
+        '<border><left/><right/><top/><bottom/><diagonal/></border>' +
+        '<border>' +
+          '<left style="thin"><color rgb="FFD5DBE1"/></left><right style="thin"><color rgb="FFD5DBE1"/></right>' +
+          '<top style="thin"><color rgb="FFD5DBE1"/></top><bottom style="thin"><color rgb="FFD5DBE1"/></bottom><diagonal/>' +
+        '</border>' +
+      '</borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="13">' +
+        '<xf numFmtId="0"   fontId="0" fillId="0" borderId="0" xfId="0"/>' +                                                      /* normal    */
+        '<xf numFmtId="0"   fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>' +      /* titulo    */
+        '<xf numFmtId="0"   fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>' +      /* subtitulo */
+        '<xf numFmtId="0"   fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                                        /* rotulo    */
+        '<xf numFmtId="0"   fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                                        /* valor     */
+        '<xf numFmtId="0"   fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' + /* th */
+        '<xf numFmtId="0"   fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>' + /* td */
+        '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>' + /* num */
+        '<xf numFmtId="0"   fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' + /* centro */
+        '<xf numFmtId="164" fontId="5" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>' + /* menos */
+        '<xf numFmtId="164" fontId="6" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>' + /* mas */
+        '<xf numFmtId="164" fontId="4" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>' + /* negrita */
+        '<xf numFmtId="0"   fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                                        /* pie       */
+      '</cellXfs>' +
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+      '</styleSheet>';
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''); // Excel rechaza los de control
+    }
+    // 0 -> A, 25 -> Z, 26 -> AA
+    function colName(n) {
+      var s = '';
+      do { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
+      return s;
+    }
+
+    // opts = {hoja, cols:[{w}], filas:[{alto, celdas:[{v,s,f}]}], imagen:{dataUrl,ancho,alto},
+    //         congelar:'A8', filtro:'A7:H99', apaisado:true}
+    function build(opts) {
+      opts = opts || {};
+      var filas = opts.filas || [], cols = opts.cols || [];
+      var img = opts.imagen && opts.imagen.dataUrl ? opts.imagen : null;
+
+      var sd = filas.map(function (fila, r) {
+        var celdas = (fila.celdas || []).map(function (c, i) {
+          if (c == null) return '';
+          var ref = colName(i) + (r + 1), s = ' s="' + sIdx(c.s) + '"';
+          var v = c.v;
+          if (v === '' || v == null) return '<c r="' + ref + '"' + s + '/>';
+          if (typeof v === 'number' && isFinite(v)) return '<c r="' + ref + '"' + s + '><v>' + v + '</v></c>';
+          return '<c r="' + ref + '"' + s + ' t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+        }).join('');
+        return '<row r="' + (r + 1) + '"' + (fila.alto ? ' ht="' + fila.alto + '" customHeight="1"' : '') + '>' + celdas + '</row>';
+      }).join('');
+
+      var colsXml = cols.length ? '<cols>' + cols.map(function (c, i) {
+        return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + (c.w || 12) + '" customWidth="1"/>';
+      }).join('') + '</cols>' : '';
+
+      var panes = opts.congelar
+        ? '<pane ySplit="' + (parseInt(String(opts.congelar).replace(/\D/g, ''), 10) - 1) +
+          '" topLeftCell="' + opts.congelar + '" activePane="bottomLeft" state="frozen"/>' +
+          '<selection pane="bottomLeft" activeCell="' + opts.congelar + '" sqref="' + opts.congelar + '"/>'
+        : '';
+
+      var sheet =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+          'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheetViews><sheetView showGridLines="0" workbookViewId="0">' + panes + '</sheetView></sheetViews>' +
+        '<sheetFormatPr defaultRowHeight="15"/>' + colsXml +
+        '<sheetData>' + sd + '</sheetData>' +
+        (opts.filtro ? '<autoFilter ref="' + opts.filtro + '"/>' : '') +
+        '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>' +
+        '<pageSetup orientation="' + (opts.apaisado ? 'landscape' : 'portrait') + '" fitToWidth="1" fitToHeight="0" paperSize="9"/>' +
+        (img ? '<drawing r:id="rId1"/>' : '') +
+        '</worksheet>';
+
+      var files = [
+        { name: '[Content_Types].xml', data:
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+          '<Default Extension="xml" ContentType="application/xml"/>' +
+          (img ? '<Default Extension="png" ContentType="image/png"/>' : '') +
+          '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+          '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+          '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+          (img ? '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' : '') +
+          '</Types>' },
+        { name: '_rels/.rels', data:
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+          '</Relationships>' },
+        { name: 'xl/workbook.xml', data:
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+          '<sheets><sheet name="' + esc((opts.hoja || 'Hoja1').slice(0, 31)) + '" sheetId="1" r:id="rId1"/></sheets>' +
+          '</workbook>' },
+        { name: 'xl/_rels/workbook.xml.rels', data:
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+          '</Relationships>' },
+        { name: 'xl/styles.xml', data: STYLES_XML },
+        { name: 'xl/worksheets/sheet1.xml', data: sheet }
+      ];
+
+      if (img) {
+        var px = 9525; // 1 pixel = 9525 EMU
+        var cx = Math.round((img.ancho || 96) * px), cy = Math.round((img.alto || 96) * px);
+        files.push(
+          { name: 'xl/worksheets/_rels/sheet1.xml.rels', data:
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>' +
+            '</Relationships>' },
+          { name: 'xl/drawings/drawing1.xml', data:
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" ' +
+              'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+            '<xdr:oneCellAnchor>' +
+            '<xdr:from><xdr:col>0</xdr:col><xdr:colOff>57150</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>38100</xdr:rowOff></xdr:from>' +
+            '<xdr:ext cx="' + cx + '" cy="' + cy + '"/>' +
+            '<xdr:pic>' +
+            '<xdr:nvPicPr><xdr:cNvPr id="2" name="Logo Subatir"/>' +
+            '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>' +
+            '<xdr:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId1"/>' +
+            '<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>' +
+            '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
+            '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>' +
+            '</xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>' },
+          { name: 'xl/drawings/_rels/drawing1.xml.rels', data:
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/logo.png"/>' +
+            '</Relationships>' },
+          { name: 'xl/media/logo.png', data: b64ToBytes(img.dataUrl) }
+        );
+      }
+      return zip(files);
+    }
+
+    function b64ToBytes(dataUrl) {
+      var b64 = String(dataUrl).split(',')[1] || '';
+      var bin = atob(b64), out = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+
+    // Dispara la descarga del Blob con el nombre pedido
+    function save(blob, nombre) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nombre;
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    }
+
+    return { build: build, save: save, colName: colName, estilos: ESTILOS };
+  })();
+
+  // ── Logo circular en PNG, listo para PDF y Excel ───────────
+  //  Se recorta una sola vez al cargar la pagina. Si el canvas
+  //  falla (o el logo no esta) queda null y cada salida usa su
+  //  propio respaldo dibujado.
+  var LOGO_CIRC = null;
+  (function preloadLogo() {
+    try {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var D = 320, c = document.createElement('canvas'); c.width = c.height = D;
+          var ctx = c.getContext('2d');
+          ctx.save();
+          ctx.beginPath(); ctx.arc(D / 2, D / 2, D / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+          var s = Math.min(img.width, img.height);
+          ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, D, D);
+          ctx.restore();
+          LOGO_CIRC = c.toDataURL('image/png');
+        } catch (e) { /* canvas tainted: se usa el respaldo dibujado */ }
+      };
+      img.src = 'logo.jpg';
+    } catch (e) {}
+  })();
+
   // ── Export ─────────────────────────────────────────────────
   window.SubatirApp = {
     ready: _ready,
@@ -1258,6 +1556,7 @@
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
     PL06: PL06, operador: OPER,
     live: live,
+    xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; },
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule
   };

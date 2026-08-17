@@ -487,7 +487,10 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
 .cnt-inp::placeholder{color:var(--muted);font-weight:400}
 .cnt-inp:disabled{cursor:not-allowed;background:rgba(255,255,255,.03)}
 .cnt-eq{
-  height:44px;padding:0 11px;border-radius:9px;cursor:pointer;white-space:nowrap;
+  /* ancho fijo: si no, cada botón mide distinto según el número y los
+     inputs quedan en zigzag en vez de alineados en columna */
+  height:44px;width:86px;padding:0 8px;border-radius:9px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted-l);
   font-size:10px;font-weight:700;transition:all .16s;
 }
@@ -520,12 +523,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-17.1005"></script>
-<script src="subatir-app.js?v=2026-08-17.1005"></script>
+<script src="supabase-config.js?v=2026-08-17.1014"></script>
+<script src="subatir-app.js?v=2026-08-17.1014"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-17.1005';
+window.APP_VER='2026-08-17.1014';
 </script>
 </head>
 <body>
@@ -2181,8 +2184,12 @@ function cntCommit(i){
         return;
       }
       CNT_ST[i] = 'ok';
-      m.stock   = n;   // lo contado ES el stock disponible
-      recalcItem(m);   // re-semaforiza: estado, cobertura y compra sugerida
+      // Lo contado ES el stock disponible: se aplica y se re-semaforiza
+      // (estado, cobertura y compra sugerida) sin esperar una recarga.
+      // Va por __row y no por referencia porque el guardado dispara
+      // realtime, que rehace MERGED: el objeto del modal queda suelto.
+      m.stock = n; recalcItem(m);
+      MERGED.forEach(function(x){ if(x.__row && x.__row===m.__row){ x.stock=n; recalcItem(x); } });
       cntPaint(i); cntStats(); cntRefreshMain();
     });
 }

@@ -533,12 +533,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-17.1835"></script>
-<script src="subatir-app.js?v=2026-08-17.1835"></script>
+<script src="supabase-config.js?v=2026-08-18.0932"></script>
+<script src="subatir-app.js?v=2026-08-18.0932"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-17.1835';
+window.APP_VER='2026-08-18.0932';
 </script>
 </head>
 <body>
@@ -2355,7 +2355,7 @@ var CNT_COLDEF = {
     {k:'unidad', t:'Unidad',        w:40,     al:'center', xw:9},
     {k:'sistema',t:'Stock sistema', w:66,     al:'right',  xw:14, num:true},
     {k:'contado',t:'Contado',       w:66,     al:'right',  xw:12, num:true, casilla:true},
-    {k:'dif',    t:'Diferencia',    w:60,     al:'right',  xw:13, num:true},
+    {k:'dif',    t:'Diferencia',    w:68,     al:'right',  xw:13, num:true},
     {k:'estado', t:'Estado',        w:56,     al:'center', xw:11}
   ],
   historico: [
@@ -2367,7 +2367,7 @@ var CNT_COLDEF = {
     {k:'unidad', t:'Unidad',        w:40,     al:'center', xw:9},
     {k:'sistema',t:'Stock anterior',w:66,     al:'right',  xw:14, num:true},
     {k:'contado',t:'Contado',       w:62,     al:'right',  xw:12, num:true},
-    {k:'dif',    t:'Diferencia',    w:58,     al:'right',  xw:13, num:true},
+    {k:'dif',    t:'Diferencia',    w:68,     al:'right',  xw:13, num:true},
     {k:'estado', t:'Estado',        w:54,     al:'center', xw:11}
   ]
 };
@@ -2648,6 +2648,27 @@ function openHistorial(){
     }
     HIST = r.data || [];
     renderHistLista();
+    // Los totales de la cabecera se escriben al tocar "Terminar". Si el
+    // recorrido quedó a medias (se cerró el navegador, se quedó sin
+    // batería) figuraría en cero teniendo líneas guardadas, así que se
+    // recuentan de las líneas, que son el dato real.
+    if(!HIST.length) return;
+    SB.from('conteo_lineas').select('conteo_id,diferencia')
+      .in('conteo_id', HIST.map(function(c){ return c.id; }))
+      .then(function(rl){
+        if(rl.error){ console.warn('[Conteo] no se pudieron recontar las líneas:', rl.error.message); return; }
+        var acc = {};
+        (rl.data||[]).forEach(function(l){
+          if(!acc[l.conteo_id]) acc[l.conteo_id] = {n:0, dif:0};
+          acc[l.conteo_id].n++;
+          if(l.diferencia!==null && Math.abs(+l.diferencia)>=0.001) acc[l.conteo_id].dif++;
+        });
+        HIST.forEach(function(c){
+          var a = acc[c.id] || {n:0, dif:0};
+          c.contados = a.n; c.con_diferencia = a.dif;
+        });
+        renderHistLista();
+      });
   });
 }
 

@@ -533,12 +533,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-18.0932"></script>
-<script src="subatir-app.js?v=2026-08-18.0932"></script>
+<script src="supabase-config.js?v=2026-08-18.1220"></script>
+<script src="subatir-app.js?v=2026-08-18.1220"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-18.0932';
+window.APP_VER='2026-08-18.1220';
 </script>
 </head>
 <body>
@@ -1450,6 +1450,7 @@ function buildMerged(){
   buildProvCanon();
   var ocIdx   = buildOCIndex();
   var precIdx = buildPrecIndex();
+  var ocUsadas = {};  // claves de OC ya atribuidas a un artículo del inventario
 
   RAW_INV.forEach(function(item){
     var codigo  = String(item[IK.codigo]||'').trim();
@@ -1466,6 +1467,9 @@ function buildMerged(){
     var ocData        = findOCMatch(desc, ocIdx);
     var pendiente     = ocData.pendiente      || 0;
     var valorPendiente= ocData.valorPendiente || 0;
+    // Se anotan las OC que este artículo se lleva, para saber después
+    // cuáles quedaron sin dueño y hay que mostrar aparte
+    matchKeys(desc, ocIdx).forEach(function(k){ ocUsadas[k] = true; });
 
     // Proveedor sugerido: prioridad override local → OC más reciente → hoja COMPRAS
     var provSugeridoHoja = IK.provSugerido ? String(item[IK.provSugerido]||'').trim() : '';
@@ -1498,23 +1502,19 @@ function buildMerged(){
     }));
   });
 
-  // ── Agregar artículos de OC que no tienen fila en COMPRAS ──────
-  // (p.ej. Acido Clorhídrico, No Iónico — están pedidos pero aún no ingresaron al inventario)
-  var descEnMerged = {};
-  MERGED.forEach(function(m){ descEnMerged[norm(m.desc)] = true; });
-
+  // ── Agregar artículos de OC que no tienen fila en el inventario ──────
+  // (p.ej. Acido Clorhídrico, No Iónico — están pedidos pero aún no ingresaron)
+  //
+  // Antes acá se comparaban los primeros 12 caracteres, y con eso alcanzaba
+  // para dar el artículo por cubierto: "Botella Pet x 1 L Verde" quedaba
+  // tapada por "Botella Pet Ambar 500 mL con Válvula" porque las dos empiezan
+  // con "BOTELLA PET ". Resultado: lo pedido no aparecía en tránsito en su
+  // artículo NI salía como fila aparte — desaparecía de la pantalla.
+  // Ahora no se adivina: se usa la lista de OC que los artículos del
+  // inventario efectivamente se llevaron (ocUsadas, del mismo matcher que
+  // reparte el tránsito). Lo que quedó sin dueño, se muestra.
   Object.keys(ocIdx).forEach(function(normKey){
-    // Verificar si ya está cubierto por alguna fila de COMPRAS (fuzzy)
-    var yaEsta = false;
-    Object.keys(descEnMerged).forEach(function(normDesc){
-      var minLen = Math.min(normDesc.length, normKey.length);
-      if(minLen >= 6){
-        var prefix = normDesc.slice(0, Math.min(normDesc.length, 12));
-        if(normKey.indexOf(prefix) >= 0 || normDesc.indexOf(normKey.slice(0,12)) >= 0) yaEsta = true;
-      }
-      if(normDesc === normKey) yaEsta = true;
-    });
-    if(yaEsta) return;
+    if(ocUsadas[normKey]) return;
 
     var ocData = ocIdx[normKey];
     if(!ocData || ocData.pendiente <= 0) return; // solo mostrar si hay algo en tránsito

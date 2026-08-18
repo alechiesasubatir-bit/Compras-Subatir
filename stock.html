@@ -533,12 +533,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-18.1220"></script>
-<script src="subatir-app.js?v=2026-08-18.1220"></script>
+<script src="supabase-config.js?v=2026-08-18.1727"></script>
+<script src="subatir-app.js?v=2026-08-18.1727"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-18.1220';
+window.APP_VER='2026-08-18.1727';
 </script>
 </head>
 <body>
@@ -1298,6 +1298,31 @@ function tokenize(s){
     .filter(function(w){ return w.length >= 2 && !/^\d/.test(w); });
 }
 
+// ─── Números del nombre ──────────────────────────────────────────────────────
+// tokenize() los tira a propósito (los gramajes y presentaciones ensucian el
+// match), pero son justo lo que separa una variante de otra: "rosca 28 /400" y
+// "rosca 28 /410" quedan idénticas sin ellos, y el tránsito de una se le
+// atribuía a la otra. Se leen aparte para usarlos solo como desempate.
+// Los de adentro de paréntesis no cuentan: ahí viven los pesos, "(23.6g)".
+function numeros(s){
+  return (norm(s).replace(/\([^)]*\)/g,' ').match(/\d+(?:[.,]\d+)?/g) || [])
+    .map(function(n){ return n.replace(',','.'); });
+}
+
+// Dos nombres se contradicen si cada uno tiene un número que el otro no.
+// "500 ml" contra "500 ml 23.6" no se contradicen (uno es más específico);
+// "28 400" contra "28 410" sí, y ahí no puede haber match.
+function numerosChocan(a, b){
+  var na = numeros(a), nb = numeros(b);
+  if(!na.length || !nb.length) return false;   // sin números no hay nada que comparar
+  var setA = {}, setB = {};
+  na.forEach(function(n){ setA[n]=1; });
+  nb.forEach(function(n){ setB[n]=1; });
+  var faltaEnB = na.some(function(n){ return !setB[n]; });
+  var faltaEnA = nb.some(function(n){ return !setA[n]; });
+  return faltaEnB && faltaEnA;
+}
+
 // ─── Fuzzy match OC ↔ COMPRAS por palabras ───────────────────────────────────
 // Reglas:
 //  1. Exact match (directo al índice).
@@ -1345,6 +1370,10 @@ function matchKeys(desc, idx){
       return !shorterSet[t] && t.length >= 3;
     });
     if(hasMeaningfulExtra) return;
+
+    // Mismas palabras no alcanza: si los números se contradicen son variantes
+    // distintas (rosca 28/400 vs 28/410, que en palabras son idénticas)
+    if(numerosChocan(desc, k)) return;
 
     keys.push(k);
   });

@@ -454,12 +454,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-18.2323"></script>
-<script src="subatir-app.js?v=2026-08-18.2323"></script>
+<script src="supabase-config.js?v=2026-08-18.2330"></script>
+<script src="subatir-app.js?v=2026-08-18.2330"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-18.2323';
+window.APP_VER='2026-08-18.2330';
 </script>
 </head>
 <body>
@@ -845,9 +845,12 @@ window.APP_VER='2026-08-18.2323';
           <label>Consumo mensual</label>
           <input type="number" class="form-input" id="an-cons" step="0.01" placeholder="0"/>
         </div>
+        <!-- display:block a propósito: .form-group es flex en columna y partía
+             el texto en un renglón por cada <b> que tiene adentro -->
         <div class="form-group span2" id="an-resumen"
-             style="font-size:12px;line-height:1.55;color:var(--orange-l,#fb923c);background:rgba(249,115,22,.07);
-                    border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:9px 12px"></div>
+             style="display:block;font-size:12px;line-height:1.55;color:var(--orange-l,#fb923c);
+                    background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.2);
+                    border-radius:8px;padding:9px 12px"></div>
       </div>
     </div>
     <div class="modal-footer">

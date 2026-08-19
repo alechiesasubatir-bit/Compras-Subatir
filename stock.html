@@ -502,6 +502,44 @@ tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
 .cnt-delta.down{color:var(--red)}
 .cnt-delta.same{color:var(--muted-l)}
 .cnt-empty{padding:28px;text-align:center;color:var(--muted);font-size:12px}
+/* ─── Escanear + modo foco ───────────────────────────────────
+   Contar con el celular en la mano es escanear la etiqueta del estante,
+   tipear y pasar al siguiente. El modo foco muestra UN artículo a
+   pantalla completa: sin scroll y sin riesgo de cargarle a la fila de al
+   lado, que con 149 artículos de nombres parecidos pasa. */
+.btn-scan{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:13px;border-radius:11px;border:none;cursor:pointer;
+  font-size:14px;font-weight:800;letter-spacing:.3px;color:#fff;
+  background:linear-gradient(135deg,var(--orange-d),var(--orange));
+  box-shadow:0 6px 20px rgba(249,115,22,.25);transition:filter .18s;
+}
+.btn-scan:hover{filter:brightness(1.08)}
+#qr-reader{border-radius:12px;overflow:hidden;background:#000}
+#qr-reader video{width:100%!important;display:block}
+.scan-msg{margin-top:10px;font-size:12px;color:var(--muted-l);text-align:center;min-height:18px}
+
+.foco{display:flex;flex-direction:column;gap:14px}
+.foco-nom{font-size:19px;font-weight:800;line-height:1.25}
+.foco-sub{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:5px}
+.foco-datos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.foco-dato{padding:10px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--border);text-align:center}
+.foco-dato .l{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.foco-dato .v{font-family:var(--mono);font-size:16px;font-weight:800;margin-top:3px}
+.foco-inp{
+  width:100%;height:66px;border-radius:13px;text-align:center;
+  background:rgba(255,255,255,.07);border:2px solid var(--border-b);color:var(--text);outline:none;
+  font-family:var(--mono);font-size:30px;font-weight:800;
+}
+.foco-inp:focus{border-color:var(--teal-l);box-shadow:0 0 0 4px rgba(18,160,204,.15)}
+.foco-delta{text-align:center;font-family:var(--mono);font-size:15px;font-weight:800;min-height:20px}
+.foco-delta.up{color:var(--green)} .foco-delta.down{color:var(--red)} .foco-delta.same{color:var(--muted-l)}
+.foco-acc{display:flex;gap:9px}
+.foco-acc button{flex:1;padding:14px;border-radius:11px;border:none;cursor:pointer;font-size:13px;font-weight:800}
+.foco-igual{background:rgba(255,255,255,.07);border:1px solid var(--border)!important;color:var(--text)}
+.foco-next{background:linear-gradient(135deg,var(--teal),var(--teal-l));color:#fff}
+.foco-prog{text-align:center;font-size:11px;color:var(--muted-l)}
+
 /* En el celular manda la lista: los KPIs y los filtros se achican para que
    entren de una sola línea y quede pantalla para los artículos. */
 @media(max-width:720px){
@@ -530,15 +568,17 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-19.0000"></script>
-<script src="subatir-app.js?v=2026-08-19.0000"></script>
+<script src="supabase-config.js?v=2026-08-19.1028"></script>
+<script src="subatir-app.js?v=2026-08-19.1028"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.0000';
+window.APP_VER='2026-08-19.1028';
 </script>
 </head>
 <body>
@@ -884,6 +924,8 @@ window.APP_VER='2026-08-19.0000';
         <div class="cnt-kpi"><div class="n c-orange"id="cnt-k-pend">—</div><div class="l">Sin contar</div></div>
       </div>
 
+      <button class="btn-scan" onclick="abrirScan()">📷 Escanear artículo</button>
+
       <div class="filters" style="margin-bottom:0">
         <div class="search-wrap">
           <input class="fi fi-search" id="cnt-q" placeholder="Buscar artículo, código…" oninput="renderConteo()"/>
@@ -921,6 +963,7 @@ window.APP_VER='2026-08-19.0000';
         Cada número se guarda solo al salir del campo y pasa directo al stock disponible.
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="imprimirEtiquetas()">🏷 Etiquetas QR</button>
         <button class="btn btn-ghost btn-sm" onclick="exportConteoPDF()">🖨 PDF</button>
         <button class="btn btn-ghost btn-sm" onclick="exportConteoXLSX()">📊 Excel</button>
         <button class="btn btn-ghost btn-sm" onclick="exportConteoCSV()">⬇ CSV</button>
@@ -929,6 +972,57 @@ window.APP_VER='2026-08-19.0000';
     </div>
   </div>
 </div>
+
+<!-- ══ ESCÁNER ═══════════════════════════════════════════════ -->
+<div class="overlay" id="ov-scan" style="z-index:700">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hdr">
+      <div class="modal-title">📷 Escanear artículo</div>
+      <button class="modal-x" onclick="cerrarScan()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="qr-reader"></div>
+      <div class="scan-msg" id="scan-msg">Iniciando cámara…</div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="cerrarScan()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODO FOCO: un artículo a pantalla completa ════════════ -->
+<div class="overlay" id="ov-foco" style="z-index:710">
+  <div class="modal" style="max-width:430px">
+    <div class="modal-hdr">
+      <div class="modal-title">Contar artículo</div>
+      <button class="modal-x" onclick="cerrarFoco()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="foco">
+        <div>
+          <div class="foco-nom" id="fo-nom">—</div>
+          <div class="foco-sub" id="fo-sub"></div>
+        </div>
+        <div class="foco-datos">
+          <div class="foco-dato"><div class="l">Sistema</div><div class="v" id="fo-sis">—</div></div>
+          <div class="foco-dato"><div class="l">Mínimo</div><div class="v" id="fo-min">—</div></div>
+          <div class="foco-dato"><div class="l">En tránsito</div><div class="v c-teal" id="fo-tra">—</div></div>
+        </div>
+        <input type="text" inputmode="decimal" autocomplete="off" class="foco-inp" id="fo-inp"
+               placeholder="0" oninput="focoDelta()" onkeydown="if(event.key==='Enter'){event.preventDefault();focoGuardar(true);}"/>
+        <div class="foco-delta same" id="fo-delta"></div>
+        <div class="foco-acc">
+          <button class="foco-igual" id="fo-igual" onclick="focoIgual()">= igual</button>
+          <button class="foco-next" onclick="focoGuardar(true)">✓ Guardar y escanear</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="width:100%;padding:9px" onclick="focoGuardar(false)">Guardar y volver a la lista</button>
+        <div class="foco-prog" id="fo-prog"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="qr-tmp" style="position:absolute;left:-9999px;top:-9999px"></div>
 
 <!-- Modal: Nuevo artículo (inserta en la tabla inventario) -->
 <div class="overlay" id="ov-new">
@@ -2052,6 +2146,8 @@ function openConteo(){
 }
 
 function closeConteo(){
+  cerrarScan();   // si quedó la cámara prendida, se apaga
+  closeOv('ov-foco'); FOCO_I = null;
   // Guardar lo que quedó tipeado sin confirmar (input con foco o autoguardado en curso)
   var a = document.activeElement;
   if(a && a.classList && a.classList.contains('cnt-inp')) a.blur();
@@ -2209,15 +2305,22 @@ function cntCommit(i){
     cntPaint(i); cntStats(); return;
   }
   if(isNaN(n) || n < 0){ toast('Cantidad inválida en "'+m.desc.slice(0,28)+'".','err'); el.focus(); return; }
-  if(CNT_VAL[i]===n && CNT_ST[i]==='ok') return; // ya guardado, no reescribir
+  cntAplicar(i, n);
+}
+
+// El guardado en sí, sin tocar el input: lo llaman la lista y el modo foco,
+// que tienen cada uno su propio campo. Devuelve la promesa del write.
+function cntAplicar(i, n){
+  var m = CNT_REG[i]; if(!m || !m.__row) return Promise.resolve();
+  if(CNT_VAL[i]===n && CNT_ST[i]==='ok') return Promise.resolve(); // ya guardado, no reescribir
 
   CNT_VAL[i] = n;
   CNT_ST[i]  = 'save';
   cntPaint(i); cntStats();
 
-  if(!IK.stock){ CNT_ST[i]='err'; cntPaint(i); toast('No se detectó la columna de stock en inventario.','err'); return; }
+  if(!IK.stock){ CNT_ST[i]='err'; cntPaint(i); toast('No se detectó la columna de stock en inventario.','err'); return Promise.resolve(); }
   var fields = {}; fields[IK.stock] = n;
-  SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:m.__row, fields:JSON.stringify(fields)})
+  return SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:m.__row, fields:JSON.stringify(fields)})
     .then(function(d){
       if(d && d.error){
         CNT_ST[i]='err'; cntPaint(i);
@@ -2269,6 +2372,157 @@ function cntStats(){
 function cntRefreshMain(){
   if(CNT_RT) clearTimeout(CNT_RT);
   CNT_RT = setTimeout(function(){ CNT_RT=null; renderAll(); }, 700);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  ESCANEAR Y CONTAR — el recorrido con el celular
+//  Escanear la etiqueta del estante evita lo que realmente cuesta: buscar
+//  el artículo entre 149 nombres parecidos en una pantalla que muestra 4.
+//  El QR lleva el ID de la ficha, no el código: hay códigos repetidos en
+//  dos artículos y otros sin código, y el id además sobrevive a que le
+//  cambien el nombre al artículo.
+// ══════════════════════════════════════════════════════════════════════
+var QR_PREF = 'SUB-INV-';
+var H5 = null, SCAN_BUSY = false, FOCO_I = null;
+
+function qrTexto(m){ return QR_PREF + m.__row; }
+
+function abrirScan(){
+  if(typeof Html5Qrcode==='undefined'){ toast('No se pudo cargar el lector de QR (revisá la conexión).','err'); return; }
+  SCAN_BUSY = false;
+  setText('scan-msg','Iniciando cámara…');
+  openOv('ov-scan');
+  H5 = new Html5Qrcode('qr-reader');
+  H5.start({facingMode:'environment'}, {fps:10, qrbox:{width:230,height:230}}, onScanQR, function(){})
+    .then(function(){ setText('scan-msg','Apuntá a la etiqueta del estante…'); })
+    .catch(function(e){ setText('scan-msg','No se pudo abrir la cámara: '+((e&&e.message)||e)); });
+}
+
+function cerrarScan(){
+  if(H5){
+    try{ H5.stop().then(function(){ try{H5.clear();}catch(e){} H5=null; }).catch(function(){ H5=null; }); }
+    catch(e){ H5=null; }
+  }
+  closeOv('ov-scan');
+}
+
+function onScanQR(txt){
+  if(SCAN_BUSY) return;
+  var t = String(txt||'').trim();
+
+  // Etiqueta de pallet: es de la app de Depósitos, no de acá
+  if(/^PLT-/i.test(t)){ setText('scan-msg','Ese QR es de un pallet de Depósitos, no de un artículo.'); return; }
+
+  var id = (t.toUpperCase().indexOf(QR_PREF)===0) ? parseInt(t.slice(QR_PREF.length),10) : NaN;
+  if(isNaN(id)){ setText('scan-msg','QR no reconocido. Probá con otra etiqueta.'); return; }
+
+  var i = -1;
+  CNT_REG.forEach(function(m,k){ if(m.__row===id) i=k; });
+  if(i<0){ setText('scan-msg','El artículo de esa etiqueta ya no está en el inventario.'); return; }
+
+  SCAN_BUSY = true;
+  try{ if(navigator.vibrate) navigator.vibrate(45); }catch(e){}   // avisa sin mirar la pantalla
+  cerrarScan();
+  abrirFoco(i);
+}
+
+// ── Modo foco: un artículo a pantalla completa ───────────────────────
+function abrirFoco(i){
+  FOCO_I = i;
+  var m = CNT_REG[i], un = m.unidad ? ' '+m.unidad : '';
+  setText('fo-nom', m.desc);
+  setText('fo-sub', (m.codigo? m.codigo+' · ' : '') + (m.categoria || 'sin categoría'));
+  setText('fo-sis', fmtN(CNT_BASE[i]) + un);
+  setText('fo-min', m.minimo>0 ? fmtN(m.minimo) : '—');
+  setText('fo-tra', m.pendiente>0 ? fmtN(m.pendiente) : '—');
+  document.getElementById('fo-igual').textContent = '= igual ('+fmtN(CNT_BASE[i])+')';
+  var inp = document.getElementById('fo-inp');
+  inp.value = CNT_VAL[i]!==undefined ? CNT_VAL[i] : '';
+  focoDelta();
+  var t = cntTotales();
+  setText('fo-prog', t.ok+' de '+t.tot+' contados · faltan '+(t.tot-t.ok));
+  openOv('ov-foco');
+  setTimeout(function(){ inp.focus(); inp.select(); }, 120);
+}
+
+function cerrarFoco(){ closeOv('ov-foco'); FOCO_I=null; renderConteo(); }
+
+function focoDelta(){
+  if(FOCO_I===null) return;
+  var d = document.getElementById('fo-delta');
+  var n = cntNum(document.getElementById('fo-inp').value);
+  if(n===null || isNaN(n)){ d.textContent=''; d.className='foco-delta same'; return; }
+  var dif = n - CNT_BASE[FOCO_I];
+  if(Math.abs(dif)<0.001){ d.textContent='= sin diferencia'; d.className='foco-delta same'; }
+  else { d.textContent=(dif>0?'▲ +':'▼ ')+fmtN(dif); d.className='foco-delta '+(dif>0?'up':'down'); }
+}
+
+function focoIgual(){
+  if(FOCO_I===null) return;
+  document.getElementById('fo-inp').value = CNT_BASE[FOCO_I];
+  focoDelta();
+  focoGuardar(true);
+}
+
+// seguir=true vuelve al escáner; false vuelve a la lista
+function focoGuardar(seguir){
+  if(FOCO_I===null) return;
+  var i = FOCO_I, m = CNT_REG[i];
+  var n = cntNum(document.getElementById('fo-inp').value);
+  if(n===null){ toast('Escribí la cantidad contada.','err'); return; }
+  if(isNaN(n) || n<0){ toast('Cantidad inválida.','err'); return; }
+
+  cntAplicar(i, n);                     // el guardado sigue solo, no se espera
+  toast('✓ '+m.desc.slice(0,26)+': '+fmtN(n)+(m.unidad?' '+m.unidad:''),'ok');
+  closeOv('ov-foco'); FOCO_I=null;
+  renderConteo();
+  if(seguir) abrirScan();
+}
+
+// ── Etiquetas QR para pegar en el estante ────────────────────────────
+//  Salen las que estén a la vista con los filtros puestos, así se puede
+//  imprimir de a tandas (una categoría, lo que falta etiquetar).
+function qrDataUrl(txt){
+  var box = document.getElementById('qr-tmp'); box.innerHTML='';
+  new QRCode(box, {text:txt, width:180, height:180, correctLevel:QRCode.CorrectLevel.M});
+  var c = box.querySelector('canvas');
+  return c ? c.toDataURL('image/png') : null;
+}
+
+function imprimirEtiquetas(){
+  if(typeof QRCode==='undefined'){ toast('No se pudo cargar el generador de QR.','err'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ toast('No se pudo cargar el generador de PDF.','err'); return; }
+  var idx = cntFiltered().filter(function(i){ return CNT_REG[i].__row; });
+  if(!idx.length){ toast('No hay artículos para etiquetar.','err'); return; }
+
+  var doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
+  var M=8, COLS=3, FILAS=8, W=(210-2*M)/COLS, H=(297-2*M)/FILAS;
+  var OR=[242,101,34];
+
+  idx.forEach(function(ii, n){
+    var m = CNT_REG[ii];
+    var pos = n % (COLS*FILAS);
+    if(n>0 && pos===0) doc.addPage();
+    var col = pos % COLS, fil = Math.floor(pos/COLS);
+    var x = M + col*W, y = M + fil*H;
+
+    doc.setDrawColor(215,220,226); doc.setLineWidth(.2);
+    doc.roundedRect(x+1, y+1, W-2, H-2, 1.5, 1.5, 'S');
+
+    var img = qrDataUrl(qrTexto(m));
+    if(img) doc.addImage(img, 'PNG', x+3, y+(H-24)/2, 24, 24);
+
+    var tx = x+30, tw = W-33;
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(20,20,20);
+    doc.text(doc.splitTextToSize(m.desc, tw).slice(0,3), tx, y+9);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(110,110,110);
+    doc.text((m.codigo||'sin código')+(m.unidad?('  ·  '+m.unidad):''), tx, y+H-7);
+    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(OR[0],OR[1],OR[2]);
+    doc.text('SUBATIR', tx, y+H-3.5);
+  });
+
+  doc.save('Etiquetas-QR-'+cntFechaArchivo()+'.pdf');
+  toast(idx.length+' etiqueta'+(idx.length===1?'':'s')+' generada'+(idx.length===1?'':'s'),'ok');
 }
 
 // ── Exportar el listado del conteo ───────────────────────────────────
@@ -2714,7 +2968,12 @@ function openOv(id){document.getElementById(id).classList.add('open')}
 function closeOv(id){document.getElementById(id).classList.remove('open')}
 // Clic en el fondo / Escape cierran el modal. El Control de Stock pasa por
 // closeConteo() para no perder el número que quedó tipeado sin confirmar.
-function dismissOv(id){ if(id==='ov-conteo') closeConteo(); else closeOv(id); }
+function dismissOv(id){
+  if(id==='ov-conteo') closeConteo();
+  else if(id==='ov-scan') cerrarScan();   // hay que apagar la cámara, no solo tapar el modal
+  else if(id==='ov-foco') cerrarFoco();
+  else closeOv(id);
+}
 document.querySelectorAll('.overlay').forEach(function(el){
   el.addEventListener('click',function(e){if(e.target===el)dismissOv(el.id);});
 });

@@ -573,12 +573,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-19.1559"></script>
-<script src="subatir-app.js?v=2026-08-19.1559"></script>
+<script src="supabase-config.js?v=2026-08-19.1633"></script>
+<script src="subatir-app.js?v=2026-08-19.1633"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.1559';
+window.APP_VER='2026-08-19.1633';
 </script>
 </head>
 <body>
@@ -2614,33 +2614,53 @@ function imprimirEtiquetas(){
   if(!idx.length){ toast('No hay artículos para etiquetar.','err'); return; }
 
   var doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
-  var M=8, COLS=3, FILAS=8, W=(210-2*M)/COLS, H=(297-2*M)/FILAS;
+  // LIBRE: 1 cm en blanco arriba de cada etiqueta. Es de donde se agarra
+  // para pegarla, así que ahí no va nada impreso. Por eso entran 18 por
+  // hoja y no 24: la etiqueta creció a lo alto.
+  var M=8, TOPE=13, LIBRE=10, COLS=3, FILAS=6;
+  var W=(210-2*M)/COLS, H=(297-M-TOPE)/FILAS;
   var OR=[242,101,34];
+  var tipo = CNT_TIPO==='__sin' ? 'SIN CATEGORÍA' : (CNT_TIPO ? CNT_TIPO.toUpperCase() : 'TODOS LOS TIPOS');
+
+  function encabezado(){
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(OR[0],OR[1],OR[2]);
+    doc.text('SUBATIR — ETIQUETAS DE ESTANTE', M, 8);
+    doc.setFont('helvetica','normal'); doc.setTextColor(120,120,120);
+    doc.text(tipo+'  ·  '+idx.length+' artículos  ·  '+new Date().toLocaleDateString('es-UY'), 210-M, 8, {align:'right'});
+  }
+  encabezado();
 
   idx.forEach(function(ii, n){
     var m = CNT_REG[ii];
     var pos = n % (COLS*FILAS);
-    if(n>0 && pos===0) doc.addPage();
+    if(n>0 && pos===0){ doc.addPage(); encabezado(); }
     var col = pos % COLS, fil = Math.floor(pos/COLS);
-    var x = M + col*W, y = M + fil*H;
+    var x = M + col*W, y = TOPE + fil*H;
+    var cy = y + LIBRE;              // arranca el contenido
+    var ch = H - LIBRE;              // alto útil
 
     doc.setDrawColor(215,220,226); doc.setLineWidth(.2);
     doc.roundedRect(x+1, y+1, W-2, H-2, 1.5, 1.5, 'S');
+    // Marca dónde termina la zona libre, para pegar siempre a la misma altura
+    doc.setLineWidth(.15); doc.setLineDashPattern([1,1], 0);
+    doc.line(x+3, cy, x+W-3, cy);
+    doc.setLineDashPattern([], 0);
 
     var img = qrDataUrl(qrTexto(m));
-    if(img) doc.addImage(img, 'PNG', x+3, y+(H-24)/2, 24, 24);
+    if(img) doc.addImage(img, 'PNG', x+3, cy+(ch-24)/2, 24, 24);
 
     var tx = x+30, tw = W-33;
     doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(20,20,20);
-    doc.text(doc.splitTextToSize(m.desc, tw).slice(0,3), tx, y+9);
+    doc.text(doc.splitTextToSize(m.desc, tw).slice(0,3), tx, cy+7);
     doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(110,110,110);
     doc.text((m.codigo||'sin código')+(m.unidad?('  ·  '+m.unidad):''), tx, y+H-7);
     doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(OR[0],OR[1],OR[2]);
     doc.text('SUBATIR', tx, y+H-3.5);
   });
 
-  doc.save('Etiquetas-QR-'+cntFechaArchivo()+'.pdf');
-  toast(idx.length+' etiqueta'+(idx.length===1?'':'s')+' generada'+(idx.length===1?'':'s'),'ok');
+  var slug = CNT_TIPO==='__sin' ? 'Sin-categoria' : (CNT_TIPO ? CNT_TIPO.replace(/\s+/g,'-') : 'Todos');
+  doc.save('Etiquetas-QR-'+slug+'-'+cntFechaArchivo()+'.pdf');
+  toast(idx.length+' etiqueta'+(idx.length===1?'':'s')+' de '+(CNT_TIPO||'todos los tipos'),'ok');
 }
 
 // ── Exportar el listado del conteo ───────────────────────────────────

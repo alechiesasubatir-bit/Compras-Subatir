@@ -573,12 +573,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-19.1028"></script>
-<script src="subatir-app.js?v=2026-08-19.1028"></script>
+<script src="supabase-config.js?v=2026-08-19.1511"></script>
+<script src="subatir-app.js?v=2026-08-19.1511"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.1028';
+window.APP_VER='2026-08-19.1511';
 </script>
 </head>
 <body>
@@ -983,9 +983,12 @@ window.APP_VER='2026-08-19.1028';
     <div class="modal-body">
       <div id="qr-reader"></div>
       <div class="scan-msg" id="scan-msg">Iniciando cámara…</div>
+      <div class="scan-msg" id="scan-prog" style="color:var(--teal-l);font-family:var(--mono);margin-top:2px"></div>
+      <div class="scan-msg" id="scan-ult" style="margin-top:2px"></div>
     </div>
-    <div class="modal-ftr">
-      <button class="btn btn-ghost" onclick="cerrarScan()">Cancelar</button>
+    <div class="modal-ftr" style="justify-content:space-between">
+      <button class="btn btn-ghost btn-sm" id="btn-torch" style="display:none" onclick="toggleTorch()">🔦 Linterna</button>
+      <button class="btn btn-ghost" style="margin-left:auto" onclick="cerrarScan()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1008,6 +1011,8 @@ window.APP_VER='2026-08-19.1028';
           <div class="foco-dato"><div class="l">Mínimo</div><div class="v" id="fo-min">—</div></div>
           <div class="foco-dato"><div class="l">En tránsito</div><div class="v c-teal" id="fo-tra">—</div></div>
         </div>
+        <div id="fo-rep" style="display:none;font-size:11px;line-height:1.45;color:#fcd34d;background:rgba(245,158,11,.10);
+             border:1px solid var(--amber-b);border-radius:9px;padding:8px 11px"></div>
         <input type="text" inputmode="decimal" autocomplete="off" class="foco-inp" id="fo-inp"
                placeholder="0" oninput="focoDelta()" onkeydown="if(event.key==='Enter'){event.preventDefault();focoGuardar(true);}"/>
         <div class="foco-delta same" id="fo-delta"></div>
@@ -2383,19 +2388,74 @@ function cntRefreshMain(){
 //  cambien el nombre al artículo.
 // ══════════════════════════════════════════════════════════════════════
 var QR_PREF = 'SUB-INV-';
-var H5 = null, SCAN_BUSY = false, FOCO_I = null;
+var H5 = null, SCAN_BUSY = false, FOCO_I = null, TORCH = false, AC = null;
 
 function qrTexto(m){ return QR_PREF + m.__row; }
 
+// ── Aviso sin mirar la pantalla ──────────────────────────────────────
+//  Con el celular en la mano y la vista en el estante, hay que saber si
+//  leyó sin tener que mirar. Vibración + beep: iOS no soporta vibrate,
+//  así que solo con eso la mitad de los celulares se quedaba muda.
+function bip(ok){
+  try{ if(navigator.vibrate) navigator.vibrate(ok ? 45 : [40,60,40]); }catch(e){}
+  try{
+    if(!AC) return;
+    var o=AC.createOscillator(), g=AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type='sine'; o.frequency.value = ok ? 880 : 240;
+    var t=AC.currentTime, dur = ok ? 0.12 : 0.28;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.start(t); o.stop(t+dur+0.02);
+  }catch(e){}
+}
+
 function abrirScan(){
   if(typeof Html5Qrcode==='undefined'){ toast('No se pudo cargar el lector de QR (revisá la conexión).','err'); return; }
-  SCAN_BUSY = false;
+  SCAN_BUSY = false; TORCH = false;
+  // El AudioContext se crea acá porque nace del toque del usuario: iOS no
+  // deja arrancar audio de otra forma, y el beep quedaría mudo
+  try{ if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); }catch(e){}
   setText('scan-msg','Iniciando cámara…');
+  scanProgreso();
+  document.getElementById('btn-torch').style.display='none';
   openOv('ov-scan');
   H5 = new Html5Qrcode('qr-reader');
   H5.start({facingMode:'environment'}, {fps:10, qrbox:{width:230,height:230}}, onScanQR, function(){})
-    .then(function(){ setText('scan-msg','Apuntá a la etiqueta del estante…'); })
+    .then(function(){
+      setText('scan-msg','Apuntá a la etiqueta del estante…');
+      // La linterna solo se ofrece si el celular la expone; en iOS y en
+      // varios Android no se puede prender desde el navegador
+      try{
+        var cap = H5.getRunningTrackCapabilities();
+        if(cap && cap.torch) document.getElementById('btn-torch').style.display='inline-flex';
+      }catch(e){}
+    })
     .catch(function(e){ setText('scan-msg','No se pudo abrir la cámara: '+((e&&e.message)||e)); });
+}
+
+function toggleTorch(){
+  if(!H5) return;
+  TORCH = !TORCH;
+  H5.applyVideoConstraints({advanced:[{torch:TORCH}]})
+    .then(function(){
+      var b=document.getElementById('btn-torch');
+      b.textContent = TORCH ? '🔦 Apagar' : '🔦 Linterna';
+      b.className = 'btn btn-sm '+(TORCH?'btn-orange':'btn-ghost');
+    })
+    .catch(function(){ TORCH=false; toast('Este celular no deja prender la linterna desde el navegador.','err'); });
+}
+
+// Avance visible mientras se escanea, para no tener que salir a mirar
+function scanProgreso(){
+  var t = cntTotales();
+  var el = document.getElementById('scan-prog'); if(!el) return;
+  if(t.tot && t.ok >= t.tot){
+    el.innerHTML = '<span class="c-green">✓ Ya contaste los '+t.tot+' artículos</span>';
+  } else {
+    el.textContent = t.ok+' de '+t.tot+' contados · faltan '+(t.tot-t.ok);
+  }
 }
 
 function cerrarScan(){
@@ -2403,6 +2463,7 @@ function cerrarScan(){
     try{ H5.stop().then(function(){ try{H5.clear();}catch(e){} H5=null; }).catch(function(){ H5=null; }); }
     catch(e){ H5=null; }
   }
+  TORCH = false;
   closeOv('ov-scan');
 }
 
@@ -2411,17 +2472,17 @@ function onScanQR(txt){
   var t = String(txt||'').trim();
 
   // Etiqueta de pallet: es de la app de Depósitos, no de acá
-  if(/^PLT-/i.test(t)){ setText('scan-msg','Ese QR es de un pallet de Depósitos, no de un artículo.'); return; }
+  if(/^PLT-/i.test(t)){ bip(false); setText('scan-msg','⚠ Ese QR es de un pallet de Depósitos, no de un artículo.'); return; }
 
   var id = (t.toUpperCase().indexOf(QR_PREF)===0) ? parseInt(t.slice(QR_PREF.length),10) : NaN;
-  if(isNaN(id)){ setText('scan-msg','QR no reconocido. Probá con otra etiqueta.'); return; }
+  if(isNaN(id)){ bip(false); setText('scan-msg','⚠ QR no reconocido. Probá con otra etiqueta.'); return; }
 
   var i = -1;
   CNT_REG.forEach(function(m,k){ if(m.__row===id) i=k; });
-  if(i<0){ setText('scan-msg','El artículo de esa etiqueta ya no está en el inventario.'); return; }
+  if(i<0){ bip(false); setText('scan-msg','⚠ El artículo de esa etiqueta ya no está en el inventario.'); return; }
 
   SCAN_BUSY = true;
-  try{ if(navigator.vibrate) navigator.vibrate(45); }catch(e){}   // avisa sin mirar la pantalla
+  bip(true);                     // avisa sin mirar la pantalla
   cerrarScan();
   abrirFoco(i);
 }
@@ -2439,6 +2500,13 @@ function abrirFoco(i){
   var inp = document.getElementById('fo-inp');
   inp.value = CNT_VAL[i]!==undefined ? CNT_VAL[i] : '';
   focoDelta();
+  // Escanear dos veces el mismo estante es fácil: si ya se contó, se avisa
+  // en vez de dejar que lo pise sin darse cuenta
+  var rep = document.getElementById('fo-rep');
+  if(CNT_VAL[i]!==undefined){
+    rep.style.display='block';
+    rep.textContent = '↻ Ya lo contaste en este recorrido: '+fmtN(CNT_VAL[i])+(m.unidad?' '+m.unidad:'')+'. Si guardás, lo corregís.';
+  } else rep.style.display='none';
   var t = cntTotales();
   setText('fo-prog', t.ok+' de '+t.tot+' contados · faltan '+(t.tot-t.ok));
   openOv('ov-foco');
@@ -2473,10 +2541,19 @@ function focoGuardar(seguir){
   if(isNaN(n) || n<0){ toast('Cantidad inválida.','err'); return; }
 
   cntAplicar(i, n);                     // el guardado sigue solo, no se espera
-  toast('✓ '+m.desc.slice(0,26)+': '+fmtN(n)+(m.unidad?' '+m.unidad:''),'ok');
+  var dif = n - CNT_BASE[i];
+  var resumen = m.desc.slice(0,30)+': '+fmtN(n)+(m.unidad?' '+m.unidad:'')+
+                (Math.abs(dif)<0.001 ? '' : '  ('+(dif>0?'+':'')+fmtN(dif)+')');
+  toast('✓ '+resumen,'ok');
   closeOv('ov-foco'); FOCO_I=null;
   renderConteo();
-  if(seguir) abrirScan();
+  if(seguir){
+    abrirScan();
+    // Queda a la vista qué se acaba de cargar: es la confirmación de que
+    // el número entró, sin salir del ciclo de escaneo
+    var el=document.getElementById('scan-ult');
+    if(el) el.innerHTML='<span class="c-green">✓ '+esc(resumen)+'</span>';
+  }
 }
 
 // ── Etiquetas QR para pegar en el estante ────────────────────────────

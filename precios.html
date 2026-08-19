@@ -382,12 +382,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-18.2215"></script>
-<script src="subatir-app.js?v=2026-08-18.2215"></script>
+<script src="supabase-config.js?v=2026-08-18.2231"></script>
+<script src="subatir-app.js?v=2026-08-18.2231"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-18.2215';
+window.APP_VER='2026-08-18.2231';
 </script>
 </head>
 <body>
@@ -638,14 +638,18 @@ window.APP_VER='2026-08-18.2215';
       <div class="fg"><label>Fecha actualizado</label><input id="ed-fecha" type="date"/></div>
       <div class="fg"><label>Categoría</label>
         <select id="ed-cat"><option value="">— Sin categoría —</option><option>Envases</option><option>Consumibles</option><option>Materias Primas</option></select></div>
-      <!-- La categoría se guarda en la ficha de inventario del artículo. Si no
-           tiene ficha no hay dónde ponerla, así que se ofrece crearla acá mismo. -->
+      <!-- Regla: todo artículo del catálogo tiene ficha en Inventario. Si no
+           la tiene, se crea al guardar; no es opcional. Sin ficha no hay dónde
+           guardar la categoría, ni se le lleva stock, ni le llega el tránsito. -->
       <div class="fg full" id="ed-ficha-box" style="display:none">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:12px">
-          <input type="checkbox" id="ed-ficha" checked style="width:16px;height:16px;accent-color:#f97316;cursor:pointer"/>
-          <span>Crear también la ficha en <b>Inventario</b></span>
-        </label>
-        <div style="font-size:11px;color:var(--muted-l,#6b7f93);margin-top:4px;line-height:1.45" id="ed-ficha-hint"></div>
+        <div style="display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border-radius:9px;
+                    background:rgba(249,115,22,.10);border:1px solid rgba(249,115,22,.35)">
+          <span style="font-size:15px;line-height:1.2">✚</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#fb923c">Se va a crear su ficha en Inventario</div>
+            <div style="font-size:11px;color:var(--muted-l,#6b7f93);margin-top:3px;line-height:1.45" id="ed-ficha-hint"></div>
+          </div>
+        </div>
       </div>
     </div>
     <datalist id="prov-datalist"></datalist>
@@ -1506,7 +1510,6 @@ function openNew(){
   edFillLists();
   document.getElementById('ed-art-sel').value='';
   document.getElementById('ed-prov-sel').value='';
-  document.getElementById('ed-ficha').checked=true;              // por defecto, se crea
   document.getElementById('ed-ficha-box').style.display='none';  // hasta saber si falta
   // Lo habitual es cargar un precio nuevo de algo que ya existe
   edArtMode('old'); edProvMode('old');
@@ -1537,7 +1540,6 @@ function openEdit(ref){
   var pv=document.getElementById('ed-proveedor').value;
   var asel=document.getElementById('ed-art-sel');  asel.value=av;
   var psel=document.getElementById('ed-prov-sel'); psel.value=pv;
-  document.getElementById('ed-ficha').checked=true;
   edArtMode(asel.value===av && av ? 'old' : 'new');   // deja a edCheckFicha decidir si se muestra
   edProvMode(psel.value===pv && pv ? 'old' : 'new');
   document.getElementById('edit-ovl').classList.add('open');
@@ -1587,46 +1589,49 @@ function saveEdit(){
   var clean={}; Object.keys(f).forEach(function(k){ if(k.indexOf('__')!==0) clean[k]=f[k]; });
   var isNew = (ED_REF===null), ref = ED_REF;
 
-  toast('Guardando…','info');
-  var op = isNew
-    ? SubatirApp.write({action:'addRow',    sheetKey:'precios', fields:JSON.stringify(clean)})
-    : SubatirApp.write({action:'updateRow', sheetKey:'precios', row:ref, fields:JSON.stringify(clean)});
   var newCat=(document.getElementById('ed-cat')||{}).value||'';
   var catChanged = newCat !== catOf(art);
-  var chk = document.getElementById('ed-ficha');
-  var creaFicha = !!(chk && chk.checked && document.getElementById('ed-ficha-box').style.display!=='none');
   var cod = document.getElementById('ed-codigo').value.trim();
+  // Regla: todo artículo de la lista de precios tiene ficha en Inventario.
+  // El recuadro está visible justamente cuando falta (lo decide edCheckFicha).
+  var faltaFicha = document.getElementById('ed-ficha-box').style.display !== 'none';
 
-  op.then(function(d){
-    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
-    var finish=function(){ closeEdit(); toast(isNew ? 'Precio agregado ✓' : 'Cambios guardados ✓','ok'); load(); };
+  toast('Guardando…','info');
 
-    // Guarda la categoría (vive en la ficha de inventario). Vaciarla es
-    // setCategoria con '' — deja ext_id en null.
-    var guardarCat = function(){
-      if(!(catChanged && SubatirApp.setCategoria)) { finish(); return; }
-      SubatirApp.setCategoria(art, newCat).then(function(c){
-        if(c && c.error) toast('El precio se guardó, pero la categoría no: '+c.error,'err');
-        finish();
-      });
-    };
+  // La ficha va PRIMERO y es condición: si no se puede crear, no se guarda
+  // el precio. Al revés quedaría el artículo en el catálogo sin ficha, que
+  // es justo lo que esta regla viene a evitar.
+  var paso1 = faltaFicha
+    ? (function(){
+        var fi = {'DESCRIPCIÓN': art};
+        if(cod) fi['CODIGO'] = cod;
+        return SubatirApp.write({action:'addRow', sheetKey:'inventario', fields:JSON.stringify(fi)});
+      })()
+    : Promise.resolve({success:true});
 
-    // Si el artículo no tenía ficha y se pidió crearla, primero la ficha:
-    // así la categoría tiene dónde guardarse y el artículo queda completo
-    // (Stock lo empieza a seguir y el tránsito de sus OC le llega).
-    if(creaFicha){
-      var f = {'DESCRIPCIÓN': art};
-      if(cod) f['CODIGO'] = cod;
-      SubatirApp.write({action:'addRow', sheetKey:'inventario', fields:JSON.stringify(f)}).then(function(inv){
-        if(inv && inv.error){
-          toast('El precio se guardó, pero la ficha de inventario no: '+inv.error,'err');
-          finish(); return;
-        }
-        INV_DESCS = null;                    // la caché quedó vieja
-        toast('Ficha creada en Inventario ✓','ok');
-        guardarCat();
-      });
-    } else guardarCat();
+  paso1.then(function(inv){
+    if(inv && inv.error){
+      toast('No se pudo crear la ficha en Inventario, así que no se guardó el precio: '+inv.error,'err');
+      return;
+    }
+    if(faltaFicha){ INV_DESCS = null; toast('Ficha creada en Inventario ✓','ok'); }
+
+    var op = isNew
+      ? SubatirApp.write({action:'addRow',    sheetKey:'precios', fields:JSON.stringify(clean)})
+      : SubatirApp.write({action:'updateRow', sheetKey:'precios', row:ref, fields:JSON.stringify(clean)});
+
+    op.then(function(d){
+      if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+      var finish=function(){ closeEdit(); toast(isNew ? 'Precio agregado ✓' : 'Cambios guardados ✓','ok'); load(); };
+      // La categoría vive en la ficha de inventario. Vaciarla es
+      // setCategoria con '' — deja ext_id en null.
+      if(catChanged && SubatirApp.setCategoria){
+        SubatirApp.setCategoria(art, newCat).then(function(c){
+          if(c && c.error) toast('El precio se guardó, pero la categoría no: '+c.error,'err');
+          finish();
+        });
+      } else finish();
+    });
   });
 }
 

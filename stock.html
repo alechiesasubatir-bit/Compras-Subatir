@@ -533,12 +533,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-18.2330"></script>
-<script src="subatir-app.js?v=2026-08-18.2330"></script>
+<script src="supabase-config.js?v=2026-08-19.0000"></script>
+<script src="subatir-app.js?v=2026-08-19.0000"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-18.2330';
+window.APP_VER='2026-08-19.0000';
 </script>
 </head>
 <body>
@@ -568,7 +568,6 @@ window.APP_VER='2026-08-18.2330';
       <span id="ref-lbl">⟳ Actualizar</span>
     </button>
     <button class="btn btn-orange btn-sm" onclick="openConteo()">📋 Control de Stock</button>
-    <button class="btn btn-ghost btn-sm" onclick="openHistorial()">📚 Conteos</button>
     <button class="btn btn-teal btn-sm" onclick="openNewArt()">➕ Nuevo artículo</button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
   </div>
@@ -926,40 +925,6 @@ window.APP_VER='2026-08-18.2330';
         <button class="btn btn-ghost btn-sm" onclick="exportConteoXLSX()">📊 Excel</button>
         <button class="btn btn-ghost btn-sm" onclick="exportConteoCSV()">⬇ CSV</button>
         <button class="btn btn-teal" onclick="closeConteo()">✓ Terminar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ MODAL REGISTRO DE CONTEOS ════════════════════════════ -->
-<div class="overlay" id="ov-hist">
-  <div class="modal modal-full">
-    <div class="modal-hdr">
-      <div class="modal-title" id="hist-title">📚 Registro de conteos</div>
-      <button class="modal-x" onclick="closeOv('ov-hist')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div id="hist-lista-wrap" style="display:flex;flex-direction:column;gap:10px;flex:1;min-height:0">
-        <div style="font-size:11px;color:var(--muted-l)">
-          Cada recorrido queda guardado con la foto del stock anterior, lo contado y la diferencia.
-          Se puede reimprimir cuando sea, aunque el stock haya cambiado después.
-        </div>
-        <div class="cnt-list" id="hist-lista"><div class="cnt-empty">Cargando…</div></div>
-      </div>
-      <div id="hist-det-wrap" style="display:none;flex-direction:column;gap:10px;flex:1;min-height:0">
-        <div class="cnt-kpis" id="hist-det-kpis"></div>
-        <div class="cnt-list" id="hist-det"><div class="cnt-empty">Cargando…</div></div>
-      </div>
-    </div>
-    <div class="modal-ftr" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <button class="btn btn-ghost btn-sm" id="hist-volver" style="display:none" onclick="histVolver()">← Volver a la lista</button>
-      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-        <span id="hist-exp" style="display:none;gap:8px">
-          <button class="btn btn-ghost btn-sm" onclick="histExport('pdf')">🖨 PDF</button>
-          <button class="btn btn-ghost btn-sm" onclick="histExport('xlsx')">📊 Excel</button>
-          <button class="btn btn-ghost btn-sm" onclick="histExport('csv')">⬇ CSV</button>
-        </span>
-        <button class="btn btn-teal" onclick="closeOv('ov-hist')">Cerrar</button>
       </div>
     </div>
   </div>
@@ -2078,7 +2043,6 @@ function openConteo(){
     return a.desc.localeCompare(b.desc,'es');
   });
   CNT_BASE = {}; CNT_VAL = {}; CNT_ST = {}; CNT_T = {};
-  CNT_SES = {id:null, creando:null, aviso:false};   // recorrido nuevo, historial nuevo
   CNT_REG.forEach(function(m,i){ CNT_BASE[i] = +m.stock||0; });
   document.getElementById('cnt-q').value   = '';
   document.getElementById('cnt-cat').value = '';
@@ -2094,7 +2058,6 @@ function closeConteo(){
   Object.keys(CNT_T).forEach(function(i){ if(CNT_T[i]) cntCommit(+i); });
   closeOv('ov-conteo');
   var n = Object.keys(CNT_ST).filter(function(i){ return CNT_ST[i]==='ok'; }).length;
-  cntCerrarSesion();   // deja el recorrido cerrado en el historial
   if(n) toast('Control de stock: '+n+' artículo'+(n===1?'':'s')+' actualizado'+(n===1?'':'s')+' ✓','ok');
   load(); // releer de la base para quedar 100% alineado
 }
@@ -2269,67 +2232,8 @@ function cntCommit(i){
       m.stock = n; recalcItem(m);
       MERGED.forEach(function(x){ if(x.__row && x.__row===m.__row){ x.stock=n; recalcItem(x); } });
       cntPaint(i); cntStats(); cntRefreshMain();
-      cntRegistrar(i, n);   // deja la línea en el historial (aparte, no bloquea)
     });
 }
-
-// ── Historial: guardar el recorrido ──────────────────────────────────
-//  El número contado pisa el stock, así que al día siguiente ya no hay
-//  forma de saber qué había antes ni cuánto dio la diferencia. Por eso
-//  cada línea se copia a `conteo_lineas`, con la foto del antes.
-//  Es un registro paralelo: si falla, el conteo NO se da por perdido
-//  (el stock ya quedó guardado), solo se avisa una vez.
-var CNT_SES = {id:null, creando:null, aviso:false};
-
-function cntSesion(){
-  if(CNT_SES.id)      return Promise.resolve(CNT_SES.id);
-  if(CNT_SES.creando) return CNT_SES.creando;
-  CNT_SES.creando = SB.from('conteos').insert({
-    responsable: cntResponsable(),
-    filtros:     cntDatos().filtros,
-    articulos:   CNT_REG.filter(function(m){ return m.__row; }).length,
-    creado_por:  cntResponsable()
-  }).select('id').single().then(function(r){
-    if(r.error){ CNT_SES.creando = null; throw new Error(r.error.message); }
-    CNT_SES.id = r.data.id;
-    return CNT_SES.id;
-  });
-  return CNT_SES.creando;
-}
-
-function cntRegistrar(i, val){
-  var m = CNT_REG[i], base = CNT_BASE[i];
-  cntSesion().then(function(cid){
-    return SB.from('conteo_lineas').upsert({
-      conteo_id: cid, inventario_id: m.__row,
-      codigo: m.codigo||null, descripcion: m.desc,
-      unidad: m.unidad||null, categoria: m.categoria||null,
-      stock_anterior: base, contado: val, diferencia: +(val-base).toFixed(3),
-      estado: m.estado, hora: new Date().toISOString()
-    }, {onConflict:'conteo_id,descripcion'}).then(function(r){
-      if(r.error) throw new Error(r.error.message);
-    });
-  }).catch(function(e){
-    console.warn('[Conteo] no se pudo registrar en el historial:', e.message);
-    if(!CNT_SES.aviso){
-      CNT_SES.aviso = true;
-      toast('El stock se guardó bien, pero no se pudo registrar en el historial. ¿Falta correr migracion/conteos.sql?','err');
-    }
-  });
-}
-
-// Cierra la cabecera con los totales del recorrido
-function cntCerrarSesion(){
-  if(!CNT_SES.id) return Promise.resolve();
-  var t = cntTotales();
-  return SB.from('conteos').update({
-    cerrado: true, cerrado_at: new Date().toISOString(),
-    articulos: t.tot, contados: t.ok, con_diferencia: t.dif
-  }).eq('id', CNT_SES.id).then(function(r){
-    if(r.error) console.warn('[Conteo] no se pudo cerrar la cabecera:', r.error.message);
-  });
-}
-
 // Totales del recorrido entero (no de lo filtrado en pantalla)
 function cntTotales(){
   var tot=0, ok=0, dif=0;
@@ -2373,33 +2277,18 @@ function cntRefreshMain(){
 //  sin contar salen con la casilla "Contado" vacía a propósito: así la
 //  planilla también sirve impresa, para recorrer y anotar a mano.
 // Columnas de cada salida. `k` es la clave de la fila, `w` el ancho en el
-// PDF y `xw` el de Excel. El conteo guardado suma la hora y llama al stock
-// "anterior", que es lo que era: la foto de antes de contar.
-var CNT_COLDEF = {
-  vivo: [
-    {k:'n',      t:'#',             w:26,     al:'center', xw:5},
-    {k:'codigo', t:'Código',        w:52,     al:'center', xw:12},
-    {k:'desc',   t:'Artículo',      w:'auto', al:'left',   xw:52, bold:true},
-    {k:'tipo',   t:'Tipo',          w:78,     al:'center', xw:17},
-    {k:'unidad', t:'Unidad',        w:40,     al:'center', xw:9},
-    {k:'sistema',t:'Stock sistema', w:66,     al:'right',  xw:14, num:true},
-    {k:'contado',t:'Contado',       w:66,     al:'right',  xw:12, num:true, casilla:true},
-    {k:'dif',    t:'Diferencia',    w:68,     al:'right',  xw:13, num:true},
-    {k:'estado', t:'Estado',        w:56,     al:'center', xw:11}
-  ],
-  historico: [
-    {k:'n',      t:'#',             w:26,     al:'center', xw:5},
-    {k:'hora',   t:'Hora',          w:42,     al:'center', xw:8},
-    {k:'codigo', t:'Código',        w:52,     al:'center', xw:12},
-    {k:'desc',   t:'Artículo',      w:'auto', al:'left',   xw:50, bold:true},
-    {k:'tipo',   t:'Tipo',          w:74,     al:'center', xw:17},
-    {k:'unidad', t:'Unidad',        w:40,     al:'center', xw:9},
-    {k:'sistema',t:'Stock anterior',w:66,     al:'right',  xw:14, num:true},
-    {k:'contado',t:'Contado',       w:62,     al:'right',  xw:12, num:true},
-    {k:'dif',    t:'Diferencia',    w:68,     al:'right',  xw:13, num:true},
-    {k:'estado', t:'Estado',        w:54,     al:'center', xw:11}
-  ]
-};
+// PDF y `xw` el de Excel.
+var CNT_COLS = [
+  {k:'n',      t:'#',             w:26,     al:'center', xw:5},
+  {k:'codigo', t:'Código',        w:52,     al:'center', xw:12},
+  {k:'desc',   t:'Artículo',      w:'auto', al:'left',   xw:52, bold:true},
+  {k:'tipo',   t:'Tipo',          w:78,     al:'center', xw:17},
+  {k:'unidad', t:'Unidad',        w:40,     al:'center', xw:9},
+  {k:'sistema',t:'Stock sistema', w:66,     al:'right',  xw:14, num:true},
+  {k:'contado',t:'Contado',       w:66,     al:'right',  xw:12, num:true, casilla:true},
+  {k:'dif',    t:'Diferencia',    w:68,     al:'right',  xw:13, num:true},
+  {k:'estado', t:'Estado',        w:56,     al:'center', xw:11}
+];
 
 function cntEstLabel(e){
   return e==='CRITICO'?'CRÍTICO':e==='MEDIO'?'BAJO':e==='TRANSITO'?'TRÁNSITO':e==='OPTIMO'?'ÓPTIMO':(e||'—');
@@ -2429,33 +2318,10 @@ function cntDatos(){
   var contados = filas.filter(function(r){ return r.contado!==null; }).length;
   var conDif   = filas.filter(function(r){ return r.dif!==null && Math.abs(r.dif)>=0.001; }).length;
   return { titulo:'PLANILLA DE CONTROL DE STOCK', archivo:'Control-de-Stock',
-           cols: CNT_COLDEF.vivo, fecha: new Date(), responsable: cntResponsable(),
+           cols: CNT_COLS, fecha: new Date(), responsable: cntResponsable(),
            filas:filas, filtros: f.length ? f.join('  ·  ') : 'Listado completo, sin filtros',
            contados:contados, conDif:conDif, sinContar:filas.length-contados };
 }
-
-// Conteo guardado: se arma con la cabecera y las líneas de la base
-function cntDatosDe(cab, lineas){
-  var filas = lineas.map(function(l, n){
-    return {
-      n: n+1,
-      hora: new Date(l.hora).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}).replace(/\s?[ap]\.\s?m\./,''),
-      codigo: l.codigo||'', desc: l.descripcion, tipo: l.categoria||'—', unidad: l.unidad||'',
-      sistema: l.stock_anterior==null?null:+l.stock_anterior,
-      contado: l.contado==null?null:+l.contado,
-      dif: l.diferencia==null?null:+l.diferencia,
-      estado: cntEstLabel(l.estado)
-    };
-  });
-  var conDif = filas.filter(function(r){ return r.dif!==null && Math.abs(r.dif)>=0.001; }).length;
-  return { titulo:'CONTROL DE STOCK — REGISTRO DEL CONTEO', archivo:'Conteo-'+cab.id,
-           cols: CNT_COLDEF.historico, fecha: new Date(cab.fecha), responsable: cab.responsable||'—',
-           filas:filas, filtros: cab.filtros || 'Listado completo, sin filtros',
-           contados: filas.length, conDif: conDif,
-           sinContar: Math.max(0, (cab.articulos||filas.length) - filas.length),
-           historico: true, cab: cab };
-}
-
 function cntResponsable(){
   try{
     var n = SubatirApp.operador && SubatirApp.operador.nombre && SubatirApp.operador.nombre();
@@ -2466,8 +2332,8 @@ function cntResponsable(){
 }
 function cntFechaArchivo(){ return new Date().toISOString().slice(0,10); }
 
-function exportConteoCSV(d){
-  d = d || cntDatos();
+function exportConteoCSV(){
+  var d = cntDatos();
   if(!d.filas.length){ toast('No hay filas para exportar.','err'); return; }
   var rows = d.filas.map(function(r){
     return d.cols.map(function(c){
@@ -2484,8 +2350,8 @@ function exportConteoCSV(d){
 }
 
 // ── Excel ─────────────────────────────────────────────────────────────
-function exportConteoXLSX(d){
-  d = d || cntDatos();
+function exportConteoXLSX(){
+  var d = cntDatos();
   if(!d.filas.length){ toast('No hay filas para exportar.','err'); return; }
   if(!(window.SubatirApp && SubatirApp.xlsx)){ toast('No se pudo cargar el generador de Excel.','err'); return; }
 
@@ -2543,8 +2409,8 @@ function cntLogoPDF(doc, cx, cy, r){
   doc.setFontSize(r*0.42); doc.text('subatir', cx, cy+r*0.15, {align:'center'});
 }
 
-function exportConteoPDF(d){
-  d = d || cntDatos();
+function exportConteoPDF(){
+  var d = cntDatos();
   if(!d.filas.length){ toast('No hay filas para exportar.','err'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ toast('No se pudo cargar el generador de PDF (revisá tu conexión).','err'); return; }
 
@@ -2578,7 +2444,7 @@ function exportConteoPDF(d){
   }
   var mid = bx+bw/2;
   doc.setLineWidth(.8); doc.line(mid,by,mid,by+bh); doc.line(bx,by+36,bx+bw,by+36);
-  lbl(d.historico?'FECHA DEL CONTEO':'FECHA', bx+9, by+13);
+  lbl('FECHA', bx+9, by+13);
   val(d.fecha.toLocaleDateString('es-UY')+'  '+d.fecha.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}), bx+9, by+29, bw/2-16, 11);
   lbl('RESPONSABLE', mid+9, by+13);  val(d.responsable, mid+9, by+29, bw/2-16, 11);
   lbl('FILTROS', bx+9, by+49);       val(d.filtros, bx+9, by+64, bw/2-16, 9);
@@ -2628,7 +2494,7 @@ function exportConteoPDF(d){
     didDrawPage: function(data){
       var pg = doc.internal.getCurrentPageInfo().pageNumber;
       doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(GY[0],GY[1],GY[2]);
-      doc.text((d.historico?'Registro del conteo del '+d.fecha.toLocaleDateString('es-UY')+' · ':'Control de Stock · ')+'Emitido el '+hoy.toLocaleString('es-UY'), M, H-14);
+      doc.text('Control de Stock · Emitido el '+hoy.toLocaleString('es-UY'), M, H-14);
       doc.text('Página '+pg, W-M, H-14, {align:'right'});
       // En las páginas siguientes, un encabezado corto para no perder el contexto
       if(pg>1){
@@ -2654,142 +2520,6 @@ function exportConteoPDF(d){
 
   doc.save(d.archivo+'-'+cntFechaArchivo()+'.pdf');
   toast('PDF generado ('+d.filas.length+' artículos)','ok');
-}
-
-// ══════════════════════════════════════════════════════════════════════
-//  REGISTRO DE CONTEOS — historial de recorridos
-//  Lee lo que fue guardando el Control de Stock y permite reimprimir
-//  cualquier recorrido pasado, con los números de aquel día.
-// ══════════════════════════════════════════════════════════════════════
-var HIST = [], HIST_CUR = null;
-
-function openHistorial(){
-  document.getElementById('hist-lista').innerHTML = '<div class="cnt-empty">Cargando…</div>';
-  histVolver();
-  openOv('ov-hist');
-  SB.from('conteos').select('*').order('fecha',{ascending:false}).limit(200).then(function(r){
-    if(r.error){
-      document.getElementById('hist-lista').innerHTML =
-        '<div class="cnt-empty">No se pudo leer el historial.<br><span style="font-size:11px">'+
-        esc(r.error.message)+'</span><br><span style="font-size:11px;color:var(--muted-l)">'+
-        'Si es la primera vez, falta correr <b>migracion/conteos.sql</b> en Supabase.</span></div>';
-      return;
-    }
-    HIST = r.data || [];
-    renderHistLista();
-    // Los totales de la cabecera se escriben al tocar "Terminar". Si el
-    // recorrido quedó a medias (se cerró el navegador, se quedó sin
-    // batería) figuraría en cero teniendo líneas guardadas, así que se
-    // recuentan de las líneas, que son el dato real.
-    if(!HIST.length) return;
-    SB.from('conteo_lineas').select('conteo_id,diferencia')
-      .in('conteo_id', HIST.map(function(c){ return c.id; }))
-      .then(function(rl){
-        if(rl.error){ console.warn('[Conteo] no se pudieron recontar las líneas:', rl.error.message); return; }
-        var acc = {};
-        (rl.data||[]).forEach(function(l){
-          if(!acc[l.conteo_id]) acc[l.conteo_id] = {n:0, dif:0};
-          acc[l.conteo_id].n++;
-          if(l.diferencia!==null && Math.abs(+l.diferencia)>=0.001) acc[l.conteo_id].dif++;
-        });
-        HIST.forEach(function(c){
-          var a = acc[c.id] || {n:0, dif:0};
-          c.contados = a.n; c.con_diferencia = a.dif;
-        });
-        renderHistLista();
-      });
-  });
-}
-
-function renderHistLista(){
-  var box = document.getElementById('hist-lista');
-  if(!HIST.length){
-    box.innerHTML = '<div class="cnt-empty">Todavía no hay conteos registrados.<br>'+
-      '<span style="font-size:11px;color:var(--muted-l)">El primero se guarda solo apenas cargues una cantidad en el Control de Stock.</span></div>';
-    return;
-  }
-  box.innerHTML = HIST.map(function(c){
-    var f = new Date(c.fecha);
-    var dif = c.con_diferencia||0;
-    return '<div class="cnt-row'+(dif?' medio':' optimo')+'" style="cursor:pointer" onclick="histAbrir('+c.id+')">'+
-      '<div style="min-width:0">'+
-        '<div class="cnt-name">'+f.toLocaleDateString('es-UY')+' · '+
-          f.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'})+
-          '<span class="badge b-info">#'+c.id+'</span>'+
-          (c.cerrado?'':'<span class="badge b-amb">abierto</span>')+'</div>'+
-        '<div class="cnt-meta">'+
-          '<span>👤 '+esc(c.responsable||'—')+'</span>'+
-          '<span><b>'+(c.contados||0)+'</b> contados de '+(c.articulos||0)+'</span>'+
-          (dif?'<span class="c-amber">'+dif+' con diferencia</span>':'<span class="c-green">sin diferencias</span>')+
-          (c.filtros&&c.filtros.indexOf('Listado completo')<0?'<span>'+esc(c.filtros)+'</span>':'')+
-        '</div>'+
-      '</div>'+
-      '<div class="cnt-side"><span class="btn btn-ghost btn-sm">Ver detalle →</span></div>'+
-    '</div>';
-  }).join('');
-}
-
-function histVolver(){
-  HIST_CUR = null;
-  document.getElementById('hist-lista-wrap').style.display = 'flex';
-  document.getElementById('hist-det-wrap').style.display   = 'none';
-  document.getElementById('hist-volver').style.display     = 'none';
-  document.getElementById('hist-exp').style.display        = 'none';
-  setText('hist-title','📚 Registro de conteos');
-}
-
-function histAbrir(id){
-  var cab = HIST.filter(function(c){ return c.id===id; })[0];
-  if(!cab) return;
-  document.getElementById('hist-lista-wrap').style.display = 'none';
-  document.getElementById('hist-det-wrap').style.display   = 'flex';
-  document.getElementById('hist-volver').style.display     = 'inline-flex';
-  document.getElementById('hist-det').innerHTML = '<div class="cnt-empty">Cargando…</div>';
-  var f = new Date(cab.fecha);
-  setText('hist-title','📚 Conteo #'+cab.id+' — '+f.toLocaleDateString('es-UY')+' '+f.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}));
-
-  SB.from('conteo_lineas').select('*').eq('conteo_id',id).order('hora',{ascending:true}).then(function(r){
-    if(r.error){ document.getElementById('hist-det').innerHTML='<div class="cnt-empty">Error: '+esc(r.error.message)+'</div>'; return; }
-    HIST_CUR = cntDatosDe(cab, r.data||[]);
-    document.getElementById('hist-exp').style.display = 'flex';
-
-    var d = HIST_CUR;
-    document.getElementById('hist-det-kpis').innerHTML =
-      '<div class="cnt-kpi"><div class="n c-teal">'+d.filas.length+'</div><div class="l">Contados</div></div>'+
-      '<div class="cnt-kpi"><div class="n c-amber">'+d.conDif+'</div><div class="l">Con diferencia</div></div>'+
-      '<div class="cnt-kpi"><div class="n c-orange">'+d.sinContar+'</div><div class="l">Sin contar</div></div>'+
-      '<div class="cnt-kpi"><div class="n c-green" style="font-size:12px;line-height:1.5">'+esc(d.responsable)+'</div><div class="l">Responsable</div></div>';
-
-    document.getElementById('hist-det').innerHTML = d.filas.length
-      ? d.filas.map(function(r){
-          var hayDif = r.dif!==null && Math.abs(r.dif)>=0.001;
-          var cls = r.estado==='CRÍTICO'?'crit':r.estado==='BAJO'?'medio':'optimo';
-          return '<div class="cnt-row '+cls+'">'+
-            '<div style="min-width:0">'+
-              '<div class="cnt-name">'+esc(r.desc)+(r.tipo&&r.tipo!=='—'?catChip(r.tipo):'')+'</div>'+
-              '<div class="cnt-meta">'+
-                '<span>'+r.hora+'</span>'+
-                (r.codigo?'<span>'+esc(r.codigo)+'</span>':'')+
-                '<span>Antes: <b>'+fmtN(r.sistema)+'</b></span>'+
-                '<span>Contado: <b>'+fmtN(r.contado)+(r.unidad?' '+esc(r.unidad):'')+'</b></span>'+
-              '</div>'+
-            '</div>'+
-            '<div class="cnt-side">'+
-              (hayDif
-                ? '<span class="cnt-delta '+(r.dif<0?'down':'up')+'">'+(r.dif>0?'▲ +':'▼ ')+fmtN(r.dif)+'</span>'
-                : '<span class="cnt-delta same">= sin diferencia</span>')+
-            '</div>'+
-          '</div>';
-        }).join('')
-      : '<div class="cnt-empty">Este conteo no tiene líneas registradas.</div>';
-  });
-}
-
-function histExport(tipo){
-  if(!HIST_CUR){ toast('Abrí un conteo primero.','err'); return; }
-  if(tipo==='pdf')  exportConteoPDF(HIST_CUR);
-  if(tipo==='xlsx') exportConteoXLSX(HIST_CUR);
-  if(tipo==='csv')  exportConteoCSV(HIST_CUR);
 }
 
 // Cuenta de artículos con cambios pendientes de sincronizar

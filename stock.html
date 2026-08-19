@@ -573,12 +573,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-19.1511"></script>
-<script src="subatir-app.js?v=2026-08-19.1511"></script>
+<script src="supabase-config.js?v=2026-08-19.1559"></script>
+<script src="subatir-app.js?v=2026-08-19.1559"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.1511';
+window.APP_VER='2026-08-19.1559';
 </script>
 </head>
 <body>
@@ -930,13 +930,6 @@ window.APP_VER='2026-08-19.1511';
         <div class="search-wrap">
           <input class="fi fi-search" id="cnt-q" placeholder="Buscar artículo, código…" oninput="renderConteo()"/>
         </div>
-        <select class="fi" id="cnt-cat" onchange="renderConteo()">
-          <option value="">Todos los tipos</option>
-          <option value="Envases">📦 Envases</option>
-          <option value="Consumibles">🏷 Consumibles</option>
-          <option value="Materias Primas">⚗ Materias Primas</option>
-          <option value="__sin">— Sin categoría —</option>
-        </select>
         <select class="fi" id="cnt-est" onchange="renderConteo()">
           <option value="">Cualquier estado</option>
           <option value="CRITICO">🔴 Crítico</option>
@@ -945,6 +938,10 @@ window.APP_VER='2026-08-19.1511';
         </select>
         <button class="btn btn-ghost btn-sm" onclick="cntClearFilters()">✕</button>
       </div>
+
+      <!-- El recorrido se hace por tipo: se elige acá y todo lo demás
+           (KPIs, avance del escáner, etiquetas) queda acotado a ese tipo -->
+      <div class="cnt-chips" id="cnt-tipos"></div>
 
       <div class="cnt-chips">
         <div class="cnt-chip on" id="cnt-ch-todos"     onclick="cntSetVista('todos')">Todos</div>
@@ -2144,8 +2141,9 @@ function openConteo(){
   CNT_BASE = {}; CNT_VAL = {}; CNT_ST = {}; CNT_T = {};
   CNT_REG.forEach(function(m,i){ CNT_BASE[i] = +m.stock||0; });
   document.getElementById('cnt-q').value   = '';
-  document.getElementById('cnt-cat').value = '';
   document.getElementById('cnt-est').value = '';
+  CNT_TIPO = '';
+  renderTipos();
   cntSetVista('todos');
   openOv('ov-conteo');
 }
@@ -2174,15 +2172,54 @@ function cntSetVista(v){
 
 function cntClearFilters(){
   document.getElementById('cnt-q').value   = '';
-  document.getElementById('cnt-cat').value = '';
   document.getElementById('cnt-est').value = '';
+  CNT_TIPO = '';
+  renderTipos();
   cntSetVista('todos');
+}
+
+// ── Tipo del recorrido ───────────────────────────────────────────────
+//  Los conteos se hacen por tipo (Envases / Consumibles / Materias
+//  Primas), así que el tipo no es un filtro más: define el alcance del
+//  recorrido. Los KPIs y el avance del escáner cuentan sobre el tipo
+//  elegido, no sobre el inventario entero.
+var CNT_TIPO = '';   // '' = todos · nombre de categoría · '__sin'
+var CNT_TIPOS = [
+  {v:'',                 t:'Todos'},
+  {v:'Envases',          t:'📦 Envases'},
+  {v:'Consumibles',      t:'🏷 Consumibles'},
+  {v:'Materias Primas',  t:'⚗ Materias Primas'}
+];
+
+function renderTipos(){
+  var box = document.getElementById('cnt-tipos'); if(!box) return;
+  var cuenta = function(v){
+    return CNT_REG.filter(function(m){
+      if(!m.__row) return false;
+      return v==='' ? true : (v==='__sin' ? !m.categoria : m.categoria===v);
+    }).length;
+  };
+  var chips = CNT_TIPOS.slice();
+  // Un artículo sin categoría quedaría fuera de los tres tipos y no se
+  // contaría nunca: si aparece alguno, se muestra para poder arreglarlo
+  var sin = cuenta('__sin');
+  if(sin) chips.push({v:'__sin', t:'⚠ Sin categoría'});
+  box.innerHTML = chips.map(function(c){
+    return '<div class="cnt-chip'+(CNT_TIPO===c.v?' on':'')+'" onclick="cntSetTipo('+JSON.stringify(c.v).replace(/"/g,'&quot;')+')">'+
+           c.t+' <b style="opacity:.7">'+cuenta(c.v)+'</b></div>';
+  }).join('');
+}
+
+function cntSetTipo(v){
+  CNT_TIPO = v;
+  renderTipos();
+  renderConteo();
 }
 
 // Devuelve los índices de CNT_REG que pasan los filtros actuales
 function cntFiltered(){
   var q   = (document.getElementById('cnt-q').value||'').toLowerCase().trim();
-  var cat = document.getElementById('cnt-cat').value;
+  var cat = CNT_TIPO;
   var est = document.getElementById('cnt-est').value;
   var out = [];
   CNT_REG.forEach(function(m,i){
@@ -2342,11 +2379,15 @@ function cntAplicar(i, n){
       cntPaint(i); cntStats(); cntRefreshMain();
     });
 }
-// Totales del recorrido entero (no de lo filtrado en pantalla)
+// Totales del recorrido: sobre el TIPO elegido, no sobre el inventario
+// entero ni sobre lo que dejó a la vista la búsqueda. Contando Consumibles
+// lo que importa es "3 de 21", no "3 de 151".
 function cntTotales(){
   var tot=0, ok=0, dif=0;
   CNT_REG.forEach(function(m,i){
     if(!m.__row) return;
+    if(CNT_TIPO === '__sin'){ if(m.categoria) return; }
+    else if(CNT_TIPO && m.categoria !== CNT_TIPO) return;
     tot++;
     if(CNT_VAL[i]!==undefined){
       ok++;
@@ -2628,7 +2669,7 @@ function cntEstLabel(e){
 // Conteo en curso: lo que está a la vista con los filtros puestos
 function cntDatos(){
   var q   = (document.getElementById('cnt-q').value||'').trim();
-  var cat = document.getElementById('cnt-cat').value;
+  var cat = CNT_TIPO;
   var est = document.getElementById('cnt-est').value;
   var f = [];
   if(q)   f.push('Búsqueda: "'+q+'"');

@@ -451,12 +451,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-18.2243"></script>
-<script src="subatir-app.js?v=2026-08-18.2243"></script>
+<script src="supabase-config.js?v=2026-08-18.2310"></script>
+<script src="subatir-app.js?v=2026-08-18.2310"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-18.2243';
+window.APP_VER='2026-08-18.2310';
 </script>
 </head>
 <body>
@@ -796,6 +796,64 @@ window.APP_VER='2026-08-18.2243';
 <!-- ════════════════════════════════════════════════
      MODAL: NUEVA ORDEN
 ════════════════════════════════════════════════ -->
+<!-- ══ ALTA DE ARTÍCULO DESDE LA OC ══════════════════════════
+     Si se tipea un producto que el sistema no conoce, en vez de dejarlo
+     entrar suelto en la orden se completa acá su registro: la ficha en
+     Inventario (sin ella no se le lleva stock ni le llega el tránsito)
+     y la entrada en la lista de precios con este proveedor. -->
+<div class="overlay" id="art-new-overlay">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title">✚ Registrar artículo nuevo</div>
+      <button class="modal-close" onclick="closeModal('art-new-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="an-warn" style="display:none;font-size:12px;line-height:1.5;border-radius:9px;padding:10px 12px;margin-bottom:14px;
+           background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.40);color:#fca5a5"></div>
+      <div class="form-grid">
+        <div class="form-group span2">
+          <label>Artículo *</label>
+          <input type="text" class="form-input" id="an-desc" oninput="anCheck()"/>
+        </div>
+        <div class="form-group">
+          <label>Código</label>
+          <input type="text" class="form-input" id="an-cod" placeholder="Opcional"/>
+        </div>
+        <div class="form-group">
+          <label>Unidad</label>
+          <input type="text" class="form-input" id="an-unid" placeholder="Kg, L, Unid.…"/>
+        </div>
+        <div class="form-group">
+          <label>Categoría *</label>
+          <select class="form-input" id="an-cat">
+            <option value="">— Elegí —</option>
+            <option>Envases</option><option>Consumibles</option><option>Materias Primas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Stock actual</label>
+          <input type="number" class="form-input" id="an-stock" step="0.01" placeholder="0"/>
+        </div>
+        <div class="form-group">
+          <label>Stock mínimo</label>
+          <input type="number" class="form-input" id="an-min" step="0.01" placeholder="0"/>
+        </div>
+        <div class="form-group">
+          <label>Consumo mensual</label>
+          <input type="number" class="form-input" id="an-cons" step="0.01" placeholder="0"/>
+        </div>
+        <div class="form-group span2" id="an-resumen"
+             style="font-size:12px;line-height:1.55;color:var(--orange-l,#fb923c);background:rgba(249,115,22,.07);
+                    border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:9px 12px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('art-new-overlay')">Cancelar</button>
+      <button class="btn btn-orange btn-sm" id="an-save" onclick="saveArtNew()">Registrar y usar en la orden</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="new-overlay">
   <div class="modal">
     <div class="modal-header">
@@ -1716,12 +1774,19 @@ function onProdChange(){
     showOCHint('🔽 Este producto lo tienen '+uniq.length+' proveedor(es). Elegí uno y se carga el precio.');
   } else {
     showOCHint('');
+    anOfrecerAlta(desc);   // no lo conoce nadie: ofrecer darlo de alta
   }
 }
 
 function fillPrice(prov, art){
   var recs=(PROV_PRODS[prov]||[]).filter(function(x){ return normP(x.art)===normP(art); });
-  if(!recs.length){ showOCHint('⚠ Este proveedor no tiene precio cargado para ese producto. Podés escribir el precio manualmente.'); return; }
+  if(!recs.length){
+    showOCHint('⚠ Este proveedor no tiene precio cargado para ese producto. Podés escribir el precio manualmente.');
+    // Puede que el producto no exista en ningún lado: ahí hay que darlo de alta,
+    // no sólo cargarle el precio a mano (si no queda sin ficha en Inventario)
+    anOfrecerAlta(art);
+    return;
+  }
   var r=recs[0];
   var price=r.usd>0?r.usd:(r.pso>0?r.pso:0);
   NW_MONEDA=r.usd>0?'U$S':(r.pso>0?'$':'U$S');
@@ -1755,6 +1820,152 @@ function updateCurrencyUI(){
 function showOCHint(msg){
   var h=document.getElementById('nw-hint'); if(!h) return;
   h.innerHTML=msg||''; h.style.display=msg?'block':'none';
+}
+
+// ══ Alta de artículo desde la OC ═══════════════════════════════════
+//  Un producto tipeado que el sistema no conoce entraba a la orden
+//  igual, y quedaba sin ficha en Inventario: no se le llevaba stock y
+//  el tránsito de esa misma OC no le llegaba a ningún lado. Así
+//  entraron el ácido acético y el hipoclorito. Ahora se completa el
+//  registro en el momento, antes de que la línea entre a la orden.
+var INV_LISTA = [];       // descripciones de inventario, cacheadas
+var INV_SET   = null;     // NORM(desc) → true
+
+function anNorm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase().replace(/\s+/g,' '); }
+function anTokens(s){
+  return anNorm(s).replace(/\([^)]*\)/g,' ').split(/[\s\/\-\.,°]+/)
+    .filter(function(w){ return w.length>=3 && !/^\d/.test(w); });
+}
+function anInv(){
+  if(INV_SET) return Promise.resolve(INV_SET);
+  return SB.from('inventario').select('descripcion').then(function(r){
+    INV_SET={}; INV_LISTA=[];
+    (r.data||[]).forEach(function(x){ INV_SET[anNorm(x.descripcion)]=true; INV_LISTA.push(x.descripcion); });
+    return INV_SET;
+  }, function(){ INV_SET={}; return INV_SET; });
+}
+// Fichas que son el mismo producto escrito distinto
+function anParecidas(art){
+  var a=anTokens(art); if(a.length<2) return [];
+  return INV_LISTA.filter(function(d){
+    if(anNorm(d)===anNorm(art)) return false;
+    var b=anTokens(d); if(b.length<2) return false;
+    var corto = a.length<=b.length?a:b;
+    var set={}; (a.length<=b.length?b:a).forEach(function(t){ set[t]=1; });
+    return corto.every(function(t){ return set[t]; });
+  });
+}
+
+// ¿El producto tipeado ya lo conoce el sistema?
+function anConocido(desc){
+  if(PROD_PROVS[normP(desc)]) return true;         // está en la lista de precios
+  return !!(INV_SET && INV_SET[anNorm(desc)]);     // o tiene ficha en inventario
+}
+
+// Se llama desde onProdChange: si no lo conoce, ofrece registrarlo
+function anOfrecerAlta(desc){
+  anInv().then(function(){
+    var actual=document.getElementById('nw-desc').value.trim();
+    if(actual!==desc) return;                       // siguió tipeando
+    if(anConocido(desc)) return;
+    showOCHint('✚ <b>“'+esc(desc)+'”</b> no está en el sistema. Para que se le lleve el stock y esta orden le sume '+
+      'en tránsito, hay que darlo de alta. '+
+      '<button type="button" class="btn btn-orange btn-sm" style="margin-left:8px;padding:3px 10px" '+
+      'onclick="openArtNew()">Registrar artículo</button>');
+  });
+}
+
+function openArtNew(){
+  var desc=document.getElementById('nw-desc').value.trim();
+  if(!desc){ toast('Escribí primero el nombre del producto.','err'); return; }
+  ['an-cod','an-unid','an-stock','an-min','an-cons'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('an-cat').value='';
+  document.getElementById('an-desc').value=desc;
+  openModal('art-new-overlay');
+  anCheck();
+}
+
+// Avisa si ya existe una ficha parecida y resume qué se va a crear
+function anCheck(){
+  var art=document.getElementById('an-desc').value.trim();
+  var w=document.getElementById('an-warn');
+  var par=art?anParecidas(art):[];
+  if(par.length){
+    w.style.display='block';
+    w.innerHTML='⚠ En Inventario ya hay '+(par.length===1?'una ficha parecida':'fichas parecidas')+':<br>'+
+      par.slice(0,4).map(function(d){
+        return '<b>“'+esc(d)+'”</b> <button type="button" class="btn btn-ghost btn-sm" style="padding:1px 7px;margin-left:6px" '+
+               'onclick="anUsar(this.dataset.d)" data-d="'+esc(d)+'">usar este nombre</button>';
+      }).join('<br>')+
+      '<br>Si es el mismo producto usá ese nombre en vez de crear otra ficha.';
+  } else w.style.display='none';
+
+  var prov=document.getElementById('nw-proveedor').value.trim();
+  var prec=parseFloat(document.getElementById('nw-precio').value)||0;
+  document.getElementById('an-resumen').innerHTML =
+    'Se va a crear la <b>ficha en Inventario</b>' +
+    (prov && prec>0
+      ? ' y la entrada en la <b>lista de precios</b> con '+esc(prov)+' a '+(NW_MONEDA==='$'?'$':'U$S')+' '+prec+'.'
+      : '. <span style="opacity:.85">Sin proveedor y precio en la línea no se carga en la lista de precios.</span>');
+}
+
+// Adopta el nombre de una ficha existente (no duplica el insumo)
+function anUsar(nombre){
+  document.getElementById('an-desc').value=nombre;
+  document.getElementById('nw-desc').value=nombre;
+  closeModal('art-new-overlay');
+  showOCHint('');
+  onProdChange();
+}
+
+function saveArtNew(){
+  var art =document.getElementById('an-desc').value.trim();
+  var cat =document.getElementById('an-cat').value;
+  if(!art){ toast('El nombre del artículo es obligatorio.','err'); return; }
+  if(!cat){ toast('Elegí la categoría.','err'); return; }
+  var cod =document.getElementById('an-cod').value.trim();
+  var unid=document.getElementById('an-unid').value.trim();
+  var num =function(id){ var v=document.getElementById(id).value; return v!==''?(parseFloat(v)||0):''; };
+
+  var f={'DESCRIPCIÓN':art};
+  if(cod)  f['CODIGO']=cod;
+  if(unid) f['Unid.']=unid;
+  var st=num('an-stock'), mn=num('an-min'), cs=num('an-cons');
+  if(st!=='') f['INVENTARIO']=st;
+  if(mn!=='') f['STOCK MÍNIMO']=mn;
+  if(cs!=='') f['CONSUMO MENSUAL']=cs;
+
+  var btn=document.getElementById('an-save'); btn.disabled=true; btn.textContent='Registrando…';
+  var fin=function(ok){
+    btn.disabled=false; btn.textContent='Registrar y usar en la orden';
+    if(!ok) return;
+    INV_SET=null;                                   // la caché quedó vieja
+    document.getElementById('nw-desc').value=art;   // por si se corrigió el nombre
+    closeModal('art-new-overlay');
+    showOCHint('');
+    toast('Artículo registrado ✓ — ya tiene ficha en Inventario','ok');
+    load();                                          // recarga precios/proveedores
+  };
+
+  SubatirApp.write({action:'addRow', sheetKey:'inventario', fields:JSON.stringify(f)}).then(function(inv){
+    if(inv && inv.error){ toast('No se pudo crear la ficha: '+inv.error,'err'); fin(false); return; }
+    var ops=[SubatirApp.setCategoria(art, cat)];
+    // Si la línea ya tiene proveedor y precio, queda cargado en la lista
+    // de precios: la próxima vez se elige del listado y no se tipea
+    var prov=document.getElementById('nw-proveedor').value.trim();
+    var prec=parseFloat(document.getElementById('nw-precio').value)||0;
+    if(prov && prec>0){
+      var p={'ARTICULO':art, 'PROVEEDOR':prov};
+      p[NW_MONEDA==='$' ? 'PRECIO S/IVA $' : 'PRECIO S/IVA U$S']=prec;
+      if(cod) p['CODIGO']=cod;
+      ops.push(SubatirApp.write({action:'addRow', sheetKey:'precios', fields:JSON.stringify(p)}));
+    }
+    Promise.all(ops).then(function(res){
+      var err=(res||[]).filter(function(x){ return x && x.error; })[0];
+      if(err) toast('La ficha se creó, pero algo quedó afuera: '+err.error,'err');
+      fin(true);
+    });
+  });
 }
 
 function openNewModal(){ openModal('new-overlay'); populateNewProvSelect(''); populateProdDatalist(null); updateProvInfo(''); showOCHint(''); PICK_STATE=[]; document.getElementById('nw-picker').style.display='none'; NW_MONEDA='U$S'; updateCurrencyUI(); calcIVA(); }

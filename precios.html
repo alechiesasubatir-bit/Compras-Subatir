@@ -382,12 +382,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-18.2231"></script>
-<script src="subatir-app.js?v=2026-08-18.2231"></script>
+<script src="supabase-config.js?v=2026-08-18.2243"></script>
+<script src="subatir-app.js?v=2026-08-18.2243"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-18.2231';
+window.APP_VER='2026-08-18.2243';
 </script>
 </head>
 <body>
@@ -646,7 +646,7 @@ window.APP_VER='2026-08-18.2231';
                     background:rgba(249,115,22,.10);border:1px solid rgba(249,115,22,.35)">
           <span style="font-size:15px;line-height:1.2">✚</span>
           <div>
-            <div style="font-size:12px;font-weight:700;color:#fb923c">Se va a crear su ficha en Inventario</div>
+            <div style="font-size:12px;font-weight:700;color:#fb923c" id="ed-ficha-tit">Se va a crear su ficha en Inventario</div>
             <div style="font-size:11px;color:var(--muted-l,#6b7f93);margin-top:3px;line-height:1.45" id="ed-ficha-hint"></div>
           </div>
         </div>
@@ -1426,14 +1426,41 @@ function edArtMode(m){
 //  precio y la categoría quedaba afuera sin que quedara claro por qué.
 //  Ahora se avisa antes de guardar y se ofrece crear la ficha acá mismo.
 var INV_DESCS = null;   // NORM(descripcion) → true, cacheado
+var INV_LISTA = [];     // descripciones tal cual, para buscar parecidos
 
 function edInvDescs(){
   if(INV_DESCS) return Promise.resolve(INV_DESCS);
   return SB.from('inventario').select('descripcion').then(function(r){
-    INV_DESCS = {};
-    (r.data||[]).forEach(function(x){ INV_DESCS[catNorm(x.descripcion)] = true; });
+    INV_DESCS = {}; INV_LISTA = [];
+    (r.data||[]).forEach(function(x){
+      INV_DESCS[catNorm(x.descripcion)] = true;
+      INV_LISTA.push(x.descripcion);
+    });
     return INV_DESCS;
   }, function(){ return {}; });
+}
+
+// Palabras significativas del nombre (sin números ni conectores)
+function edTokens(s){
+  return catNorm(s).replace(/\([^)]*\)/g,' ').split(/[\s\/\-\.,°]+/)
+    .filter(function(w){ return w.length >= 3 && !/^\d/.test(w); });
+}
+
+// Fichas que son casi el mismo nombre. Sin esto la regla de crear ficha
+// termina generando duplicados: "Hipoclorito de Sodio 100grs/Lt" y
+// "Hipoclorito de Sodio 100 grs/Lt (Materia Prima)" son el mismo producto
+// pero como texto no coinciden, y quedaban dos fichas del mismo insumo.
+function edParecidas(art){
+  var a = edTokens(art);
+  if(a.length < 2) return [];
+  return INV_LISTA.filter(function(d){
+    if(catNorm(d) === catNorm(art)) return false;      // ese es el match exacto
+    var b = edTokens(d);
+    if(b.length < 2) return false;
+    var corto = a.length <= b.length ? a : b;
+    var largoSet = {}; (a.length <= b.length ? b : a).forEach(function(t){ largoSet[t]=1; });
+    return corto.every(function(t){ return largoSet[t]; });   // el corto entra entero
+  });
 }
 // Mismo criterio de comparación que usa SubatirApp.setCategoria
 function catNorm(s){
@@ -1449,12 +1476,48 @@ function edCheckFicha(){
     if(actual !== art) return;              // siguió tipeando: este resultado ya no sirve
     var falta = !set[catNorm(art)];
     box.style.display = falta ? '' : 'none';
-    if(falta){
-      document.getElementById('ed-ficha-hint').innerHTML =
+    if(!falta) return;
+
+    // Antes de anunciar que se va a crear, mirar si ya hay una ficha que es
+    // el mismo producto escrito distinto: crear otra sería duplicar el insumo
+    var par = edParecidas(art);
+    var tit  = document.getElementById('ed-ficha-tit');
+    var hint = document.getElementById('ed-ficha-hint');
+    if(par.length){
+      box.firstElementChild.style.background = 'rgba(239,68,68,.10)';
+      box.firstElementChild.style.borderColor = 'rgba(239,68,68,.40)';
+      tit.style.color = '#fca5a5';
+      tit.textContent = '⚠ Puede que este artículo ya exista';
+      hint.innerHTML = 'En Inventario ya hay ' + (par.length===1?'una ficha parecida':'fichas parecidas') + ':<br>' +
+        par.slice(0,4).map(function(d){
+          return '<b>“'+esc(d)+'”</b> <button type="button" class="btn btn-ghost btn-sm" style="padding:1px 7px;margin-left:6px" '+
+                 'onclick="edUsarFicha(this.dataset.d)" data-d="'+esc(d)+'">usar este nombre</button>';
+        }).join('<br>') +
+        '<br>Si es el mismo producto usá ese nombre, así el precio y las órdenes le llegan a esa ficha. ' +
+        'Si guardás igual, se va a crear una ficha nueva aparte.';
+    } else {
+      box.firstElementChild.style.background = 'rgba(249,115,22,.10)';
+      box.firstElementChild.style.borderColor = 'rgba(249,115,22,.35)';
+      tit.style.color = '#fb923c';
+      tit.textContent = 'Se va a crear su ficha en Inventario';
+      hint.innerHTML =
         '“'+esc(art)+'” todavía no está en Inventario. Sin ficha no se puede guardar la categoría '+
         'ni llevarle el stock, y lo que pidas de este artículo no se le va a sumar en tránsito.';
     }
   });
+}
+
+// Adopta el nombre de una ficha que ya existe, para no duplicarla
+function edUsarFicha(nombre){
+  document.getElementById('ed-articulo').value = nombre;
+  var sel = document.getElementById('ed-art-sel');
+  if(sel && Array.prototype.some.call(sel.options, function(o){ return o.value===nombre; })){
+    sel.value = nombre; edArtMode('old');
+  } else {
+    edArtMode('new');
+  }
+  document.getElementById('ed-articulo').value = nombre;
+  edCheckFicha();
 }
 function edProvMode(m){
   ED_PROV_MODE=m;

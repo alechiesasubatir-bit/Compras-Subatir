@@ -1,4 +1,4 @@
 {
-  "v": "2026-08-20.1656",
+  "v": "2026-08-20.1704",
   "COMO_SE_USA": "Version de los modulos de Compras (los HTML de la raiz). Depositos tiene el suyo aparte en deposito/version.json y se versiona solo. En cada deploy hay que subir este numero Y el window.APP_VER de cada modulo, con el MISMO valor: lo hace bump-version.ps1, que ademas reescribe el ?v= de supabase-config.js y subatir-app.js. No se toca a mano. Cada modulo pide este archivo sin cache; si no coincide con el suyo, avisa y se recarga apuntando a la version nueva. Si se cambia solo este archivo, cada pestana recarga una vez al pedo y sigue igual; si se cambia solo el HTML, no recarga a nadie."
 }

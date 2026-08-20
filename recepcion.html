@@ -453,12 +453,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-20.1306"></script>
-<script src="subatir-app.js?v=2026-08-20.1306"></script>
+<script src="supabase-config.js?v=2026-08-20.1615"></script>
+<script src="subatir-app.js?v=2026-08-20.1615"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1306';
+window.APP_VER='2026-08-20.1615';
 </script>
 </head>
 <body>
@@ -580,6 +580,8 @@ window.APP_VER='2026-08-20.1306';
       </div>
       <button class="clear-btn" id="btn-coa-filtro" style="display:none;border-color:rgba(239,68,68,.45);color:#fca5a5"
               onclick="toggleFiltroCoa()">⚠ Falta COA (<span id="coa-count">0</span>)</button>
+      <button class="clear-btn" id="btn-lote-filtro" style="display:none;border-color:rgba(239,68,68,.45);color:#fca5a5"
+              onclick="toggleFiltroLote()">⚠ Falta lote (<span id="lote-count">0</span>)</button>
       <button class="clear-btn" onclick="clearFilters()">✕ Limpiar filtros</button>
     </div>
 
@@ -1118,6 +1120,7 @@ function applyFilters(){
       if (haystack.indexOf(buscar) < 0) return false;
     }
     if (FILTRO_COA && !faltaCoa(r)) return false;
+    if (FILTRO_LOTE && !faltaLoteR(r)) return false;
     if (estado && lineStats(r).estado !== estado) return false;
     if (prov && String(r[K.proveedor]||'').toLowerCase() !== prov.toLowerCase()) return false;
     if (desde && r[K.fecha] && r[K.fecha] < desde) return false;
@@ -1238,7 +1241,7 @@ function buildCatMap(inv){ SubatirApp.cat.cargar(inv); }
 function catDeLinea(r){ return SubatirApp.cat.de(r['ID Inventario'], r[K.desc]); }
 function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.desc]); }
 
-var FILTRO_COA = false;
+var FILTRO_COA = false, FILTRO_LOTE = false;
 
 // Una linea reclama COA cuando es materia prima, ya llego algo y no esta
 function faltaCoa(r){
@@ -1248,12 +1251,28 @@ function faltaCoa(r){
   return !coaOkR(r[K.coa]) && !(st.entregas||[]).some(function(e){ return coaOkR(e.coa); });
 }
 
-// Los 3 que parpadean quedaban perdidos entre 651 filas: este boton los
-// deja a mano y muestra cuantos son sin tener que buscarlos
+// Mismo criterio para el lote: materia prima, ya llego y sin lote en
+// alguna entrega (o en la linea, si se recibio al viejo estilo)
+function faltaLoteR(r){
+  if(!esMateriaPrima(r)) return false;
+  var st = lineStats(r);
+  if(st.estado==='PENDIENTE') return false;
+  return st.legacy ? !String(r[K.lote]||'').trim()
+                   : (st.entregas||[]).some(function(e){ return !String(e.lote||'').trim(); });
+}
+
+// Los que parpadean quedaban perdidos entre 651 filas: estos botones los
+// dejan a mano y muestran cuantos son sin tener que buscarlos
 function toggleFiltroCoa(){
   FILTRO_COA = !FILTRO_COA;
   var b=document.getElementById('btn-coa-filtro');
   b.style.background = FILTRO_COA ? 'rgba(239,68,68,.20)' : '';
+  applyFilters();
+}
+function toggleFiltroLote(){
+  FILTRO_LOTE = !FILTRO_LOTE;
+  var b=document.getElementById('btn-lote-filtro');
+  b.style.background = FILTRO_LOTE ? 'rgba(239,68,68,.20)' : '';
   applyFilters();
 }
 function refreshBotonCoa(){
@@ -1262,6 +1281,12 @@ function refreshBotonCoa(){
   b.style.display = n ? 'inline-flex' : 'none';
   setText('coa-count', n);
   if(!n && FILTRO_COA){ FILTRO_COA=false; b.style.background=''; }
+
+  var nl=(DATA_DISPLAY||[]).filter(faltaLoteR).length;
+  var bl=document.getElementById('btn-lote-filtro'); if(!bl) return;
+  bl.style.display = nl ? 'inline-flex' : 'none';
+  setText('lote-count', nl);
+  if(!nl && FILTRO_LOTE){ FILTRO_LOTE=false; bl.style.background=''; }
 }
 
 // ── El COA en el listado ─────────────────────────────────────────────

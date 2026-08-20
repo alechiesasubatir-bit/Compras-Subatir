@@ -469,12 +469,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-20.1306"></script>
-<script src="subatir-app.js?v=2026-08-20.1306"></script>
+<script src="supabase-config.js?v=2026-08-20.1615"></script>
+<script src="subatir-app.js?v=2026-08-20.1615"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1306';
+window.APP_VER='2026-08-20.1615';
 </script>
 </head>
 <body>
@@ -607,6 +607,10 @@ window.APP_VER='2026-08-20.1306';
         <label>Hasta</label>
         <input type="date" class="date-input" id="f-hasta" onchange="applyFilters()"/>
       </div>
+      <button class="clear-btn" id="btn-coa-filtro" style="display:none;border:1px solid rgba(239,68,68,.45);color:#fca5a5"
+              onclick="toggleFiltroCoa()">⚠ Falta COA (<span id="coa-count">0</span>)</button>
+      <button class="clear-btn" id="btn-lote-filtro" style="display:none;border:1px solid rgba(239,68,68,.45);color:#fca5a5"
+              onclick="toggleFiltroLote()">⚠ Falta lote (<span id="lote-count">0</span>)</button>
       <button class="clear-btn" onclick="clearFilters()">✕ Limpiar filtros</button>
     </div>
 
@@ -1304,6 +1308,8 @@ function applyFilters(){
   var today   = new Date(); today.setHours(0,0,0,0);
 
   FILTERED = DATA_DISPLAY.filter(function(r){
+    if (FILTRO_COA  && !faltaCOA(r))  return false;
+    if (FILTRO_LOTE && !faltaLote(r)) return false;
     if (buscar){
       var haystack = [r[K.desc],r[K.proveedor],r[K.orden],r[K.lote],codigoDe(r)].join(' ').toLowerCase();
       if (haystack.indexOf(buscar) < 0) return false;
@@ -1324,6 +1330,7 @@ function applyFilters(){
   sortFiltered();
   renderTable();
   setText('tbl-count', FILTERED.length + ' / ' + DATA_DISPLAY.length + ' registros');
+  refreshBotonesCalidad();
 }
 
 function clearFilters(){
@@ -2436,6 +2443,30 @@ function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.d
 // accionable, y es el mismo criterio con el que Recepcion las marca
 function faltaCOA(r){  return !isPendiente(r) && esMateriaPrima(r) && !coaOkR(r[K.coa]); }
 function faltaLote(r){ return !isPendiente(r) && esMateriaPrima(r) && !String(r[K.lote]||'').trim(); }
+
+// Accesos directos a lo que hay que resolver: los avisos parpadean pero
+// quedan perdidos entre cientos de filas si no se pueden aislar
+var FILTRO_COA = false, FILTRO_LOTE = false;
+function toggleFiltroCoa(){
+  FILTRO_COA = !FILTRO_COA;
+  document.getElementById('btn-coa-filtro').style.background = FILTRO_COA ? 'rgba(239,68,68,.20)' : '';
+  applyFilters();
+}
+function toggleFiltroLote(){
+  FILTRO_LOTE = !FILTRO_LOTE;
+  document.getElementById('btn-lote-filtro').style.background = FILTRO_LOTE ? 'rgba(239,68,68,.20)' : '';
+  applyFilters();
+}
+function refreshBotonesCalidad(){
+  [['btn-coa-filtro','coa-count',faltaCOA,'COA'],['btn-lote-filtro','lote-count',faltaLote,'LOTE']]
+  .forEach(function(cfg){
+    var n=(DATA_DISPLAY||[]).filter(cfg[2]).length;
+    var b=document.getElementById(cfg[0]); if(!b) return;
+    b.style.display = n ? 'inline-flex' : 'none';
+    var c=document.getElementById(cfg[1]); if(c) c.textContent=n;
+    if(!n){ if(cfg[3]==='COA'){ FILTRO_COA=false; } else { FILTRO_LOTE=false; } b.style.background=''; }
+  });
+}
 
 // Prende o apaga el parpadeo de la tarjeta que contiene ese valor
 function alertaKPI(id, n){

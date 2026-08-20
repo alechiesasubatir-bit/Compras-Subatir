@@ -29,6 +29,18 @@ window.Traslados = (function () {
     return e.toDateString() === hoy.toDateString();
   }
 
+  // Los entregados se pueden sacar de la tira una vez vistos. Es la vista
+  // de quien mira, no el traslado: se anota en este dispositivo, igual que
+  // en la pantalla de Solicitar del celular.
+  var OCULTOS = 'tr_ocultos';
+  function ocultos() {
+    try { return JSON.parse(localStorage.getItem(OCULTOS) || '[]'); } catch (e) { return []; }
+  }
+  function ocultar(ids) {
+    var v = ocultos().concat(ids);
+    try { localStorage.setItem(OCULTOS, JSON.stringify(v.slice(-80))); } catch (e) {}
+  }
+
   function esc(t) {
     return String(t == null ? '' : t)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -86,10 +98,22 @@ window.Traslados = (function () {
           host.innerHTML = '<div class="tr-vacio">No se pudieron leer los traslados.</div>';
           return;
         }
-        var lista = (r.data || []).filter(enCurso);
+        var fuera = ocultos();
+        var lista = (r.data || []).filter(enCurso).filter(function (s) { return fuera.indexOf(s.id) < 0; });
         pintar(host, lista);
         var cnt = document.getElementById('tr-cnt');
         if (cnt) cnt.textContent = lista.length + (lista.length === 1 ? ' traslado' : ' traslados');
+
+        // El boton aparece solo si hay algo terminado para sacar de la vista
+        var listos = lista.filter(function (s) { return s.estado === 'ENTREGADA'; });
+        var btn = document.getElementById('tr-limpiar');
+        if (btn) {
+          btn.style.display = listos.length ? 'inline-flex' : 'none';
+          btn.onclick = function () {
+            ocultar(listos.map(function (s) { return s.id; }));
+            cargar(host);
+          };
+        }
       });
   }
 

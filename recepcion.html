@@ -438,12 +438,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-19.2333"></script>
-<script src="subatir-app.js?v=2026-08-19.2333"></script>
+<script src="supabase-config.js?v=2026-08-19.2336"></script>
+<script src="subatir-app.js?v=2026-08-19.2336"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2333';
+window.APP_VER='2026-08-19.2336';
 </script>
 </head>
 <body>
@@ -563,6 +563,8 @@ window.APP_VER='2026-08-19.2333';
         <label>Hasta</label>
         <input type="date" class="date-input" id="f-hasta" onchange="applyFilters()"/>
       </div>
+      <button class="clear-btn" id="btn-coa-filtro" style="display:none;border-color:rgba(239,68,68,.45);color:#fca5a5"
+              onclick="toggleFiltroCoa()">⚠ Falta COA (<span id="coa-count">0</span>)</button>
       <button class="clear-btn" onclick="clearFilters()">✕ Limpiar filtros</button>
     </div>
 
@@ -1098,6 +1100,7 @@ function applyFilters(){
       var haystack = [r[K.desc],r[K.proveedor],r[K.orden],codigoDe(r)].join(' ').toLowerCase();
       if (haystack.indexOf(buscar) < 0) return false;
     }
+    if (FILTRO_COA && !faltaCoa(r)) return false;
     if (estado && lineStats(r).estado !== estado) return false;
     if (prov && String(r[K.proveedor]||'').toLowerCase() !== prov.toLowerCase()) return false;
     if (desde && r[K.fecha] && r[K.fecha] < desde) return false;
@@ -1108,6 +1111,7 @@ function applyFilters(){
   sortFiltered();
   renderTable();
   setText('tbl-count', FILTERED.length + ' / ' + DATA_DISPLAY.length + ' registros');
+  refreshBotonCoa();
 }
 
 function clearFilters(){
@@ -1217,17 +1221,40 @@ function buildCatMap(inv){ SubatirApp.cat.cargar(inv); }
 function catDeLinea(r){ return SubatirApp.cat.de(r['ID Inventario'], r[K.desc]); }
 function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.desc]); }
 
+var FILTRO_COA = false;
+
+// Una linea reclama COA cuando es materia prima, ya llego algo y no esta
+function faltaCoa(r){
+  if(!esMateriaPrima(r)) return false;
+  var st = lineStats(r);
+  if(!st.recibido) return false;
+  return !coaOkR(r[K.coa]) && !(st.entregas||[]).some(function(e){ return coaOkR(e.coa); });
+}
+
+// Los 3 que parpadean quedaban perdidos entre 651 filas: este boton los
+// deja a mano y muestra cuantos son sin tener que buscarlos
+function toggleFiltroCoa(){
+  FILTRO_COA = !FILTRO_COA;
+  var b=document.getElementById('btn-coa-filtro');
+  b.style.background = FILTRO_COA ? 'rgba(239,68,68,.20)' : '';
+  applyFilters();
+}
+function refreshBotonCoa(){
+  var n=(DATA_DISPLAY||[]).filter(faltaCoa).length;
+  var b=document.getElementById('btn-coa-filtro'); if(!b) return;
+  b.style.display = n ? 'inline-flex' : 'none';
+  setText('coa-count', n);
+  if(!n && FILTRO_COA){ FILTRO_COA=false; b.style.background=''; }
+}
+
 // ── El COA en el listado ─────────────────────────────────────────────
 //  Solo se le pide a las materias primas, y solo cuando ya llegó algo:
 //  antes de recibir no hay COA que reclamar. Si falta, parpadea en rojo
 //  hasta que alguien lo resuelva; se toca y queda en verde.
 function coaCell(r, st){
   if(!esMateriaPrima(r)) return '<span class="muted-cell">—</span>';
-  var coa = r[K.coa];
-  // También cuenta el COA cargado en cualquiera de las entregas
-  var enEntregas = (st.entregas||[]).some(function(e){ return coaOkR(e.coa); });
-  if(coaOkR(coa) || enEntregas) return '<span class="pill pill-ok" title="COA resuelto">✓ COA</span>';
   if(!st.recibido) return '<span class="muted-cell" title="Todavía no llegó nada">—</span>';
+  if(!faltaCoa(r)) return '<span class="pill pill-ok" title="COA resuelto">✓ COA</span>';
   return '<span class="pill coa-falta" title="Falta el COA. Tocá cuando esté resuelto." '+
          'onclick="resolverCoa('+r.__row+')">⚠ COA</span>';
 }

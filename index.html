@@ -465,12 +465,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-19.2323"></script>
-<script src="subatir-app.js?v=2026-08-19.2323"></script>
+<script src="supabase-config.js?v=2026-08-19.2333"></script>
+<script src="subatir-app.js?v=2026-08-19.2333"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2323';
+window.APP_VER='2026-08-19.2333';
 </script>
 </head>
 <body>
@@ -853,6 +853,7 @@ function load(){
     function(data){
       if (data.error) { setLoading(false); showError('Apps Script devolvió error: ' + data.error); return; }
       DATA = data;
+      SubatirApp.cat.cargar(DATA.inventario || []);   // COA y lote: solo materias primas
       detectKeys();
       renderAll();
       setLoading(false);
@@ -968,6 +969,14 @@ function isNearExpiry(dateStr, days){
 function isPendiente(row){
   return isEmpty(row[KEYS.recepcion]) || row[KEYS.recepcion] === '—';
 }
+// El COA se le pide solo a las materias primas, y solo cuando ya llego:
+// contando todo, el KPI marcaba decenas de lineas que nadie iba a resolver
+function esMP(row){ return SubatirApp.cat.esMP(row['ID Inventario'], row[KEYS.desc]); }
+function faltaCOA(row){
+  if(isPendiente(row) || !esMP(row)) return false;
+  var cv = String(row[KEYS.coa]||'').trim().toUpperCase();
+  return ['SI','S','SÍ','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(cv) < 0;
+}
 function isCritical(inv){
   var s = String(inv[KEYS.invSolicitar] || '').toLowerCase();
   return s.indexOf('solicitar') >= 0;
@@ -1071,7 +1080,7 @@ function renderTicker(){
   var inv        = DATA.inventario || [];
   var pendientes = pedidos.filter(isPendiente);
   var criticos   = inv.filter(isCritical);
-  var sinCOA     = pedidos.filter(function(p){ var cv=String(p[KEYS.coa]||'').trim().toUpperCase(); return cv!=='SI'&&cv!=='S'&&cv!=='SÍ'&&cv!=='NO NECESARIO'&&cv!=='NO APLICA'&&cv!=='NO REQUERIDO'&&cv!=='N/A'&&cv!=='NA'; });
+  var sinCOA     = pedidos.filter(faltaCOA);
   var totalUSD   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)==='USD'?s+pNum(p[KEYS.siva]):s; },0);
   var totalPSO   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)!=='USD'?s+pNum(p[KEYS.siva]):s; },0);
   var vals = {
@@ -1094,13 +1103,7 @@ function renderKPIs(){
 
   var pendientes  = pedidos.filter(isPendiente);
   var criticos    = inv.filter(isCritical);
-  var sinCOA      = pedidos.filter(function(p){
-    var cv = String(p[KEYS.coa]||'').trim().toUpperCase();
-    var cfv= String(p[KEYS.conforme]||'').trim().toUpperCase();
-    var hasCOA  = cv==='SI'||cv==='S'||cv==='SÍ'||cv==='NO NECESARIO'||cv==='NO APLICA'||cv==='NO REQUERIDO'||cv==='N/A'||cv==='NA';
-    var hasConf = cfv==='SI'||cfv==='S'||cfv==='SÍ';
-    return !hasCOA || !hasConf;
-  });
+  var sinCOA      = pedidos.filter(faltaCOA);
   var totalUSD    = pendientes.reduce(function(s,p){ return ocRowMoneda(p)==='USD'?s+pNum(p[KEYS.siva]):s; }, 0);
   var totalPSO    = pendientes.reduce(function(s,p){ return ocRowMoneda(p)!=='USD'?s+pNum(p[KEYS.siva]):s; }, 0);
 

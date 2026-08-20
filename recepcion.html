@@ -438,12 +438,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-19.2323"></script>
-<script src="subatir-app.js?v=2026-08-19.2323"></script>
+<script src="supabase-config.js?v=2026-08-19.2333"></script>
+<script src="subatir-app.js?v=2026-08-19.2333"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2323';
+window.APP_VER='2026-08-19.2333';
 </script>
 </head>
 <body>
@@ -1211,30 +1211,11 @@ var CUR_LINE=null;
 function findLine(pid){ return (DATA_DISPLAY||[]).filter(function(r){ return String(r.__row)===String(pid); })[0]; }
 function coaOkR(v){ return ['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(v||'').toUpperCase().trim())>=0; }
 
-// ── ¿Es materia prima? ───────────────────────────────────────────────
-//  El COA se le pide solo a las materias primas. La categoría vive en la
-//  ficha de inventario, así que se arma un mapa por id y otro por nombre:
-//  las OC nuevas traen el id de la ficha, las viejas sólo el nombre.
-var CAT_ID = {}, CAT_NOM = {};
-var EXT_CAT = { MP:'Materias Primas', ENV:'Envases', CON:'Consumibles' };
-
-function buildCatMap(inv){
-  CAT_ID = {}; CAT_NOM = {};
-  (inv||[]).forEach(function(f){
-    var cat = EXT_CAT[String(f['ID']||'').trim()] || '';
-    if(!cat) return;
-    if(f.__row)  CAT_ID[String(f.__row)] = cat;
-    var d = String(f['DESCRIPCIÓN']||'').trim();
-    if(d) CAT_NOM[SubatirApp.match.norm(d)] = cat;
-  });
-}
-
-function catDeLinea(r){
-  var id = r['ID Inventario'];
-  if(id && CAT_ID[String(id)]) return CAT_ID[String(id)];
-  return CAT_NOM[SubatirApp.match.norm(String(r[K.desc]||''))] || '';
-}
-function esMateriaPrima(r){ return catDeLinea(r)==='Materias Primas'; }
+// La categoria vive en subatir-app.js (SubatirApp.cat): la usan Pedidos,
+// Recepcion y el Dashboard para saber a quien pedirle COA y lote.
+function buildCatMap(inv){ SubatirApp.cat.cargar(inv); }
+function catDeLinea(r){ return SubatirApp.cat.de(r['ID Inventario'], r[K.desc]); }
+function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.desc]); }
 
 // ── El COA en el listado ─────────────────────────────────────────────
 //  Solo se le pide a las materias primas, y solo cuando ya llegó algo:

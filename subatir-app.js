@@ -1358,6 +1358,38 @@
              invalidar: invalidar };
   })();
 
+  // ══ Categoría del artículo ════════════════════════════════
+  //  Envases / Consumibles / Materias Primas. Vive en la ficha de
+  //  inventario (ext_id), y hace falta en varios módulos para saber a
+  //  qué se le pide COA y lote: solo a las materias primas.
+  //  Se resuelve por id de ficha —las OC nuevas lo traen— y por nombre
+  //  para las viejas, que solo tienen el texto.
+  var CAT = (function () {
+    var EXT = { MP: 'Materias Primas', ENV: 'Envases', CON: 'Consumibles' };
+    var porId = {}, porNombre = {};
+
+    // inv: el payload de inventario que ya trae getData, con los nombres
+    // de encabezado ('ID' es ext_id, 'DESCRIPCIÓN' la descripción)
+    function cargar(inv) {
+      porId = {}; porNombre = {};
+      (inv || []).forEach(function (f) {
+        var cat = EXT[String(f['ID'] || '').trim()] || '';
+        if (!cat) return;
+        if (f.__row) porId[String(f.__row)] = cat;
+        var d = String(f['DESCRIPCIÓN'] || '').trim();
+        if (d) porNombre[MATCH.norm(d)] = cat;
+      });
+    }
+
+    function de(invId, desc) {
+      if (invId && porId[String(invId)]) return porId[String(invId)];
+      return porNombre[MATCH.norm(String(desc || ''))] || '';
+    }
+    function esMP(invId, desc) { return de(invId, desc) === 'Materias Primas'; }
+
+    return { cargar: cargar, de: de, esMP: esMP };
+  })();
+
   // ══ Excel (.xlsx) ═════════════════════════════════════════
   //  Genera un xlsx de verdad, sin librerias: un xlsx es un ZIP con
   //  XML adentro. Antes la unica salida era CSV, que Excel abre pero
@@ -1669,7 +1701,7 @@
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
     PL06: PL06, operador: OPER,
     live: live,
-    xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH,
+    xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH, cat: CAT,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule
   };

@@ -479,15 +479,15 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-08-20.1246"/>
+<link rel="stylesheet" href="traslados.css?v=2026-08-20.1306"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1246"></script>
-<script src="subatir-app.js?v=2026-08-20.1246"></script>
-<script src="traslados.js?v=2026-08-20.1246"></script>
+<script src="supabase-config.js?v=2026-08-20.1306"></script>
+<script src="subatir-app.js?v=2026-08-20.1306"></script>
+<script src="traslados.js?v=2026-08-20.1306"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1246';
+window.APP_VER='2026-08-20.1306';
 </script>
 </head>
 <body>
@@ -588,6 +588,19 @@ window.APP_VER='2026-08-20.1246';
     <div id="camino-card" style="display:none"></div>
 
     <!-- KPI Cards -->
+    <!-- ══ TRASLADOS ENTRE DEPÓSITOS ═══════════════════════════
+         Arriba de todo y en una sola línea: es contexto de lo que
+         viene en camino, no puede robarle alto a los datos. -->
+    <div class="card" style="padding:9px 12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="flex:0 0 auto;font-size:11px;font-weight:700;color:var(--mut2,#6b7f93);
+                    letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">
+          🚚 Traslados <span class="badge" id="tr-cnt" style="font-size:9px;margin-left:4px">—</span>
+        </div>
+        <div id="tr-panel" style="flex:1;min-width:0"></div>
+      </div>
+    </div>
+
     <div class="kpi-grid">
       <div class="card kpi kpi-pending" title="Pedidos de compra enviados a proveedores que aún no tienen fecha de recepción confirmada en el sistema.">
         <div class="kpi-icon">📦</div>
@@ -627,15 +640,6 @@ window.APP_VER='2026-08-20.1246';
       </div>
     </div>
 
-    <!-- ══ TRASLADOS ENTRE DEPÓSITOS ═══════════════════════════
-         El avance de lo pedido a Furriol. Hasta ahora sólo se veía
-         entrando a la app de Depósitos. -->
-    <div class="card" style="padding:16px 18px;margin-top:14px">
-      <div class="section-title" style="margin-bottom:12px">
-        <span>🚚 Traslados entre depósitos</span>
-        <span class="badge" id="tr-cnt" style="font-size:10px">—</span>
-      </div>
-      <div id="tr-panel"></div>
     </div>
 
     <!-- Main grid -->
@@ -717,26 +721,6 @@ window.APP_VER='2026-08-20.1246';
           </div>
           <div class="stock-list" id="stock-list">
             <div class="empty">Cargando…</div>
-          </div>
-        </div>
-
-        <!-- Pedidos por proveedor -->
-        <div class="card" style="padding:18px">
-          <div class="section-title">
-            <h2>🏭 <span>Por Proveedor</span></h2>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="chart-proveedor"></canvas>
-          </div>
-        </div>
-
-        <!-- Estado de stock -->
-        <div class="card" style="padding:18px">
-          <div class="section-title">
-            <h2>📊 <span>Estado Inventario</span></h2>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="chart-stock"></canvas>
           </div>
         </div>
 
@@ -1037,8 +1021,6 @@ function renderAll(){
   renderPedidos();
   renderStockCritico();
   renderCobertura();
-  renderChartProveedor();
-  renderChartStock();
   renderAlertBanner();
   populateProveedorFilter();
 }
@@ -1445,75 +1427,6 @@ function renderCobertura(){
   });
   document.getElementById('cobertura-grid').innerHTML = html || '<div class="empty">Sin datos.</div>';
   set('cobertura-count', items.length + ' artículos');
-}
-
-// ── Chart: Pedidos por proveedor ──────────────────────────────
-function renderChartProveedor(){
-  var pedidos = (DATA.pedidos || []).filter(isPendiente);
-  var counts  = {};
-  pedidos.forEach(function(p){
-    var pr = String(p[KEYS.proveedor]||'Desconocido').slice(0,20);
-    counts[pr] = (counts[pr]||0)+1;
-  });
-  var sorted = Object.entries(counts).sort(function(a,b){ return b[1]-a[1]; }).slice(0,8);
-  var labels = sorted.map(function(e){ return e[0]; });
-  var values = sorted.map(function(e){ return e[1]; });
-  var colors = ['#1bc8ff','#f97316','#22c55e','#a78bfa','#f59e0b','#ef4444','#14b8a6','#8b5cf6'];
-
-  var ctx = document.getElementById('chart-proveedor').getContext('2d');
-  if (CHART_P) CHART_P.destroy();
-  if (values.length === 0){
-    ctx.canvas.parentElement.innerHTML = '<div class="empty">Sin pedidos pendientes</div>';
-    return;
-  }
-  CHART_P = new Chart(ctx, {
-    type: 'doughnut',
-    data: { labels: labels, datasets:[{ data: values, backgroundColor: colors, borderWidth:2, borderColor:'#07090f' }] },
-    options: {
-      plugins: {
-        legend: { position:'right', labels:{ color:'#7a8fa8', font:{size:10,family:'DM Sans'}, padding:8, boxWidth:10 } },
-        tooltip: { callbacks:{ label: function(c){ return c.label+': '+c.raw+' pedidos'; } } }
-      },
-      cutout: '62%'
-    }
-  });
-}
-
-// ── Chart: Estado de inventario ───────────────────────────────
-function renderChartStock(){
-  var inv    = DATA.inventario || [];
-  var stock  = DATA.stock || [];
-  var criticos, medios, ok;
-  if (stock.length > 0){
-    criticos = stock.filter(function(s){ return stockEstado(s)==='critical'; }).length;
-    medios   = stock.filter(function(s){ return stockEstado(s)==='medium'; }).length;
-    ok       = stock.filter(function(s){ return stockEstado(s)==='ok'; }).length;
-  } else {
-    criticos = inv.filter(isCritical).length;
-    medios   = inv.filter(function(i){ return String(i[KEYS.invSolicitar]||'').toLowerCase().indexOf('dato')>=0; }).length;
-    ok       = Math.max(0, inv.length - criticos - medios);
-  }
-
-  var ctx = document.getElementById('chart-stock').getContext('2d');
-  if (CHART_S) CHART_S.destroy();
-  CHART_S = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Crítico','Medio','Óptimo'],
-      datasets:[{
-        data: [criticos, medios, ok],
-        backgroundColor:['rgba(239,68,68,.65)','rgba(245,158,11,.65)','rgba(34,197,94,.65)'],
-        borderRadius: 6, borderSkipped: false
-      }]
-    },
-    options: {
-      plugins: { legend:{ display:false } },
-      scales: {
-        x: { ticks:{ color:'#5a6a80', font:{size:11,family:'DM Sans'} }, grid:{ color:'rgba(255,255,255,.04)' } },
-        y: { ticks:{ color:'#5a6a80', font:{size:11,family:'DM Sans'} }, grid:{ color:'rgba(255,255,255,.04)' }, beginAtZero:true }
-      }
-    }
-  });
 }
 
 // ── Populate proveedor filter ──────────────────────────────────

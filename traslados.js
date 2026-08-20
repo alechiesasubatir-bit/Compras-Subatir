@@ -35,16 +35,18 @@ window.Traslados = (function () {
   }
   function num(n) { return (parseFloat(n) || 0).toLocaleString('es-UY'); }
 
+  // Avance en 4 puntitos: entra en la misma linea que el texto
   function barra(estado) {
     var i = PASOS.map(function (p) { return p[0]; }).indexOf(estado);
     if (i < 0) i = 0;
-    return '<div class="prog" role="img" aria-label="Avance: ' + esc(PASOS[i][1]) + ', paso ' + (i + 1) + ' de 4">' +
-      PASOS.map(function (p, n) {
-        var cls = n < i ? 'done' : (n === i ? (n === 3 ? 'done fin' : 'now') : '');
-        var ico = n < i ? '✓' : (n === 3 && i === 3 ? '✓' : p[2]);
-        return '<div class="prog-s ' + cls + '"><span class="prog-d" aria-hidden="true">' + ico + '</span>' +
-               '<span class="prog-l">' + p[1] + '</span></div>';
-      }).join('') + '</div>';
+    var puntos = PASOS.map(function (p, n) {
+      var cls = n < i ? 'done' : (n === i ? (n === 3 ? 'done fin' : 'now') : '');
+      return '<span class="tr-p ' + cls + '"><span class="tr-d"></span></span>';
+    }).join('');
+    var fin = i === 3;
+    return '<span class="tr-prog" role="img" aria-label="Avance: ' + esc(PASOS[i][1]) +
+           ', paso ' + (i + 1) + ' de 4">' + puntos + '</span>' +
+           '<span class="tr-paso ' + (fin ? 'c-fin' : 'c-now') + '">' + PASOS[i][1] + '</span>';
   }
 
   function titulo(s) {
@@ -55,17 +57,15 @@ window.Traslados = (function () {
   }
 
   function tarjeta(s) {
-    var f = new Date(s.created_at);
     var llego = s.estado === 'ENTREGADA';
-    return '<div class="tr-card' + (llego ? ' tr-ok' : '') + '">' +
-      '<div class="tr-top">' +
+    return '<div class="tr-item' + (llego ? ' tr-ok' : '') + '" title="#' + s.id + ' ' +
+        esc(s.origen) + ' → ' + esc(s.destino) + ' · ' + num(s.unidades) + ' unidades' +
+        (s.pedido_por ? ' · pidió ' + esc(s.pedido_por) : '') + '">' +
+      '<div class="tr-txt">' +
         '<div class="tr-art">' + titulo(s) + '</div>' +
-        '<div class="tr-un">' + num(s.unidades) + ' <span>u.</span></div>' +
+        '<div class="tr-meta"><b>' + num(s.unidades) + '</b> u. · ' +
+          esc(s.origen) + ' → ' + esc(s.destino) + '</div>' +
       '</div>' +
-      '<div class="tr-ruta">#' + s.id + ' · <b>' + esc(s.origen) + ' → ' + esc(s.destino) + '</b> · ' +
-        s.items + ' pallet' + (s.items === 1 ? '' : 's') +
-        ' · ' + f.toLocaleDateString('es-UY') +
-        (s.pedido_por ? ' · pidió <b>' + esc(s.pedido_por) + '</b>' : '') + '</div>' +
       barra(s.estado) +
     '</div>';
   }
@@ -75,7 +75,7 @@ window.Traslados = (function () {
       host.innerHTML = '<div class="tr-vacio">Sin traslados en curso.</div>';
       return;
     }
-    host.innerHTML = '<div class="tr-grid">' + lista.map(tarjeta).join('') + '</div>';
+    host.innerHTML = '<div class="tr-strip">' + lista.map(tarjeta).join('') + '</div>';
   }
 
   function cargar(host) {

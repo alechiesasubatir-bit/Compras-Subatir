@@ -962,10 +962,10 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-08-20.1246"/>
-<script src="../supabase-config.js?v=2026-08-20.1246"></script>
-<script src="deposito-app.js?v=2026-08-20.1246"></script>
-<script src="../traslados.js?v=2026-08-20.1246"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-08-20.1306"/>
+<script src="../supabase-config.js?v=2026-08-20.1306"></script>
+<script src="deposito-app.js?v=2026-08-20.1306"></script>
+<script src="../traslados.js?v=2026-08-20.1306"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -974,7 +974,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-20.1246';
+window.APP_VER='2026-08-20.1306';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1040,6 +1040,18 @@ window.APP_VER='2026-08-20.1246';
 <main class="main" id="main">
 
   <!-- KPI Row -->
+  <!-- ══ TRASLADOS ENTRE DEPÓSITOS ═══════════════════════════
+       Arriba de todo y en una sola línea. -->
+  <div class="card" style="padding:9px 12px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="flex:0 0 auto;font-size:11px;font-weight:700;color:var(--muted,#6b7f93);
+                  letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">
+        🚚 Traslados <span class="badge badge-info" id="tr-cnt" style="font-size:9px;margin-left:4px">—</span>
+      </div>
+      <div id="tr-panel" style="flex:1;min-width:0"></div>
+    </div>
+  </div>
+
   <div class="kpi-row">
     <div class="card kpi kpi-teal">
       <div class="kpi-top"><span class="kpi-label">Artículos</span><span class="kpi-ico">◈</span></div>
@@ -1074,22 +1086,6 @@ window.APP_VER='2026-08-20.1246';
     </div>
   </div>
 
-  <!-- ══ TRASLADOS ENTRE DEPÓSITOS ═══════════════════════════
-       El mismo avance que ve el que pide desde el celular, para
-       que en el tablero se sepa qué está en camino sin abrir la
-       pantalla de Solicitar. -->
-  <div class="card" style="padding:16px 18px">
-    <div class="section-title" style="margin-bottom:14px">
-      <div class="sec-h">
-        <div class="sec-ico">🚚</div>
-        <div>
-          <div class="sec-eyebrow">En curso</div>
-          <h2><span>Traslados entre depósitos</span></h2>
-        </div>
-      </div>
-      <div class="sec-tools"><span class="badge badge-info" id="tr-cnt">—</span></div>
-    </div>
-    <div id="tr-panel"></div>
   </div>
 
 

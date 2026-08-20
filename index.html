@@ -479,13 +479,15 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
+<link rel="stylesheet" href="traslados.css?v=2026-08-20.1246"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1201"></script>
-<script src="subatir-app.js?v=2026-08-20.1201"></script>
+<script src="supabase-config.js?v=2026-08-20.1246"></script>
+<script src="subatir-app.js?v=2026-08-20.1246"></script>
+<script src="traslados.js?v=2026-08-20.1246"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1201';
+window.APP_VER='2026-08-20.1246';
 </script>
 </head>
 <body>
@@ -623,6 +625,17 @@ window.APP_VER='2026-08-20.1201';
         <div class="kpi-value" id="kpi-lote">—</div>
         <div class="kpi-sub">sin trazabilidad</div>
       </div>
+    </div>
+
+    <!-- ══ TRASLADOS ENTRE DEPÓSITOS ═══════════════════════════
+         El avance de lo pedido a Furriol. Hasta ahora sólo se veía
+         entrando a la app de Depósitos. -->
+    <div class="card" style="padding:16px 18px;margin-top:14px">
+      <div class="section-title" style="margin-bottom:12px">
+        <span>🚚 Traslados entre depósitos</span>
+        <span class="badge" id="tr-cnt" style="font-size:10px">—</span>
+      </div>
+      <div id="tr-panel"></div>
     </div>
 
     <!-- Main grid -->
@@ -877,6 +890,8 @@ function load(){
       SubatirApp.cat.cargar(DATA.inventario || []);   // COA y lote: solo materias primas
       detectKeys();
       renderAll();
+      // Una sola vez: montar en cada load() dejaría suscripciones duplicadas
+      if(window.Traslados && !window.__TR){ window.__TR = Traslados.montar('#tr-panel'); }
       setLoading(false);
       updateTimestamp(data.timestamp);
       scheduleRefresh();

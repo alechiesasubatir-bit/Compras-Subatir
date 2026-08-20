@@ -561,12 +561,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1002"></script>
-<script src="subatir-app.js?v=2026-08-20.1002"></script>
+<script src="supabase-config.js?v=2026-08-20.1016"></script>
+<script src="subatir-app.js?v=2026-08-20.1016"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1002';
+window.APP_VER='2026-08-20.1016';
 </script>
 </head>
 <body>
@@ -650,12 +650,6 @@ window.APP_VER='2026-08-20.1002';
       <div class="kpi-label">Stock Óptimo</div>
       <div class="kpi-num c-green" id="k-opt">—</div>
       <div class="kpi-sub">cobertura adecuada</div>
-    </div>
-    <div class="glass kpi kpi-valor">
-      <div class="kpi-icon">💵</div>
-      <div class="kpi-label">Cobertura prom.</div>
-      <div class="kpi-num c-orange" id="k-cob">—</div>
-      <div class="kpi-sub">meses de stock promedio</div>
     </div>
     <div class="glass kpi kpi-total" style="--accent:var(--teal-l)">
       <div class="kpi-icon">✈</div>
@@ -1517,12 +1511,6 @@ function updateKPIs(){
   var medio = all.filter(function(x){return x.estado==='MEDIO'});
   var opt   = all.filter(function(x){return x.estado==='OPTIMO'});
 
-  // Cobertura promedio: solo artículos con consumo conocido (cobertura !== null)
-  var cobItems = all.filter(function(x){return x.cobertura !== null && x.cobertura > 0});
-  var cobProm  = cobItems.length > 0
-    ? cobItems.reduce(function(s,x){return s + x.cobertura;}, 0) / cobItems.length
-    : 0;
-
   // Valor en tránsito: suma de precio×cantidad de OCs pendientes
   var valorTransit  = all.reduce(function(s,x){return s + (x.valorPendiente||0);}, 0);
   var artTransit    = all.filter(function(x){return x.pendiente > 0}).length;
@@ -1532,7 +1520,6 @@ function updateKPIs(){
   setText('k-crit',     crit.length);
   setText('k-medio',    medio.length);
   setText('k-opt',      opt.length);
-  setText('k-cob',      cobProm.toFixed(1) + ' m');
 
   // KPI valor en tránsito
   var elTransit = document.getElementById('k-transit');

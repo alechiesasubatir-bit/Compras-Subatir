@@ -277,6 +277,21 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
 /* Parcial / especial → naranja */
 .pill-parcial{background:rgba(249,115,22,.18);color:#fdba74;border:1px solid rgba(249,115,22,.4)}
 .pill-ok{background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25)}
+/* ── Datos de calidad sin resolver ─────────────────────────────
+   Parpadeo suave para lo que hay que ir a completar: COA y lote de
+   materias primas ya recibidas. Suave y no un flash, porque son
+   pantallas que se miran todo el dia. */
+@keyframes falta-late{
+  0%,100%{opacity:1;   box-shadow:0 0 0 0 rgba(239,68,68,.35)}
+  50%    {opacity:.55; box-shadow:0 0 0 4px rgba(239,68,68,0)}
+}
+.falta-dato{
+  background:rgba(239,68,68,.16);color:#fca5a5;border:1px solid rgba(239,68,68,.45);
+  animation:falta-late 1.8s ease-in-out infinite;
+}
+/* El KPI de arriba tambien avisa mientras quede algo pendiente */
+.kpi-alerta{animation:falta-late 1.8s ease-in-out infinite;border-color:rgba(239,68,68,.45)!important}
+@media (prefers-reduced-motion: reduce){ .falta-dato,.kpi-alerta{animation:none} }
 .pill-warn{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)}
 .pill-local{background:rgba(249,115,22,.15);color:#fdba74;border:1px solid rgba(249,115,22,.3)}
 .pill-mod{background:rgba(14,107,138,.2);color:var(--teal-l);border:1px solid rgba(14,107,138,.35)}
@@ -454,12 +469,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-20.1002"></script>
-<script src="subatir-app.js?v=2026-08-20.1002"></script>
+<script src="supabase-config.js?v=2026-08-20.1016"></script>
+<script src="subatir-app.js?v=2026-08-20.1016"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1002';
+window.APP_VER='2026-08-20.1016';
 </script>
 </head>
 <body>
@@ -1252,12 +1267,8 @@ function updateKPIs(){
   // un numero grande de cosas que nadie iba a resolver. Los dos controles de
   // calidad —COA y lote— corren unicamente sobre materias primas ya
   // recibidas, el mismo criterio con el que Recepcion las muestra.
-  var sinCOA   = all.filter(function(r){
-    return !isPendiente(r) && esMateriaPrima(r) && !coaOkR(r[K.coa]);
-  });
-  var sinLote  = all.filter(function(r){
-    return !isPendiente(r) && esMateriaPrima(r) && !String(r[K.lote]||'').trim();
-  });
+  var sinCOA   = all.filter(faltaCOA);
+  var sinLote  = all.filter(faltaLote);
   var totalUSD = pend.reduce(function(s,r){ return ocMoneda(r)==='USD' ? s+pNum(r[K.siva]) : s; }, 0);
   var totalPSO = pend.reduce(function(s,r){ return ocMoneda(r)!=='USD' ? s+pNum(r[K.siva]) : s; }, 0);
 
@@ -1269,6 +1280,10 @@ function updateKPIs(){
   setText('kpi-pso',        fmtPSO(totalPSO));
   setText('kpi-coa',        sinCOA.length);
   setText('kpi-lote',       sinLote.length);
+  // La tarjeta parpadea mientras quede algo por resolver, y se queda
+  // quieta sola cuando llega a cero
+  alertaKPI('kpi-coa',  sinCOA.length);
+  alertaKPI('kpi-lote', sinLote.length);
   // Actualizar contador en header
   var hdrCounter = document.getElementById('hdr-counter');
   if (hdrCounter && all.length > 0){
@@ -1406,11 +1421,16 @@ function renderTable(){
               : '<span class="muted-cell">—</span>')
             + '</td>';
       html += '<td>' + recepBadge + '</td>';
+      // Lote y COA parpadean en rojo solo cuando hay algo que resolver:
+      // materia prima ya recibida a la que le falta el dato
       html += '<td>' + (sinLote
-        ? '<span class="pill pill-warn">Sin lote</span>'
+        ? (faltaLote(r) ? '<span class="pill falta-dato">⚠ Sin lote</span>'
+                        : '<span class="pill pill-warn" style="opacity:.55">Sin lote</span>')
         : '<span style="font-size:11px;color:var(--muted)">'+esc(String(r[K.lote]))+'</span>') + '</td>';
       html += '<td><div style="display:flex;gap:4px;justify-content:center;white-space:nowrap">'
-            + (hasCOA ? '<span class="pill pill-ok">✓COA</span>'  : '<span class="pill pill-warn" style="opacity:.55">COA</span>')
+            + (hasCOA ? '<span class="pill pill-ok">✓COA</span>'
+                      : (faltaCOA(r) ? '<span class="pill falta-dato">⚠ COA</span>'
+                                     : '<span class="pill pill-warn" style="opacity:.55">COA</span>'))
             + (hasConf? '<span class="pill pill-ok">✓Conf</span>' : '<span class="pill pill-warn" style="opacity:.55">Conf</span>')
             + '</div></td>';
       var rid = (r.__row != null ? r.__row : orden);
@@ -2411,6 +2431,18 @@ function isPendiente(r){ var v = r[K.recepcion]; return !v || v === '' || v === 
 function buildCatMap(inv){ SubatirApp.cat.cargar(inv); }
 function catDeLinea(r){ return SubatirApp.cat.de(r['ID Inventario'], r[K.desc]); }
 function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.desc]); }
+
+// Reclaman COA y lote solo las materias primas ya recibidas: es lo unico
+// accionable, y es el mismo criterio con el que Recepcion las marca
+function faltaCOA(r){  return !isPendiente(r) && esMateriaPrima(r) && !coaOkR(r[K.coa]); }
+function faltaLote(r){ return !isPendiente(r) && esMateriaPrima(r) && !String(r[K.lote]||'').trim(); }
+
+// Prende o apaga el parpadeo de la tarjeta que contiene ese valor
+function alertaKPI(id, n){
+  var el=document.getElementById(id); if(!el) return;
+  var card=el.closest('.kpi'); if(!card) return;
+  card.classList.toggle('kpi-alerta', n>0);
+}
 function pNum(v){
   if (v === null || v === undefined || v === '') return 0;
   // Si ya es número no hay nada que interpretar. La versión anterior lo pasaba

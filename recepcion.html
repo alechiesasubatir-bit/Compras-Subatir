@@ -256,6 +256,19 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
 /* Parcial / especial → naranja */
 .pill-parcial{background:rgba(249,115,22,.18);color:#fdba74;border:1px solid rgba(249,115,22,.4)}
 .pill-ok{background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25)}
+/* COA pendiente: parpadeo suave, no un flash. Tiene que llamar la atención
+   sin volver molesto un listado que se mira todo el día. */
+.coa-falta{
+  background:rgba(239,68,68,.14);color:#fca5a5;border:1px solid rgba(239,68,68,.45);
+  cursor:pointer;animation:coa-late 1.8s ease-in-out infinite;
+}
+.coa-falta:hover{background:rgba(239,68,68,.26);color:#fff}
+@keyframes coa-late{
+  0%,100%{opacity:1;   box-shadow:0 0 0 0 rgba(239,68,68,.35)}
+  50%    {opacity:.55; box-shadow:0 0 0 4px rgba(239,68,68,0)}
+}
+/* Si el sistema está configurado para menos animación, se respeta */
+@media (prefers-reduced-motion: reduce){ .coa-falta{animation:none} }
 .pill-warn{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)}
 .pill-local{background:rgba(249,115,22,.15);color:#fdba74;border:1px solid rgba(249,115,22,.3)}
 .pill-mod{background:rgba(14,107,138,.2);color:var(--teal-l);border:1px solid rgba(14,107,138,.35)}
@@ -425,12 +438,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-19.2250"></script>
-<script src="subatir-app.js?v=2026-08-19.2250"></script>
+<script src="supabase-config.js?v=2026-08-19.2311"></script>
+<script src="subatir-app.js?v=2026-08-19.2311"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2250';
+window.APP_VER='2026-08-19.2311';
 </script>
 </head>
 <body>
@@ -566,12 +579,13 @@ window.APP_VER='2026-08-19.2250';
             <th style="text-align:right">Recibido</th>
             <th style="text-align:right">Saldo</th>
             <th style="text-align:center">Estado</th>
+            <th style="text-align:center">COA</th>
             <th>Recibido por</th>
             <th style="text-align:center">Acción</th>
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr class="empty-row"><td colspan="11">Cargando datos…</td></tr>
+          <tr class="empty-row"><td colspan="12">Cargando datos…</td></tr>
         </tbody>
       </table>
     </div>
@@ -785,7 +799,7 @@ window.addEventListener('DOMContentLoaded', function(){
   if (!SCRIPT_URL){
     toast('No hay URL de Apps Script configurada. Volvé al Dashboard para configurarla.','err');
     document.getElementById('tbody').innerHTML =
-      '<tr class="empty-row"><td colspan="11">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
+      '<tr class="empty-row"><td colspan="12">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
   } else {
     load();
   }
@@ -845,6 +859,7 @@ function load(){
       DATA_RAW  = d.pedidos || [];
       RAW_PREC  = d.precios || [];
       RAW_CTT   = d.contactos || [];
+      buildCatMap(d.inventario || []);   // para saber cuáles son materias primas
       console.log('[Pedidos] Hojas:', d.sheetNames);
       console.log('[Pedidos] Filas pedidos:', DATA_RAW.length);
       if(DATA_RAW.length) console.log('[Pedidos] Columnas:', Object.keys(DATA_RAW[0]).join(' | '));
@@ -870,7 +885,7 @@ function load(){
       setLoading(false);
       toast('Error al cargar datos: ' + e.message, 'err');
       document.getElementById('tbody').innerHTML =
-        '<tr class="empty-row"><td colspan="11">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
+        '<tr class="empty-row"><td colspan="12">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
     }
   );
 }
@@ -1163,7 +1178,7 @@ function estadoPill(est){
 function renderTable(){
   var html = '';
   if (FILTERED.length === 0){
-    html = '<tr class="empty-row"><td colspan="11">Sin resultados con los filtros actuales.</td></tr>';
+    html = '<tr class="empty-row"><td colspan="12">Sin resultados con los filtros actuales.</td></tr>';
   } else {
     FILTERED.forEach(function(r){
       var orden = r[K.orden] || '—';
@@ -1180,6 +1195,7 @@ function renderTable(){
       html += '<td class="num-cell" style="color:'+(st.recibido>0?'var(--ok)':'var(--muted)')+'">'+(st.recibido>0?fmtNum(st.recibido):'—')+'</td>';
       html += '<td class="num-cell" style="color:'+(st.saldo>0?'var(--orange-l)':'var(--muted)')+';font-weight:700">'+(st.saldo>0?fmtNum(st.saldo):'0')+'</td>';
       html += '<td style="text-align:center">'+estadoPill(st.estado)+'</td>';
+      html += '<td style="text-align:center">'+coaCell(r, st)+'</td>';
       html += '<td>'+(ultWho ? '<span class="pill pill-recv" style="font-family:var(--mono)">'+esc(String(ultWho))+'</span>' : '<span class="muted-cell">—</span>')+'</td>';
       html += '<td style="text-align:center"><button class="btn '+(st.estado==='COMPLETA'?'btn-ghost':'btn-orange')+' btn-sm" style="padding:5px 12px" onclick="openEntrega('+r.__row+')">'+(st.estado==='COMPLETA'?'✎ Ver':'📥 Recibir')+'</button></td>';
       html += '</tr>';
@@ -1192,6 +1208,67 @@ function renderTable(){
 var CUR_LINE=null;
 function findLine(pid){ return (DATA_DISPLAY||[]).filter(function(r){ return String(r.__row)===String(pid); })[0]; }
 function coaOkR(v){ return ['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(v||'').toUpperCase().trim())>=0; }
+
+// ── ¿Es materia prima? ───────────────────────────────────────────────
+//  El COA se le pide solo a las materias primas. La categoría vive en la
+//  ficha de inventario, así que se arma un mapa por id y otro por nombre:
+//  las OC nuevas traen el id de la ficha, las viejas sólo el nombre.
+var CAT_ID = {}, CAT_NOM = {};
+var EXT_CAT = { MP:'Materias Primas', ENV:'Envases', CON:'Consumibles' };
+
+function buildCatMap(inv){
+  CAT_ID = {}; CAT_NOM = {};
+  (inv||[]).forEach(function(f){
+    var cat = EXT_CAT[String(f['ID']||'').trim()] || '';
+    if(!cat) return;
+    if(f.__row)  CAT_ID[String(f.__row)] = cat;
+    var d = String(f['DESCRIPCIÓN']||'').trim();
+    if(d) CAT_NOM[SubatirApp.match.norm(d)] = cat;
+  });
+}
+
+function catDeLinea(r){
+  var id = r['ID Inventario'];
+  if(id && CAT_ID[String(id)]) return CAT_ID[String(id)];
+  return CAT_NOM[SubatirApp.match.norm(String(r[K.desc]||''))] || '';
+}
+function esMateriaPrima(r){ return catDeLinea(r)==='Materias Primas'; }
+
+// ── El COA en el listado ─────────────────────────────────────────────
+//  Solo se le pide a las materias primas, y solo cuando ya llegó algo:
+//  antes de recibir no hay COA que reclamar. Si falta, parpadea en rojo
+//  hasta que alguien lo resuelva; se toca y queda en verde.
+function coaCell(r, st){
+  if(!esMateriaPrima(r)) return '<span class="muted-cell">—</span>';
+  var coa = r[K.coa];
+  // También cuenta el COA cargado en cualquiera de las entregas
+  var enEntregas = (st.entregas||[]).some(function(e){ return coaOkR(e.coa); });
+  if(coaOkR(coa) || enEntregas) return '<span class="pill pill-ok" title="COA resuelto">✓ COA</span>';
+  if(!st.recibido) return '<span class="muted-cell" title="Todavía no llegó nada">—</span>';
+  return '<span class="pill coa-falta" title="Falta el COA. Tocá cuando esté resuelto." '+
+         'onclick="resolverCoa('+r.__row+')">⚠ COA</span>';
+}
+
+// Marca el COA como resuelto: en la línea y en sus entregas, porque el
+// trigger que sincroniza la recepción recalcula el COA de la línea desde
+// las entregas y si no lo pisaría en la próxima entrega parcial.
+function resolverCoa(row){
+  var r = DATA_DISPLAY.filter(function(x){ return x.__row===row; })[0];
+  if(!r) return;
+  toast('Marcando COA…','info');
+  var ops = [ SubatirApp.write({action:'updateRow', sheetKey:'pedidos', row:row,
+                                fields:JSON.stringify({'COA':'SI'})}) ];
+  ops.push(SB.from('entregas').update({coa:'SI'}).eq('pedido_id', row));
+  Promise.all(ops).then(function(res){
+    var err = (res||[]).filter(function(x){ return x && x.error; })[0];
+    if(err){ toast('No se pudo marcar el COA: '+((err.error&&err.error.message)||err.error),'err'); return; }
+    r[K.coa] = 'SI';
+    (ENTREGAS||[]).forEach(function(e){ if(e.pedido_id===row) e.coa='SI'; });
+    buildEntregasMap();
+    renderAll();
+    toast('COA resuelto ✓','ok');
+  });
+}
 // "Mercadería conforme" es el atajo para lo que NO es materia prima ni
 // producto químico: ahí el PL-06 no aplica, así que se esconde en vez de
 // dejar ocho puntos en blanco pidiendo que los completen.

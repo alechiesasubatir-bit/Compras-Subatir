@@ -425,12 +425,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-19.2229"></script>
-<script src="subatir-app.js?v=2026-08-19.2229"></script>
+<script src="supabase-config.js?v=2026-08-19.2238"></script>
+<script src="subatir-app.js?v=2026-08-19.2238"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2229';
+window.APP_VER='2026-08-19.2238';
 </script>
 </head>
 <body>
@@ -1339,6 +1339,17 @@ function proponerSumaStock(desc, cant, luego){
     var cuerpo = document.getElementById('sum-body');
     var ok     = document.getElementById('sum-ok');
 
+    // La OC se arma eligiendo un artículo que ya existe, así que el nombre
+    // de la línea ES el de la ficha: no hay nada que confirmar. Se suma y
+    // se avisa. La confirmación queda para cuando el nombre NO coincide
+    // exacto — las órdenes viejas tipeadas a mano — que es donde el
+    // sistema podría estar sumándole al artículo equivocado.
+    if(res.ficha && res.exacta){
+      SUMA = {ficha:res.ficha, cant:cant};
+      confirmarSuma(luego, true);
+      return;
+    }
+
     if(res.ficha){
       SUMA = {ficha:res.ficha, cant:cant};
       var hoy = parseFloat(res.ficha.inventario)||0, un = res.ficha.unidad||'';
@@ -1370,17 +1381,23 @@ function proponerSumaStock(desc, cant, luego){
   }, function(){ luego(); });   // si falla la consulta, no se traba la recepción
 }
 
-function confirmarSuma(luego){
+// auto=true cuando el nombre coincide exacto: no hubo modal, solo se avisa
+function confirmarSuma(luego, auto){
   if(!SUMA){ closeModal('sum-overlay'); luego(); return; }
-  var b=document.getElementById('sum-ok'); b.disabled=true; b.textContent='Sumando…';
+  var b=document.getElementById('sum-ok');
+  if(!auto){ b.disabled=true; b.textContent='Sumando…'; }
   var hoy = parseFloat(SUMA.ficha.inventario)||0;
   var nuevo = hoy + SUMA.cant;
   SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:SUMA.ficha.id,
                     fields:JSON.stringify({'INVENTARIO':nuevo})}).then(function(d){
-    b.disabled=false; b.textContent='✓ Sumar al stock';
-    if(d && d.error){ toast('No se pudo sumar al stock: '+d.error,'err'); return; }
+    if(!auto){ b.disabled=false; b.textContent='✓ Sumar al stock'; }
+    if(d && d.error){
+      toast('La entrega se registró, pero no se pudo sumar al stock: '+d.error,'err');
+      if(!auto) return;
+      luego(); return;
+    }
     SubatirApp.match.invalidar();     // la caché de fichas quedó vieja
-    toast('Stock actualizado: '+SUMA.ficha.descripcion.slice(0,26)+' → '+fmtNum(nuevo),'ok');
+    toast('📥 '+SUMA.ficha.descripcion.slice(0,26)+': '+fmtNum(hoy)+' + '+fmtNum(SUMA.cant)+' = '+fmtNum(nuevo),'ok');
     closeModal('sum-overlay');
     luego();
   });

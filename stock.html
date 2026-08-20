@@ -193,9 +193,6 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 /* ─── Tabla ─────────────────────────────────────────────────── */
 .tbl-wrap{overflow:auto;max-height:480px}
 #tbl-sug .tbl-wrap{max-height:560px}
-.sug-row-critico td:first-child{border-left:3px solid var(--red)}
-.sug-row-bajo td:first-child{border-left:3px solid var(--amber)}
-.sug-row-ok td:first-child{border-left:3px solid var(--green)}
 .cob-chip{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:5px;font-family:var(--mono);font-size:10px;font-weight:700}
 .cob-chip.crit{background:rgba(239,68,68,.14);color:var(--red)}
 .cob-chip.bajo{background:rgba(245,158,11,.14);color:var(--amber)}
@@ -269,15 +266,6 @@ tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap}
 .crit-bar-fill{height:100%;border-radius:2px}
 
 /* Sugerencias */
-.sug-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
-.sug-item{
-  padding:9px 11px;border-radius:9px;
-  background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2);
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-}
-.sug-name{font-size:11px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sug-qty{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--orange);white-space:nowrap}
-.sug-prov{font-size:9px;color:var(--muted-l);margin-top:2px}
 
 /* ═══ SEMÁFORO GRID ════════════════════════════════════════════ */
 .sem-grid{
@@ -573,12 +561,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-19.2336"></script>
-<script src="subatir-app.js?v=2026-08-19.2336"></script>
+<script src="supabase-config.js?v=2026-08-20.1002"></script>
+<script src="subatir-app.js?v=2026-08-20.1002"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2336';
+window.APP_VER='2026-08-20.1002';
 </script>
 </head>
 <body>
@@ -619,11 +607,11 @@ window.APP_VER='2026-08-19.2336';
   <div class="ticker-track">
     <span class="ticker-item"><span class="ti-dot"></span>Control de Stock — <b>Subatir S.A. / Prolimpio</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Inventario actualizado desde hoja COMPRAS</span>
-    <span class="ticker-item"><span class="ti-dot"></span>Alertas automáticas por stock mínimo y compra sugerida</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Alertas automáticas por stock mínimo</span>
     <span class="ticker-item"><span class="ti-dot"></span>Seguimiento de órdenes en tránsito y cobertura mensual</span>
     <span class="ticker-item"><span class="ti-dot"></span>Control de Stock — <b>Subatir S.A. / Prolimpio</b></span>
     <span class="ticker-item"><span class="ti-dot"></span>Inventario actualizado desde hoja COMPRAS</span>
-    <span class="ticker-item"><span class="ti-dot"></span>Alertas automáticas por stock mínimo y compra sugerida</span>
+    <span class="ticker-item"><span class="ti-dot"></span>Alertas automáticas por stock mínimo</span>
     <span class="ticker-item"><span class="ti-dot"></span>Seguimiento de órdenes en tránsito y cobertura mensual</span>
   </div>
 </div>
@@ -729,13 +717,12 @@ window.APP_VER='2026-08-19.2336';
               <th onclick="sortBy('consumo')" class="num">Cons./mes</th>
               <th onclick="sortBy('cobertura')">Cobertura</th>
               <th onclick="sortBy('pendiente')" class="num">En tránsito</th>
-              <th onclick="sortBy('sugerida')" class="num">Compra sug.</th>
               <th>Último proveedor</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="tbody">
-            <tr><td colspan="12" class="empty-td">Cargando…</td></tr>
+            <tr><td colspan="11" class="empty-td">Cargando…</td></tr>
           </tbody>
         </table>
       </div>
@@ -767,76 +754,8 @@ window.APP_VER='2026-08-19.2336';
         </div>
       </div>
 
-      <!-- Sugerencias de compra -->
-      <div class="glass" style="padding:16px">
-        <div class="sec-hdr">
-          <h2>🛒 <em>Compras Sugeridas</em></h2>
-          <span class="badge b-amb" id="sug-cnt">—</span>
-        </div>
-        <div class="sug-list" id="sug-list">
-          <div class="empty-td">Sin sugerencias</div>
-        </div>
-      </div>
-
     </div>
   </div><!-- /main-grid -->
-
-  <!-- ══ PANEL SUGERENCIA DE COMPRA ══════════════════════════ -->
-  <div class="glass" id="panel-sug-compra" style="padding:20px">
-    <div class="sec-hdr" style="flex-wrap:wrap;gap:10px">
-      <h2>🛒 <em>Sugerencia de Compra por Meses de Stock</em></h2>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <label style="font-size:11px;color:var(--muted-l)">Target cobertura:</label>
-        <select id="sug-meses" class="fi" style="width:auto" onchange="renderPanelSugerencia()">
-          <option value="1">1 mes</option>
-          <option value="2">2 meses</option>
-          <option value="3" selected>3 meses</option>
-          <option value="4">4 meses</option>
-          <option value="6">6 meses</option>
-          <option value="9">9 meses</option>
-          <option value="12">12 meses</option>
-        </select>
-        <label style="font-size:11px;color:var(--muted-l)">Mostrar:</label>
-        <select id="sug-filtro" class="fi" style="width:auto" onchange="renderPanelSugerencia()">
-          <option value="todos">Todos los artículos</option>
-          <option value="comprar" selected>Solo los que hay que comprar</option>
-          <option value="critico">Solo críticos</option>
-        </select>
-        <span class="badge b-amb" id="sug-panel-cnt">—</span>
-      </div>
-    </div>
-    <div class="tbl-wrap">
-      <table id="tbl-sug">
-        <thead>
-          <tr>
-            <th>Artículo</th>
-            <th class="num">Stock Actual</th>
-            <th class="num">Mínimo</th>
-            <th class="num">Cons./mes</th>
-            <th>Cobertura Actual</th>
-            <th class="num">En Tránsito</th>
-            <th>Cobertura c/Tránsito</th>
-            <th onclick="sortSug('sugerida')" class="num" style="cursor:pointer">Compra Sugerida ↕</th>
-            <th>Unidad</th>
-            <th>Proveedor Sugerido</th>
-          </tr>
-        </thead>
-        <tbody id="tbody-sug">
-          <tr><td colspan="10" class="empty-td">Cargando…</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
-      <div style="font-size:11px;color:var(--muted-l)">
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:4px;vertical-align:middle"></span>Crítico (stock ≤ mínimo)
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--amber);margin-right:4px;margin-left:12px;vertical-align:middle"></span>Bajo (stock ≤ 1.5× mínimo)
-        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);margin-right:4px;margin-left:12px;vertical-align:middle"></span>Óptimo
-      </div>
-      <div style="margin-left:auto;display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="exportSugCSV()">⬇ Exportar CSV</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Semáforo cards grid -->
   <div class="glass" style="padding:18px">
@@ -1124,7 +1043,7 @@ window.addEventListener('DOMContentLoaded', function(){
   if (!URL_AS){
     toast('Sin URL de Apps Script. Configurá desde el Dashboard.','err');
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="12" class="empty-td">⚠ <a href="index.html" style="color:var(--teal-l)">Configurar URL →</a></td></tr>';
+      '<tr><td colspan="11" class="empty-td">⚠ <a href="index.html" style="color:var(--teal-l)">Configurar URL →</a></td></tr>';
   } else { load(); }
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['inventario','pedidos'], load);
   updateSyncUI();
@@ -1481,17 +1400,6 @@ function recalcItem(m){
     m.estado='OPTIMO';
   }
 
-  // Compra sugerida (2 meses de consumo) solo cuando realmente falta stock:
-  // - con mínimo definido: cuando stock ≤ mínimo
-  // - sin mínimo: cuando stock = 0 o quedó CRÍTICO por cobertura/bandera
-  m.sugerida = 0;
-  if(consumo > 0){
-    if(minimo > 0){
-      if(stock <= minimo) m.sugerida = consumo * 2;
-    } else if(stock === 0 || m.estado === 'CRITICO'){
-      m.sugerida = consumo * 2;
-    }
-  }
   return m;
 }
 
@@ -1577,7 +1485,6 @@ function buildMerged(){
       consumo:       0,
       pendiente:     ocData.pendiente,
       valorPendiente:ocData.valorPendiente,
-      sugerida:      0,
       proveedor:     canonProv(ocData.lastProv || ''),
       provs:         collectProvs(ocData.origDesc || normKey, null, null, ocData, precIdx, ''),
       precio:        ocData.lastPrecio || '',
@@ -1596,8 +1503,6 @@ function buildMerged(){
 function renderAll(){
   applyFilters();
   renderTopCrit();
-  renderSugerencias();
-  renderPanelSugerencia();
   renderSemGrid();
   renderChart();
   renderAlertBar();
@@ -1699,7 +1604,6 @@ function sortVal(a,b){
   // cobertura null → -1 para que queden al fondo al ordenar asc
   else if(SORT_K==='cobertura') {va=a.cobertura!==null?a.cobertura:-1; vb=b.cobertura!==null?b.cobertura:-1;}
   else if(SORT_K==='pendiente') {va=a.pendiente; vb=b.pendiente;}
-  else if(SORT_K==='sugerida'||SORT_K==='compra') {va=a.sugerida; vb=b.sugerida;}
   else {va=a.desc; vb=b.desc;}
   var d = SORT_D==='asc'?1:-1;
   if(va<vb) return -1*d; if(va>vb) return 1*d; return 0;
@@ -1745,11 +1649,6 @@ function renderTable(){
 
     var stockClr = (x.minimo>0 && x.stock<=x.minimo) ? 'var(--red)' : (x.minimo>0 && x.stock<=x.minimo*1.5) ? 'var(--amber)' : 'var(--text)';
 
-    // Compra sugerida en naranja bold
-    var sugHtml  = x.sugerida>0
-      ? '<span style="color:var(--orange);font-family:var(--mono);font-weight:700">'+fmtN(x.sugerida)+'</span>'
-      : '<span class="muted">—</span>';
-
     // En tránsito: ícono avión cuando >0
     var transitHtml = x.pendiente > 0
       ? '<span class="transit-cell"><span class="icon">✈</span>'+fmtN(x.pendiente)+'</span>'
@@ -1768,7 +1667,6 @@ function renderTable(){
     html += '<td><span class="cob-text '+cobCls+'">'+cobLabel+'</span></td>';
     // En tránsito: con ícono ✈
     html += '<td>'+transitHtml+'</td>';
-    html += '<td>'+sugHtml+'</td>';
     // Último proveedor + cuántos otros lo proveen (tooltip con la lista completa)
     var otros = (x.provs||[]).filter(function(p){ return provId(p)!==provId(x.proveedor); });
     var provExtra = otros.length
@@ -1841,21 +1739,6 @@ function renderTopCrit(){
 }
 
 // ─── Sugerencias ──────────────────────────────────────────────
-function renderSugerencias(){
-  var items = MERGED.filter(function(x){return x.sugerida>0 && x.estado!=='OPTIMO'})
-    .sort(function(a,b){return b.sugerida-a.sugerida;}).slice(0,10);
-  setText('sug-cnt', items.length + ' artículos');
-  if(!items.length){document.getElementById('sug-list').innerHTML='<div class="empty-td" style="padding:12px">Sin sugerencias activas.</div>';return;}
-  var html = items.map(function(x){
-    return '<div class="sug-item">'
-      +'<div><div class="sug-name">'+esc(x.desc.slice(0,28))+'</div>'
-      +'<div class="sug-prov">'+esc(x.proveedor||'Sin proveedor asignado')+'</div></div>'
-      +'<div class="sug-qty">'+fmtN(x.sugerida)+'<br><span style="font-size:9px;color:var(--muted-l)">'+esc(x.unidad||'')+'</span></div>'
-      +'</div>';
-  }).join('');
-  document.getElementById('sug-list').innerHTML = html;
-}
-
 // ─── Chart ────────────────────────────────────────────────────
 function renderChart(){
   var crit  = MERGED.filter(function(x){return x.estado==='CRITICO'}).length;
@@ -1946,7 +1829,6 @@ function openDetail(desc){
     {l:'Consumo/mes', v:x.consumo>0?un(x.consumo):'—', cls:''},
     {l:'En tránsito', v:x.pendiente>0?un(x.pendiente):'—', cls:''},
     {l:'Cobertura',   v:cobStr,               cls:''},
-    {l:'Compra sug.', v:x.sugerida>0?un(x.sugerida):'—', cls:''},
     {l:'Precio ref.', v:x.precio||'—',        cls:''},
     {l:'Último proveedor', v:x.proveedor||'—', cls:'s2'},
     {l:'Proveedores que lo tienen ('+(x.provs||[]).length+')',
@@ -2078,7 +1960,7 @@ function saveNewArt(){
 //  Una fila por artículo con un input grande: se camina el depósito y se
 //  van tipeando las cantidades reales. Cada número se escribe directo a
 //  la base (columna INVENTARIO) y pasa a ser el stock disponible, así que
-//  el semáforo, la cobertura y la compra sugerida se recalculan al toque.
+//  el semáforo y la cobertura se recalculan al toque.
 //  No hay guardado local: si algo falla, la fila queda marcada ⚠ y se
 //  reintenta tocándola.
 // ══════════════════════════════════════════════════════════════════════
@@ -2331,7 +2213,7 @@ function cntAplicar(i, n){
       }
       CNT_ST[i] = 'ok';
       // Lo contado ES el stock disponible: se aplica y se re-semaforiza
-      // (estado, cobertura y compra sugerida) sin esperar una recarga.
+      // (estado y cobertura) sin esperar una recarga.
       // Va por __row y no por referencia porque el guardado dispara
       // realtime, que rehace MERGED: el objeto del modal queda suelto.
       m.stock = n; recalcItem(m);
@@ -2952,13 +2834,13 @@ function updateSyncUI(){}
 
 // ─── Export CSV ───────────────────────────────────────────────
 function exportCSV(){
-  var hdr = ['Código','Descripción','Stock','Mínimo','Consumo/mes','Cobertura (meses)','En tránsito','Valor en tránsito','Compra sugerida','Proveedor','Estado','Precio ref.','Observaciones'];
+  var hdr = ['Código','Descripción','Stock','Mínimo','Consumo/mes','Cobertura (meses)','En tránsito','Valor en tránsito','Proveedor','Estado','Precio ref.','Observaciones'];
   var rows = (FILT.length ? FILT : MERGED).map(function(x){
     var cob = x.cobertura !== null ? x.cobertura.toFixed(2) : '';
     return [
       x.codigo, x.desc, x.stock, x.minimo, x.consumo,
       cob, x.pendiente, x.valorPendiente||0,
-      x.sugerida, x.proveedor, x.estado, x.precio, x.obs
+      x.proveedor, x.estado, x.precio, x.obs
     ].map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(',');
   });
   var csv = '﻿'+hdr.join(',')+'\n'+rows.join('\n');
@@ -2970,112 +2852,6 @@ function exportCSV(){
 }
 
 // ═══ PANEL SUGERENCIA DE COMPRA ══════════════════════════════
-
-var SUG_SORT_K = 'sugerida', SUG_SORT_D = 'desc';
-
-function sortSug(k){
-  if(SUG_SORT_K===k) SUG_SORT_D=SUG_SORT_D==='asc'?'desc':'asc';
-  else{SUG_SORT_K=k;SUG_SORT_D='desc';}
-  renderPanelSugerencia();
-}
-
-function renderPanelSugerencia(){
-  var targetMeses = parseInt(document.getElementById('sug-meses').value)||3;
-  var filtro      = document.getElementById('sug-filtro').value;
-
-  var items = MERGED.filter(function(x){ return x.desc && x.consumo > 0; }).map(function(x){
-    // Con tránsito incluido
-    var stockTotal  = x.stock + (x.pendiente||0);
-    var cobActual   = x.consumo > 0 ? x.stock / x.consumo : null;
-    var cobConTrans = x.consumo > 0 ? stockTotal / x.consumo : null;
-    // Cuánto comprar para llegar al target desde el stock total
-    var necesario   = Math.max(0, (targetMeses * x.consumo) - stockTotal);
-    // Estado semáforo
-    var est;
-    if(x.minimo>0 && x.stock<=x.minimo)         est='CRITICO';
-    else if(x.minimo>0 && x.stock<=x.minimo*1.5) est='BAJO';
-    else                                          est='OK';
-    return {
-      desc:x.desc, codigo:x.codigo||'', stock:x.stock, minimo:x.minimo,
-      consumo:x.consumo, cobActual:cobActual, cobConTrans:cobConTrans,
-      pendiente:x.pendiente||0, sugerida:necesario,
-      unidad:x.unidad||'', proveedor:x.proveedor||'—', est:est,
-      estado:x.estado, x:x
-    };
-  });
-
-  // Filtrar
-  if(filtro==='comprar')  items=items.filter(function(r){return r.sugerida>0;});
-  if(filtro==='critico')  items=items.filter(function(r){return r.est==='CRITICO';});
-
-  // Sort
-  items.sort(function(a,b){
-    var va,vb;
-    if(SUG_SORT_K==='sugerida'){ va=a.sugerida; vb=b.sugerida; }
-    else { va=(a.desc||'').toLowerCase(); vb=(b.desc||'').toLowerCase(); }
-    var d = SUG_SORT_D==='asc'?1:-1;
-    return va<vb?-d:va>vb?d:0;
-  });
-
-  setText('sug-panel-cnt', items.length+' artículos');
-
-  if(!items.length){
-    document.getElementById('tbody-sug').innerHTML=
-      '<tr><td colspan="10" class="empty-td">✅ Sin artículos que requieran compra con el filtro seleccionado.</td></tr>';
-    return;
-  }
-
-  function cobChip(meses){
-    if(meses===null) return '<span class="cob-chip" style="color:var(--muted-l)">—</span>';
-    var cls = meses<1?'crit':meses<3?'bajo':'ok';
-    return '<span class="cob-chip '+cls+'">'+meses.toFixed(1)+' m</span>';
-  }
-
-  var html='';
-  items.forEach(function(r){
-    var rowCls = r.est==='CRITICO'?'sug-row-critico':r.est==='BAJO'?'sug-row-bajo':'sug-row-ok';
-    var dot    = r.est==='CRITICO'?'crit':r.est==='BAJO'?'medio':'optimo';
-    var sugStr = r.sugerida>0
-      ? '<span style="color:var(--orange);font-family:var(--mono);font-weight:700">'+fmtN(r.sugerida)+'</span>'
-      : '<span class="muted">—</span>';
-    html+='<tr class="'+rowCls+'">';
-    html+='<td><span class="sdot '+dot+'" style="margin-right:6px"></span>'+esc(r.desc.slice(0,36))+'</td>';
-    html+='<td class="num" style="font-family:var(--mono)">'+fmtN(r.stock)+'</td>';
-    html+='<td class="num" style="font-family:var(--mono);color:var(--muted-l)">'+( r.minimo>0?fmtN(r.minimo):'—')+'</td>';
-    html+='<td class="num" style="font-family:var(--mono);color:var(--teal-l)">'+fmtN(r.consumo)+'</td>';
-    html+='<td style="text-align:center">'+cobChip(r.cobActual)+'</td>';
-    html+='<td class="num" style="font-family:var(--mono);color:var(--teal-l)">'+( r.pendiente>0?'✈ '+fmtN(r.pendiente):'—')+'</td>';
-    html+='<td style="text-align:center">'+cobChip(r.cobConTrans)+'</td>';
-    html+='<td class="num">'+sugStr+'</td>';
-    html+='<td style="color:var(--muted-l);font-size:10px">'+esc(r.unidad)+'</td>';
-    html+='<td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis">'+esc(r.proveedor)+'</td>';
-    html+='</tr>';
-  });
-  document.getElementById('tbody-sug').innerHTML=html;
-}
-
-function exportSugCSV(){
-  var targetMeses = parseInt(document.getElementById('sug-meses').value)||3;
-  var hdr=['Código','Artículo','Stock Actual','Mínimo','Consumo/mes','Cobertura actual (m)','En tránsito','Cobertura c/tránsito (m)','Compra Sugerida ('+targetMeses+'m)','Unidad','Proveedor','Estado'];
-  var rows=[];
-  document.querySelectorAll('#tbody-sug tr').forEach(function(tr){
-    if(tr.querySelector('.empty-td')) return;
-    var tds=tr.querySelectorAll('td');
-    if(tds.length<10) return;
-    rows.push([
-      tds[0].textContent.trim(),tds[1].textContent.trim(),tds[2].textContent.trim(),
-      tds[3].textContent.trim(),tds[4].textContent.trim(),tds[5].textContent.trim(),
-      tds[6].textContent.trim(),tds[7].textContent.trim(),tds[8].textContent.trim(),
-      tds[9].textContent.trim()
-    ].map(function(v){return '"'+v.replace(/"/g,'""')+'"';}).join(','));
-  });
-  var csv='﻿'+hdr.join(',')+'\n'+rows.join('\n');
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download='sugerencia_compra_'+targetMeses+'m_'+new Date().toISOString().slice(0,10)+'.csv';
-  a.click();
-  toast('CSV exportado','ok');
-}
 
 // ─── Modal helpers ────────────────────────────────────────────
 function openOv(id){document.getElementById(id).classList.add('open')}

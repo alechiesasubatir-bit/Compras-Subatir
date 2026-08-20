@@ -573,12 +573,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-19.1720"></script>
-<script src="subatir-app.js?v=2026-08-19.1720"></script>
+<script src="supabase-config.js?v=2026-08-19.2229"></script>
+<script src="subatir-app.js?v=2026-08-19.2229"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.1720';
+window.APP_VER='2026-08-19.2229';
 </script>
 </head>
 <body>
@@ -1352,53 +1352,13 @@ function canonProv(name){
 // ─── Tokeniza: quita separadores y tokens que empiezan con dígito ────────────
 // "TAPAS ALCOA AZUL ROSCA 28/400" → ["TAPAS","ALCOA","AZUL","ROSCA"]
 // "ACIDO CLORHIDRICO 33%"         → ["ACIDO","CLORHIDRICO"]
-function tokenize(s){
-  return norm(s)
-    .replace(/\([^)]*\)/g,' ')   // elimina (Materia Prima), (MP), (x KG), etc.
-    .split(/[\s\/\-\.°\(\)]+/)
-    .filter(function(w){ return w.length >= 2 && !/^\d/.test(w); });
-}
+function tokenize(s){ return SubatirApp.match.tokenize(s); }
 
-// ─── Números del nombre ──────────────────────────────────────────────────────
-// tokenize() los tira a propósito (los gramajes y presentaciones ensucian el
-// match), pero son justo lo que separa una variante de otra: "rosca 28 /400" y
-// "rosca 28 /410" quedan idénticas sin ellos, y el tránsito de una se le
-// atribuía a la otra. Se leen aparte para usarlos solo como desempate.
-// Los de adentro de paréntesis no cuentan: ahí viven los pesos, "(23.6g)".
-function numeros(s){
-  return (norm(s).replace(/\([^)]*\)/g,' ').match(/\d+(?:[.,]\d+)?/g) || [])
-    .map(function(n){ return n.replace(',','.'); });
-}
+// El cruce de nombres vive en subatir-app.js (SubatirApp.match): lo usan
+// Stock para repartir el tránsito y Recepción para sumar lo que llega, y
+// tienen que decidir igual o la mercadería se sumaría a otra ficha.
+function numerosChocan(a,b){ return SubatirApp.match.chocan(a,b); }
 
-// Dos nombres se contradicen si cada uno tiene un número que el otro no.
-// "500 ml" contra "500 ml 23.6" no se contradicen (uno es más específico);
-// "28 400" contra "28 410" sí, y ahí no puede haber match.
-function numerosChocan(a, b){
-  var na = numeros(a), nb = numeros(b);
-  if(!na.length || !nb.length) return false;   // sin números no hay nada que comparar
-  var setA = {}, setB = {};
-  na.forEach(function(n){ setA[n]=1; });
-  nb.forEach(function(n){ setB[n]=1; });
-  var faltaEnB = na.some(function(n){ return !setB[n]; });
-  var faltaEnA = nb.some(function(n){ return !setA[n]; });
-  return faltaEnB && faltaEnA;
-}
-
-// ─── Fuzzy match OC ↔ COMPRAS por palabras ───────────────────────────────────
-// Reglas:
-//  1. Exact match (directo al índice).
-//  2. ≥80% de las palabras del string MÁS CORTO deben estar en el más largo.
-//  3. Las palabras EXTRA del más largo (las que no están en el corto) solo
-//     invalidan el match si tienen longitud ≥ 3 — palabras cortas como "AL",
-//     "DE", "LA" son preposiciones inocuas. Palabras como "AZUL", "CORTA",
-//     "DURA" son discriminadoras y rechazan el match.
-//
-// Ejemplo correcto:  "ACIDO CLORHIDRICO" ↔ "ACIDO CLORHIDRICO AL 33%"  → MATCH
-//                    ("AL" = 2 chars, "33%" filtrado como numérico)
-// Ejemplo rechazado: "TAPAS ALCOA ROSCA" ↔ "TAPAS ALCOA AZUL ROSCA"    → NO MATCH
-//                    ("AZUL" = 4 chars, es discriminador)
-// matchKeys: devuelve las claves de `idx` que describen el mismo artículo que `desc`.
-// Compartido por el índice de OC y el de la lista de precios.
 function matchKeys(desc, idx){
   var nd = norm(desc);
   if(!nd || nd.length < 4) return [];

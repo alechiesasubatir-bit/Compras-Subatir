@@ -1245,6 +1245,106 @@
     };
   })();
 
+  // ══ Cruce de nombres de artículo ══════════════════════════
+  //  El mismo insumo se escribe distinto en cada tabla: la OC dice
+  //  "Botella Pet x 1 L Verde", la ficha decía "…Petiza VERDE" y la
+  //  lista de precios otra cosa. Este es el criterio con el que Stock
+  //  reparte el tránsito, y vive acá para que Recepción sume al MISMO
+  //  artículo al que Stock le mostró la mercadería en camino. Dos
+  //  copias de esta lógica se desincronizarían y la mercadería
+  //  terminaría sumándose a una ficha distinta de la que la esperaba.
+  var MATCH = (function () {
+
+    function norm(s) {
+      return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
+    }
+
+    // Palabras significativas: sin paréntesis (ahí viven "(Materia Prima)",
+    // los gramajes) y sin los tokens que empiezan con dígito
+    function tokenize(s) {
+      return norm(s)
+        .replace(/\([^)]*\)/g, ' ')
+        .split(/[\s\/\-\.°\(\)]+/)
+        .filter(function (w) { return w.length >= 2 && !/^\d/.test(w); });
+    }
+
+    // Los números se leen aparte: tokenize los tira, pero son lo que
+    // separa "rosca 28 /400" de "rosca 28 /410"
+    function numeros(s) {
+      return (norm(s).replace(/\([^)]*\)/g, ' ').match(/\d+(?:[.,]\d+)?/g) || [])
+        .map(function (n) { return n.replace(',', '.'); });
+    }
+
+    // Se contradicen si cada uno tiene un número que el otro no
+    function chocan(a, b) {
+      var na = numeros(a), nb = numeros(b);
+      if (!na.length || !nb.length) return false;
+      var sa = {}, sb = {};
+      na.forEach(function (n) { sa[n] = 1; });
+      nb.forEach(function (n) { sb[n] = 1; });
+      return na.some(function (n) { return !sb[n]; }) && nb.some(function (n) { return !sa[n]; });
+    }
+
+    // ¿desc y cand son el mismo artículo?
+    function igual(desc, cand) {
+      var nd = norm(desc), nc = norm(cand);
+      if (!nd || nd.length < 4) return false;
+      if (nd === nc) return true;
+
+      var a = tokenize(desc), b = tokenize(cand);
+      if (!a.length || !b.length) return false;
+      var setA = {}, setB = {};
+      a.forEach(function (t) { setA[t] = 1; });
+      b.forEach(function (t) { setB[t] = 1; });
+
+      var corto = a.length <= b.length ? a : b;
+      var cortoSet = a.length <= b.length ? setA : setB;
+      var largo = a.length <= b.length ? b : a;
+      var largoSet = a.length <= b.length ? setB : setA;
+
+      var fwd = corto.filter(function (t) { return largoSet[t]; }).length / corto.length;
+      if (fwd < 0.8) return false;
+      // Una palabra de más que signifique algo los separa ("PETIZA", "CORTA")
+      if (largo.some(function (t) { return !cortoSet[t] && t.length >= 3; })) return false;
+      return !chocan(desc, cand);
+    }
+
+    // Claves de un índice {NORM(desc): algo} que son el mismo artículo
+    function keys(desc, idx) {
+      var nd = norm(desc);
+      if (!nd || nd.length < 4) return [];
+      if (idx[nd]) return [nd];
+      return Object.keys(idx).filter(function (k) { return igual(desc, k); });
+    }
+
+    // ── Ficha de inventario que le corresponde a una descripción ──
+    //  Devuelve {ficha} si hay una sola, {ambiguas:[...]} si hay varias
+    //  y {ninguna:true} si no hay. Nunca elige por su cuenta entre
+    //  varias: sumar stock al artículo equivocado no se ve hasta que
+    //  alguien cuenta.
+    var _cache = null;
+    function invalidar() { _cache = null; }
+    function fichas() {
+      if (_cache) return Promise.resolve(_cache);
+      return SB.from('inventario').select('id,codigo,descripcion,inventario,unidad')
+        .then(function (r) { _cache = r.data || []; return _cache; });
+    }
+    function fichaDe(desc) {
+      return fichas().then(function (lista) {
+        var exacta = lista.filter(function (f) { return norm(f.descripcion) === norm(desc); });
+        if (exacta.length === 1) return { ficha: exacta[0], exacta: true };
+        if (exacta.length > 1) return { ambiguas: exacta };
+        var cerca = lista.filter(function (f) { return igual(desc, f.descripcion); });
+        if (cerca.length === 1) return { ficha: cerca[0], exacta: false };
+        if (cerca.length > 1) return { ambiguas: cerca };
+        return { ninguna: true };
+      });
+    }
+
+    return { norm: norm, tokenize: tokenize, numeros: numeros, chocan: chocan,
+             igual: igual, keys: keys, fichaDe: fichaDe, invalidar: invalidar };
+  })();
+
   // ══ Excel (.xlsx) ═════════════════════════════════════════
   //  Genera un xlsx de verdad, sin librerias: un xlsx es un ZIP con
   //  XML adentro. Antes la unica salida era CSV, que Excel abre pero
@@ -1556,7 +1656,7 @@
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
     PL06: PL06, operador: OPER,
     live: live,
-    xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; },
+    xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule
   };

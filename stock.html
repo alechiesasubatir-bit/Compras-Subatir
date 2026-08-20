@@ -127,9 +127,9 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 .alert-bar span{color:#fca5a5;flex:1}
 
 /* ═══ KPI ROW ══════════════════════════════════════════════════ */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:13px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .kpi{
-  padding:18px 16px;position:relative;overflow:hidden;
+  padding:12px 14px;position:relative;overflow:hidden;
   transition:transform .2s;cursor:default;
 }
 .kpi:hover{transform:translateY(-3px)}
@@ -145,9 +145,9 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 
 .kpi-label{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:1px;
   text-transform:uppercase;margin-bottom:10px}
-.kpi-num{font-family:var(--mono);font-size:32px;font-weight:700;line-height:1;letter-spacing:-1px}
+.kpi-num{font-family:var(--mono);font-size:21px;font-weight:700;line-height:1;letter-spacing:-.5px}
 .kpi-sub{font-size:10px;color:var(--muted);margin-top:5px;font-family:var(--mono)}
-.kpi-icon{position:absolute;right:14px;top:14px;font-size:20px;opacity:.4}
+.kpi-icon{position:absolute;right:11px;top:10px;font-size:15px;opacity:.35}
 .c-teal{color:var(--teal-l)}.c-red{color:var(--red)}.c-amber{color:var(--amber)}
 .c-green{color:var(--green)}.c-orange{color:var(--orange)}
 
@@ -561,12 +561,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1016"></script>
-<script src="subatir-app.js?v=2026-08-20.1016"></script>
+<script src="supabase-config.js?v=2026-08-20.1201"></script>
+<script src="subatir-app.js?v=2026-08-20.1201"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1016';
+window.APP_VER='2026-08-20.1201';
 </script>
 </head>
 <body>

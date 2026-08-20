@@ -250,6 +250,22 @@
       a.href = 'usuarios.html'; a.className = navClass; a.textContent = '👥 Usuarios';
       nav.appendChild(a);
     }
+
+    // Ida a la app de Depósitos. La vuelta ya existía allá; faltaba este
+    // lado, así que para cruzar había que escribir la URL a mano.
+    // Solo a quien tenga algo que hacer allá: al resto su guard lo rebota.
+    var mods = profile.modules || [];
+    var vaAlDeposito = profile.role === 'admin' ||
+      ['solicitante', 'recorrido', 'recepcion_deposito', 'importacion'].some(function (m) {
+        return mods.indexOf(m) >= 0;
+      });
+    if (nav && vaAlDeposito && !nav.querySelector('[href="deposito/index.html"]')) {
+      var d = document.createElement('a');
+      d.href = 'deposito/index.html'; d.className = navClass;
+      d.textContent = '🏭 Depósitos';
+      d.title = 'Ir a la app de Control de Stock de Depósitos';
+      nav.appendChild(d);
+    }
   }
 
   // Barra de usuario (nombre + salir) en el header

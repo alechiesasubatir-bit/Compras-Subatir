@@ -128,9 +128,9 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 .main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
 
 /* ═══ KPI ROW ════════════════════════════════════════════════ */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .kpi{
-  padding:18px 20px;position:relative;overflow:hidden;
+  padding:12px 14px;position:relative;overflow:hidden;
   transition:transform .2s,box-shadow .2s;cursor:default;
 }
 .kpi:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(0,0,0,.55)}
@@ -140,7 +140,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 }
 .kpi-val{
   font-family:'IBM Plex Mono',monospace;
-  font-size:28px;font-weight:700;line-height:1;letter-spacing:-1px;
+  font-size:21px;font-weight:700;line-height:1;letter-spacing:-.5px;
 }
 .kpi-sub{font-size:11px;color:var(--muted);margin-top:5px}
 .c-teal{color:var(--teal-l)}.c-warn{color:var(--warn)}.c-ok{color:var(--ok)}
@@ -469,12 +469,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-20.1016"></script>
-<script src="subatir-app.js?v=2026-08-20.1016"></script>
+<script src="supabase-config.js?v=2026-08-20.1201"></script>
+<script src="subatir-app.js?v=2026-08-20.1201"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1016';
+window.APP_VER='2026-08-20.1201';
 </script>
 </head>
 <body>

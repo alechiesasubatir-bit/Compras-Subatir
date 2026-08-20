@@ -138,8 +138,8 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 .main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
 
 /* ═══ KPI ══════════════════════════════════════════════════════ */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px}
-.kpi{padding:17px 16px;position:relative;overflow:hidden;transition:transform .2s;cursor:default}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi{padding:12px 14px;position:relative;overflow:hidden;transition:transform .2s;cursor:default}
 .kpi:hover{transform:translateY(-3px)}
 .kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 var(--r) var(--r)}
 .kpi-art::after {background:linear-gradient(90deg,var(--teal),var(--teal-l))}
@@ -382,12 +382,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1016"></script>
-<script src="subatir-app.js?v=2026-08-20.1016"></script>
+<script src="supabase-config.js?v=2026-08-20.1201"></script>
+<script src="subatir-app.js?v=2026-08-20.1201"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1016';
+window.APP_VER='2026-08-20.1201';
 </script>
 </head>
 <body>

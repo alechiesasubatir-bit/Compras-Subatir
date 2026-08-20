@@ -112,11 +112,11 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 /* ── KPI strip ───────────────────────────────────────────── */
 .kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
 .kpi{
-  padding:18px 20px;position:relative;overflow:hidden;
+  padding:12px 14px;position:relative;overflow:hidden;
   transition:transform .2s,box-shadow .2s;cursor:default;
 }
 .kpi:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(0,0,0,.55)}
-.knum{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:700;line-height:1}
+.knum{font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:700;line-height:1}
 .ksub{font-family:'Manrope',sans-serif;font-size:10px;color:var(--mut2);margin-top:5px;
   font-weight:700;letter-spacing:.5px;text-transform:uppercase}
 .c-tl{color:var(--tl)}.c-or{color:var(--orl)}.c-gr{color:var(--grn)}
@@ -374,12 +374,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1016"></script>
-<script src="subatir-app.js?v=2026-08-20.1016"></script>
+<script src="supabase-config.js?v=2026-08-20.1201"></script>
+<script src="subatir-app.js?v=2026-08-20.1201"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1016';
+window.APP_VER='2026-08-20.1201';
 </script>
 </head>
 <body>

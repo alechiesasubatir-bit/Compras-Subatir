@@ -287,7 +287,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 #alert-banner .icon{font-size:15px;flex-shrink:0}
 
 /* ── KPI grid ───────────────────────────────────────────────── */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px}
 /* ── Datos de calidad sin resolver ─────────────────────────────
    Parpadeo suave para lo que hay que ir a completar: COA y lote de
    materias primas ya recibidas. Suave y no un flash, porque son
@@ -304,7 +304,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .kpi-alerta{animation:falta-late 1.8s ease-in-out infinite;border-color:rgba(239,68,68,.45)!important}
 @media (prefers-reduced-motion: reduce){ .falta-dato,.kpi-alerta{animation:none} }
 .kpi{
-  padding:20px 22px;position:relative;overflow:hidden;
+  padding:12px 14px;position:relative;overflow:hidden;
   transition:transform .2s,box-shadow .2s;cursor:default;
 }
 .kpi:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,.55)}
@@ -320,7 +320,7 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 }
 .kpi-value{
   font-family:'IBM Plex Mono',monospace;
-  font-size:32px;font-weight:700;line-height:1;letter-spacing:-1px;
+  font-size:21px;font-weight:700;line-height:1;letter-spacing:-.5px;
 }
 .kpi-sub{font-size:11px;color:var(--mut);margin-top:6px}
 
@@ -480,12 +480,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1016"></script>
-<script src="subatir-app.js?v=2026-08-20.1016"></script>
+<script src="supabase-config.js?v=2026-08-20.1201"></script>
+<script src="subatir-app.js?v=2026-08-20.1201"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1016';
+window.APP_VER='2026-08-20.1201';
 </script>
 </head>
 <body>
@@ -616,6 +616,12 @@ window.APP_VER='2026-08-20.1016';
         <div class="kpi-label">Sin COA / Conforme</div>
         <div class="kpi-value" id="kpi-conform">—</div>
         <div class="kpi-sub" id="kpi-conform-sub">pendientes de calidad</div>
+      </div>
+      <div class="card kpi kpi-conform" title="Materias primas ya recibidas a las que no se les cargó el lote. Sin lote no hay trazabilidad.">
+        <div class="kpi-icon">🏷</div>
+        <div class="kpi-label">Sin Lote</div>
+        <div class="kpi-value" id="kpi-lote">—</div>
+        <div class="kpi-sub">sin trazabilidad</div>
       </div>
     </div>
 
@@ -1134,6 +1140,12 @@ function renderKPIs(){
   var elCoa=document.getElementById('kpi-conform');
   var cardCoa=elCoa && elCoa.closest('.kpi');
   if(cardCoa) cardCoa.classList.toggle('kpi-alerta', sinCOA.length>0);
+
+  var sinLote = pedidos.filter(faltaLote);
+  set('kpi-lote', sinLote.length);
+  var elLote=document.getElementById('kpi-lote');
+  var cardLote=elLote && elLote.closest('.kpi');
+  if(cardLote) cardLote.classList.toggle('kpi-alerta', sinLote.length>0);
 
   set('kpi-pending-sub',  'de ' + pedidos.length + ' pedidos totales');
   set('kpi-critical-sub', 'requieren reposición urgente');

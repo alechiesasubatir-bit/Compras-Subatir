@@ -63,20 +63,31 @@ window.Traslados = (function () {
 
   function titulo(s) {
     var arts = Array.isArray(s.articulos) ? s.articulos : [];
-    if (arts.length === 1) return esc(arts[0].art);
+    if (arts.length === 1) {
+      var a = arts[0];
+      return esc(a.art) + (a.cod ? '<span class="cod">' + esc(a.cod) + '</span>' : '');
+    }
     if (!arts.length) return s.items + ' pallet' + (s.items === 1 ? '' : 's');
-    return arts.length + ' artículos';
+    // Varios: se listan todos, que para eso hay ancho
+    return arts.map(function (x) { return esc(x.art); }).join(' + ');
   }
 
   function tarjeta(s) {
     var llego = s.estado === 'ENTREGADA';
-    return '<div class="tr-item' + (llego ? ' tr-ok' : '') + '" title="#' + s.id + ' ' +
-        esc(s.origen) + ' → ' + esc(s.destino) + ' · ' + num(s.unidades) + ' unidades' +
-        (s.pedido_por ? ' · pidió ' + esc(s.pedido_por) : '') + '">' +
+    var f = new Date(s.created_at);
+    // Todo el detalle: quien lo pidio y cuando son lo que evita que
+    // alguien vuelva a pedir lo mismo sin darse cuenta
+    var meta = '<b>' + num(s.unidades) + '</b> u. · ' + s.items + ' pallet' + (s.items === 1 ? '' : 's') +
+      ' · ' + esc(s.origen) + ' → ' + esc(s.destino) +
+      ' · #' + s.id +
+      ' · ' + f.toLocaleDateString('es-UY') + ' ' +
+      f.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' h' +
+      (s.pedido_por ? ' · pidió <b>' + esc(s.pedido_por) + '</b>'
+                    : (s.solicitante ? ' · pidió <b>' + esc(s.solicitante) + '</b>' : ''));
+    return '<div class="tr-item' + (llego ? ' tr-ok' : '') + '">' +
       '<div class="tr-txt">' +
         '<div class="tr-art">' + titulo(s) + '</div>' +
-        '<div class="tr-meta"><b>' + num(s.unidades) + '</b> u. · ' +
-          esc(s.origen) + ' → ' + esc(s.destino) + '</div>' +
+        '<div class="tr-meta">' + meta + '</div>' +
       '</div>' +
       barra(s.estado) +
     '</div>';

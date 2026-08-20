@@ -12,22 +12,27 @@
 .tr-strip::-webkit-scrollbar{height:4px}
 .tr-strip::-webkit-scrollbar-thumb{background:rgba(14,107,138,.6);border-radius:3px}
 
+/* Sin max-width ni recortes: el chip mide lo que necesita su contenido.
+   Con uno o dos traslados sobra ancho y no tiene sentido cortar el nombre
+   del articulo, que es el dato que se busca. Si algun dia son muchos, la
+   tira scrollea al costado. */
 .tr-item{
-  flex:0 0 auto;min-width:214px;max-width:270px;
-  display:flex;align-items:center;gap:10px;
-  padding:8px 12px;border-radius:10px;
+  flex:0 0 auto;min-width:214px;
+  display:flex;align-items:center;gap:12px;
+  padding:8px 13px;border-radius:10px;
   background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
 }
 .tr-item.tr-ok{background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.28)}
 
 .tr-txt{min-width:0;flex:1}
-.tr-art{
-  font-size:11.5px;font-weight:700;line-height:1.25;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+.tr-art{font-size:11.5px;font-weight:700;line-height:1.25;white-space:nowrap}
+.tr-art .cod{
+  font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;
+  color:#6b7f93;margin-left:6px;
 }
 .tr-meta{
-  font-size:9px;color:#6b7f93;margin-top:2px;font-family:'IBM Plex Mono',monospace;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:9px;color:#6b7f93;margin-top:3px;font-family:'IBM Plex Mono',monospace;
+  white-space:nowrap;
 }
 .tr-meta b{color:#1bc8ff;font-weight:700}
 

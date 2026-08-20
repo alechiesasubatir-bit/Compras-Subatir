@@ -454,12 +454,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-19.2320"></script>
-<script src="subatir-app.js?v=2026-08-19.2320"></script>
+<script src="supabase-config.js?v=2026-08-19.2323"></script>
+<script src="subatir-app.js?v=2026-08-19.2323"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2320';
+window.APP_VER='2026-08-19.2323';
 </script>
 </head>
 <body>
@@ -1248,14 +1248,15 @@ function updateKPIs(){
   var all      = DATA_DISPLAY;
   var pend     = all.filter(isPendiente);
   var recv     = all.filter(function(r){ return !isPendiente(r); });
-  // Solo lo accionable: contaba tambien lo que todavia no llego, y quedaba
-  // un numero grande de cosas que nadie iba a resolver. El COA ademas se le
-  // pide unicamente a las materias primas, igual que el aviso de Recepcion.
+  // Solo lo accionable: contaban tambien lo que todavia no llego, y quedaba
+  // un numero grande de cosas que nadie iba a resolver. Los dos controles de
+  // calidad —COA y lote— corren unicamente sobre materias primas ya
+  // recibidas, el mismo criterio con el que Recepcion las muestra.
   var sinCOA   = all.filter(function(r){
     return !isPendiente(r) && esMateriaPrima(r) && !coaOkR(r[K.coa]);
   });
   var sinLote  = all.filter(function(r){
-    return !isPendiente(r) && !String(r[K.lote]||'').trim();
+    return !isPendiente(r) && esMateriaPrima(r) && !String(r[K.lote]||'').trim();
   });
   var totalUSD = pend.reduce(function(s,r){ return ocMoneda(r)==='USD' ? s+pNum(r[K.siva]) : s; }, 0);
   var totalPSO = pend.reduce(function(s,r){ return ocMoneda(r)!=='USD' ? s+pNum(r[K.siva]) : s; }, 0);

@@ -454,12 +454,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-19.2238"></script>
-<script src="subatir-app.js?v=2026-08-19.2238"></script>
+<script src="supabase-config.js?v=2026-08-19.2250"></script>
+<script src="subatir-app.js?v=2026-08-19.2250"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2238';
+window.APP_VER='2026-08-19.2250';
 </script>
 </head>
 <body>
@@ -2040,10 +2040,19 @@ function saveNew(){
 
   var fecha = document.getElementById('nw-fecha').value;
   var obs   = document.getElementById('nw-obs').value.trim();
-  var items = lines.map(function(l){ return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda}; });
-
+  // Cada línea se ata a su ficha de inventario ANTES de crear la orden.
+  // Con el id adentro, el tránsito y la suma al recibir dejan de depender
+  // de que el nombre siga escribiéndose igual dentro de tres meses.
   toast('Creando orden…','info');
-  apiWrite({ action:'addPedidoMulti', fecha:fecha, proveedor:prov, obs:obs, items:JSON.stringify(items) }, function(d){
+  Promise.all(lines.map(function(l){
+    return SubatirApp.match.fichaDe(l.desc).then(function(res){
+      return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda,
+              inventario_id: (res && res.ficha) ? res.ficha.id : null};
+    }, function(){ return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda}; });
+  })).then(function(items){
+    var sinFicha = items.filter(function(it){ return !it.inventario_id; }).length;
+    if(sinFicha) console.warn('[OC] '+sinFicha+' línea(s) sin ficha: se resolverán por nombre');
+    apiWrite({ action:'addPedidoMulti', fecha:fecha, proveedor:prov, obs:obs, items:JSON.stringify(items) }, function(d){
     if(!d) return;
     var orden = d.orden || '?';
     closeModal('new-overlay');
@@ -2052,6 +2061,7 @@ function saveNew(){
     // PDF de la OC con el N° de orden definitivo que asignó la base de datos
     buildDocPdf({ orden:orden, fecha:fecha, proveedor:prov, obs:obs, lines:lines }, 'compra');
     load();
+    });
   });
 }
 

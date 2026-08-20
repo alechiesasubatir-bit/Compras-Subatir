@@ -425,12 +425,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-19.2238"></script>
-<script src="subatir-app.js?v=2026-08-19.2238"></script>
+<script src="supabase-config.js?v=2026-08-19.2250"></script>
+<script src="subatir-app.js?v=2026-08-19.2250"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-19.2238';
+window.APP_VER='2026-08-19.2250';
 </script>
 </head>
 <body>
@@ -1327,15 +1327,25 @@ function saveEntrega(){
     // cruce OC ↔ ficha es por nombre y sumarle a la ficha equivocada no se
     // nota hasta que alguien cuenta. Se pregunta acá, con los números a la
     // vista, que es el momento en que se puede corregir.
-    proponerSumaStock(String(r[K.desc]||''), cant, function(){ afterEntrega(completa); });
+    // La columna llega con el nombre de encabezado que arma la capa de datos
+    proponerSumaStock(String(r[K.desc]||''), cant, function(){ afterEntrega(completa); }, r['ID Inventario']);
   });
 }
 
 // ── Sumar al stock lo que se acaba de recibir ────────────────────────
 var SUMA = null;   // {ficha, cant}
 
-function proponerSumaStock(desc, cant, luego){
-  SubatirApp.match.fichaDe(desc).then(function(res){
+// invId: la ficha que la orden dejó anotada al crearse. Si está, no hay
+// nada que cruzar — la orden sabe a qué artículo pertenece aunque después
+// lo hayan renombrado. Las órdenes viejas no lo tienen y siguen yendo por
+// nombre, como hasta ahora.
+function proponerSumaStock(desc, cant, luego, invId){
+  var buscar = invId
+    ? SubatirApp.match.fichaPorId(invId).then(function(f){
+        return f ? {ficha:f, exacta:true, porId:true} : SubatirApp.match.fichaDe(desc);
+      })
+    : SubatirApp.match.fichaDe(desc);
+  buscar.then(function(res){
     var cuerpo = document.getElementById('sum-body');
     var ok     = document.getElementById('sum-ok');
 

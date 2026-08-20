@@ -99,7 +99,7 @@
       table: 'pedidos', payloadKeys: ['pedidos'],
       cols: {
         fecha: 'Fecha', n_orden: 'N° Orden', proveedor: 'Proveedor', cantidad: 'Cantidad',
-        codigo: 'Código',
+        codigo: 'Código', inventario_id: 'ID Inventario',
         descripcion: 'Descripción', moneda: '$/U$S', precio_un: 'Precio un', s_iva: 's/iva',
         c_iva: 'c/iva', f_recepcion: 'F.Recepción', f_vto: 'F. Vto', lote: 'Lote',
         coa: 'COA', conforme: 'Conforme', observaciones: 'Observaciones', recibido_por: 'Recibido por'
@@ -365,11 +365,15 @@
       var rows = items.map(function (it) {
         var cant = parseFloat(it.cantidad) || 0, prec = parseFloat(it.precio) || 0;
         var siva = cant * prec, civa = siva * ivaMult(it.descripcion);
-        return {
+        var row = {
           n_orden: orden, fecha: fecha, proveedor: prov, descripcion: it.descripcion || null,
           cantidad: cant, precio_un: prec, moneda: it.moneda || null,
           s_iva: +siva.toFixed(2), c_iva: +civa.toFixed(2), observaciones: obs
         };
+        // La línea queda atada a la ficha, no al nombre: si mañana
+        // renombran el artículo, la orden sigue sabiendo cuál es
+        if (it.inventario_id) row.inventario_id = it.inventario_id;
+        return row;
       });
       return SB.from('pedidos').insert(rows).select('id').then(function (r2) {
         return r2.error ? { error: r2.error.message } : { success: true, orden: orden, count: rows.length };
@@ -1341,8 +1345,17 @@
       });
     }
 
+    // Ficha por id: la que la OC dejó anotada. Sin cruces ni nombres.
+    function fichaPorId(id) {
+      if (!id) return Promise.resolve(null);
+      return fichas().then(function (lista) {
+        return lista.filter(function (f) { return String(f.id) === String(id); })[0] || null;
+      });
+    }
+
     return { norm: norm, tokenize: tokenize, numeros: numeros, chocan: chocan,
-             igual: igual, keys: keys, fichaDe: fichaDe, invalidar: invalidar };
+             igual: igual, keys: keys, fichaDe: fichaDe, fichaPorId: fichaPorId,
+             invalidar: invalidar };
   })();
 
   // ══ Excel (.xlsx) ═════════════════════════════════════════

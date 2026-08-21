@@ -469,12 +469,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-20.1720"></script>
-<script src="subatir-app.js?v=2026-08-20.1720"></script>
+<script src="supabase-config.js?v=2026-08-21.1515"></script>
+<script src="subatir-app.js?v=2026-08-21.1515"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1720';
+window.APP_VER='2026-08-21.1515';
 </script>
 </head>
 <body>
@@ -695,7 +695,7 @@ window.APP_VER='2026-08-20.1720';
           </div>
           <div class="form-group">
             <label>Precio unitario</label>
-            <input type="number" step="0.01" min="0" class="form-input" id="ed-precio" oninput="calcEditTotals()"/>
+            <input type="number" step="any" min="0" class="form-input" id="ed-precio" oninput="calcEditTotals()"/>
           </div>
           <div class="form-group">
             <label>Moneda</label>
@@ -923,7 +923,7 @@ window.APP_VER='2026-08-20.1720';
         </div>
         <div class="form-group">
           <label id="nw-precio-label">Precio Unitario USD s/IVA *</label>
-          <input type="number" class="form-input" id="nw-precio" min="0" step="0.001" placeholder="0.000" oninput="calcIVA()"/>
+          <input type="number" class="form-input" id="nw-precio" min="0" step="any" placeholder="0" oninput="calcIVA()"/>
         </div>
         <div class="form-group span2">
           <div class="calc-preview" id="calc-preview">
@@ -1414,7 +1414,7 @@ function renderTable(){
       html += '<td class="money-cell">'
             + (precioUn > 0
                ? '<span style="color:'+(moneda==='USD'?'var(--grn)':'var(--teal-l)')+'">'+
-                 (moneda==='USD'?fmtUSD(precioUn,2):fmtPSO(precioUn,2))+'</span>'
+                 (moneda==='USD'?fmtUSDp(precioUn):fmtPSOp(precioUn))+'</span>'
                : '<span class="muted-cell">—</span>')
             + '</td>';
       html += '<td class="money-cell">'
@@ -1510,7 +1510,7 @@ function openDetail(id){
     {l:'Código',      v: codigoDe(row) || '—'},
     {l:'Descripción', v: row[K.desc], span:true},
     {l:'Cantidad',    v: row[K.cantidad]},
-    {l:'Precio u.',   v: row[K.precio] ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.precio]),2) : '—'},
+    {l:'Precio u.',   v: row[K.precio] ? (ocMoneda(row)==='USD'?fmtUSDp:fmtPSOp)(pNum(row[K.precio])) : '—'},
     {l:'Moneda', v: ocMoneda(row)==='USD' ? 'U$S (Dólares)' : '$ (Pesos UY)'},
     {l:'s/IVA',  v: pNum(row[K.siva])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.siva])) : '—'},
     {l:'c/IVA',  v: pNum(row[K.civa])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.civa])) : '—'},
@@ -1761,7 +1761,7 @@ function renderProdPicker(){
         '<span class="pick-name" onclick="togglePick('+o.idx+')" title="'+esc(it.art)+'">'+esc(it.art)+'<span class="pick-mon">'+sym+'</span></span>'+
         '<input type="number" class="pick-qty" min="0" step="0.01" placeholder="Cant" data-idx="'+o.idx+'" value="'+(it.qty!==''?it.qty:'')+'" oninput="onPickQty(this)">'+
         '<span class="pick-price-wrap"><span class="pick-sym">'+sym+'</span>'+
-          '<input type="number" class="pick-price-inp" min="0" step="0.001" placeholder="0.000" data-idx="'+o.idx+'" value="'+(it.price!==''?it.price:'')+'" oninput="onPickPrice(this)"></span>'+
+          '<input type="number" class="pick-price-inp" min="0" step="any" placeholder="0" data-idx="'+o.idx+'" value="'+(it.price!==''?it.price:'')+'" oninput="onPickPrice(this)"></span>'+
       '</div>';
   }).join('');
   updatePickCount();
@@ -1810,7 +1810,7 @@ function onProdChange(){
     el.innerHTML='<option value="">— '+uniq.length+' proveedor(es) tienen este producto —</option>'+
       uniq.map(function(p){
         var rec=provs.filter(function(x){return x.prov===p;})[0];
-        var pr=rec.usd>0?('U$S '+rec.usd.toFixed(2)):(rec.pso>0?('$ '+rec.pso.toFixed(2)):'s/precio');
+        var pr=rec.usd>0?fmtUSDp(rec.usd):(rec.pso>0?fmtPSOp(rec.pso):'s/precio');
         return '<option value="'+esc(p)+'">'+esc(p)+'  ·  '+pr+'</option>';
       }).join('');
     showOCHint('🔽 Este producto lo tienen '+uniq.length+' proveedor(es). Elegí uno y se carga el precio.');
@@ -2512,6 +2512,24 @@ function fmtUSD(n,dec){ dec=dec||0; return 'U$S ' + n.toLocaleString('es-UY',{mi
 function fmtPSO(n,dec){ dec=dec||0; return '$ '   + n.toLocaleString('es-UY',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
 function fmtNum(n,dec){ dec=dec||0; n=parseFloat(n)||0; return n.toLocaleString('es-UY',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
 
+// ── Precio unitario: se muestra tal cual se cargó ──────────────
+// Ni redondeado ni rellenado con ceros: 0,016 sigue siendo 0,016 y
+// 2,16 no se convierte en 2,1600. Los totales sí van a 2 decimales.
+// (mínimo 2 decimales para que un precio entero se lea como plata)
+function decCargados(n){
+  var s = String(n);
+  if(s.indexOf('e') >= 0 || s.indexOf('E') >= 0) return 6;   // notación científica
+  var i = s.indexOf('.');
+  return i < 0 ? 0 : Math.min(s.length - i - 1, 6);
+}
+function fmtPrec(n){
+  n = parseFloat(n) || 0;
+  var d = Math.max(2, decCargados(n));
+  return n.toLocaleString('es-UY',{minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function fmtUSDp(n){ return 'U$S ' + fmtPrec(n); }
+function fmtPSOp(n){ return '$ '   + fmtPrec(n); }
+
 // ── PDF de la Orden de Compra ──────────────────────────────────
 // oc = {orden, fecha, proveedor, obs, lines:[{desc,cant,prec,moneda('U$S'|'$')}]}
 function clipStr(s,n){ s=String(s==null?'':s); return s.length>n ? s.slice(0,n-1)+'…' : s; }
@@ -2627,7 +2645,7 @@ function buildDocPdf(oc, mode){
     colStyles={0:{cellWidth:70}, 1:{halign:'center', fontStyle:'bold'}, 2:{cellWidth:160}};
   } else {
     head=[['ÍTEM','DESCRIPCIÓN','CANTIDAD','P. UNIT','SUBTOTAL']];
-    body=(oc.lines||[]).map(function(l,i){ var sym=l.moneda==='$'?'$':'U$S'; var sub=(parseFloat(l.cant)||0)*(parseFloat(l.prec)||0); return [String(i+1), String(l.desc||''), fmtNum(l.cant), sym+' '+fmtNum(l.prec,2), sym+' '+fmtNum(sub,2)]; });
+    body=(oc.lines||[]).map(function(l,i){ var sym=l.moneda==='$'?'$':'U$S'; var sub=(parseFloat(l.cant)||0)*(parseFloat(l.prec)||0); return [String(i+1), String(l.desc||''), fmtNum(l.cant), sym+' '+fmtPrec(l.prec), sym+' '+fmtNum(sub,2)]; });
     colStyles={0:{cellWidth:46}, 1:{halign:'center', fontStyle:'bold'}, 2:{cellWidth:82}, 3:{cellWidth:95}, 4:{cellWidth:108}};
   }
   doc.autoTable({

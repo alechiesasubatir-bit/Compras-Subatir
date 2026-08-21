@@ -382,12 +382,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1720"></script>
-<script src="subatir-app.js?v=2026-08-20.1720"></script>
+<script src="supabase-config.js?v=2026-08-21.1515"></script>
+<script src="subatir-app.js?v=2026-08-21.1515"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1720';
+window.APP_VER='2026-08-21.1515';
 </script>
 </head>
 <body>
@@ -626,8 +626,8 @@ window.APP_VER='2026-08-20.1720';
         <select id="ed-prov-sel" onchange="edPickProv()"></select>
         <input id="ed-proveedor" placeholder="Nombre del proveedor nuevo"/>
       </div>
-      <div class="fg"><label>Precio s/IVA U$S</label><input id="ed-usd" type="number" step="0.01" placeholder="0.00"/></div>
-      <div class="fg"><label>Precio s/IVA $</label><input id="ed-pso" type="number" step="0.01" placeholder="0.00"/></div>
+      <div class="fg"><label>Precio s/IVA U$S</label><input id="ed-usd" type="number" step="any" placeholder="0"/></div>
+      <div class="fg"><label>Precio s/IVA $</label><input id="ed-pso" type="number" step="any" placeholder="0"/></div>
       <div class="fg"><label>Calidad</label>
         <select id="ed-calidad"><option value="">—</option><option>BUENA</option><option>MUY BUENA</option><option>REGULAR</option><option>MALA</option></select></div>
       <div class="fg"><label>Atención</label>
@@ -982,8 +982,8 @@ function renderComparativa(art){
     var barCol  = barPct>80?'var(--green)':barPct>50?'var(--amber)':'var(--red)';
     var sc      = r._score;
     var scCol   = sc>=70?'var(--green)':sc>=50?'var(--amber)':'var(--red)';
-    var usdStr  = r._usd>0 ? 'U$S '+r._usd.toFixed(3) : '—';
-    var psoStr  = r._pso>0 ? '$'+r._pso.toFixed(2) : '—';
+    var usdStr  = r._usd>0 ? 'U$S '+fmtPrec(r._usd) : '—';
+    var psoStr  = r._pso>0 ? '$'+fmtPrec(r._pso) : '—';
 
     return '<div class="podium-card '+rankCls+'">'
       +'<div class="rank-num '+rankCls+'">'+rankLbl+'</div>'
@@ -1090,8 +1090,8 @@ function renderHistorico(art){
     '<div class="evo-grid">'+
       '<div class="evo-stat"><span class="evo-val" style="color:'+trendColor+'">'+trendTxt+'</span><span class="evo-lbl">Tendencia</span></div>'+
       '<div class="evo-stat"><span class="evo-val" style="color:'+trendColor+'">'+pctStr+'</span><span class="evo-lbl">Variación total</span></div>'+
-      '<div class="evo-stat"><span class="evo-val" style="color:var(--green)">U$S '+minP.toFixed(2)+'</span><span class="evo-lbl">Precio mínimo</span></div>'+
-      '<div class="evo-stat"><span class="evo-val" style="color:var(--red)">U$S '+maxP.toFixed(2)+'</span><span class="evo-lbl">Precio máximo</span></div>'+
+      '<div class="evo-stat"><span class="evo-val" style="color:var(--green)">U$S '+fmtPrec(minP)+'</span><span class="evo-lbl">Precio mínimo</span></div>'+
+      '<div class="evo-stat"><span class="evo-val" style="color:var(--red)">U$S '+fmtPrec(maxP)+'</span><span class="evo-lbl">Precio máximo</span></div>'+
       '<div class="evo-stat"><span class="evo-val">U$S '+avg.toFixed(2)+'</span><span class="evo-lbl">Precio promedio</span></div>'+
       '<div class="evo-stat"><span class="evo-val">'+prices.length+'</span><span class="evo-lbl">Compras en OC</span></div>'+
       '<div class="evo-stat"><span class="evo-val" style="font-size:11px;font-family:\'DM Sans\',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+topProv+'</span><span class="evo-lbl">Proveedor habitual</span></div>'+
@@ -1161,7 +1161,7 @@ function buildHistChart(){
           mode:'index',intersect:false,
           callbacks:{
             title:function(c){return 'Fecha: '+labels[c[0].dataIndex];},
-            label:function(c){return ' Precio: '+sym+' '+c.parsed.y.toFixed(2);},
+            label:function(c){return ' Precio: '+sym+' '+fmtPrec(c.parsed.y);},
             afterLabel:function(c){
               var pr=provs[c.dataIndex], ca=cantidades[c.dataIndex];
               var lines=[];
@@ -1271,8 +1271,8 @@ function renderCatTable(){
       +'<td>'+catChip(catOf(art))+'</td>'
       +'<td class="muted" style="font-family:var(--mono);font-size:10px">'+esc(String(r[PK.codigo]||'—'))+'</td>'
       +'<td style="max-width:140px;overflow:hidden;text-overflow:ellipsis">'+esc(String(r[PK.proveedor]||'—'))+'</td>'
-      +'<td class="num" style="color:'+(isMin?'var(--green)':'var(--text)')+(isMin?';font-weight:700':'')+'">'+( usd>0?'U$S '+usd.toFixed(2):'—')+'</td>'
-      +'<td class="num muted">'+( pso>0?'$'+pso.toFixed(2):'—')+'</td>'
+      +'<td class="num" style="color:'+(isMin?'var(--green)':'var(--text)')+(isMin?';font-weight:700':'')+'">'+( usd>0?'U$S '+fmtPrec(usd):'—')+'</td>'
+      +'<td class="num muted">'+( pso>0?'$'+fmtPrec(pso):'—')+'</td>'
       +'<td>'+ratingPill(r[PK.calidad])+'</td>'
       +'<td>'+ratingPill(r[PK.atencion])+'</td>'
       +'<td>'+ratingPill(r[PK.demora])+'</td>'
@@ -1797,6 +1797,21 @@ function ratingPill(v){
   return '<span class="rp rp-nd">—</span>';
 }
 function pn(v){if(!v&&v!==0)return 0;var s=String(v).replace(/[^\d.,-]/g,'').replace(',','.');return parseFloat(s)||0;}
+
+// ── Precio tal cual se cargó ───────────────────────────────────
+// Ni redondeado ni rellenado con ceros: 0,016 sigue siendo 0,016 y
+// 2,16 no se convierte en 2,1600. Los promedios sí van a 2 decimales.
+function decCargados(n){
+  var s = String(n);
+  if(s.indexOf('e') >= 0 || s.indexOf('E') >= 0) return 6;   // notación científica
+  var i = s.indexOf('.');
+  return i < 0 ? 0 : Math.min(s.length - i - 1, 6);
+}
+function fmtPrec(n){
+  n = parseFloat(n) || 0;
+  var d = Math.max(2, decCargados(n));
+  return n.toLocaleString('es-UY',{minimumFractionDigits:d, maximumFractionDigits:d});
+}
 function fmtDate(d){
   if(!d||d==='')return '—';
   var p=String(d).split('-');

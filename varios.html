@@ -412,12 +412,12 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="supabase-config.js?v=2026-08-20.1720"></script>
-<script src="subatir-app.js?v=2026-08-20.1720"></script>
+<script src="supabase-config.js?v=2026-08-21.1515"></script>
+<script src="subatir-app.js?v=2026-08-21.1515"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1720';
+window.APP_VER='2026-08-21.1515';
 </script>
 </head>
 <body>
@@ -686,6 +686,21 @@ function fmtNum(n,d){
   var v=parseFloat(n); if(isNaN(v)) return '—';
   return v.toLocaleString('es-UY',{minimumFractionDigits:d||0,maximumFractionDigits:d==null?2:d});
 }
+// ── Precio unitario: se muestra tal cual se cargó ──────────────
+// Ni redondeado ni rellenado con ceros: 0,016 sigue siendo 0,016 y
+// 2,16 no se convierte en 2,1600. Los totales sí van a 2 decimales.
+function decCargados(n){
+  var s = String(n);
+  if(s.indexOf('e') >= 0 || s.indexOf('E') >= 0) return 6;   // notación científica
+  var i = s.indexOf('.');
+  return i < 0 ? 0 : Math.min(s.length - i - 1, 6);
+}
+function fmtPrec(n){
+  if(n==null||n==='') return '—';
+  var v = parseFloat(n); if(isNaN(v)) return '—';
+  var d = Math.max(2, decCargados(v));
+  return v.toLocaleString('es-UY',{minimumFractionDigits:d, maximumFractionDigits:d});
+}
 function fmtDate(d){
   if(!d) return '—';
   var p=String(d).split('-');
@@ -911,7 +926,7 @@ function filaItem(it){
   return '<div class="it-row">'
     + '<input type="text" class="it-art" placeholder="Qué se pide" value="'+esc(it.articulo||'')+'" oninput="calcTotales()"/>'
     + '<input type="number" class="it-cant" min="0" step="0.01" placeholder="Cant." value="'+(it.cantidad==null?'':it.cantidad)+'" oninput="calcTotales()"/>'
-    + '<input type="number" class="it-prec" min="0" step="0.01" placeholder="Precio" value="'+(it.precio==null?'':it.precio)+'" oninput="calcTotales()"/>'
+    + '<input type="number" class="it-prec" min="0" step="any" placeholder="Precio" value="'+(it.precio==null?'':it.precio)+'" oninput="calcTotales()"/>'
     + '<button type="button" class="it-del" title="Quitar" onclick="delItem(this)">✕</button>'
     + '</div>';
 }
@@ -1043,7 +1058,7 @@ function openRecibir(id){
       +(its.length ? its.map(function(i){
           return '· '+esc(i.articulo)
             +(i.cantidad!=null?(' <span style="font-family:var(--mono);color:var(--teal-l)">×'+fmtNum(i.cantidad)+'</span>'):'')
-            +(i.precio!=null?(' <span style="font-family:var(--mono);color:var(--muted-l)">a '+esc(d.moneda||'$')+' '+fmtNum(i.precio,2)+'</span>'):'');
+            +(i.precio!=null?(' <span style="font-family:var(--mono);color:var(--muted-l)">a '+esc(d.moneda||'$')+' '+fmtPrec(i.precio)+'</span>'):'');
         }).join('<br>') : '—')
       +'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Neto'+(d.iva_tasa>0?(' + IVA '+d.iva_tasa+'%'):'')+'</div><div class="detail-value">'+money(d.subtotal,d.moneda)+'</div></div>'

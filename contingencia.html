@@ -339,12 +339,12 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-20.1720"></script>
-<script src="subatir-app.js?v=2026-08-20.1720"></script>
+<script src="supabase-config.js?v=2026-08-21.1515"></script>
+<script src="subatir-app.js?v=2026-08-21.1515"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-20.1720';
+window.APP_VER='2026-08-21.1515';
 </script>
 </head>
 <body>
@@ -671,6 +671,15 @@ function pNum(v){
 function fmtUSD(n){ return 'U$S '+n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtPSO(n){ return '$ '+n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtNum(n){ return n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:2}); }
+
+// Decimales que trae el número cargado, para no redondear un precio chico
+// (0,016 tiene que seguir siendo 0,016, no 0,02). Tope de 6 por las dudas.
+function decCargados(n){
+  var s = String(n);
+  if(s.indexOf('e') >= 0 || s.indexOf('E') >= 0) return 6;
+  var i = s.indexOf('.');
+  return i < 0 ? 0 : Math.min(s.length - i - 1, 6);
+}
 function fmtDate(v){
   if(!v) return '—';
   var s=String(v).trim();
@@ -844,7 +853,7 @@ function renderTabla(){
       /* columna valor/precio → con decimales según magnitud */
       if(c.key === valCol && s !== '' && pNum(v) !== 0){
         var n = pNum(v);
-        var dec = (n > 0 && n < 1000) ? 2 : 0;
+        var dec = (n > 0 && n < 1000) ? Math.max(2, decCargados(n)) : 0;
         var nFmt = n.toLocaleString('es-UY',{minimumFractionDigits:dec,maximumFractionDigits:dec});
         var fmtSpan = mon==='USD'
           ? '<span style="color:var(--grn);font-family:\'IBM Plex Mono\',monospace;font-size:10px">U$S '+nFmt+'</span>'

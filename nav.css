@@ -39,7 +39,7 @@
    columnas vacías se mantienen y cada cuadro conserva su ancho. */
 .sbhdr > nav.sbnav{
   order:3;flex:1 1 100%;min-width:0;margin:0;
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(142px,1fr));
   gap:7px;
   padding-top:10px;
   border-top:1px solid rgba(255,255,255,.055);
@@ -51,8 +51,11 @@
 nav.sbnav a.sbnl{
   --c:27,200,255;
   position:relative;
-  display:flex;align-items:center;gap:8px;min-width:0;
-  padding:8px 12px;border-radius:11px;
+  /* 142px de columna con este relleno da 4px de aire sobre el texto más
+     largo ("Pedidos Varios"): entran los 10 accesos en un solo renglón
+     en una pantalla de 1536 sin que se recorte ninguno. */
+  display:flex;align-items:center;gap:7px;min-width:0;
+  padding:8px 11px;border-radius:11px;
   border:1px solid rgba(var(--c),.24);
   background:
     linear-gradient(158deg,rgba(var(--c),.17),rgba(var(--c),.045) 70%),

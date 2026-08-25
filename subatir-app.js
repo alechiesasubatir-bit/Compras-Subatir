@@ -226,6 +226,33 @@
   // Oculta links de nav a módulos sin acceso + agrega Usuarios (admin)
   function gateNav(profile) {
     var operario = isOperario(profile);
+
+    // Ida a la app de Depósitos. La vuelta ya existía allá; faltaba este
+    // lado, así que para cruzar había que escribir la URL a mano.
+    // Solo a quien tenga algo que hacer allá: al resto su guard lo rebota.
+    var mods = profile.modules || [];
+    var vaAlDeposito = profile.role === 'admin' ||
+      ['solicitante', 'recorrido', 'recepcion_deposito', 'importacion'].some(function (m) {
+        return mods.indexOf(m) >= 0;
+      });
+
+    // El menú lo arma nav.js: un solo orden y un color por módulo para
+    // las nueve páginas. Acá sólo se decide QUIÉN ve qué.
+    if (window.SubatirNav) {
+      SubatirNav.render({
+        page: currentPage(),
+        can: function (k) {
+          // El operario de recepción no sale de su pantalla: menú de uno.
+          if (operario) return k === 'recepcion';
+          if (k === 'deposito') return vaAlDeposito;
+          if (k === 'usuarios') return profile.role === 'admin';
+          return canAccess(k, profile);
+        }
+      });
+      return;
+    }
+
+    // Respaldo por si nav.js no cargó: se filtra el menú escrito en el HTML.
     document.querySelectorAll('nav a, .nl').forEach(function (a) {
       var href = (a.getAttribute('href') || '').split('/').pop();
       var mod = PAGE_MODULE[href];
@@ -233,7 +260,14 @@
       if (mod && mod !== 'usuarios' && !canAccess(mod, profile)) a.style.display = 'none';
     });
     var nav = document.querySelector('nav');
-    var navClass = (nav && nav.querySelector('a')) ? nav.querySelector('a').className : 'nl';
+    // La clase se saca de un link INACTIVO: copiar la del primero pintaba
+    // de "página actual" a todo lo que se agregara acá (en el dashboard el
+    // primero es el activo, y quedaban tres accesos iluminados a la vez).
+    var navClass = 'nl';
+    if (nav) {
+      var muestra = nav.querySelector('a:not(.on):not(.active)') || nav.querySelector('a');
+      if (muestra) navClass = muestra.className;
+    }
     // Link a Recepción para quien tenga acceso (admin u operario)
     if (nav && !operario && canAccess('recepcion', profile) && !nav.querySelector('[href="recepcion.html"]')) {
       var r = document.createElement('a');
@@ -251,18 +285,11 @@
       nav.appendChild(a);
     }
 
-    // Ida a la app de Depósitos. La vuelta ya existía allá; faltaba este
-    // lado, así que para cruzar había que escribir la URL a mano.
-    // Solo a quien tenga algo que hacer allá: al resto su guard lo rebota.
-    var mods = profile.modules || [];
-    var vaAlDeposito = profile.role === 'admin' ||
-      ['solicitante', 'recorrido', 'recepcion_deposito', 'importacion'].some(function (m) {
-        return mods.indexOf(m) >= 0;
-      });
+    // Ida a la app de Depósitos (vaAlDeposito ya se resolvió arriba).
     if (nav && vaAlDeposito && !nav.querySelector('[href="deposito/index.html"]')) {
       var d = document.createElement('a');
       d.href = 'deposito/index.html'; d.className = navClass;
-      d.textContent = '🏭 Depósitos';
+      d.textContent = '🏢 Depósitos';
       d.title = 'Ir a la app de Control de Stock de Depósitos';
       nav.appendChild(d);
     }
@@ -270,7 +297,11 @@
 
   // Barra de usuario (nombre + salir) en el header
   function injectUserBar(profile) {
-    var host = document.querySelector('.hdr-r') || document.querySelector('header');
+    // Cada página nombró distinto al bloque de la derecha del header, y
+    // el dashboard además usa <div class="hdr"> en vez de <header>: con
+    // sólo dos candidatos se quedaba sin nombre de usuario ni "Salir".
+    var host = document.querySelector('.hdr-r, .hdr-right, .header-right')
+            || document.querySelector('header, .hdr');
     if (!host || document.getElementById('sb-userbar')) return;
     var wrap = document.createElement('span');
     wrap.id = 'sb-userbar';

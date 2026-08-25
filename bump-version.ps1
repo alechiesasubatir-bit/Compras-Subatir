@@ -12,7 +12,7 @@
 #  recarga a nadie. Por eso se escriben juntos aca y no a mano.
 #
 #  Ademas reescribe el ?v= de supabase-config.js, subatir-app.js,
-#  deposito-app.js y traslados.js/.css en todas las paginas. Antes habia que subirlo a
+#  deposito-app.js, nav.js/.css y traslados.js/.css en todas las paginas. Antes habia que subirlo a
 #  mano con un sed cada vez que se tocaba uno de esos archivos, y
 #  olvidarse dejaba a la gente con el JS viejo aunque el HTML fuera
 #  nuevo. Ahora sube en cada publicacion.
@@ -46,7 +46,7 @@ $SUB_APP = @{
   que = 'window.APP_VER'
 }
 $SUB_BUST = @{
-  pat = '((?:supabase-config|subatir-app|deposito-app|traslados)\.(?:js|css)\?v=)[^"'']*'
+  pat = '((?:supabase-config|subatir-app|deposito-app|traslados|nav)\.(?:js|css)\?v=)[^"'']*'
   rep = '${1}' + $v
   que = 'el ?v= de los scripts compartidos'
 }

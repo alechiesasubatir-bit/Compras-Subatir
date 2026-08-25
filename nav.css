@@ -1,0 +1,136 @@
+/* ============================================================
+   NAVEGACIÓN — hoja única para los 9 módulos de Compras
+
+   Antes cada página traía su propia copia del menú: dos nombres
+   de clase distintos (.nl / .nav-link), tres contenedores para la
+   derecha (.hdr-r / .hdr-right / .header-right) y el orden de los
+   ítems cambiaba de pantalla en pantalla porque "Recepción" iba
+   tercera en unas y la agregaba el JS al final en otras. Con 10
+   accesos eso se veía descolgado y desalineado.
+
+   Acá el menú es UNA fila propia, de ancho completo, debajo del
+   logo y los botones. Cada módulo tiene su color, así se reconoce
+   por el cuadro antes que por el texto. Lo arma nav.js: el HTML
+   de cada página sólo aporta un <nav> vacío.
+   ============================================================ */
+
+/* ── Header que contiene el menú ─────────────────────────────
+   La clase la pone nav.js sobre el padre del <nav>, sea <header>
+   o <div class="hdr">. Se pisan alto y padding porque venían
+   calculados para una sola fila (contingencia tenía height:56px
+   fijo y el menú se le desbordaba). */
+.sbhdr{
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;row-gap:11px;
+  height:auto;min-height:56px;
+  padding-top:11px;padding-bottom:11px;
+}
+.sbhdr > .logo{order:1;flex:0 0 auto}
+.sbhdr > *{order:2}
+.sbhdr > .hdr-r,
+.sbhdr > .hdr-right,
+.sbhdr > .header-right{margin-left:auto;flex:0 0 auto}
+
+/* ── La fila del menú ────────────────────────────────────────
+   Grid en vez de flex-wrap: todas las columnas miden igual, así los
+   cuadros quedan parejos y las filas justificadas en cualquier ancho.
+   auto-FILL y no auto-fit: con auto-fit, el operario de recepción —que
+   ve un solo módulo— tenía un cuadro estirado de lado a lado. Las
+   columnas vacías se mantienen y cada cuadro conserva su ancho. */
+.sbhdr > nav.sbnav{
+  order:3;flex:1 1 100%;min-width:0;margin:0;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));
+  gap:7px;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.055);
+}
+
+/* ── Cuadro de módulo ────────────────────────────────────────
+   --c es el color del módulo (terna RGB, se define más abajo).
+   Todo lo demás — borde, relleno, glow, badge — sale de ahí. */
+nav.sbnav a.sbnl{
+  --c:27,200,255;
+  position:relative;
+  display:flex;align-items:center;gap:8px;min-width:0;
+  padding:8px 12px;border-radius:11px;
+  border:1px solid rgba(var(--c),.24);
+  background:
+    linear-gradient(158deg,rgba(var(--c),.17),rgba(var(--c),.045) 70%),
+    rgba(255,255,255,.018);
+  color:#b9cbdb;text-decoration:none;
+  font-family:'Manrope','DM Sans',sans-serif;
+  font-size:12px;font-weight:600;letter-spacing:.1px;line-height:1.15;
+  transition:transform .16s,box-shadow .16s,border-color .16s,background .16s,color .16s;
+}
+nav.sbnav a.sbnl .sbnl-i{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:23px;height:23px;border-radius:7px;font-size:12px;line-height:1;
+  background:rgba(var(--c),.2);border:1px solid rgba(var(--c),.28);
+}
+/* El texto cede antes que el cuadro: "Contingencia" no rompe la grilla */
+nav.sbnav a.sbnl .sbnl-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+nav.sbnav a.sbnl:hover{
+  color:#fff;transform:translateY(-1px);
+  border-color:rgba(var(--c),.5);
+  background:
+    linear-gradient(158deg,rgba(var(--c),.26),rgba(var(--c),.09) 70%),
+    rgba(255,255,255,.03);
+  box-shadow:0 7px 18px -9px rgba(var(--c),.7);
+}
+nav.sbnav a.sbnl:focus-visible{outline:2px solid rgba(var(--c),.75);outline-offset:2px}
+
+/* Módulo abierto: relleno pleno, glow y subrayado del color */
+nav.sbnav a.sbnl.on{
+  color:#fff;
+  border-color:rgba(var(--c),.62);
+  background:linear-gradient(158deg,rgba(var(--c),.36),rgba(var(--c),.13) 75%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 8px 22px -10px rgba(var(--c),.85);
+}
+nav.sbnav a.sbnl.on .sbnl-i{background:rgba(var(--c),.34);border-color:rgba(var(--c),.5)}
+nav.sbnav a.sbnl.on::after{
+  content:'';position:absolute;left:50%;transform:translateX(-50%);
+  bottom:4px;width:28px;height:2px;
+  border-radius:2px;background:rgb(var(--c));
+  box-shadow:0 0 8px rgba(var(--c),.85);
+}
+
+/* ── Un color por módulo ─────────────────────────────────────
+   Elegidos para que se distingan entre sí sobre el fondo negro
+   azulado y sin salirse de la paleta corporativa (cian petróleo
+   y naranja como ejes). */
+nav.sbnav a[data-nav="dashboard"]   {--c: 27,200,255}  /* cian     */
+nav.sbnav a[data-nav="pedidos"]     {--c:251,146, 60}  /* naranja  */
+nav.sbnav a[data-nav="recepcion"]   {--c: 52,211,153}  /* verde    */
+nav.sbnav a[data-nav="stock"]       {--c:167,139,250}  /* violeta  */
+nav.sbnav a[data-nav="precios"]     {--c:250,204, 21}  /* dorado   */
+nav.sbnav a[data-nav="proveedores"] {--c: 45,212,191}  /* turquesa */
+nav.sbnav a[data-nav="contingencia"]{--c:248,113,113}  /* rojo     */
+nav.sbnav a[data-nav="varios"]      {--c:244,114,182}  /* rosa     */
+nav.sbnav a[data-nav="deposito"]    {--c: 96,165,250}  /* azul     */
+nav.sbnav a[data-nav="usuarios"]    {--c:129,140,248}  /* índigo   */
+
+/* ── Celular ─────────────────────────────────────────────────
+   10 cuadros en grilla angosta serían cinco filas comiéndose la
+   pantalla. Pasa a tira que se arrastra de costado. */
+@media (max-width:760px){
+  .sbhdr{gap:10px;row-gap:9px}
+  .sbhdr > nav.sbnav{
+    display:flex;flex-wrap:nowrap;
+    overflow-x:auto;overflow-y:hidden;
+    padding-bottom:5px;scroll-snap-type:x proximity;
+    -webkit-overflow-scrolling:touch;
+  }
+  nav.sbnav a.sbnl{flex:0 0 auto;scroll-snap-align:start}
+  nav.sbnav a.sbnl .sbnl-t{overflow:visible;text-overflow:clip}
+  nav.sbnav::-webkit-scrollbar{height:3px}
+  nav.sbnav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+}
+@media (max-width:420px){
+  nav.sbnav a.sbnl{padding:7px 10px;font-size:11.5px;gap:7px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  nav.sbnav a.sbnl{transition:none}
+  nav.sbnav a.sbnl:hover{transform:none}
+}

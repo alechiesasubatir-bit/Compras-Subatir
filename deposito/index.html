@@ -340,7 +340,17 @@ tbody tr:last-child td{border-bottom:none}
 .num-cell.zero{color:var(--muted)}
 .num-cell.tot{font-weight:700;color:var(--text)}
 .mono-cell{font-family:var(--mono);font-size:11.5px;color:var(--muted-l)}
-.desc-cell{max-width:300px;overflow:hidden;text-overflow:ellipsis}
+/* Se acortó de 300px para hacerle lugar a la columna "Armado". Medido: la
+   tabla necesita 1016px de ancho mínimo, un poco MENOS que los 1019px que
+   necesitaba antes de la columna nueva. O sea que no empeora en pantallas
+   chicas. El nombre completo sigue estando en el title de la celda. */
+.desc-cell{max-width:190px;overflow:hidden;text-overflow:ellipsis}
+/* Armado: arriba lo que ya está en pallets, abajo lo que falta armar */
+.arm-cell{line-height:1.25;white-space:nowrap}
+.arm-sub{display:block;font-family:var(--display);font-size:9.5px;font-weight:700;
+  letter-spacing:.3px;margin-top:1px}
+.arm-falta{color:var(--orange-l,#fb923c)}
+.arm-ok{color:var(--muted)}
 .delay-cell{font-family:var(--mono);color:var(--danger);font-weight:700;font-size:11px;white-space:nowrap}
 .prov-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-family:var(--mono);
   font-size:10px;letter-spacing:.2px;color:var(--muted-l);
@@ -947,11 +957,11 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-08-26.1216"/>
-<link rel="stylesheet" href="nav.css?v=2026-08-26.1216"/>
-<script src="../supabase-config.js?v=2026-08-26.1216"></script>
-<script src="deposito-app.js?v=2026-08-26.1216"></script>
-<script src="../traslados.js?v=2026-08-26.1216"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-08-26.1728"/>
+<link rel="stylesheet" href="nav.css?v=2026-08-26.1728"/>
+<script src="../supabase-config.js?v=2026-08-26.1728"></script>
+<script src="deposito-app.js?v=2026-08-26.1728"></script>
+<script src="../traslados.js?v=2026-08-26.1728"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -960,7 +970,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-26.1216';
+window.APP_VER='2026-08-26.1728';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -982,7 +992,7 @@ window.APP_VER='2026-08-26.1216';
   </a>
   <!-- El menú lo arma nav.js, que además sigue la sección a la vista -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-26.1216"></script>
+  <script src="nav.js?v=2026-08-26.1728"></script>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-liviano" onclick="toggleLiviano()"
@@ -1120,11 +1130,13 @@ window.APP_VER='2026-08-26.1216';
             <th scope="col" class="th-plain" style="text-align:right" id="th-fur">Furriol</th>
             <th scope="col" class="th-plain" style="text-align:right" id="th-art">Artigas</th>
             <th scope="col" tabindex="0" style="text-align:right" onclick="sortBy('total')">Total</th>
+            <th scope="col" tabindex="0" style="text-align:right" onclick="sortBy('armar')"
+                title="Unidades ya metidas en pallets, y abajo las que quedan sueltas esperando que las armen. Sólo cuenta el almacén: en la fábrica no se palletiza.">Armado</th>
             <th scope="col" class="th-plain" style="text-align:center">Acciones</th>
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr class="empty-row"><td colspan="9">Cargando datos…</td></tr>
+          <tr class="empty-row"><td colspan="10">Cargando datos…</td></tr>
         </tbody>
       </table>
     </div>
@@ -1845,6 +1857,19 @@ function palletizadoOf(artId, dep){
 }
 function dispOf(artId, dep){ return stockOf(artId,dep) - palletizadoOf(artId,dep); }
 
+// Sólo los ALMACENES arman pallets. En la fábrica (Artigas) lo que llega
+// se consume, así que ahí "falta armar" no querría decir nada y sumarlo
+// inflaría la cuenta con mercadería que nadie va a palletizar nunca.
+function esAlmacen(d){ return d.tipo!=='FABRICA'; }
+function almacenes(){ return DEPS.filter(esAlmacen); }
+// Unidades ya metidas en pallets, y las que quedan sueltas esperando
+function armadoOf(artId){
+  return almacenes().reduce(function(t,d){ return t + palletizadoOf(artId, d.nombre); }, 0);
+}
+function faltaArmarOf(artId){
+  return almacenes().reduce(function(t,d){ return t + Math.max(0, dispOf(artId, d.nombre)); }, 0);
+}
+
 // ── Carga ──────────────────────────────────────────────────────
 function load(){
   if(window.Traslados && !window.__TR){ window.__TR = Traslados.montar('#tr-panel'); }
@@ -1900,9 +1925,7 @@ function renderKPIs(){
   // Sólo cuenta en almacenes: en la fábrica lo que llega se consume, no
   // se palletiza, así que ahí "suelto" no querría decir nada.
   var suelto=0;
-  DEPS.filter(function(d){ return d.tipo!=='FABRICA'; }).forEach(function(d){
-    Object.keys(STOCK).forEach(function(k){ suelto += Math.max(0, dispOf(k, d.nombre)); });
-  });
+  Object.keys(STOCK).forEach(function(k){ suelto += faltaArmarOf(k); });
   var tran=PALLETS.filter(function(p){return p.estado==='EN_TRANSITO';}).length;
   document.getElementById('kpi-total').textContent=fmtNum(ART.length);
   document.getElementById('kpi-fur').textContent=fmtNum(fur);
@@ -1948,6 +1971,9 @@ function getFiltered(){
   out.sort(function(a,b){
     var va,vb;
     if(k==='total'){ va=totalOf(a.id); vb=totalOf(b.id); }
+    // Por "Armado" se ordena por lo que FALTA, no por lo armado: la
+    // pregunta que trae a esa columna es qué queda por hacer.
+    else if(k==='armar'){ va=faltaArmarOf(a.id); vb=faltaArmarOf(b.id); }
     else { va=String(a[k]||'').toLowerCase(); vb=String(b[k]||'').toLowerCase(); }
     if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
   });
@@ -2010,9 +2036,13 @@ function renderArticles(){
   document.getElementById('tbl-count').textContent=rows.length+(rows.length===1?' artículo':' artículos');
   document.getElementById('th-fur').textContent = 'Furriol';
   document.getElementById('th-art').textContent = 'Artigas';
-  if(!rows.length){ document.getElementById('tbody').innerHTML='<tr class="empty-row"><td colspan="9">Sin resultados con los filtros actuales.</td></tr>'; return; }
+  if(!rows.length){ document.getElementById('tbody').innerHTML='<tr class="empty-row"><td colspan="10">Sin resultados con los filtros actuales.</td></tr>'; return; }
   document.getElementById('tbody').innerHTML = rows.map(function(a){
     var fur=stockOf(a.id,'Furriol'), art=stockOf(a.id,'Artigas'), tot=totalOf(a.id);
+    var armado=armadoOf(a.id), falta=faltaArmarOf(a.id);
+    // El renglón de abajo es el que se mira: es lo que queda por armar.
+    var sub = falta>0 ? '<span class="arm-falta">falta '+fmtNum(falta)+'</span>'
+            : (armado>0 ? '<span class="arm-ok">todo armado</span>' : '');
     return '<tr>'
       +'<td><span class="prov-tag">'+esc(a.proveedor||'—')+'</span></td>'
       +'<td class="mono-cell">'+esc(a.codigo||'—')+'</td>'
@@ -2022,6 +2052,9 @@ function renderArticles(){
       +'<td class="num-cell'+(fur>0?'':' zero')+'"'+(fur>0?' style="color:var(--teal-l)"':'')+'>'+fmtNum(fur)+'</td>'
       +'<td class="num-cell'+(art>0?'':' zero')+'"'+(art>0?' style="color:var(--ok)"':'')+'>'+fmtNum(art)+'</td>'
       +'<td class="num-cell tot">'+fmtNum(tot)+'</td>'
+      +'<td class="num-cell arm-cell'+(armado>0?'':' zero')+'">'
+        +fmtNum(armado)+(sub?'<span class="arm-sub">'+sub+'</span>':'')
+      +'</td>'
       +'<td style="text-align:center;white-space:nowrap">'
         +'<button class="btn btn-ok btn-sm" onclick="openIngreso('+a.id+')" title="Ingresar mercadería que llegó al depósito">📥 Ingresar</button> '
         +'<button class="btn btn-pallet btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet con lo que hay suelto">🏷 Armar</button>'

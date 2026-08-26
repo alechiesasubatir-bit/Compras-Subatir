@@ -61,6 +61,16 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn-sm{padding:7px 11px;font-size:12.5px;min-height:36px}
 
+/* Saltos entre pantallas del depósito. Van del mismo color que su
+   cuadro en el menú del panel (nav.css), para que "Recorrido" sea
+   siempre verde y "Solicitar" siempre dorado se los mire desde
+   donde se los mire. Son botones chicos entre otros botones, así
+   que llevan el color en el borde y el texto, no un relleno pleno. */
+.btn[data-nav]{border-color:rgba(var(--c),.4);color:rgb(var(--c));background:rgba(var(--c),.10)}
+.btn[data-nav="panel"]    {--c:167,139,250}  /* violeta  */
+.btn[data-nav="recorrido"]{--c: 52,211,153}  /* verde    */
+.btn[data-nav="solicitar"]{--c:250,204, 21}  /* dorado   */
+
 /* Un pallet. Toda la tarjeta es el area tocable: en el deposito se usa
    con guantes y una casilla de 20px no se acierta. */
 .pal{display:flex;gap:11px;align-items:flex-start;width:100%;text-align:left;

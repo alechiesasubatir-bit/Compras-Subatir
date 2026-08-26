@@ -25,11 +25,12 @@
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
-self.APP_VER = '2026-08-25.1945';
+self.APP_VER = '2026-08-26.1014';
 var CACHE = 'deposito-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
 var SHELL = ['./', './index.html', './solicitar.html', './recorrido.html', './movil.css', './deposito-app.js', '../supabase-config.js',
+             './nav.js', './nav.css',
              './icon-192.png', './icon-512.png', '../logo.jpg'];
 
 self.addEventListener('install', function (ev) {

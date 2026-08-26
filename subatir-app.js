@@ -20,7 +20,6 @@
     'stock.html': 'stock',
     'precios.html': 'precios',
     'proveedores.html': 'proveedores',
-    'contingencia.html': 'contingencia',
     'varios.html': 'varios',
     'usuarios.html': 'usuarios'
   };
@@ -126,21 +125,11 @@
       },
       num: [], date: []
     },
-    contingencia: {
-      table: 'contingencia', payloadKeys: ['contingencia'],
-      cols: {
-        articulo: 'Artículo (Materia Prima)', unidad: 'Unidad', stock_inicial: 'Stock Inicial (KG/UN)',
-        consumido: 'Consumido hasta hoy', stock_disponible: 'Stock Disponible', pct_restante: '% Restante',
-        precio_usd_kg: 'Precio Compra USD/KG', consumo_mensual_est: 'Consumo Mensual Est.',
-        meses_cobertura: 'Meses Cobertura', estado: 'Estado', motivo: 'Motivo', observaciones: 'Observaciones'
-      },
-      num: ['stock_inicial', 'consumido', 'stock_disponible', 'pct_restante', 'precio_usd_kg', 'consumo_mensual_est', 'meses_cobertura'], date: []
-    }
   };
   // sheetKey (el que mandan los módulos) → definición
   var SHEETKEY = {
     precios: MAPS.precios, pedidos: MAPS.pedidos, inventario: MAPS.inventario,
-    contactos: MAPS.contactos, proveedores: MAPS.contactos, contingencia: MAPS.contingencia
+    contactos: MAPS.contactos, proveedores: MAPS.contactos
   };
 
   function rowToHeader(def, row) {
@@ -445,7 +434,6 @@
       case 'updateRow':          return run(updateRow(params.get('sheetKey'), params.get('row'), params.get('fields')));
       case 'addRow':             return run(addRow(params.get('sheetKey'), params.get('fields')));
       case 'deleteRow':          return run(deleteRow(params.get('sheetKey'), params.get('row')));
-      case 'updateContingencia': return run(updateRow('contingencia', params.get('row'), params.get('fields')));
       case 'updatePedido':       return run(updatePedidoByOrden(params));
       case 'addPedido':          return run(addPedidoLegacy(params));
       case 'addPedidoMulti':     return run(addPedidoMultiLegacy(params));

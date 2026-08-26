@@ -96,13 +96,13 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-08-26.1014"/>
-<script src="supabase-config.js?v=2026-08-26.1014"></script>
-<script src="subatir-app.js?v=2026-08-26.1014"></script>
+<link rel="stylesheet" href="nav.css?v=2026-08-26.1054"/>
+<script src="supabase-config.js?v=2026-08-26.1054"></script>
+<script src="subatir-app.js?v=2026-08-26.1054"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-26.1014';
+window.APP_VER='2026-08-26.1054';
 </script>
 </head>
 <body>
@@ -113,7 +113,7 @@ window.APP_VER='2026-08-26.1014';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-26.1014"></script>
+  <script src="nav.js?v=2026-08-26.1054"></script>
   <div class="hdr-r">
     <button class="btn or" onclick="openNew()">➕ Registrar usuario</button>
   </div>
@@ -203,8 +203,12 @@ window.APP_VER='2026-08-26.1014';
 <div class="tc" id="tc"></div>
 
 <script>
-var MODULES = ['recepcion','precios','proveedores','pedidos','varios','stock','contingencia','importacion','solicitante','recorrido','recepcion_deposito'];
-var MODLABEL = {recepcion:'Recepción (operario)',precios:'Precios',proveedores:'Proveedores',pedidos:'Pedidos',varios:'Pedidos Varios',stock:'Stock',contingencia:'Contingencia',importacion:'Importación',solicitante:'Solicitar mercadería',recorrido:'Recorrido (atender pedidos)',recepcion_deposito:'Recepción en destino (op. logístico)'};
+// 'contingencia' se dio de baja (agosto 2026). Si a alguien le quedó la
+// clave vieja en profiles.modules no rompe nada —la lista de abajo la
+// muestra tal cual y ya no habilita ninguna pantalla—, pero conviene
+// sacarla de la base con migracion/baja_contingencia.sql.
+var MODULES = ['recepcion','precios','proveedores','pedidos','varios','stock','importacion','solicitante','recorrido','recepcion_deposito'];
+var MODLABEL = {recepcion:'Recepción (operario)',precios:'Precios',proveedores:'Proveedores',pedidos:'Pedidos',varios:'Pedidos Varios',stock:'Stock',importacion:'Importación',solicitante:'Solicitar mercadería',recorrido:'Recorrido (atender pedidos)',recepcion_deposito:'Recepción en destino (op. logístico)'};
 var USERS = [], CUR = null;
 
 function toast(t,type){ var e=document.createElement('div'); e.className='toast '+(type||'ok'); e.textContent=t;

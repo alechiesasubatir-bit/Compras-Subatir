@@ -26,7 +26,6 @@
     { k: 'stock',        href: 'stock.html',          ico: '📊', txt: 'Stock' },
     { k: 'precios',      href: 'precios.html',        ico: '💲', txt: 'Precios' },
     { k: 'proveedores',  href: 'proveedores.html',    ico: '🏭', txt: 'Proveedores' },
-    { k: 'contingencia', href: 'contingencia.html',   ico: '🛡', txt: 'Contingencia' },
     { k: 'varios',       href: 'varios.html',         ico: '🧾', txt: 'Pedidos Varios' },
     { k: 'deposito',     href: 'deposito/index.html', ico: '🏢', txt: 'Depósitos',
       title: 'Ir a la app de Control de Stock de Depósitos' },

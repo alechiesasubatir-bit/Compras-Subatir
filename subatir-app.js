@@ -1393,6 +1393,203 @@
              invalidar: invalidar };
   })();
 
+  // ══════════════════════════════════════════════════════════
+  //  SUMAR AL STOCK LO QUE SE RECIBE
+  //
+  //  Vive acá y no en cada módulo porque durante un tiempo NO fue así
+  //  y se notó: Recepción sumaba a la ficha de inventario y el botón
+  //  "Recibir" de Pedidos no, así que la misma mercadería entraba o no
+  //  al stock según la pantalla que hubiera usado la persona. Ahora
+  //  las dos llaman a esto y no hay dos versiones que se separen.
+  //
+  //  Cuándo pregunta y cuándo no:
+  //    · La OC trae el id de la ficha, o el nombre coincide exacto
+  //      → suma sola y avisa. No hay nada que decidir.
+  //    · El nombre se parece pero no es igual (órdenes viejas escritas
+  //      a mano) → pregunta. Acá es donde podría estarle sumando al
+  //      artículo equivocado, y eso no se nota hasta que alguien cuenta
+  //      el depósito.
+  //    · No hay ficha, o el nombre se parece a más de una → no suma y
+  //      lo explica. La entrega ya quedó registrada igual.
+  // ══════════════════════════════════════════════════════════
+  var STOCK = (function () {
+
+    var CSS =
+      '.sm-ovl{position:fixed;inset:0;z-index:900;background:rgba(4,6,11,.72);' +
+      'backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);' +
+      'display:none;align-items:center;justify-content:center;padding:18px;' +
+      'font-family:"DM Sans",sans-serif}' +
+      '.sm-ovl.open{display:flex}' +
+      '.sm-box{width:100%;max-width:440px;color:#e2e8f0;' +
+      'background:linear-gradient(150deg,#0c1119,#111926);' +
+      'border:1px solid rgba(255,255,255,.12);border-radius:16px;' +
+      'box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden}' +
+      '.sm-h{display:flex;align-items:center;justify-content:space-between;' +
+      'padding:17px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08);' +
+      'font-family:"Manrope",sans-serif;font-size:15px;font-weight:800}' +
+      '.sm-x{background:none;border:none;color:#7a8fa8;font-size:19px;line-height:1;' +
+      'cursor:pointer;padding:2px 7px;border-radius:7px}' +
+      '.sm-x:hover{color:#fff;background:rgba(255,255,255,.08)}' +
+      '.sm-b{padding:18px 20px}' +
+      '.sm-f{display:flex;justify-content:flex-end;gap:9px;padding:14px 20px;' +
+      'border-top:1px solid rgba(255,255,255,.08)}' +
+      '.sm-btn{cursor:pointer;font-family:"DM Sans",sans-serif;font-weight:700;font-size:12px;' +
+      'padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);' +
+      'background:rgba(255,255,255,.06);color:#e2e8f0}' +
+      '.sm-btn:hover{filter:brightness(1.14)}' +
+      '.sm-btn:disabled{opacity:.5;cursor:not-allowed}' +
+      '.sm-btn.pri{background:linear-gradient(135deg,#ea6a08,#fb923c);border-color:transparent;color:#fff}' +
+      '.sm-art{font-size:13px;font-weight:700;margin-bottom:10px;line-height:1.35}' +
+      '.sm-warn{font-size:11px;color:#fcd34d;background:rgba(245,158,11,.10);' +
+      'border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 10px;' +
+      'margin-bottom:10px;line-height:1.5}' +
+      '.sm-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}' +
+      '.sm-l{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7a8fa8}' +
+      '.sm-v{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:600;margin-top:3px}' +
+      '.sm-txt{font-size:12px;line-height:1.55}';
+
+    var _cur = null;   // {ficha, cant, luego}
+
+    function injectCSS() {
+      if (document.getElementById('sm-css')) return;
+      var s = document.createElement('style');
+      s.id = 'sm-css'; s.textContent = CSS;
+      document.head.appendChild(s);
+    }
+
+    function montar() {
+      injectCSS();
+      var ovl = document.getElementById('sm-ovl');
+      if (ovl) return ovl;
+      ovl = document.createElement('div');
+      ovl.className = 'sm-ovl'; ovl.id = 'sm-ovl';
+      ovl.innerHTML =
+        '<div class="sm-box">' +
+          '<div class="sm-h"><span>📥 Sumar al stock</span>' +
+            '<button type="button" class="sm-x" id="sm-x">✕</button></div>' +
+          '<div class="sm-b" id="sm-body"></div>' +
+          '<div class="sm-f">' +
+            '<button type="button" class="sm-btn" id="sm-no">Ahora no</button>' +
+            '<button type="button" class="sm-btn pri" id="sm-ok">✓ Sumar al stock</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ovl);
+      // Cerrar por la X, por el fondo o con Escape es "ahora no": la
+      // entrega ya se guardó, lo único que se saltea es la suma.
+      var no = function () { cerrar(); seguir(); };
+      document.getElementById('sm-x').onclick = no;
+      document.getElementById('sm-no').onclick = no;
+      ovl.addEventListener('click', function (e) { if (e.target === ovl) no(); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && ovl.classList.contains('open')) no();
+      });
+      return ovl;
+    }
+
+    function abrir()  { montar().classList.add('open'); }
+    function cerrar() { var o = document.getElementById('sm-ovl'); if (o) o.classList.remove('open'); }
+
+    function seguir() {
+      var f = _cur && _cur.luego; _cur = null;
+      if (f) f();
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function num(n) {
+      n = parseFloat(n) || 0;
+      return n.toLocaleString('es-UY', { maximumFractionDigits: 2 });
+    }
+    function aviso(msg, tipo) { if (window.toast) window.toast(msg, tipo); }
+
+    /**
+     * Suma al inventario lo que se acaba de recibir.
+     * @param {object} o
+     *   o.descripcion  texto de la línea de la OC
+     *   o.cantidad     cuánto llegó en esta entrega
+     *   o.inventarioId id de ficha que la OC dejó anotada (si lo tiene)
+     *   o.luego        se llama SIEMPRE al terminar, sume o no
+     */
+    function sumarAlRecibir(o) {
+      o = o || {};
+      var desc  = String(o.descripcion || '');
+      var cant  = parseFloat(o.cantidad) || 0;
+      var invId = o.inventarioId;
+      _cur = { luego: o.luego || function () {} };
+
+      // Con el id no hay nada que cruzar: la orden sabe a qué ficha
+      // pertenece aunque después la hayan renombrado. Las órdenes
+      // viejas no lo tienen y siguen yendo por nombre.
+      var buscar = invId
+        ? MATCH.fichaPorId(invId).then(function (f) {
+            return f ? { ficha: f, exacta: true, porId: true } : MATCH.fichaDe(desc);
+          })
+        : MATCH.fichaDe(desc);
+
+      return buscar.then(function (res) {
+        if (res.ficha && res.exacta) { _cur.ficha = res.ficha; _cur.cant = cant; return aplicar(true); }
+
+        if (res.ficha) {
+          _cur.ficha = res.ficha; _cur.cant = cant;
+          var hoy = parseFloat(res.ficha.inventario) || 0, un = res.ficha.unidad || '';
+          document.getElementById('sm-body') || montar();
+          document.getElementById('sm-body').innerHTML =
+            '<div class="sm-art">' + esc(res.ficha.descripcion) + '</div>' +
+            '<div class="sm-warn">⚠ En la orden figura como “' + esc(desc) + '”. ' +
+            'Es el artículo al que el módulo de Stock le venía mostrando esta mercadería en camino.</div>' +
+            '<div class="sm-nums">' +
+              '<div><div class="sm-l">Stock hoy</div><div class="sm-v">' + num(hoy) + '</div></div>' +
+              '<div><div class="sm-l">Llegó</div><div class="sm-v" style="color:#22c55e">+' + num(cant) + '</div></div>' +
+              '<div><div class="sm-l">Queda</div><div class="sm-v" style="color:#1bc8ff">' + num(hoy + cant) + ' ' + esc(un) + '</div></div>' +
+            '</div>';
+          document.getElementById('sm-ok').style.display = '';
+          document.getElementById('sm-ok').onclick = function () { aplicar(false); };
+          abrir();
+          return;
+        }
+
+        // No hay a dónde sumar: se explica y se sigue. La entrega ya está.
+        montar();
+        document.getElementById('sm-body').innerHTML = res.ambiguas
+          ? '<div class="sm-txt">No se puede sumar solo: “' + esc(desc) + '” se parece a más de una ficha (<b>' +
+            res.ambiguas.map(function (f) { return esc(f.descripcion); }).join('</b>, <b>') +
+            '</b>). Cargalo a mano en Stock, o unificá los nombres.</div>'
+          : '<div class="sm-txt">“' + esc(desc) + '” no tiene ficha en <b>Inventario</b>, así que no hay dónde sumarlo. ' +
+            'La entrega quedó registrada igual. Creale la ficha desde Precios o Pedidos y después cargá el stock contándolo.</div>';
+        document.getElementById('sm-ok').style.display = 'none';
+        abrir();
+      }, function () { seguir(); });   // si falla la consulta, no se traba la recepción
+    }
+
+    // auto = el nombre coincidía exacto: no hubo modal, sólo se avisa
+    function aplicar(auto) {
+      if (!_cur || !_cur.ficha) { cerrar(); seguir(); return; }
+      var ficha = _cur.ficha, cant = _cur.cant;
+      var b = document.getElementById('sm-ok');
+      if (!auto && b) { b.disabled = true; b.textContent = 'Sumando…'; }
+      var hoy = parseFloat(ficha.inventario) || 0;
+      var nuevo = hoy + cant;
+      return write({ action: 'updateRow', sheetKey: 'inventario', row: ficha.id,
+                     fields: JSON.stringify({ 'INVENTARIO': nuevo }) }).then(function (d) {
+        if (!auto && b) { b.disabled = false; b.textContent = '✓ Sumar al stock'; }
+        if (d && d.error) {
+          aviso('La entrega se registró, pero no se pudo sumar al stock: ' + d.error, 'err');
+          if (!auto) return;      // el modal queda abierto para reintentar
+          seguir(); return;
+        }
+        MATCH.invalidar();        // la caché de fichas quedó vieja
+        aviso('📥 ' + String(ficha.descripcion).slice(0, 26) + ': ' +
+              num(hoy) + ' + ' + num(cant) + ' = ' + num(nuevo), 'ok');
+        cerrar();
+        seguir();
+      });
+    }
+
+    return { sumarAlRecibir: sumarAlRecibir };
+  })();
+
   // ══ Categoría del artículo ════════════════════════════════
   //  Envases / Consumibles / Materias Primas. Vive en la ficha de
   //  inventario (ext_id), y hace falta en varios módulos para saber a
@@ -1734,7 +1931,7 @@
     categorias: categorias, setCategoria: setCategoria,
     ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto,
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
-    PL06: PL06, operador: OPER,
+    PL06: PL06, operador: OPER, stock: STOCK,
     live: live,
     xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH, cat: CAT,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },

@@ -110,6 +110,7 @@ nav.sbnav a[data-nav="precios"]     {--c:250,204, 21}  /* dorado   */
 nav.sbnav a[data-nav="proveedores"] {--c: 45,212,191}  /* turquesa */
 nav.sbnav a[data-nav="contingencia"]{--c:248,113,113}  /* rojo     */
 nav.sbnav a[data-nav="varios"]      {--c:244,114,182}  /* rosa     */
+nav.sbnav a[data-nav="mp_importacion"]{--c:250,204,21}  /* dorado   */
 nav.sbnav a[data-nav="deposito"]    {--c: 96,165,250}  /* azul     */
 nav.sbnav a[data-nav="usuarios"]    {--c:129,140,248}  /* índigo   */
 

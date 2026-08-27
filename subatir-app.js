@@ -21,6 +21,7 @@
     'precios.html': 'precios',
     'proveedores.html': 'proveedores',
     'varios.html': 'varios',
+    'mp-importacion.html': 'mp_importacion',
     'usuarios.html': 'usuarios'
   };
   // Módulos visibles/accesibles para cualquier usuario autenticado

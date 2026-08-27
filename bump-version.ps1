@@ -62,7 +62,7 @@ $SUB_CSS = @{
 # Modulos de Compras: todos tienen APP_VER y cargan los scripts compartidos.
 $modulos = @(
   'index.html', 'pedidos.html', 'recepcion.html', 'stock.html', 'precios.html',
-  'proveedores.html', 'varios.html', 'usuarios.html'
+  'proveedores.html', 'varios.html', 'usuarios.html', 'mp-importacion.html'
 )
 
 # req = si el archivo existe y no aparece el patron, no se publica.

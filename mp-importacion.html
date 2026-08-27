@@ -164,6 +164,18 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .est-big{background:rgba(239,68,68,.13);color:#fca5a5;border:1px solid rgba(239,68,68,.32)}
 .dif{font-family:var(--mono);font-size:10.5px}
 .dif.up{color:#4ade80} .dif.dn{color:#fca5a5}
+/* Cobertura: cuánto aguanta el stock. Va debajo del propio stock. */
+.cob{display:block;font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.4px;
+  color:var(--muted);margin-top:3px;white-space:nowrap}
+.cob.medio{color:var(--orange-l)}
+.cob.bajo{color:#fca5a5}
+.cob.q{color:#fca5a5;font-size:9.5px}
+/* Fila en quiebre: se ve de lejos sin leer un número. El color no es
+   lo único que avisa — el texto dice QUIEBRE. */
+tr.quiebre{background:rgba(239,68,68,.07)}
+tr.quiebre:hover{background:rgba(239,68,68,.11)}
+tr.quiebre td:first-child{box-shadow:inset 3px 0 0 var(--red)}
+.kpi-q::after{background:linear-gradient(90deg,var(--red),#fca5a5)}
 
 /* ── Varios ───────────────────────────────────────────────── */
 .empty{padding:34px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.65}
@@ -209,13 +221,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-08-27.1139"/>
-<script src="supabase-config.js?v=2026-08-27.1139"></script>
-<script src="subatir-app.js?v=2026-08-27.1139"></script>
+<link rel="stylesheet" href="nav.css?v=2026-08-27.1254"/>
+<script src="supabase-config.js?v=2026-08-27.1254"></script>
+<script src="subatir-app.js?v=2026-08-27.1254"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-27.1139';
+window.APP_VER='2026-08-27.1254';
 </script>
 </head>
 <body>
@@ -227,7 +239,7 @@ window.APP_VER='2026-08-27.1139';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-27.1139"></script>
+  <script src="nav.js?v=2026-08-27.1254"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -300,7 +312,7 @@ window.APP_VER='2026-08-27.1139';
                   style="font-size:12px;padding:5px 9px;min-height:32px">
             <option value="pedido">Pedido calculado (kg)</option>
             <option value="confirmada">Compra confirmada (kg)</option>
-            <option value="cobertura">Meses de stock que quedan</option>
+            <option value="cobertura">Semanas de stock que quedan</option>
           </select>
         </div>
       </div>
@@ -321,6 +333,8 @@ window.APP_VER='2026-08-27.1139';
         <select class="inp" id="f-est" onchange="pintarTabla()" aria-label="Filtrar por estado"
                 style="font-size:12px;padding:5px 9px;min-height:32px">
           <option value="">Todos los estados</option>
+          <option value="__quiebre">🔴 Sin stock (quiebre)</option>
+          <option value="__lead">No llegan al lead time</option>
           <option value="big">Compra grande</option>
           <option value="mod">Compra moderada</option>
           <option value="ok">No comprar</option>
@@ -334,7 +348,7 @@ window.APP_VER='2026-08-27.1139';
           <tr>
             <th class="l" style="min-width:210px">Artículo</th>
             <th class="in" title="Se ingresa: kg consumidos en los últimos 3 meses">Consumo 3m</th>
-            <th class="in" title="Se ingresa: kg en stock al momento de pedir">Stock</th>
+            <th class="in" title="Se ingresa: kg en stock al momento de pedir. Abajo, cuántas semanas aguanta al ritmo proyectado.">Stock · dura</th>
             <th title="Se calcula: consumo 3m ÷ 3">Prom 3m</th>
             <th class="in" title="Se ingresa: consumo anual ÷ 12">Prom año</th>
             <th title="Se calcula: 60% del prom 3m + 40% del prom año">Ponderado</th>
@@ -479,14 +493,19 @@ function calcular(d, p){
   var kg        = num(p.kg_bulto) || 1;
   var bultos    = aPedir > 0 ? Math.ceil(aPedir/kg) : 0;
   var pedido    = bultos * kg;
-  // Cuántos meses aguanta el stock que hay hoy, al ritmo proyectado.
-  // No está en la planilla; es la lectura que dice qué se va a cortar
-  // antes y por eso ordena mejor la urgencia que los kilos.
-  var cobertura = proyect > 0 ? stock/proyect : (stock>0 ? 99 : 0);
+  // Cuántas SEMANAS aguanta el stock de hoy al ritmo proyectado. En
+  // semanas y no en meses porque es la unidad en la que se piensa el
+  // lead time de la importación, que es contra lo que hay que
+  // compararlo. 4,333 = semanas por mes, la misma constante que usa
+  // el stock de seguridad.
+  var cobertura = proyect > 0 ? (stock/proyect)*4.333 : (stock>0 ? 999 : 0);
+  // Quiebre: no hay una sola unidad. No es "poco stock", es cero, y
+  // por eso se marca aparte y no como una cobertura baja.
+  var quiebre = stock <= 0;
   var estado = pedido<=0 ? 'ok' : (pedido >= num(p.umbral_grande_kg) ? 'big' : 'mod');
   return {prom3m:prom3m, ponderado:ponderado, proyect:proyect, necesidad:necesidad,
           stockSeg:stockSeg, totalNec:totalNec, aPedir:aPedir, bultos:bultos,
-          pedido:pedido, cobertura:cobertura, estado:estado};
+          pedido:pedido, cobertura:cobertura, quiebre:quiebre, estado:estado};
 }
 var EST_TXT={ok:'No comprar', mod:'Compra moderada', big:'Compra grande'};
 var EST_CLS={ok:'est-ok',     mod:'est-mod',        big:'est-big'};
@@ -511,7 +530,9 @@ function visibles(){
   var q=(document.getElementById('f-buscar').value||'').trim().toLowerCase();
   var fe=document.getElementById('f-est').value;
   return filas().filter(function(f){
-    if(fe && f.c.estado!==fe) return false;
+    if(fe==='__quiebre'){ if(!f.c.quiebre) return false; }
+    else if(fe==='__lead'){ if(f.c.quiebre || f.c.cobertura>=num(PAR.semanas_leadtime)) return false; }
+    else if(fe && f.c.estado!==fe) return false;
     if(q){ var h=(f.art.nombre+' '+(f.art.codigo||'')).toLowerCase(); if(h.indexOf(q)<0) return false; }
     return true;
   });
@@ -643,23 +664,27 @@ function guardarParametros(){
 // ══ KPIs ══════════════════════════════════════════════════════
 function pintarKPIs(){
   var fs=filas();
-  var aPedir=0, bultos=0, conf=0, aComprar=0, enRiesgo=0;
+  var aPedir=0, bultos=0, conf=0, aComprar=0, enRiesgo=0, quiebres=0;
+  var lead=num(PAR.semanas_leadtime);
   fs.forEach(function(f){
     aPedir += f.c.pedido; bultos += f.c.bultos;
     conf   += num(f.d.compra_confirmada);
     if(f.c.pedido>0) aComprar++;
-    // "En riesgo": el stock no llega a cubrir el lead time de la importación
-    if(f.c.cobertura < num(PAR.semanas_leadtime)/4.333) enRiesgo++;
+    if(f.c.quiebre) quiebres++;
+    // "En riesgo": el stock no llega a cubrir el lead time. Ya está en
+    // semanas de los dos lados, así que se comparan derecho.
+    else if(f.c.cobertura < lead) enRiesgo++;
   });
   var dif = conf - aPedir;
   document.getElementById('kpis').innerHTML=
      kpi('a','A pedir (calculado)', n0(aPedir)+' <span style="font-size:14px">kg</span>','c-or', n0(bultos)+' bultos de '+n0(PAR.kg_bulto)+' kg')
+    +kpi('q','Sin stock', n0(quiebres),quiebres>0?'c-rd':'c-pu',
+        quiebres>0?'en quiebre ahora mismo':'ninguno en quiebre')
+    +kpi('c','No llegan al lead time', n0(enRiesgo),enRiesgo>0?'c-go':'c-pu',
+        'aguantan menos de '+n0(lead)+' semanas')
     +kpi('b','Artículos a comprar', n0(aComprar),'c-te', 'de '+fs.length+' en la lista')
     +kpi('d','Compra confirmada', n0(conf)+' <span style="font-size:14px">kg</span>','c-gr',
-        (dif===0?'igual al cálculo':(dif>0?'+':'−')+n0(Math.abs(dif))+' kg vs. calculado'))
-    +kpi('e','Bultos confirmados', n0(Math.round(conf/(num(PAR.kg_bulto)||1))),'c-go','tarrinas a traer')
-    +kpi('c','No llegan al lead time', n0(enRiesgo),enRiesgo>0?'c-rd':'c-pu',
-        'el stock no cubre '+n0(PAR.semanas_leadtime)+' semanas');
+        (dif===0?'igual al cálculo':(dif>0?'+':'−')+n0(Math.abs(dif))+' kg vs. calculado'));
 }
 function kpi(cls,label,val,color,sub){
   return '<div class="card kpi kpi-'+cls+'"><div class="kpi-l">'+esc(label)+'</div>'
@@ -740,20 +765,27 @@ function pintarBarras(){
     col=function(){ return '#22c55e'; };
     nota='Lo que finalmente se decidió pedir de cada uno.';
   } else {
-    val=function(f){ return f.c.cobertura; }; fmt=function(v){ return v>=99?'—':n1(v)+' m'; };
-    col=function(f){ var lt=num(PAR.semanas_leadtime)/4.333;
-      return f.c.cobertura<lt ? '#ef4444' : (f.c.cobertura<num(PAR.meses_cobertura) ? '#f97316' : '#22c55e'); };
-    nota='Cuántos meses aguanta el stock de hoy al ritmo proyectado. En rojo, los que no llegan al lead time de '
-        +n0(PAR.semanas_leadtime)+' semanas.';
+    val=function(f){ return f.c.cobertura; };
+    fmt=function(v){ return v>=999?'—':(v<=0?'QUIEBRE':n0(v)+' sem'); };
+    col=function(f){ var lt=num(PAR.semanas_leadtime);
+      return f.c.quiebre ? '#ef4444'
+           : (f.c.cobertura<lt ? '#ef4444'
+           : (f.c.cobertura<num(PAR.meses_cobertura)*4.333 ? '#f97316' : '#22c55e')); };
+    nota='Cuántas semanas aguanta el stock de hoy al ritmo proyectado. En rojo, los que están en quiebre '
+        +'o no llegan al lead time de '+n0(PAR.semanas_leadtime)+' semanas.';
     asc=true;
   }
   fs.sort(function(a,b){ return asc ? val(a)-val(b) : val(b)-val(a); });
   fs=fs.filter(function(f){ return asc ? true : val(f)>0; }).slice(0,12);
   if(!fs.length){ host.innerHTML='<div class="empty">Nada para mostrar con este criterio.</div>'; return; }
-  var max=Math.max.apply(null, fs.map(function(f){ return Math.min(val(f), asc?12:Infinity); })) || 1;
+  // En cobertura la escala se corta a 26 semanas (medio año): un
+  // artículo con dos años de stock aplastaría a todos los demás y
+  // justamente los que importan son los cortos.
+  var TOPE=26;
+  var max=Math.max.apply(null, fs.map(function(f){ return Math.min(val(f), asc?TOPE:Infinity); })) || 1;
 
   host.innerHTML='<div class="bars">'+fs.map(function(f){
-    var v=val(f), w=Math.max(2, Math.min(100, (Math.min(v, asc?12:v)/max)*100));
+    var v=val(f), w=Math.max(2, Math.min(100, (Math.min(v, asc?TOPE:v)/max)*100));
     return '<div class="bar-r"><div style="min-width:0">'
       +'<div class="bar-n" title="'+esc(f.art.nombre)+'">'+esc(f.art.nombre)+'</div>'
       +'<div class="bar-t"><div class="bar-f" style="width:'+w+'%;background:'+col(f)+'"></div></div></div>'
@@ -776,11 +808,12 @@ function pintarTabla(){
     var dif=num(d.compra_confirmada)-c.pedido;
     T.c3m+=num(d.consumo_3m); T.stk+=num(d.stock_actual); T.ped+=c.pedido;
     T.bul+=c.bultos; T.conf+=num(d.compra_confirmada); T.nec+=c.totalNec;
-    html+='<tr'+(f.sucia?' style="background:rgba(245,197,66,.05)"':'')+'>'
+    html+='<tr'+(c.quiebre?' class="quiebre"':'')
+      +(f.sucia?' style="background:rgba(245,197,66,.05)"':'')+'>'
       +'<td class="l"><div class="art" title="'+esc(f.art.nombre)+'">'+esc(f.art.nombre)+'</div>'
         +(f.art.codigo?'<div class="cod">'+esc(f.art.codigo)+'</div>':'')+'</td>'
       +celdaInput(id,'consumo_3m',d.consumo_3m,'')
-      +celdaInput(id,'stock_actual',d.stock_actual,'stk')
+      +celdaInput(id,'stock_actual',d.stock_actual,'stk',cobTxt(c))
       +'<td class="calc">'+n1(c.prom3m)+'</td>'
       +celdaInput(id,'prom_anual',d.prom_anual,'')
       +'<td class="calc">'+n1(c.ponderado)+'</td>'
@@ -805,11 +838,22 @@ function pintarTabla(){
     +'<td class="c-gr">'+n0(T.conf)+'</td><td></td></tr>';
   tb.innerHTML=html;
 }
-function celdaInput(id,campo,valor,cls){
+function celdaInput(id,campo,valor,cls,pie){
   var v = valor==null ? '' : valor;
   return '<td><input class="dato '+cls+'" type="number" step="0.1" inputmode="decimal" '
     +'value="'+v+'" data-id="'+id+'" data-campo="'+campo+'" '
-    +'oninput="editar(this)" aria-label="'+campo.replace(/_/g,' ')+'"/></td>';
+    +'oninput="editar(this)" aria-label="'+campo.replace(/_/g,' ')+'"/>'
+    +(pie||'')+'</td>';
+}
+// Cuánto aguanta el stock, debajo del propio stock: es una lectura de
+// ese número, no una columna aparte. Y así la tabla no crece a lo ancho.
+function cobTxt(c){
+  if(c.quiebre) return '<span class="cob q">🔴 QUIEBRE</span>';
+  if(c.cobertura>=999) return '';
+  var lead=num(PAR.semanas_leadtime);
+  var cls = c.cobertura<lead ? ' bajo' : (c.cobertura<num(PAR.meses_cobertura)*4.333 ? ' medio' : '');
+  return '<span class="cob'+cls+'" title="Aguanta '+n0(c.cobertura)+' semanas al ritmo proyectado'
+    +(c.cobertura<lead?'; el lead time es de '+n0(lead)+' semanas':'')+'">'+n0(c.cobertura)+' sem</span>';
 }
 function editar(el){
   var id=parseInt(el.dataset.id,10), campo=el.dataset.campo;
@@ -960,16 +1004,18 @@ function aplicarPegado(){
 function exportCSV(){
   var fs=visibles();
   if(!fs.length){ toast('No hay filas para exportar','err'); return; }
-  var cab=['Grupo','Artículo','Código','Consumo 3m','Stock actual','Prom 3m','Prom anual',
-           'Ponderado','Proyectado','Necesidad','Stock seguridad','Total necesario',
-           'A pedir','Bultos','Pedido','Estado','Compra confirmada'];
+  var cab=['Grupo','Artículo','Código','Consumo 3m','Stock actual','Semanas de cobertura',
+           'Prom 3m','Prom anual','Ponderado','Proyectado','Necesidad','Stock seguridad',
+           'Total necesario','A pedir','Bultos','Pedido','Estado','Compra confirmada'];
   var q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };
   var d1=function(v){ return String(Math.round(num(v)*10)/10).replace('.',','); };
   var out=[cab.map(q).join(';')];
   fs.forEach(function(f){
     var c=f.c, d=f.d;
     out.push([q(f.art.grupo),q(f.art.nombre),q(f.art.codigo||''),
-      d1(d.consumo_3m),d1(d.stock_actual),d1(c.prom3m),d1(d.prom_anual),
+      d1(d.consumo_3m),d1(d.stock_actual),
+      q(c.quiebre?'QUIEBRE':(c.cobertura>=999?'':Math.round(c.cobertura))),
+      d1(c.prom3m),d1(d.prom_anual),
       d1(c.ponderado),d1(c.proyect),d1(c.necesidad),d1(c.stockSeg),d1(c.totalNec),
       d1(c.aPedir),c.bultos,c.pedido,q(EST_TXT[c.estado]),
       d.compra_confirmada==null?'':d1(d.compra_confirmada)].join(';'));

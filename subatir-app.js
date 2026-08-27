@@ -327,11 +327,22 @@
     });
   }
 
+  //  El .select() del final NO es decorativo: cuando RLS bloquea un
+  //  UPDATE, Postgres no devuelve error — devuelve CERO filas. Sin
+  //  esto, la pantalla mostraba "guardado ✓" y no se había guardado
+  //  nada. Así se descubrió que los operarios de recepción sumaban al
+  //  stock sin permiso y el cartel verde les mentía. Una escritura que
+  //  no tocó ninguna fila es un error, y hay que decirlo.
   function updateRow(sheetKey, row, fields) {
     var def = SHEETKEY[sheetKey]; if (!def) return Promise.resolve({ error: 'sheetKey desconocido: ' + sheetKey });
     var patch = mapFields(def, typeof fields === 'string' ? JSON.parse(fields) : fields);
-    return SB.from(def.table).update(patch).eq('id', row).then(function (r) {
-      return r.error ? { error: r.error.message } : { success: true, row: row };
+    return SB.from(def.table).update(patch).eq('id', row).select('id').then(function (r) {
+      if (r.error) return { error: r.error.message };
+      if (!r.data || !r.data.length) {
+        return { error: 'la base no dejó guardar el cambio en ' + def.table +
+                        ' (no alcanzan los permisos, o la fila ya no existe)' };
+      }
+      return { success: true, row: row };
     });
   }
   function addRow(sheetKey, fields) {
@@ -1565,22 +1576,36 @@
     }
 
     // auto = el nombre coincidía exacto: no hubo modal, sólo se avisa
+    //
+    //  La suma la hace la BASE, con inventario_sumar (ver
+    //  migracion/inventario_sumar.sql). Dos motivos:
+    //
+    //   · Permiso. Escribir directo en `inventario` pide el módulo
+    //     'stock', que el operario de recepción no tiene. La función
+    //     corre con privilegios y sólo deja sumar, nada más.
+    //   · Carrera. Antes se leía el stock, se sumaba en el navegador y
+    //     se escribía el TOTAL. Dos personas recibiendo a la vez se
+    //     pisaban. Ahora la base suma sobre el valor del momento.
     function aplicar(auto) {
       if (!_cur || !_cur.ficha) { cerrar(); seguir(); return; }
       var ficha = _cur.ficha, cant = _cur.cant;
       var b = document.getElementById('sm-ok');
       if (!auto && b) { b.disabled = true; b.textContent = 'Sumando…'; }
       var hoy = parseFloat(ficha.inventario) || 0;
-      var nuevo = hoy + cant;
-      return write({ action: 'updateRow', sheetKey: 'inventario', row: ficha.id,
-                     fields: JSON.stringify({ 'INVENTARIO': nuevo }) }).then(function (d) {
+      return SB.rpc('inventario_sumar', { p_id: ficha.id, p_delta: cant }).then(function (r) {
         if (!auto && b) { b.disabled = false; b.textContent = '✓ Sumar al stock'; }
-        if (d && d.error) {
-          aviso('La entrega se registró, pero no se pudo sumar al stock: ' + d.error, 'err');
+        var d = r && r.data;
+        var err = (r && r.error && r.error.message) || (d && d.ok === false && d.error);
+        if (err) {
+          aviso('La entrega se registró, pero NO se pudo sumar al stock: ' + err +
+                '. Anotalo y cargalo a mano en Stock.', 'err');
           if (!auto) return;      // el modal queda abierto para reintentar
           seguir(); return;
         }
         MATCH.invalidar();        // la caché de fichas quedó vieja
+        // El total lo devuelve la base: es el de verdad, no el que
+        // calculó esta pestaña con un stock que podía estar viejo.
+        var nuevo = (d && d.inventario != null) ? parseFloat(d.inventario) : (hoy + cant);
         aviso('📥 ' + String(ficha.descripcion).slice(0, 26) + ': ' +
               num(hoy) + ' + ' + num(cant) + ' = ' + num(nuevo), 'ok');
         cerrar();

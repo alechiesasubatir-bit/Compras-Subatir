@@ -94,6 +94,12 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
    demás muestran la edad en gris para poder comparar. */
 .pal-edad{display:block;font-family:var(--display);font-size:10.5px;font-weight:700;
   letter-spacing:.2px;color:var(--muted);margin-top:3px}
+/* La tanda de importación. El color lo pone cada tanda en --tc, así una
+   tanda nueva se pinta sola sin tocar el CSS. */
+.pal-tanda{display:inline-block;margin-left:7px;padding:1px 8px;border-radius:20px;
+  font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:.4px;
+  color:var(--tc);background:color-mix(in srgb,var(--tc) 15%,transparent);
+  border:1px solid color-mix(in srgb,var(--tc) 45%,transparent);vertical-align:middle}
 .pal-edad.es-viejo{color:#fcd34d}
 .pal-fifo{border-color:rgba(245,158,11,.45);background:rgba(245,158,11,.06)}
 .pal-fifo.on{border-color:rgba(27,200,255,.55);background:rgba(27,200,255,.13)}

@@ -285,6 +285,18 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
   font-size:13px;color:#fca5a5;align-items:center;gap:10px;
 }
 #alert-banner .icon{font-size:15px;flex-shrink:0}
+/* Aviso de revisión de MP Importación. Es un link: el aviso sin la
+   puerta al lado obliga a buscar dónde se hace lo que pide. */
+.mp-rev{display:flex;align-items:center;gap:11px;text-decoration:none;
+  padding:11px 15px;border-radius:12px;margin-bottom:12px;font-size:12.5px;line-height:1.5;
+  background:rgba(250,204,21,.09);border:1px solid rgba(250,204,21,.3);color:#fcd34d;
+  transition:filter .15s}
+.mp-rev:hover{filter:brightness(1.15)}
+.mp-rev.urg{background:rgba(239,68,68,.11);border-color:rgba(239,68,68,.35);color:#fca5a5}
+.mp-rev-i{font-size:16px;flex-shrink:0}
+.mp-rev b{color:inherit}
+.mp-rev-x{margin-left:auto;font-family:'Manrope',sans-serif;font-size:11px;font-weight:800;
+  letter-spacing:.4px;white-space:nowrap;opacity:.85}
 
 /* ── KPI grid ───────────────────────────────────────────────── */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px}
@@ -479,16 +491,16 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-08-27.1530"/>
-<link rel="stylesheet" href="nav.css?v=2026-08-27.1530"/>
+<link rel="stylesheet" href="traslados.css?v=2026-08-27.1605"/>
+<link rel="stylesheet" href="nav.css?v=2026-08-27.1605"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-08-27.1530"></script>
-<script src="subatir-app.js?v=2026-08-27.1530"></script>
-<script src="traslados.js?v=2026-08-27.1530"></script>
+<script src="supabase-config.js?v=2026-08-27.1605"></script>
+<script src="subatir-app.js?v=2026-08-27.1605"></script>
+<script src="traslados.js?v=2026-08-27.1605"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-27.1530';
+window.APP_VER='2026-08-27.1605';
 </script>
 </head>
 <body>
@@ -541,7 +553,7 @@ window.APP_VER='2026-08-27.1530';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-08-27.1530"></script>
+    <script src="nav.js?v=2026-08-27.1605"></script>
     <div class="hdr-right">
       <span id="last-update">—</span>
       <button class="btn btn-primary" onclick="refresh()" id="btn-refresh">
@@ -578,6 +590,10 @@ window.APP_VER='2026-08-27.1530';
       <span class="icon">⚠</span>
       <span id="alert-text"></span>
     </div>
+
+    <!-- Toca revisar la importación de materia prima (módulo MP Importación).
+         Avisa desde el día anterior a la fecha configurada allá. -->
+    <div id="mp-revision" style="display:none"></div>
 
     <!-- Mercadería en camino desde los depósitos (app Depósitos, misma base) -->
     <div id="camino-card" style="display:none"></div>
@@ -824,12 +840,56 @@ var KEYS = {};
 // ── Mapa de moneda: norm(artículo) → 'USD' | 'PSO' ────────────
 var CURR_MAP = {};
 
+// ══ Aviso: toca revisar la importación de materia prima ═══════
+//  La fecha se pone en MP Importación → Configuración. Se avisa desde
+//  el día ANTES, para que haya tiempo de juntar consumo y stock.
+//  Sólo a quien pueda abrir el módulo: al resto el aviso no le sirve
+//  de nada porque no puede hacer nada con él.
+function avisoRevisionMP(){
+  var host=document.getElementById('mp-revision'); if(!host) return;
+  SubatirApp.ready.then(function(perfil){
+    if(!perfil || !SubatirApp.canAccess('mp_importacion', perfil)) return;
+    return SB.from('mp_parametros')
+      .select('proxima_revision, mp_proveedores(nombre)')
+      .not('proxima_revision','is',null)
+      .then(function(r){
+        // Si todavía no se corrió la migración, la consulta falla y no
+        // pasa nada: el dashboard sigue igual.
+        if(r.error || !r.data || !r.data.length) return;
+        var hoy=new Date(); hoy.setHours(0,0,0,0);
+        var pend=r.data.map(function(p){
+          var d=new Date(p.proxima_revision+'T00:00:00');
+          return {dias:Math.round((d-hoy)/86400000),
+                  prov:(p.mp_proveedores&&p.mp_proveedores.nombre)||'',
+                  fecha:p.proxima_revision};
+        }).filter(function(p){ return p.dias<=1; })
+          .sort(function(a,b){ return a.dias-b.dias; });
+        if(!pend.length) return;
+        host.style.display='';
+        host.innerHTML=pend.map(function(p){
+          var cuando = p.dias<0 ? 'venció hace '+(-p.dias)+' día'+(-p.dias===1?'':'s')
+                     : p.dias===0 ? 'es hoy' : 'es mañana';
+          return '<a href="mp-importacion.html" class="mp-rev'+(p.dias<=0?' urg':'')+'">'
+            +'<span class="mp-rev-i">🧪</span>'
+            +'<span><b>Toca revisar la importación'+(p.prov?' de '+p.prov:'')+'</b> — '+cuando+'. '
+            +'Actualizá consumo y stock antes de armar el pedido.</span>'
+            +'<span class="mp-rev-x">Abrir →</span></a>';
+        }).join('');
+      });
+  });
+}
+
 // ── Inicialización ─────────────────────────────────────────────
 (function init(){
   // Se limpia el rastro del Apps Script viejo: quedaba guardado por
   // navegador y volvía a pisar la base neutra en cada carga.
   try{ localStorage.removeItem('subatir_script_url'); }catch(e){}
-  showDashboard(); load();
+  showDashboard();
+  // Antes de load() a propósito: si la carga de datos falla, el aviso
+  // de revisión tiene que salir igual. Es de lo poco que no se puede
+  // perder por un error en otra cosa.
+  avisoRevisionMP();
+  load();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','proveedores'], load);
   // Aviso de lo que viene en camino desde los depósitos
   loadEnCamino();

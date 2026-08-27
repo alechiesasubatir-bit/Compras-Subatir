@@ -107,22 +107,21 @@ end $$;
 
 
 -- ============================================================
---  OPCIONAL — sacarle al control las cantidades de junio
+--  El control va sin cantidades confirmadas
 --
---  Las 4.770 kg que hoy muestra la columna "Confirmada" del control
---  son de la compra de junio, y una vez corrido lo de arriba quedan
---  guardadas en SU corrida. Dejarlas también en el control hace que
---  la columna "Dif." compare la compra de junio contra el cálculo de
---  agosto, que no significa nada.
+--  Las 4.770 kg son de la compra de junio y quedan guardadas en SU
+--  corrida. Dejarlas también en el control hacía que la columna
+--  "Dif." comparara la compra de junio contra el cálculo de agosto,
+--  que no significa nada. Igual que la hoja 270826, que tiene esa
+--  columna vacía.
 --
---  Si querés que el control quede limpio —como la hoja 270826, que
---  tiene esa columna vacía— corré esta línea. Si preferís seguir
---  viéndolas ahí como referencia, no la corras.
+--  Aplicado el 27/08/2026. Queda acá para que correr el archivo de
+--  cero llegue al mismo estado.
 -- ============================================================
--- update public.mp_datos set compra_confirmada = null
---  where corrida_id = (select id from public.mp_corridas c
---                       join public.mp_proveedores p on p.id=c.proveedor_id
---                      where p.nombre='MERO AR' and c.nombre='Control intermedio');
+update public.mp_datos set compra_confirmada = null
+ where corrida_id = (select id from public.mp_corridas c
+                      join public.mp_proveedores p on p.id=c.proveedor_id
+                     where p.nombre='MERO AR' and c.nombre='Control intermedio');
 
 
 -- ── Control ─────────────────────────────────────────────────

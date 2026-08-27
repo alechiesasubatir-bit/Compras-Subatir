@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Solicitar mercadería — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-26.1728"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-26.2142"/>
 <style>
 /* El pedido que acaba de llegar: se destaca hasta que lo den por visto */
 .sol.llego{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.09);
@@ -108,12 +108,12 @@
 <div id="toast-host" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-08-26.1728"></script>
-<script src="deposito-app.js?v=2026-08-26.1728"></script>
+<script src="../supabase-config.js?v=2026-08-26.2142"></script>
+<script src="deposito-app.js?v=2026-08-26.2142"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-26.1728';
+window.APP_VER='2026-08-26.2142';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -253,7 +253,11 @@ function buscar(){
 
   var html=arts.map(function(art, i){
     var ps=g[art];
-    ps.sort(function(a,b){ return String(a.ubicacion||'').localeCompare(String(b.ubicacion||'')); });
+    // FIFO: primero el más viejo. Antes se ordenaba por ubicación, que
+    // no dice nada de la antigüedad, y salía lo que quedaba más a mano.
+    // Si la base todavía no tiene la fecha (falta correr imp_v22.sql),
+    // ordenaOrden() cae de nuevo en la ubicación y no se rompe nada.
+    ps.sort(ordenFIFO);
     var elegidos=ps.filter(function(p){ return !!CART[p.id]; }).length;
     // Se abre solo si: lo abrió el usuario, si tiene algo elegido, si
     // está activo "mostrar todo", o si la búsqueda dejó un solo artículo.
@@ -261,16 +265,25 @@ function buscar(){
     var cod=ps[0].art_codigo ? String(ps[0].art_codigo) : '';
     var un=ps.reduce(function(a,p){ return a+(parseFloat(p.unidades)||0); },0);
 
+    // El más viejo del artículo en este depósito: es el que corresponde
+    // sacar. Se marca para que no haya que comparar fechas a ojo.
+    var masViejo = ps[0];
     var cuerpo=ps.map(function(p){
       var on=!!CART[p.id];
       var donde=[p.subdeposito, p.ubicacion].filter(Boolean).join(' · ') || 'sin ubicar';
-      return '<button type="button" class="pal'+(on?' on':'')+'" onclick="toggle('+p.id+')"'
+      var primero = hayFecha(p) && p===masViejo && ps.length>1;
+      return '<button type="button" class="pal'+(on?' on':'')+(primero?' pal-fifo':'')+'" onclick="toggle('+p.id+')"'
         +' aria-pressed="'+on+'"'
         +' aria-label="'+esc(p.codigo+', '+art+', '+fmt(p.unidades)+' unidades, en '+donde
+                          +(primero?'. Es el más viejo, sale primero':'')
+                          +(hayFecha(p)?'. Armado hace '+diasDe(p)+' días':'')
                           +(on?'. Elegido':'. Tocá para elegir'))+'">'
         +'<span class="pal-chk" aria-hidden="true">'+(on?'✓':'')+'</span>'
         +'<span class="pal-b"><span class="pal-t">📍 '+esc(donde)+'</span>'
-        +'<span class="pal-m">'+esc(p.codigo)+'</span></span>'
+        +'<span class="pal-m">'+esc(p.codigo)
+          +(hayFecha(p)?'<span class="pal-edad'+(primero?' es-viejo':'')+'">'
+            +(primero?'⏳ el más viejo · ':'')+esc(edadTxt(p))+'</span>':'')
+        +'</span></span>'
         +'<span class="pal-u">'+fmt(p.unidades)+' u.</span>'
       +'</button>';
     }).join('');
@@ -293,10 +306,66 @@ function buscar(){
   if(bt) bt.textContent = TODO ? 'Plegar todo' : 'Mostrar todo';
 }
 
+// ══ FIFO ═══════════════════════════════════════════════════════
+//  Que salga primero lo más viejo. La fecha la trae la vista
+//  imp_pallets_disponibles (migracion/imp_v22.sql). Si esa migración
+//  todavía no se corrió, DISP viene sin created_at: todo lo de acá se
+//  apaga solo y la pantalla queda como estaba, sin romperse.
+//
+//  Es aviso y no bloqueo a propósito: el pallet más viejo puede estar
+//  tapado atrás de otros, y trabar el pedido por eso sería peor que
+//  dejar pasar uno fuera de orden sabiéndolo.
+function hayFecha(p){ return !!(p && p.created_at); }
+function diasDe(p){
+  if(p.dias!=null) return Math.max(0, parseInt(p.dias,10)||0);
+  var t=Date.parse(p.created_at); if(isNaN(t)) return 0;
+  return Math.max(0, Math.floor((Date.now()-t)/86400000));
+}
+function edadTxt(p){
+  var d=diasDe(p);
+  if(d<=0) return 'armado hoy';
+  if(d===1) return 'armado ayer';
+  return 'hace '+d+' día'+(d===1?'':'s');
+}
+function fechaTxt(p){
+  var t=Date.parse(p.created_at); if(isNaN(t)) return '';
+  return new Date(t).toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit'});
+}
+// Del más viejo al más nuevo. Sin fecha, se cae en la ubicación, que
+// es como venía ordenando antes.
+function ordenFIFO(a,b){
+  if(hayFecha(a) && hayFecha(b)){
+    var d=Date.parse(a.created_at)-Date.parse(b.created_at);
+    if(d) return d;
+  } else if(hayFecha(a) !== hayFecha(b)){
+    return hayFecha(a) ? -1 : 1;   // el que tiene fecha, primero
+  }
+  return String(a.ubicacion||'').localeCompare(String(b.ubicacion||''));
+}
+// Los que son MÁS VIEJOS que este, del mismo artículo y depósito, y que
+// no estén ya elegidos. Si hay alguno, se está salteando la fila.
+function masViejosQue(p){
+  if(!hayFecha(p)) return [];
+  return DISP.filter(function(x){
+    return x.articulo_id===p.articulo_id && x.deposito===p.deposito
+        && hayFecha(x) && !CART[x.id]
+        && Date.parse(x.created_at) < Date.parse(p.created_at);
+  }).sort(ordenFIFO);
+}
+function avisarSiSaltea(p){
+  var viejos=masViejosQue(p);
+  if(!viejos.length) return;
+  var v=viejos[0];
+  var donde=[v.subdeposito, v.ubicacion].filter(Boolean).join(' · ') || 'sin ubicar';
+  toast('⏳ Hay '+viejos.length+' pallet'+(viejos.length===1?'':'s')+' más viejo'+(viejos.length===1?'':'s')
+        +' de este artículo. El más viejo es '+v.codigo+' ('+fechaTxt(v)+', '+donde+').', 'err');
+}
+
 function toggle(id){
   var p=DISP.find(function(x){ return String(x.id)===String(id); });
   if(!p) return;
-  if(CART[id]) delete CART[id]; else CART[id]=p;
+  if(CART[id]) delete CART[id];
+  else { CART[id]=p; avisarSiSaltea(p); }
   buscar(); renderBar();
 }
 function limpiar(){ CART={}; buscar(); renderBar(); }

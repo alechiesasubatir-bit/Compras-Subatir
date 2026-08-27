@@ -88,6 +88,15 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .pal-m{font-family:var(--mono);font-size:11px;color:var(--muted-l);margin-top:3px;
   overflow-wrap:anywhere}
 .pal-u{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--orange-l);white-space:nowrap}
+/* ── FIFO: la antigüedad del pallet ──────────────────────────
+   El que pide elige pallets concretos, así que necesita ver de un
+   vistazo cuál corresponde sacar. El más viejo va resaltado; los
+   demás muestran la edad en gris para poder comparar. */
+.pal-edad{display:block;font-family:var(--display);font-size:10.5px;font-weight:700;
+  letter-spacing:.2px;color:var(--muted);margin-top:3px}
+.pal-edad.es-viejo{color:#fcd34d}
+.pal-fifo{border-color:rgba(245,158,11,.45);background:rgba(245,158,11,.06)}
+.pal-fifo.on{border-color:rgba(27,200,255,.55);background:rgba(27,200,255,.13)}
 
 .grp{font-family:var(--display);font-size:11px;font-weight:800;color:var(--teal-l);
   margin:14px 0 8px;letter-spacing:.3px}

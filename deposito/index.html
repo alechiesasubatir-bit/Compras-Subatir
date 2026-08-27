@@ -361,6 +361,9 @@ tbody tr:last-child td{border-bottom:none}
 .tanda-dot{flex:0 0 12px;height:12px;border-radius:4px;background:var(--tc);
   box-shadow:0 0 0 1px color-mix(in srgb,var(--tc) 50%,transparent)}
 .tanda-nom{flex:1;min-width:0;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px}
+/* El detalle cede antes que el nombre: contenedor, factura, lo que sea */
+.tanda-nota{font-weight:400;font-size:11.5px;color:var(--muted-l);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tanda-first{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.5px;
   text-transform:uppercase;color:#fcd34d;background:rgba(245,158,11,.12);
   border:1px solid rgba(245,158,11,.3);border-radius:20px;padding:1px 7px;white-space:nowrap}
@@ -979,11 +982,11 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-08-26.2210"/>
-<link rel="stylesheet" href="nav.css?v=2026-08-26.2210"/>
-<script src="../supabase-config.js?v=2026-08-26.2210"></script>
-<script src="deposito-app.js?v=2026-08-26.2210"></script>
-<script src="../traslados.js?v=2026-08-26.2210"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-08-27.0939"/>
+<link rel="stylesheet" href="nav.css?v=2026-08-27.0939"/>
+<script src="../supabase-config.js?v=2026-08-27.0939"></script>
+<script src="deposito-app.js?v=2026-08-27.0939"></script>
+<script src="../traslados.js?v=2026-08-27.0939"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -992,7 +995,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-26.2210';
+window.APP_VER='2026-08-27.0939';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1014,7 +1017,7 @@ window.APP_VER='2026-08-26.2210';
   </a>
   <!-- El menú lo arma nav.js, que además sigue la sección a la vista -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-26.2210"></script>
+  <script src="nav.js?v=2026-08-27.0939"></script>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-liviano" onclick="toggleLiviano()"
@@ -1242,7 +1245,7 @@ window.APP_VER='2026-08-26.2210';
         <select class="fsel" id="pal-f-dep" aria-label="Filtrar pallets por depósito" onchange="renderPallets()">
           <option value="">Todos los depósitos</option>
         </select>
-        <button class="btn btn-ghost btn-sm" onclick="openTandas()" title="Las importaciones: nombre, color y fecha. Definen qué mercadería sale primero.">🏷 Tandas</button>
+        <button class="btn btn-ghost btn-sm" onclick="openTandas()" title="Las importaciones: nombre, fecha, color y detalle. Definen qué mercadería sale primero.">🏷 Importaciones</button>
         <button class="btn btn-primary btn-sm" onclick="openTransfer()" title="Elegir pallets armados y marcarlos para despacho">🚚 Transferir pallets</button>
         <button class="btn btn-orange btn-sm" onclick="openScan()">📷 Escanear QR</button>
         <button class="btn btn-ghost btn-sm" id="pal-toggle" onclick="palToggle()"
@@ -1258,7 +1261,7 @@ window.APP_VER='2026-08-26.2210';
             <tr>
               <th>Código QR</th>
               <th>Artículo</th>
-              <th style="text-align:center" title="De qué importación vino la mercadería. Es lo que define qué sale primero.">Tanda</th>
+              <th style="text-align:center" title="De qué importación vino la mercadería. Es lo que define qué sale primero.">Importación</th>
               <th style="text-align:right">Cajas</th>
               <th style="text-align:right">Unidades</th>
               <th style="text-align:center">Ubicación</th>
@@ -1585,7 +1588,7 @@ window.APP_VER='2026-08-26.2210';
              va a palletizar recién cuando llegue la importación nueva. -->
         <div class="form-grid" id="pl-tanda-wrap" style="display:none">
           <div class="form-group span2">
-            <label for="pl-tanda">Tanda de importación *</label>
+            <label for="pl-tanda">Importación *</label>
             <select class="form-input" id="pl-tanda"></select>
             <div class="hint-note" id="pl-tanda-hint"></div>
           </div>
@@ -1601,21 +1604,23 @@ window.APP_VER='2026-08-26.2210';
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════ MODAL: TANDAS ═══
-     Cada importación es una tanda con su nombre, su color y su fecha.
+<!-- ═══════════════════════════════════ MODAL: IMPORTACIONES ═══
+     En la base la tabla se llama imp_tandas y la columna tanda_id: se
+     dejaron con ese nombre porque renombrarlas obligaría a otra
+     migración sin ganar nada. En la pantalla se dice IMPORTACIÓN.
      La FECHA es la que ordena el FIFO: primero sale la mercadería de
-     la tanda más vieja, sin importar cuándo se armó el pallet. -->
+     la importación más vieja, sin importar cuándo se armó el pallet. -->
 <div class="overlay" id="tandas-overlay" role="dialog" aria-modal="true" aria-labelledby="tandas-title">
-  <div class="modal" style="max-width:620px">
+  <div class="modal" style="max-width:640px">
     <div class="modal-header">
-      <h3 class="modal-title" id="tandas-title">🏷 Tandas de importación</h3>
+      <h3 class="modal-title" id="tandas-title">🏷 Importaciones</h3>
       <button class="modal-close" onclick="closeModal('tandas-overlay')" aria-label="Cerrar">✕</button>
     </div>
     <div class="modal-body">
       <div class="modal-note" style="margin-bottom:14px">
-        Cada importación es una <b style="color:var(--teal-l)">tanda</b>. Al armar un pallet se elige de cuál
-        vino la mercadería, y de eso depende qué sale primero: manda la
-        <b style="color:var(--orange-l)">fecha de la tanda</b>, no el día en que se armó el pallet.
+        Al armar un pallet se elige de qué <b style="color:var(--teal-l)">importación</b> vino la
+        mercadería, y de eso depende qué sale primero: manda la
+        <b style="color:var(--orange-l)">fecha de la importación</b>, no el día en que se armó el pallet.
       </div>
       <div id="tandas-list"></div>
       <div class="form-grid" style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
@@ -1627,12 +1632,17 @@ window.APP_VER='2026-08-26.2210';
           <label for="tn-fecha">Fecha de llegada *</label>
           <input class="form-input" id="tn-fecha" type="date"/>
         </div>
+        <div class="form-group span2">
+          <label for="tn-nota">Detalle</label>
+          <input class="form-input" id="tn-nota" maxlength="200"
+                 placeholder="Contenedor, proveedor, factura, lo que sirva para reconocerla"/>
+        </div>
         <div class="form-group">
           <label for="tn-color">Color</label>
           <input class="form-input" id="tn-color" type="color" value="#22c55e" style="height:38px;padding:4px"/>
         </div>
         <div class="form-group" style="display:flex;align-items:flex-end">
-          <button class="btn btn-orange" style="width:100%" id="btn-tanda-new" onclick="saveTanda()">➕ Agregar tanda</button>
+          <button class="btn btn-orange" style="width:100%" id="btn-tanda-new" onclick="saveTanda()">➕ Agregar importación</button>
         </div>
       </div>
     </div>
@@ -1949,10 +1959,10 @@ function tandaPorDefecto(){
 function chipTanda(id, chico){
   var t=tandaById(id);
   if(!t) return hayTandas()
-    ? '<span class="tanda-chip sin" title="Este pallet no tiene tanda: no entra bien en el orden FIFO">sin tanda</span>'
+    ? '<span class="tanda-chip sin" title="Este pallet no tiene importación asignada: no entra bien en el orden FIFO">sin importación</span>'
     : '';
   return '<span class="tanda-chip'+(chico?' xs':'')+'" style="--tc:'+esc(t.color||'#1bc8ff')+'"'
-       + ' title="'+esc('Importación: '+t.nombre+(t.fecha?(' · '+t.fecha):''))+'">'
+       + ' title="'+esc('Importación: '+t.nombre+(t.fecha?(' · llegó el '+t.fecha):'')+(t.nota?(' · '+t.nota):''))+'">'
        + esc(t.nombre)+'</span>';
 }
 
@@ -3904,12 +3914,13 @@ function openTandas(){
   if(!hayTandas() && !TANDAS.length){
     // Sin la tabla no hay nada que administrar: se dice por qué.
     document.getElementById('tandas-list').innerHTML =
-      '<div class="hint-note">Todavía no hay tandas. Si acabás de publicar, falta correr '
+      '<div class="hint-note">Todavía no hay importaciones cargadas. Si acabás de publicar, falta correr '
       +'<b>migracion/imp_v23.sql</b> en Supabase: ahí se crea la tabla y se marca como '
       +'<b>Stock inicial</b> todo lo que ya está armado.</div>';
   }
   document.getElementById('tn-fecha').value = new Date().toISOString().slice(0,10);
   document.getElementById('tn-nombre').value = '';
+  document.getElementById('tn-nota').value = '';
   renderTandas();
   openModal('tandas-overlay');
 }
@@ -3929,7 +3940,8 @@ function renderTandas(){
     return '<div class="tanda-row'+(t.activa?'':' off')+'">'
       +'<span class="tanda-dot" style="--tc:'+esc(t.color||'#1bc8ff')+'"></span>'
       +'<span class="tanda-nom">'+esc(t.nombre)
-        +(primera&&t.id===primera.id?'<span class="tanda-first">sale primero</span>':'')+'</span>'
+        +(primera&&t.id===primera.id?'<span class="tanda-first">sale primero</span>':'')
+        +(t.nota?'<span class="tanda-nota" title="'+esc(t.nota)+'">'+esc(t.nota)+'</span>':'')+'</span>'
       +'<span class="tanda-fec">'+esc(t.fecha||'—')+'</span>'
       +'<span class="tanda-n">'+n+' pallet'+(n===1?'':'s')+'</span>'
       +'<button class="btn btn-ghost btn-sm" onclick="toggleTanda('+t.id+')" '
@@ -3943,18 +3955,20 @@ function saveTanda(){
   var nom=(document.getElementById('tn-nombre').value||'').trim();
   var fec=document.getElementById('tn-fecha').value;
   var col=document.getElementById('tn-color').value||'#22c55e';
-  if(!nom){ toast('Poné el nombre de la tanda','err'); return; }
+  var nota=(document.getElementById('tn-nota').value||'').trim();
+  if(!nom){ toast('Poné el nombre de la importación','err'); return; }
   if(!fec){ toast('Poné la fecha de llegada: es la que define qué sale primero','err'); return; }
   if(TANDAS.some(function(t){ return t.nombre.toLowerCase()===nom.toLowerCase(); })){
-    toast('Ya hay una tanda que se llama así','err'); return;
+    toast('Ya hay una importación que se llama así','err'); return;
   }
   var b=document.getElementById('btn-tanda-new'); b.disabled=true;
-  SB.from('imp_tandas').insert({nombre:nom, fecha:fec, color:col, activa:true})
+  SB.from('imp_tandas').insert({nombre:nom, fecha:fec, color:col, activa:true, nota:nota||null})
     .then(function(r){
       b.disabled=false;
       if(r.error){ toast('Error: '+r.error.message,'err'); return; }
-      toast('Tanda «'+nom+'» creada','ok');
+      toast('Importación «'+nom+'» creada','ok');
       document.getElementById('tn-nombre').value='';
+      document.getElementById('tn-nota').value='';
       load().then(function(){ renderTandas(); });
     });
 }
@@ -3987,9 +4001,9 @@ function plTandas(){
   }).join('');
   if(hint){
     hint.innerHTML = act.length>1
-      ? '⚠ Si estás armando mercadería que ya estaba en el depósito, elegí <b>su</b> tanda y no la última: '
+      ? '⚠ Si estás armando mercadería que ya estaba en el depósito, elegí <b>su</b> importación y no la última: '
         +'de eso depende que salga primero.'
-      : 'De esta importación vino la mercadería. Con más de una tanda dada de alta, acá se elige cuál.';
+      : 'De esta importación vino la mercadería. Con más de una cargada, acá se elige cuál.';
   }
 }
 

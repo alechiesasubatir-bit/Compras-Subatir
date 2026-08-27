@@ -62,27 +62,22 @@ grant execute on function public.inventario_sumar(bigint, numeric) to authentica
 --  que sólo falta lo recibido DESPUÉS por cuentas de operario.
 --  Lo anterior ya está reflejado en el conteo.
 --
---  Son estas entregas. Se suman con la función de arriba, así queda
---  el mismo camino que va a usar la app de ahora en más.
+--  YA APLICADO el 27/08/2026 desde la app, verificado ficha por ficha.
+--  Queda comentado para que nadie lo corra de nuevo: la función SUMA,
+--  así que correrlo dos veces duplica el stock.
+--
+--  OJO si alguna vez hace falta algo parecido: NO llamar a
+--  inventario_sumar() desde el SQL Editor. La función pregunta por el
+--  permiso con auth.uid(), y en el editor eso es NULO —ahí se corre
+--  como superusuario, no como usuario logueado—, así que devuelve
+--  "sin permiso" en un raise notice fácil de no ver. Fue exactamente
+--  lo que pasó la primera vez. Desde el editor va UPDATE directo,
+--  como el de abajo, que no pasa por RLS.
 -- ============================================================
-do $$
-declare r record; res jsonb;
-begin
-  for r in
-    select * from (values
-      -- ficha, cantidad, qué es (para poder leerlo en el resultado)
-      (111, 1000::numeric, 'Percarbonato de Sodio · OC 929 · 27/08'),
-      ( 38, 1000::numeric, 'BTC 80 · OC 929 · 27/08'),
-      (139,  690::numeric, 'Trietanolamina · OC 932 · 27/08'),
-      ( 60, 1000::numeric, 'Dietanolamina de coco · OC 932 · 27/08'),
-      ( 44, 1000::numeric, 'Cera QTE · OC 932 · 27/08'),
-      ( 85,50000::numeric, 'Etiq. Medianas largo · OC 927 · 27/08')
-    ) as t(ficha, cant, detalle)
-  loop
-    select public.inventario_sumar(r.ficha, r.cant) into res;
-    raise notice '% -> %', r.detalle, res;
-  end loop;
-end $$;
+-- update public.inventario set inventario = coalesce(inventario,0) + v.delta
+--   from (values (111,1000),(38,1000),(139,690),(60,1000),(44,1000),(85,50000))
+--          as v(id, delta)
+--  where public.inventario.id = v.id;
 
 -- OJO: quedan DOS entregas más sin sumar que NO se incluyen arriba
 -- porque hay que decidirlas a mano:

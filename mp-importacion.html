@@ -154,6 +154,8 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .dato{width:82px;background:rgba(245,197,66,.08);border:1px solid rgba(245,197,66,.28);border-radius:7px;
   color:var(--gold);font-family:var(--mono);font-size:12px;padding:5px 7px;text-align:right;min-height:32px}
 .dato:focus{outline:2px solid rgba(245,197,66,.65);outline-offset:1px}
+/* Corrida cerrada: el campo se ve como dato, no como casillero */
+.dato:disabled{background:none;border-color:transparent;color:var(--text);cursor:default;opacity:1}
 .dato.stk{background:rgba(27,200,255,.08);border-color:rgba(27,200,255,.28);color:var(--teal-l)}
 .dato.conf{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.28);color:#4ade80}
 .ped{font-weight:700;font-size:13px}
@@ -221,13 +223,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-08-27.1254"/>
-<script src="supabase-config.js?v=2026-08-27.1254"></script>
-<script src="subatir-app.js?v=2026-08-27.1254"></script>
+<link rel="stylesheet" href="nav.css?v=2026-08-27.1530"/>
+<script src="supabase-config.js?v=2026-08-27.1530"></script>
+<script src="subatir-app.js?v=2026-08-27.1530"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-27.1254';
+window.APP_VER='2026-08-27.1530';
 </script>
 </head>
 <body>
@@ -239,7 +241,7 @@ window.APP_VER='2026-08-27.1254';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-27.1254"></script>
+  <script src="nav.js?v=2026-08-27.1530"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -264,6 +266,7 @@ window.APP_VER='2026-08-27.1254';
     </div>
     <div class="ctx-sp"></div>
     <div class="sec-tools">
+      <button class="btn btn-sm" id="btn-cerrar" onclick="toggleCerrada()"></button>
       <button class="btn btn-sm btn-teal" onclick="openPegar()" title="Pegar una columna de números desde la planilla">📋 Pegar datos</button>
       <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
@@ -603,11 +606,35 @@ function pintarTodo(){ pintarKPIs(); pintarDonut(); pintarBarras(); pintarTabla(
 function corridaActual(){ return CORR.filter(function(c){ return c.id===CUR_CORR; })[0]; }
 function pintarEstadoCorrida(){
   var c=corridaActual(), el=document.getElementById('corr-estado');
-  if(!c){ el.textContent='—'; el.className='chip'; return; }
+  var b=document.getElementById('btn-cerrar');
+  if(!c){ el.textContent='—'; el.className='chip'; if(b) b.style.display='none'; return; }
   var sucias=Object.keys(PEND).length;
   if(sucias){ el.textContent=sucias+' sin guardar'; el.className='chip warn'; }
-  else if(c.cerrada){ el.textContent='cerrada'; el.className='chip'; }
+  else if(c.cerrada){ el.textContent='🔒 cerrada'; el.className='chip'; }
   else { el.textContent='abierta'; el.className='chip'; }
+  if(b){
+    b.style.display='';
+    b.textContent = c.cerrada ? '🔓 Reabrir' : '🔒 Cerrar';
+    b.title = c.cerrada
+      ? 'Volver a permitir cambios en esta corrida'
+      : 'Dar la corrida por terminada: queda de sólo lectura para que no se pise sin querer';
+  }
+}
+// Cerrar es lo que separa "el pedido que estoy armando" de "el pedido
+// que ya se hizo". Se puede reabrir: es un seguro contra el descuido,
+// no un candado.
+function toggleCerrada(){
+  var c=corridaActual(); if(!c) return;
+  var nueva=!c.cerrada;
+  if(nueva && Object.keys(PEND).length){
+    toast('Hay cambios sin guardar: esperá un segundo y volvé a intentar','err'); return;
+  }
+  SB.from('mp_corridas').update({cerrada:nueva}).eq('id',c.id).then(function(r){
+    if(r.error){ toast('No se pudo: '+r.error.message,'err'); return; }
+    c.cerrada=nueva;
+    toast(nueva?'Corrida cerrada: queda de sólo lectura':'Corrida reabierta','ok');
+    pintarEstadoCorrida(); pintarTabla();
+  });
 }
 
 // ══ PARÁMETROS ════════════════════════════════════════════════
@@ -840,11 +867,15 @@ function pintarTabla(){
 }
 function celdaInput(id,campo,valor,cls,pie){
   var v = valor==null ? '' : valor;
+  // Una corrida cerrada es historia: se mira, no se toca. Se bloquea el
+  // campo en vez de dejar tipear y avisar recién al guardar.
+  var bloq = cerrada() ? ' disabled' : '';
   return '<td><input class="dato '+cls+'" type="number" step="0.1" inputmode="decimal" '
-    +'value="'+v+'" data-id="'+id+'" data-campo="'+campo+'" '
+    +'value="'+v+'" data-id="'+id+'" data-campo="'+campo+'"'+bloq+' '
     +'oninput="editar(this)" aria-label="'+campo.replace(/_/g,' ')+'"/>'
     +(pie||'')+'</td>';
 }
+function cerrada(){ var c=corridaActual(); return !!(c && c.cerrada); }
 // Cuánto aguanta el stock, debajo del propio stock: es una lectura de
 // ese número, no una columna aparte. Y así la tabla no crece a lo ancho.
 function cobTxt(c){

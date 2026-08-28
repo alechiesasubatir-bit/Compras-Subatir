@@ -296,6 +296,40 @@ tr.quiebre td:first-child{box-shadow:inset 3px 0 0 var(--red)}
 .fg .inp,.fg textarea{width:100%}
 textarea.inp{font-family:var(--mono);font-size:12px;min-height:150px;resize:vertical;line-height:1.5}
 .hint{font-size:11.5px;color:var(--muted-l);line-height:1.6;margin-top:7px}
+
+/* ── Importar Excel ─────────────────────────────────────── */
+.modal.ancho{max-width:700px}
+.pg-tabs{margin-bottom:15px}
+.pg-pane{display:none}
+.pg-pane.on{display:block}
+.drop{border:1.5px dashed var(--border-b);border-radius:12px;padding:24px 18px;text-align:center;
+  background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .16s,background .16s}
+.drop:hover,.drop.hot{border-color:rgba(27,200,255,.5);background:rgba(27,200,255,.06)}
+.drop-i{font-size:26px;line-height:1;margin-bottom:8px}
+.drop-t{font-family:var(--display);font-size:13px;font-weight:700}
+.drop-s{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.55}
+.xl-per{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 13px;border-radius:10px;
+  background:rgba(14,138,170,.10);border:1px solid rgba(27,200,255,.24);margin-bottom:13px}
+.xl-per b{font-family:var(--mono);font-size:12px;color:var(--teal-l)}
+.xl-per .d{font-size:11.5px;color:var(--muted-l);line-height:1.5}
+.xl-sec{margin-top:14px}
+.xl-sec h4{font-family:var(--display);font-size:11px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--muted-l);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.xl-sec h4 .n{font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:99px;
+  background:rgba(255,255,255,.08);color:var(--text)}
+.xl-sec h4.go .n{background:rgba(245,197,66,.18);color:var(--gold)}
+.xl-sec h4.rd .n{background:rgba(239,68,68,.18);color:#fca5a5}
+.xl-lista{max-height:190px;overflow:auto;border:1px solid var(--border);border-radius:9px}
+.xl-lista table{width:100%;border-collapse:collapse}
+.xl-lista td{padding:5px 9px;font-size:11.5px;border-bottom:1px solid rgba(255,255,255,.04)}
+.xl-lista tr:last-child td{border-bottom:none}
+.xl-lista .v{font-family:var(--mono);font-size:11.5px;text-align:right;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.xl-lista .vieja{color:var(--muted)}
+.xl-lista .nueva{color:var(--gold);font-weight:600}
+.xl-nota{font-size:11.5px;color:var(--muted-l);line-height:1.6;margin-top:6px}
+.xl-err{padding:11px 13px;border-radius:10px;background:rgba(239,68,68,.10);
+  border:1px solid rgba(239,68,68,.28);color:#fca5a5;font-size:12px;line-height:1.6}
 .toasts{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px}
 .toast{padding:11px 15px;border-radius:10px;font-size:12.5px;font-weight:600;max-width:420px;
   box-shadow:0 8px 24px rgba(0,0,0,.45)}
@@ -319,13 +353,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-08-28.1018"/>
-<script src="supabase-config.js?v=2026-08-28.1018"></script>
-<script src="subatir-app.js?v=2026-08-28.1018"></script>
+<link rel="stylesheet" href="nav.css?v=2026-08-28.1129"/>
+<script src="supabase-config.js?v=2026-08-28.1129"></script>
+<script src="subatir-app.js?v=2026-08-28.1129"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-28.1018';
+window.APP_VER='2026-08-28.1129';
 </script>
 </head>
 <body>
@@ -337,7 +371,7 @@ window.APP_VER='2026-08-28.1018';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-28.1018"></script>
+  <script src="nav.js?v=2026-08-28.1129"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -638,10 +672,36 @@ window.APP_VER='2026-08-28.1018';
 
 <!-- ══ MODAL: pegar datos ═════════════════════════════════ -->
 <div class="ovl" id="ovl-pegar" role="dialog" aria-modal="true" aria-labelledby="t-pegar">
-  <div class="modal">
-    <div class="modal-h"><span id="t-pegar">📋 Pegar datos</span>
+  <div class="modal ancho">
+    <div class="modal-h"><span id="t-pegar">📋 Cargar datos</span>
       <button class="x" onclick="cerrar('ovl-pegar')" aria-label="Cerrar">✕</button></div>
     <div class="modal-b">
+
+      <div class="seg pg-tabs" role="tablist">
+        <button type="button" id="tab-xl" class="on" role="tab" onclick="pgTab('xl')">📄 Archivo Excel</button>
+        <button type="button" id="tab-tx" role="tab" onclick="pgTab('tx')">📋 Pegar una columna</button>
+      </div>
+
+      <!-- ── vía 1: el archivo del sistema ── -->
+      <div class="pg-pane on" id="pane-xl">
+        <div class="drop" id="xl-drop" tabindex="0" role="button"
+             onclick="document.getElementById('xl-file').click()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('xl-file').click();}">
+          <div class="drop-i">📄</div>
+          <div class="drop-t">Elegí el .xlsx o soltalo acá</div>
+          <div class="drop-s">El «Ranking por Artículo» tal como sale del sistema.<br>
+            Se leen el <b>código</b>, el <b>artículo</b> y la columna <b>Salidas</b>.</div>
+        </div>
+        <input type="file" id="xl-file" accept=".xlsx" style="display:none"
+               onchange="xlElegido(this.files[0]); this.value='';">
+        <div class="hint">El período sale del encabezado del propio archivo: si abarca ~3 meses va a
+          <b>Consumo 3m</b>, si abarca ~12 meses va a <b>Prom año</b> dividido por los meses del período.
+          Las esencias se reconocen por su código, no por el orden.</div>
+        <div id="xl-res"></div>
+      </div>
+
+      <!-- ── vía 2: la de siempre ── -->
+      <div class="pg-pane" id="pane-tx">
       <div class="fg"><label for="pg-col">Qué columna estás pegando</label>
         <select class="inp" id="pg-col">
           <option value="consumo_3m">Consumo últimos 3 meses (kg)</option>
@@ -655,11 +715,14 @@ window.APP_VER='2026-08-28.1018';
         Acepta coma o punto decimal y separador de miles. Los renglones vacíos se saltean
         (queda el valor que había). Se previsualiza antes de guardar.</div>
       <div id="pg-prev" class="hint"></div>
+      </div><!-- /pane-tx -->
+
     </div>
     <div class="modal-f">
       <button class="btn" onclick="cerrar('ovl-pegar')">Cancelar</button>
-      <button class="btn" onclick="previsualizarPegado()">Previsualizar</button>
-      <button class="btn btn-pri" id="btn-pg" onclick="aplicarPegado()" disabled>Aplicar</button>
+      <button class="btn" id="btn-pg-prev" onclick="previsualizarPegado()" style="display:none">Previsualizar</button>
+      <button class="btn btn-pri" id="btn-pg" onclick="aplicarPegado()" disabled style="display:none">Aplicar</button>
+      <button class="btn btn-pri" id="btn-xl" onclick="aplicarExcel()" disabled>Aplicar</button>
     </div>
   </div>
 </div>
@@ -1706,7 +1769,23 @@ function openPegar(){
   document.getElementById('pg-prev').innerHTML='';
   document.getElementById('btn-pg').disabled=true;
   PEGADO=null;
+  document.getElementById('xl-res').innerHTML='';
+  document.getElementById('btn-xl').disabled=true;
+  XLIMP=null;
+  pgTab('xl');
   abrir('ovl-pegar');
+}
+// Las dos vías comparten modal pero no botonera: la del archivo no tiene
+// "Previsualizar" porque previsualiza sola al elegirlo.
+function pgTab(k){
+  var xl = k==='xl';
+  document.getElementById('tab-xl').classList.toggle('on', xl);
+  document.getElementById('tab-tx').classList.toggle('on', !xl);
+  document.getElementById('pane-xl').classList.toggle('on', xl);
+  document.getElementById('pane-tx').classList.toggle('on', !xl);
+  document.getElementById('btn-xl').style.display      = xl?'':'none';
+  document.getElementById('btn-pg').style.display      = xl?'none':'';
+  document.getElementById('btn-pg-prev').style.display = xl?'none':'';
 }
 function parseNum(s){
   s=String(s).trim();
@@ -1760,6 +1839,314 @@ function aplicarPegado(){
   pintarTabla(); pintarKPIs(); pintarDonut(); pintarBarras(); pintarEstadoCorrida();
   guardarPendientes().then(function(){ toast(PEGADO.pares.length+' valores pegados y guardados','ok'); });
 }
+
+// ══ IMPORTAR EXCEL ════════════════════════════════════════════
+//  El listado "Ranking por Artículo" que sale del sistema, tal cual.
+//
+//  Dos cosas que no se ven en el código y conviene saber:
+//
+//  1· El match NO es por la columna A. Ahí va el código interno
+//     (220062), y mp_articulos guarda el código MEROAR, que en el
+//     listado viene entre paréntesis dentro del nombre — y no siempre
+//     solo: "( MEROAR 761396 )" también es código, "( MP x Kg )" no.
+//     Por eso se busca el número dentro de cualquier paréntesis.
+//
+//  2· El listado sólo trae lo que tuvo movimiento. Una esencia que no
+//     figura no es un dato faltante: es consumo cero en ese período.
+//     Si se la salteara, quedaría arrastrando el número de la corrida
+//     anterior mezclado con datos nuevos.
+//
+//  Un .xlsx es un ZIP de XML y el navegador ya sabe inflar (deflate-raw),
+//  así que no hace falta ninguna librería.
+var XLIMP=null;
+
+function u16(dv,o){ return dv.getUint16(o,true); }
+function u32(dv,o){ return dv.getUint32(o,true); }
+
+function zipAbrir(buf){
+  var dv=new DataView(buf), n=buf.byteLength;
+  // El índice del ZIP está al final; se lo busca hacia atrás porque
+  // puede haber un comentario de largo variable después.
+  var eo=-1, lim=Math.max(0,n-66000);
+  for(var i=n-22;i>=lim;i--){ if(u32(dv,i)===0x06054b50){ eo=i; break; } }
+  if(eo<0) throw new Error('No parece un archivo .xlsx.');
+  var cnt=u16(dv,eo+10), p=u32(dv,eo+16), idx={}, td=new TextDecoder();
+  for(var k=0;k<cnt;k++){
+    if(u32(dv,p)!==0x02014b50) throw new Error('El archivo está dañado (índice del ZIP).');
+    var met=u16(dv,p+10), csz=u32(dv,p+20), fnl=u16(dv,p+28),
+        exl=u16(dv,p+30), cml=u16(dv,p+32), lho=u32(dv,p+42);
+    idx[td.decode(new Uint8Array(buf,p+46,fnl))]={met:met,csz:csz,lho:lho};
+    p += 46+fnl+exl+cml;
+  }
+  return {buf:buf, dv:dv, idx:idx};
+}
+function zipTexto(z,nombre){
+  var e=z.idx[nombre];
+  if(!e) return Promise.resolve(null);
+  var p=e.lho;
+  if(u32(z.dv,p)!==0x04034b50) return Promise.reject(new Error('El archivo está dañado.'));
+  var ini=p+30+u16(z.dv,p+26)+u16(z.dv,p+28);
+  var datos=new Uint8Array(z.buf, ini, e.csz);
+  if(e.met===0) return Promise.resolve(new TextDecoder().decode(datos));
+  if(e.met!==8) return Promise.reject(new Error('El .xlsx usa una compresión que no se puede leer acá.'));
+  return new Response(new Blob([datos]).stream()
+    .pipeThrough(new DecompressionStream('deflate-raw'))).text();
+}
+function xmlDoc(txt,que){
+  var d=new DOMParser().parseFromString(txt,'application/xml');
+  if(d.getElementsByTagName('parsererror').length) throw new Error('No se pudo leer '+que+'.');
+  return d;
+}
+// Hoja → [{n:fila, c:{A:'...', P:'...'}}]
+function xlHoja(sheetTxt, ssTxt){
+  var ss=[];
+  if(ssTxt){
+    var sd=xmlDoc(ssTxt,'los textos del Excel');
+    Array.prototype.forEach.call(sd.getElementsByTagName('si'), function(si){
+      var t=si.getElementsByTagName('t'), s='';
+      for(var i=0;i<t.length;i++) s+=t[i].textContent;
+      ss.push(s);
+    });
+  }
+  var doc=xmlDoc(sheetTxt,'la hoja del Excel'), out=[];
+  Array.prototype.forEach.call(doc.getElementsByTagName('row'), function(row){
+    var c={};
+    Array.prototype.forEach.call(row.getElementsByTagName('c'), function(cel){
+      var ref=cel.getAttribute('r')||'', col=ref.replace(/[0-9]/g,''), ty=cel.getAttribute('t'), v=null;
+      if(ty==='inlineStr'){ var it=cel.getElementsByTagName('t'); v=it.length?it[0].textContent:''; }
+      else {
+        var vv=cel.getElementsByTagName('v');
+        if(vv.length){ v = ty==='s' ? (ss[parseInt(vv[0].textContent,10)]||'') : vv[0].textContent; }
+      }
+      if(v!==null && v!=='') c[col]=v;
+    });
+    if(Object.keys(c).length) out.push({n:parseInt(row.getAttribute('r'),10)||0, c:c});
+  });
+  return out;
+}
+
+function xlNorm(s){ return String(s==null?'':s).replace(/\s+/g,' ').trim().toLowerCase(); }
+// El código MEROAR: el número que esté dentro de algún paréntesis
+function xlCodigo(desc){
+  var re=/\(([^)]*)\)/g, m;
+  while((m=re.exec(desc||''))){ var d=m[1].match(/\d{3,7}/); if(d) return d[0]; }
+  return null;
+}
+function xlFecha(s){
+  var m=String(s).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m ? new Date(+m[3], +m[2]-1, +m[1]) : null;
+}
+function xlEsEsencia(a){ return /^\s*esencia/i.test(a.nombre||''); }
+// Los números del XML vienen crudos de máquina, con punto decimal y a
+// veces en notación científica ("5.89E-2"). parseNum() acá no sirve: está
+// hecho para lo que teclea una persona y le sacaría la E, convirtiendo
+// 0,059 en 5,9 millones.
+function xlNum(v){ var x=parseFloat(v); return isNaN(x)?0:x; }
+
+function xlElegido(file){
+  if(!file) return;
+  var res=document.getElementById('xl-res');
+  document.getElementById('btn-xl').disabled=true; XLIMP=null;
+  if(!/\.xlsx$/i.test(file.name)){
+    res.innerHTML='<div class="xl-err" style="margin-top:13px">Tiene que ser un <b>.xlsx</b>. '
+      +'Si el archivo es .xls viejo, abrilo en Excel y guardalo como .xlsx.</div>';
+    return;
+  }
+  res.innerHTML='<div class="hint" style="margin-top:13px">Leyendo <b>'+esc(file.name)+'</b>…</div>';
+  file.arrayBuffer().then(function(buf){
+    var z=zipAbrir(buf);
+    // La primera hoja según el workbook; en estos listados es sheet1
+    var hoja = z.idx['xl/worksheets/sheet1.xml'] ? 'xl/worksheets/sheet1.xml'
+             : Object.keys(z.idx).filter(function(k){ return /^xl\/worksheets\/.*\.xml$/.test(k); }).sort()[0];
+    if(!hoja) throw new Error('El .xlsx no tiene ninguna hoja.');
+    return Promise.all([zipTexto(z,hoja), zipTexto(z,'xl/sharedStrings.xml')]);
+  }).then(function(r){
+    XLIMP = xlAnalizar(xlHoja(r[0], r[1]), file.name);
+    pintarExcel();
+  }).catch(function(e){
+    res.innerHTML='<div class="xl-err" style="margin-top:13px">No se pudo leer el archivo: '
+      +esc(e.message||e)+'</div>';
+  });
+}
+
+function xlAnalizar(rows, nombreArch){
+  // ── encabezado: se busca por nombre, no por posición ──
+  var cCod='A', cArt='B', cSal='P', filaCab=0;
+  for(var i=0;i<rows.length && i<20;i++){
+    var c=rows[i].c, halló={};
+    for(var col in c){
+      var t=xlNorm(c[col]);
+      if(t.indexOf('cod')===0 && t.indexOf('articulo')>0) halló.cod=col;
+      else if(t==='articulo') halló.art=col;
+      else if(t==='salidas')  halló.sal=col;
+    }
+    if(halló.sal && (halló.cod||halló.art)){
+      cCod=halló.cod||cCod; cArt=halló.art||cArt; cSal=halló.sal; filaCab=rows[i].n; break;
+    }
+  }
+  // ── período: sale del propio encabezado del listado ──
+  var ini=null, fin=null;
+  for(var j=0;j<rows.length && j<20;j++){
+    for(var k in rows[j].c){
+      var s=String(rows[j].c[k]);
+      if(/del\s*:/i.test(s) && /al\s*:/i.test(s)){
+        var p=s.split(/al\s*:/i);
+        ini=xlFecha(p[0]); fin=xlFecha(p[1]||''); break;
+      }
+    }
+    if(ini&&fin) break;
+  }
+  var meses = (ini&&fin) ? Math.max(1, Math.round((fin-ini)/(1000*60*60*24*30.437))) : null;
+
+  // ── las filas de datos ──
+  var datos=[];
+  rows.forEach(function(r){
+    if(filaCab && r.n<=filaCab) return;
+    var cod=r.c[cCod], desc=r.c[cArt], sal=r.c[cSal];
+    if(!cod || !/^\d+$/.test(String(cod).trim())) return;   // saltea encabezados y pies
+    datos.push({interno:String(cod).trim(), desc:String(desc||''),
+                cod:xlCodigo(desc), salidas: xlNum(sal)});
+  });
+
+  // ── cruce contra las esencias registradas ──
+  var porCod={};
+  ART.forEach(function(a){ if(a.codigo) porCod[String(a.codigo)]=a; });
+  var vistos={}, pares=[], desconocidas=[];
+  datos.forEach(function(d){
+    var a = d.cod ? porCod[d.cod] : null;
+    if(!a){ desconocidas.push(d); return; }
+    if(vistos[a.id]) return;              // por las dudas: una fila por artículo
+    vistos[a.id]=true;
+    pares.push({art:a, salidas:d.salidas});
+  });
+  // Registradas que no figuran = no tuvieron movimiento = cero.
+  // Sólo las esencias: el frasco y las tirillas no salen en este listado
+  // y ponerlas en cero borraría un dato bueno.
+  var enCero=[], intactos=[];
+  ART.forEach(function(a){
+    if(a.activo===false || vistos[a.id]) return;
+    (xlEsEsencia(a) ? enCero : intactos).push(a);
+  });
+
+  return {arch:nombreArch, ini:ini, fin:fin, meses:meses, filas:datos.length,
+          pares:pares, desconocidas:desconocidas, enCero:enCero, intactos:intactos,
+          campo: (meses!=null && meses<=6) ? 'consumo_3m' : 'prom_anual'};
+}
+
+// Cuánto se divide cada total según a qué columna va
+function xlDivisor(X){
+  if(X.campo==='consumo_3m') return 1;          // guarda el total del período
+  return X.meses || 12;                          // el promedio mensual
+}
+function xlValor(X,salidas){ return Math.round(salidas/xlDivisor(X)*1000)/1000; }
+
+function xlValorActual(art,campo){
+  var p=PEND[art.id]||{}, d=DATOS[art.id]||{};
+  return p[campo]!=null ? p[campo] : (d[campo]!=null ? d[campo] : 0);
+}
+
+function pintarExcel(){
+  var X=XLIMP, res=document.getElementById('xl-res');
+  if(!X) return;
+  var fmt=function(dt){ return dt? String(dt.getDate()).padStart(2,'0')+'/'
+      +String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear() : '?'; };
+  var div=xlDivisor(X);
+  var h='<div class="xl-per" style="margin-top:14px">'
+    +'<b>'+fmt(X.ini)+' → '+fmt(X.fin)+'</b>'
+    +'<div class="d">'+(X.meses? X.meses+' mes'+(X.meses===1?'':'es')+' de movimiento · ' : 'Período no reconocido · ')
+    +X.filas+' renglones leídos</div></div>';
+
+  h+='<div class="fg"><label for="xl-campo">A qué columna van estos números</label>'
+    +'<select class="inp" id="xl-campo" onchange="XLIMP.campo=this.value;pintarExcel()">'
+    +'<option value="consumo_3m"'+(X.campo==='consumo_3m'?' selected':'')+'>Consumo 3m — se guarda el total del período</option>'
+    +'<option value="prom_anual"'+(X.campo==='prom_anual'?' selected':'')+'>Prom año — se guarda el total ÷ '+(X.meses||12)+'</option>'
+    +'</select>'
+    +'<div class="hint">'+(X.campo==='consumo_3m'
+        ? 'Se guarda el total tal cual; el promedio mensual lo calcula la tabla dividiendo por 3.'
+        : 'Cada total se divide por <b>'+div+'</b> para dejar el promedio de un mes.')
+    +'</div></div>';
+
+  if(!X.pares.length){
+    h+='<div class="xl-err">Ninguna fila del archivo coincidió con una esencia registrada. '
+      +'Revisá que sea el listado de esencias del proveedor.</div>';
+    res.innerHTML=h; document.getElementById('btn-xl').disabled=true; return;
+  }
+
+  h+='<div class="xl-sec"><h4 class="go">Se actualizan <span class="n">'+X.pares.length+'</span></h4>'
+    +'<div class="xl-lista"><table><tbody>';
+  X.pares.forEach(function(p){
+    var antes=xlValorActual(p.art,X.campo), ahora=xlValor(X,p.salidas);
+    h+='<tr><td>'+esc(p.art.nombre)+'</td>'
+      +'<td class="v vieja">'+n1(antes)+'</td>'
+      +'<td class="v" style="color:var(--muted);width:14px">→</td>'
+      +'<td class="v nueva">'+n1(ahora)+'</td></tr>';
+  });
+  h+='</tbody></table></div></div>';
+
+  if(X.enCero.length){
+    h+='<div class="xl-sec"><h4>Sin movimiento, van a cero <span class="n">'+X.enCero.length+'</span></h4>'
+      +'<div class="xl-lista"><table><tbody>';
+    X.enCero.forEach(function(a){
+      h+='<tr><td>'+esc(a.nombre)+'</td><td class="v vieja">'+n1(xlValorActual(a,X.campo))
+        +'</td><td class="v" style="color:var(--muted);width:14px">→</td>'
+        +'<td class="v nueva">0</td></tr>';
+    });
+    h+='</tbody></table></div>'
+      +'<div class="xl-nota">No figuran en el archivo. El listado trae sólo lo que se movió, '
+      +'así que no aparecer es consumo cero en el período.</div></div>';
+  }
+  if(X.desconocidas.length){
+    h+='<div class="xl-sec"><h4 class="rd">No están registradas, se ignoran <span class="n">'
+      +X.desconocidas.length+'</span></h4><div class="xl-lista"><table><tbody>';
+    X.desconocidas.forEach(function(d){
+      h+='<tr><td>'+esc(d.desc)+'<br><span class="cod">interno '+esc(d.interno)
+        +(d.cod?' · cód. '+esc(d.cod):' · sin código')+'</span></td>'
+        +'<td class="v vieja">'+n1(d.salidas)+' kg</td></tr>';
+    });
+    h+='</tbody></table></div>'
+      +'<div class="xl-nota">Si alguna te sirve, cargala como artículo y volvé a subir el archivo.</div></div>';
+  }
+  if(X.intactos.length){
+    h+='<div class="xl-nota" style="margin-top:12px">No se tocan (no son esencias de este listado): '
+      +X.intactos.map(function(a){ return esc(a.nombre); }).join(', ')+'.</div>';
+  }
+  res.innerHTML=h;
+  document.getElementById('btn-xl').disabled=false;
+}
+
+function aplicarExcel(){
+  var X=XLIMP;
+  if(!X || !X.pares.length) return;
+  if(!CUR_CORR){ toast('Elegí una corrida antes de cargar datos','err'); return; }
+  var c=corridaActual();
+  if(c && c.cerrada){ toast('Esta corrida está cerrada: no se puede editar','err'); return; }
+  X.pares.forEach(function(p){
+    (PEND[p.art.id]=PEND[p.art.id]||{})[X.campo]=xlValor(X,p.salidas);
+  });
+  X.enCero.forEach(function(a){ (PEND[a.id]=PEND[a.id]||{})[X.campo]=0; });
+  var n=X.pares.length+X.enCero.length;
+  cerrar('ovl-pegar');
+  pintarTabla(); pintarKPIs(); pintarDonut(); pintarBarras(); pintarEstadoCorrida();
+  guardarPendientes().then(function(){
+    toast(n+' valores cargados desde '+X.arch+' y guardados','ok');
+  });
+}
+
+// Soltar el archivo encima de la zona punteada
+(function(){
+  var z=document.getElementById('xl-drop');
+  if(!z) return;
+  ['dragenter','dragover'].forEach(function(ev){
+    z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.add('hot'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.remove('hot'); });
+  });
+  z.addEventListener('drop',function(e){
+    var f=e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) xlElegido(f);
+  });
+})();
 
 // ══ EXPORTAR ══════════════════════════════════════════════════
 function exportCSV(){

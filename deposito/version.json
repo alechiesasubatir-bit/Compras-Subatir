@@ -1,4 +1,4 @@
 {
-  "v": "2026-08-28.1313",
+  "v": "2026-08-28.1328",
   "COMO_SE_USA": "En cada deploy hay que subir este numero Y el window.APP_VER de deposito/index.html, con el MISMO valor. La app pide este archivo sin cache; si no coincide con el suyo, se recarga sola apuntando a la version nueva. Si se cambia solo uno de los dos: cambiar solo este archivo hace que cada pestana recargue una vez al pedo y siga igual; cambiar solo el HTML no recarga a nadie."
 }

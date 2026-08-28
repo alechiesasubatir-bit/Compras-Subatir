@@ -223,12 +223,27 @@ tr.quiebre td:first-child{box-shadow:inset 3px 0 0 var(--red)}
 /* Ofertas */
 .of-add{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
 .of-list{display:grid;gap:5px;max-height:190px;overflow:auto;padding-right:5px}
-.of-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:10px;align-items:center;
-  padding:7px 10px;border-radius:9px;background:rgba(255,255,255,.025);border:1px solid var(--border)}
-.of-row.act{background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.3)}
+.of-grp{border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.02);
+  padding:8px 9px;display:grid;gap:4px}
+.of-grp.act{background:rgba(249,115,22,.07);border-color:rgba(249,115,22,.3)}
+.of-grp-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:1px 2px 5px}
+.of-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;
+  padding:6px 9px;border-radius:8px;background:rgba(0,0,0,.18)}
 .of-mes{font-family:var(--display);font-size:10.5px;font-weight:800;letter-spacing:.3px;
   color:var(--muted-l);white-space:nowrap}
-.of-row.act .of-mes{color:var(--orange-l)}
+.of-grp.act .of-mes{color:var(--orange-l)}
+.of-grp.act .of-est{color:var(--orange-l)}
+/* Productos guardados */
+.of-prod{margin:12px 0;padding:12px 13px;border-radius:11px;
+  background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.24)}
+.of-prod-h{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.of-prod-t{font-family:var(--display);font-size:12px;font-weight:800;letter-spacing:.3px;color:var(--purple)}
+.of-prod-d{margin-top:2px}
+.of-prod-l{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px}
+.of-prod-n{width:100%;font-size:11.5px;color:var(--muted-l);margin-bottom:3px}
+.of-chip{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;
+  background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.3);color:#c4b5fd;white-space:nowrap}
+.of-chip b{font-family:var(--mono);font-weight:600}
 .of-art{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .of-art small{display:block;font-size:10.5px;color:var(--muted)}
 .of-pct{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--orange-l);white-space:nowrap}
@@ -295,13 +310,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-08-28.0932"/>
-<script src="supabase-config.js?v=2026-08-28.0932"></script>
-<script src="subatir-app.js?v=2026-08-28.0932"></script>
+<link rel="stylesheet" href="nav.css?v=2026-08-28.1000"/>
+<script src="supabase-config.js?v=2026-08-28.1000"></script>
+<script src="subatir-app.js?v=2026-08-28.1000"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-28.0932';
+window.APP_VER='2026-08-28.1000';
 </script>
 </head>
 <body>
@@ -313,7 +328,7 @@ window.APP_VER='2026-08-28.0932';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-28.0932"></script>
+  <script src="nav.js?v=2026-08-28.1000"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -529,6 +544,23 @@ window.APP_VER='2026-08-28.0932';
             <input class="inp" id="of-nota" maxlength="80" placeholder="Qué producto la usa" style="width:100%"/></div>
           <button class="btn btn-teal" onclick="agregarOferta()" style="align-self:flex-end">➕ Agregar</button>
         </div>
+
+        <!-- Productos guardados: la receta de una oferta que se repite -->
+        <div class="of-prod">
+          <div class="of-prod-h">
+            <span class="of-prod-t">🧴 Productos guardados</span>
+            <span class="cf-cnt" id="cf-prod-cnt"></span>
+          </div>
+          <div class="of-add" style="margin-bottom:0">
+            <div style="flex:1;min-width:200px"><label class="cf-l" for="of-prod">Producto terminado</label>
+              <select class="inp" id="of-prod" style="width:100%" onchange="pintarProductoElegido()"></select></div>
+            <button class="btn btn-teal" onclick="aplicarProducto()" style="align-self:flex-end">Aplicar al mes</button>
+            <button class="btn btn-sm" onclick="editarProducto()" style="align-self:flex-end">✎ Editar</button>
+            <button class="btn btn-sm" onclick="borrarProducto()" style="align-self:flex-end">🗑</button>
+          </div>
+          <div class="of-prod-d" id="of-prod-d"></div>
+        </div>
+
         <div class="of-list" id="of-list"></div>
       </div>
 
@@ -610,6 +642,7 @@ window.APP_VER='2026-08-28.0932';
 //  había decidido la anterior.
 // ══════════════════════════════════════════════════════════════
 var PROV=[], ART=[], PAR=null, CORR=[], DATOS={}, OFERTAS=[], CUR_PROV=null, CUR_CORR=null;
+var PRODUCTOS=[], PROD_ESC=[];   // recetas guardadas: producto y sus esencias
 var OCULTOS={};          // estados apagados desde la leyenda del gráfico
 var PEND={};             // ediciones sin guardar: articulo_id -> {campo:valor}
 var PEGADO=null;
@@ -778,6 +811,12 @@ function cargarProveedor(){
     // absorbe: la pantalla sigue andando sin ofertas.
     SB.from('mp_ofertas').select('*').eq('proveedor_id',CUR_PROV).order('mes',{ascending:false})
       .then(function(r){ return r.error ? {data:[],error:null} : r; },
+            function(){ return {data:[],error:null}; }),
+    SB.from('mp_productos').select('*').eq('proveedor_id',CUR_PROV).order('nombre')
+      .then(function(r){ return r.error ? {data:[],error:null} : r; },
+            function(){ return {data:[],error:null}; }),
+    SB.from('mp_producto_esencias').select('*')
+      .then(function(r){ return r.error ? {data:[],error:null} : r; },
             function(){ return {data:[],error:null}; })
   ]).then(function(r){
     var e=r.slice(0,3).find(function(x){ return x.error; });
@@ -786,6 +825,8 @@ function cargarProveedor(){
     PAR=(r[1].data||[])[0]||null;
     CORR=r[2].data||[];
     OFERTAS=r[3].data||[];
+    PRODUCTOS=r[4].data||[];
+    PROD_ESC=r[5].data||[];
     if(!PAR){ falta({message:'El proveedor no tiene parámetros cargados'}); return; }
     var sc=document.getElementById('f-corr');
     sc.innerHTML=CORR.map(function(c){
@@ -1270,30 +1311,205 @@ function pintarOfertas(){
   sel.innerHTML='<option value="">Elegí una esencia…</option>'
     +arts.map(function(a){ return '<option value="'+a.id+'">'+esc(a.nombre)+'</option>'; }).join('');
 
+  pintarProductos();
+
   var v=ventanaMeses();
   var host=document.getElementById('of-list');
-  var lista=OFERTAS.slice().sort(function(a,b){
-    return String(b.mes).localeCompare(String(a.mes)) || 0; });
   document.getElementById('cf-of-cnt').textContent =
-    lista.length ? lista.length+(lista.length===1?' oferta':' ofertas') : 'ninguna cargada';
-  if(!lista.length){
+    OFERTAS.length ? OFERTAS.length+(OFERTAS.length===1?' oferta':' ofertas') : 'ninguna cargada';
+  if(!OFERTAS.length){
     host.innerHTML='<div class="of-vacio">Todavía no hay ofertas cargadas. '
       +'Las que caigan dentro de la cobertura del pedido ('+v.map(nombreMes).join(', ')+') '
       +'van a empujar la previsión de esas esencias.</div>';
     return;
   }
-  host.innerHTML=lista.map(function(o){
-    var a=ART.filter(function(x){ return String(x.id)===String(o.articulo_id); })[0]||{};
-    var dentro=v.indexOf(mesDe(o.mes))>=0;
-    return '<div class="of-row'+(dentro?' act':'')+'">'
-      +'<span class="of-mes">'+esc(nombreMes(mesDe(o.mes)))+'</span>'
-      +'<span class="of-art" title="'+esc(a.nombre||'')+'">'+esc(a.nombre||'#'+o.articulo_id)
-        +(o.nota?'<small>'+esc(o.nota)+'</small>':'')+'</span>'
-      +'<span class="of-pct">+'+n0(o.pct)+'%</span>'
-      +'<span class="of-est">'+(dentro?'entra en este pedido':'fuera de la cobertura')+'</span>'
-      +'<button class="btn btn-sm" onclick="borrarOferta('+o.id+')" title="Quitar">🗑</button>'
+  // Agrupadas por mes: la receta de una oferta es el conjunto de un
+  // mes, así que guardarla como producto tiene sentido a ese nivel.
+  var porMes={};
+  OFERTAS.forEach(function(o){ (porMes[mesDe(o.mes)]=porMes[mesDe(o.mes)]||[]).push(o); });
+  var meses=Object.keys(porMes).sort().reverse();
+  host.innerHTML=meses.map(function(m){
+    var dentro=v.indexOf(m)>=0;
+    var ofs=porMes[m];
+    return '<div class="of-grp'+(dentro?' act':'')+'">'
+      +'<div class="of-grp-h"><span class="of-mes">'+esc(nombreMes(m))+'</span>'
+        +'<span class="of-est">'+(dentro?'entra en este pedido':'fuera de la cobertura')+'</span>'
+        +'<button class="btn btn-sm" onclick="guardarComoProducto(\''+m+'\')" '
+        +'title="Guardar estas esencias y sus % con el nombre del producto terminado">💾 Guardar como producto</button>'
+      +'</div>'
+      +ofs.map(function(o){
+        var a=ART.filter(function(x){ return String(x.id)===String(o.articulo_id); })[0]||{};
+        return '<div class="of-row">'
+          +'<span class="of-art" title="'+esc(a.nombre||'')+'">'+esc(a.nombre||'#'+o.articulo_id)
+            +(o.nota?'<small>'+esc(o.nota)+'</small>':'')+'</span>'
+          +'<span class="of-pct">+'+n0(o.pct)+'%</span>'
+          +'<button class="btn btn-sm" onclick="borrarOferta('+o.id+')" title="Quitar">🗑</button>'
+        +'</div>'; }).join('')
     +'</div>';
   }).join('');
+}
+
+// ── Productos terminados (la receta guardada) ─────────────────
+function esenciasDe(prodId){
+  return PROD_ESC.filter(function(e){ return String(e.producto_id)===String(prodId); });
+}
+function pintarProductos(){
+  var sel=document.getElementById('of-prod'); if(!sel) return;
+  var cur=sel.value;
+  var act=PRODUCTOS.filter(function(p){ return p.activo!==false; })
+                   .sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
+  sel.innerHTML = act.length
+    ? '<option value="">Elegí un producto…</option>'
+      +act.map(function(p){ return '<option value="'+p.id+'">'+esc(p.nombre)+'</option>'; }).join('')
+    : '<option value="">— todavía no hay ninguno guardado —</option>';
+  if(cur) sel.value=cur;
+  document.getElementById('cf-prod-cnt').textContent =
+    act.length ? act.length+(act.length===1?' producto':' productos') : 'ninguno';
+  pintarProductoElegido();
+}
+function pintarProductoElegido(){
+  var host=document.getElementById('of-prod-d'); if(!host) return;
+  var id=document.getElementById('of-prod').value;
+  if(!id){
+    host.innerHTML='<div class="of-vacio" style="margin-top:9px">Cargá las esencias de una oferta '
+      +'y guardalas con el nombre del producto (por ejemplo <b>Bactripro</b>). '
+      +'La próxima vez que se repita, lo elegís acá y se aplica solo.</div>';
+    return;
+  }
+  var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
+  var es=esenciasDe(id);
+  host.innerHTML='<div class="of-prod-l">'
+    +(p.nota?'<div class="of-prod-n">'+esc(p.nota)+'</div>':'')
+    +(es.length
+      ? es.map(function(e){
+          var a=ART.filter(function(x){ return String(x.id)===String(e.articulo_id); })[0]||{};
+          return '<span class="of-chip">'+esc((a.nombre||'#'+e.articulo_id).replace('Esencia ',''))
+            +' <b>+'+n0(e.pct)+'%</b></span>'; }).join('')
+      : '<span class="of-est">Sin esencias cargadas: editalo para agregarle.</span>')
+    +'</div>';
+}
+function aplicarProducto(){
+  var id=document.getElementById('of-prod').value;
+  var mes=document.getElementById('of-mes').value;
+  if(!id){ toast('Elegí el producto guardado','err'); return; }
+  if(!mes){ toast('Elegí el mes al que aplicarlo','err'); return; }
+  var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
+  var es=esenciasDe(id);
+  if(!es.length){ toast('«'+p.nombre+'» no tiene esencias cargadas','err'); return; }
+  // Las que ya tienen oferta ese mes se saltean: pisarlas cambiaría un
+  // % que alguien puso a mano.
+  var yaHay=es.filter(function(e){
+    return OFERTAS.some(function(o){ return String(o.articulo_id)===String(e.articulo_id) && mesDe(o.mes)===mes; }); });
+  var nuevas=es.filter(function(e){ return yaHay.indexOf(e)<0; });
+  if(!nuevas.length){ toast('Todas las esencias de «'+p.nombre+'» ya tienen oferta en '+nombreMes(mes),'err'); return; }
+  SB.from('mp_ofertas').insert(nuevas.map(function(e){
+    return {proveedor_id:CUR_PROV, articulo_id:e.articulo_id, mes:mes+'-01', pct:e.pct,
+            nota:p.nombre, producto_id:p.id,
+            created_by:(SubatirApp.getProfile()||{}).full_name||''}; })).select().then(function(r){
+    if(r.error){ toast('No se pudo aplicar: '+r.error.message,'err'); return; }
+    OFERTAS=OFERTAS.concat(r.data||[]);
+    pintarOfertas(); pintarTodo();
+    toast('«'+p.nombre+'»: '+(r.data||[]).length+' esencia'+((r.data||[]).length===1?'':'s')
+      +' aplicada'+((r.data||[]).length===1?'':'s')+' a '+nombreMes(mes)
+      +(yaHay.length?' ('+yaHay.length+' ya estaba'+(yaHay.length===1?'':'n')+')':''),'ok');
+  });
+}
+function guardarComoProducto(mes){
+  var ofs=OFERTAS.filter(function(o){ return mesDe(o.mes)===mes; });
+  if(!ofs.length) return;
+  var nom=prompt('Nombre del producto terminado que usa estas '+ofs.length+' esencia'
+    +(ofs.length===1?'':'s')+':\n\n'
+    +ofs.map(function(o){
+       var a=ART.filter(function(x){ return String(x.id)===String(o.articulo_id); })[0]||{};
+       return '  · '+(a.nombre||'').replace('Esencia ','')+'  +'+n0(o.pct)+'%'; }).join('\n')
+    +'\n\nEjemplo: Bactripro', '');
+  if(nom===null) return;
+  nom=nom.trim();
+  if(!nom){ toast('Poné un nombre','err'); return; }
+  var existe=PRODUCTOS.filter(function(p){ return p.nombre.toLowerCase()===nom.toLowerCase(); })[0];
+  var paso = existe
+    ? Promise.resolve({data:existe, error:null})
+    : SB.from('mp_productos').insert({proveedor_id:CUR_PROV, nombre:nom,
+        created_by:(SubatirApp.getProfile()||{}).full_name||''}).select().single();
+  paso.then(function(r){
+    if(r.error){ toast('No se pudo guardar: '+r.error.message,'err'); return; }
+    var prod=r.data;
+    if(!existe) PRODUCTOS=PRODUCTOS.concat([prod]);
+    // Se reemplazan las esencias del producto por las de este mes: es
+    // "guardar como", no "agregar a".
+    return SB.from('mp_producto_esencias').delete().eq('producto_id',prod.id).then(function(){
+      return SB.from('mp_producto_esencias').insert(ofs.map(function(o){
+        return {producto_id:prod.id, articulo_id:o.articulo_id, pct:num(o.pct)}; })).select();
+    }).then(function(r2){
+      if(r2.error){ toast('No se pudieron guardar las esencias: '+r2.error.message,'err'); return; }
+      PROD_ESC=PROD_ESC.filter(function(e){ return String(e.producto_id)!==String(prod.id); })
+                       .concat(r2.data||[]);
+      document.getElementById('of-prod').value=prod.id;
+      pintarOfertas();
+      toast(existe ? '«'+nom+'» actualizado con '+ofs.length+' esencias'
+                   : '«'+nom+'» guardado con '+ofs.length+' esencias','ok');
+    });
+  });
+}
+function editarProducto(){
+  var id=document.getElementById('of-prod').value;
+  if(!id){ toast('Elegí primero el producto a editar','err'); return; }
+  var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
+  var es=esenciasDe(id);
+  var nom=prompt('Nombre del producto:', p.nombre);
+  if(nom===null) return;
+  nom=nom.trim(); if(!nom){ toast('El nombre no puede quedar vacío','err'); return; }
+  var txt=prompt('Esencias y su % de aumento, una por renglón.\n'
+    +'Formato:  nombre de la esencia = %\n'
+    +'Borrá un renglón para sacar esa esencia.\n\n'
+    +'Los nombres tienen que coincidir con los de la lista de artículos.',
+    es.map(function(e){
+      var a=ART.filter(function(x){ return String(x.id)===String(e.articulo_id); })[0]||{};
+      return (a.nombre||'')+' = '+n0(e.pct); }).join('\n'));
+  if(txt===null) return;
+  var filas=txt.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  var nuevas=[], malos=[];
+  filas.forEach(function(l){
+    var i=l.lastIndexOf('=');
+    if(i<0){ malos.push(l); return; }
+    var n=l.slice(0,i).trim(), pc=num(l.slice(i+1).replace('%',''));
+    var a=ART.filter(function(x){ return x.nombre.toLowerCase()===n.toLowerCase(); })[0];
+    if(!a){ malos.push(l); return; }
+    nuevas.push({producto_id:p.id, articulo_id:a.id, pct:pc});
+  });
+  if(malos.length){
+    toast('No se reconocieron '+malos.length+' renglón/es: '+malos[0].slice(0,40)+'. No se guardó nada.','err');
+    return;
+  }
+  SB.from('mp_productos').update({nombre:nom}).eq('id',p.id).then(function(r){
+    if(r.error){ toast('No se pudo renombrar: '+r.error.message,'err'); return; }
+    p.nombre=nom;
+    return SB.from('mp_producto_esencias').delete().eq('producto_id',p.id).then(function(){
+      return nuevas.length ? SB.from('mp_producto_esencias').insert(nuevas).select()
+                           : Promise.resolve({data:[],error:null});
+    }).then(function(r2){
+      if(r2.error){ toast('Error: '+r2.error.message,'err'); return; }
+      PROD_ESC=PROD_ESC.filter(function(e){ return String(e.producto_id)!==String(p.id); })
+                       .concat(r2.data||[]);
+      pintarProductos();
+      toast('«'+nom+'» guardado con '+nuevas.length+' esencias','ok');
+    });
+  });
+}
+function borrarProducto(){
+  var id=document.getElementById('of-prod').value;
+  if(!id){ toast('Elegí el producto a borrar','err'); return; }
+  var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
+  if(!confirm('¿Borrar el producto «'+p.nombre+'»?\n\n'
+    +'Es sólo la plantilla: las ofertas que ya se aplicaron con él quedan como están.')) return;
+  SB.from('mp_productos').delete().eq('id',id).then(function(r){
+    if(r.error){ toast('No se pudo borrar: '+r.error.message,'err'); return; }
+    PRODUCTOS=PRODUCTOS.filter(function(x){ return String(x.id)!==String(id); });
+    PROD_ESC=PROD_ESC.filter(function(e){ return String(e.producto_id)!==String(id); });
+    document.getElementById('of-prod').value='';
+    pintarProductos();
+    toast('«'+p.nombre+'» borrado','ok');
+  });
 }
 function agregarOferta(){
   var mes=document.getElementById('of-mes').value;

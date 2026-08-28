@@ -310,13 +310,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-08-28.1000"/>
-<script src="supabase-config.js?v=2026-08-28.1000"></script>
-<script src="subatir-app.js?v=2026-08-28.1000"></script>
+<link rel="stylesheet" href="nav.css?v=2026-08-28.1009"/>
+<script src="supabase-config.js?v=2026-08-28.1009"></script>
+<script src="subatir-app.js?v=2026-08-28.1009"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-28.1000';
+window.APP_VER='2026-08-28.1009';
 </script>
 </head>
 <body>
@@ -328,7 +328,7 @@ window.APP_VER='2026-08-28.1000';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-28.1000"></script>
+  <script src="nav.js?v=2026-08-28.1009"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -545,14 +545,15 @@ window.APP_VER='2026-08-28.1000';
           <button class="btn btn-teal" onclick="agregarOferta()" style="align-self:flex-end">➕ Agregar</button>
         </div>
 
-        <!-- Productos guardados: la receta de una oferta que se repite -->
+        <!-- Producto Oferta: la oferta de un producto, guardada para
+             reusarla cuando la promoción se repite -->
         <div class="of-prod">
           <div class="of-prod-h">
-            <span class="of-prod-t">🧴 Productos guardados</span>
+            <span class="of-prod-t">🧴 Producto Oferta</span>
             <span class="cf-cnt" id="cf-prod-cnt"></span>
           </div>
           <div class="of-add" style="margin-bottom:0">
-            <div style="flex:1;min-width:200px"><label class="cf-l" for="of-prod">Producto terminado</label>
+            <div style="flex:1;min-width:200px"><label class="cf-l" for="of-prod">Producto</label>
               <select class="inp" id="of-prod" style="width:100%" onchange="pintarProductoElegido()"></select></div>
             <button class="btn btn-teal" onclick="aplicarProducto()" style="align-self:flex-end">Aplicar al mes</button>
             <button class="btn btn-sm" onclick="editarProducto()" style="align-self:flex-end">✎ Editar</button>
@@ -1335,7 +1336,7 @@ function pintarOfertas(){
       +'<div class="of-grp-h"><span class="of-mes">'+esc(nombreMes(m))+'</span>'
         +'<span class="of-est">'+(dentro?'entra en este pedido':'fuera de la cobertura')+'</span>'
         +'<button class="btn btn-sm" onclick="guardarComoProducto(\''+m+'\')" '
-        +'title="Guardar estas esencias y sus % con el nombre del producto terminado">💾 Guardar como producto</button>'
+        +'title="Guardar esta oferta —sus esencias y sus %— con el nombre del producto">💾 Guardar Oferta del mes</button>'
       +'</div>'
       +ofs.map(function(o){
         var a=ART.filter(function(x){ return String(x.id)===String(o.articulo_id); })[0]||{};
@@ -1361,10 +1362,10 @@ function pintarProductos(){
   sel.innerHTML = act.length
     ? '<option value="">Elegí un producto…</option>'
       +act.map(function(p){ return '<option value="'+p.id+'">'+esc(p.nombre)+'</option>'; }).join('')
-    : '<option value="">— todavía no hay ninguno guardado —</option>';
+    : '<option value="">— todavía no hay ninguna guardada —</option>';
   if(cur) sel.value=cur;
   document.getElementById('cf-prod-cnt').textContent =
-    act.length ? act.length+(act.length===1?' producto':' productos') : 'ninguno';
+    act.length ? act.length+(act.length===1?' oferta guardada':' ofertas guardadas') : 'ninguna guardada';
   pintarProductoElegido();
 }
 function pintarProductoElegido(){
@@ -1372,8 +1373,9 @@ function pintarProductoElegido(){
   var id=document.getElementById('of-prod').value;
   if(!id){
     host.innerHTML='<div class="of-vacio" style="margin-top:9px">Cargá las esencias de una oferta '
-      +'y guardalas con el nombre del producto (por ejemplo <b>Bactripro</b>). '
-      +'La próxima vez que se repita, lo elegís acá y se aplica solo.</div>';
+      +'y guardala con el nombre del producto (por ejemplo <b>Bactripro</b>) desde '
+      +'<b>💾 Guardar Oferta del mes</b>. Cuando la promoción se repita, elegís el producto '
+      +'acá y se aplica sola.</div>';
     return;
   }
   var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
@@ -1385,17 +1387,17 @@ function pintarProductoElegido(){
           var a=ART.filter(function(x){ return String(x.id)===String(e.articulo_id); })[0]||{};
           return '<span class="of-chip">'+esc((a.nombre||'#'+e.articulo_id).replace('Esencia ',''))
             +' <b>+'+n0(e.pct)+'%</b></span>'; }).join('')
-      : '<span class="of-est">Sin esencias cargadas: editalo para agregarle.</span>')
+      : '<span class="of-est">Esta oferta no tiene esencias: editala para agregarle.</span>')
     +'</div>';
 }
 function aplicarProducto(){
   var id=document.getElementById('of-prod').value;
   var mes=document.getElementById('of-mes').value;
-  if(!id){ toast('Elegí el producto guardado','err'); return; }
+  if(!id){ toast('Elegí el producto cuya oferta querés aplicar','err'); return; }
   if(!mes){ toast('Elegí el mes al que aplicarlo','err'); return; }
   var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
   var es=esenciasDe(id);
-  if(!es.length){ toast('«'+p.nombre+'» no tiene esencias cargadas','err'); return; }
+  if(!es.length){ toast('La oferta de «'+p.nombre+'» no tiene esencias cargadas','err'); return; }
   // Las que ya tienen oferta ese mes se saltean: pisarlas cambiaría un
   // % que alguien puso a mano.
   var yaHay=es.filter(function(e){
@@ -1417,8 +1419,8 @@ function aplicarProducto(){
 function guardarComoProducto(mes){
   var ofs=OFERTAS.filter(function(o){ return mesDe(o.mes)===mes; });
   if(!ofs.length) return;
-  var nom=prompt('Nombre del producto terminado que usa estas '+ofs.length+' esencia'
-    +(ofs.length===1?'':'s')+':\n\n'
+  var nom=prompt('¿De qué producto es esta oferta? Se guarda con estas '+ofs.length+' esencia'
+    +(ofs.length===1?'':'s')+' y sus %:\n\n'
     +ofs.map(function(o){
        var a=ART.filter(function(x){ return String(x.id)===String(o.articulo_id); })[0]||{};
        return '  · '+(a.nombre||'').replace('Esencia ','')+'  +'+n0(o.pct)+'%'; }).join('\n')
@@ -1446,17 +1448,17 @@ function guardarComoProducto(mes){
                        .concat(r2.data||[]);
       document.getElementById('of-prod').value=prod.id;
       pintarOfertas();
-      toast(existe ? '«'+nom+'» actualizado con '+ofs.length+' esencias'
-                   : '«'+nom+'» guardado con '+ofs.length+' esencias','ok');
+      toast('Oferta de «'+nom+'» '+(existe?'actualizada':'guardada')+' con '
+            +ofs.length+' esencia'+(ofs.length===1?'':'s'),'ok');
     });
   });
 }
 function editarProducto(){
   var id=document.getElementById('of-prod').value;
-  if(!id){ toast('Elegí primero el producto a editar','err'); return; }
+  if(!id){ toast('Elegí primero la oferta a editar','err'); return; }
   var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
   var es=esenciasDe(id);
-  var nom=prompt('Nombre del producto:', p.nombre);
+  var nom=prompt('Producto de esta oferta:', p.nombre);
   if(nom===null) return;
   nom=nom.trim(); if(!nom){ toast('El nombre no puede quedar vacío','err'); return; }
   var txt=prompt('Esencias y su % de aumento, una por renglón.\n'
@@ -1492,23 +1494,24 @@ function editarProducto(){
       PROD_ESC=PROD_ESC.filter(function(e){ return String(e.producto_id)!==String(p.id); })
                        .concat(r2.data||[]);
       pintarProductos();
-      toast('«'+nom+'» guardado con '+nuevas.length+' esencias','ok');
+      toast('Oferta de «'+nom+'» guardada con '+nuevas.length+' esencia'
+            +(nuevas.length===1?'':'s'),'ok');
     });
   });
 }
 function borrarProducto(){
   var id=document.getElementById('of-prod').value;
-  if(!id){ toast('Elegí el producto a borrar','err'); return; }
+  if(!id){ toast('Elegí la oferta a borrar','err'); return; }
   var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
-  if(!confirm('¿Borrar el producto «'+p.nombre+'»?\n\n'
-    +'Es sólo la plantilla: las ofertas que ya se aplicaron con él quedan como están.')) return;
+  if(!confirm('¿Borrar la oferta guardada de «'+p.nombre+'»?\n\n'
+    +'Se borra sólo la receta guardada: las ofertas que ya se aplicaron a un mes quedan como están.')) return;
   SB.from('mp_productos').delete().eq('id',id).then(function(r){
     if(r.error){ toast('No se pudo borrar: '+r.error.message,'err'); return; }
     PRODUCTOS=PRODUCTOS.filter(function(x){ return String(x.id)!==String(id); });
     PROD_ESC=PROD_ESC.filter(function(e){ return String(e.producto_id)!==String(id); });
     document.getElementById('of-prod').value='';
     pintarProductos();
-    toast('«'+p.nombre+'» borrado','ok');
+    toast('Oferta de «'+p.nombre+'» borrada','ok');
   });
 }
 function agregarOferta(){

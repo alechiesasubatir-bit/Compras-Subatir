@@ -244,6 +244,15 @@ tr.quiebre td:first-child{box-shadow:inset 3px 0 0 var(--red)}
 .of-chip{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;
   background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.3);color:#c4b5fd;white-space:nowrap}
 .of-chip b{font-family:var(--mono);font-weight:600}
+/* Editor de la oferta de un producto */
+.pe-list{display:grid;gap:5px;max-height:230px;overflow:auto;padding-right:5px;margin-bottom:11px}
+.pe-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;
+  padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid var(--border)}
+.pe-n{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pe-p{width:78px;text-align:right;font-family:var(--mono);font-size:12.5px;padding:5px 8px;min-height:32px;
+  background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.3);color:var(--orange-l)}
+.pe-add{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
+  border-top:1px solid var(--border);padding-top:12px}
 .of-art{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .of-art small{display:block;font-size:10.5px;color:var(--muted)}
 .of-pct{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--orange-l);white-space:nowrap}
@@ -310,13 +319,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-08-28.1009"/>
-<script src="supabase-config.js?v=2026-08-28.1009"></script>
-<script src="subatir-app.js?v=2026-08-28.1009"></script>
+<link rel="stylesheet" href="nav.css?v=2026-08-28.1018"/>
+<script src="supabase-config.js?v=2026-08-28.1018"></script>
+<script src="subatir-app.js?v=2026-08-28.1018"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-08-28.1009';
+window.APP_VER='2026-08-28.1018';
 </script>
 </head>
 <body>
@@ -328,7 +337,7 @@ window.APP_VER='2026-08-28.1009';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-28.1009"></script>
+  <script src="nav.js?v=2026-08-28.1018"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -569,6 +578,38 @@ window.APP_VER='2026-08-28.1009';
     <div class="modal-f">
       <button class="btn" onclick="cerrar('ovl-conf')">Cancelar</button>
       <button class="btn btn-pri" id="btn-conf" onclick="guardarConfig()">Guardar configuración</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: editar la oferta de un producto ═════════════ -->
+<div class="ovl" id="ovl-pe" role="dialog" aria-modal="true" aria-labelledby="t-pe">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-h"><span id="t-pe">✎ Oferta del producto</span>
+      <button class="x" onclick="cerrar('ovl-pe')" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <div class="fg"><label for="pe-nombre">Producto *</label>
+        <input class="inp" id="pe-nombre" maxlength="60" placeholder="Ej: Bactripro"/></div>
+      <div class="fg"><label for="pe-nota">Nota</label>
+        <input class="inp" id="pe-nota" maxlength="120" placeholder="Lo que convenga recordar de esta oferta"/></div>
+
+      <label class="cf-l" style="margin-top:4px">Esencias que lleva y cuánto sube su consumo</label>
+      <div class="pe-list" id="pe-list"></div>
+
+      <div class="pe-add">
+        <select class="inp" id="pe-art" style="flex:1;min-width:180px"></select>
+        <div class="row" style="gap:6px;align-items:center">
+          <input class="inp" id="pe-pct" type="number" min="0" max="500" step="5" value="50"
+                 style="width:86px;text-align:right" aria-label="Porcentaje de aumento"/>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--muted)">%</span>
+        </div>
+        <button class="btn btn-teal" onclick="peAgregar()">➕ Agregar</button>
+      </div>
+      <div class="hint" id="pe-hint"></div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrar('ovl-pe')">Cancelar</button>
+      <button class="btn btn-pri" id="btn-pe" onclick="peGuardar()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1453,49 +1494,99 @@ function guardarComoProducto(mes){
     });
   });
 }
+// ── Editor de la oferta de un producto ────────────────────────
+//  Se edita sobre una copia en memoria y se guarda de una: así se
+//  puede cancelar sin dejar la receta a medio cambiar. Antes esto
+//  eran dos ventanas del navegador con las esencias en texto plano,
+//  que funcionaba pero se prestaba a errores de tipeo.
+var PE=null;   // {id, nombre, nota, esencias:[{articulo_id, pct}]}
+
 function editarProducto(){
   var id=document.getElementById('of-prod').value;
   if(!id){ toast('Elegí primero la oferta a editar','err'); return; }
   var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(id); })[0]||{};
-  var es=esenciasDe(id);
-  var nom=prompt('Producto de esta oferta:', p.nombre);
-  if(nom===null) return;
-  nom=nom.trim(); if(!nom){ toast('El nombre no puede quedar vacío','err'); return; }
-  var txt=prompt('Esencias y su % de aumento, una por renglón.\n'
-    +'Formato:  nombre de la esencia = %\n'
-    +'Borrá un renglón para sacar esa esencia.\n\n'
-    +'Los nombres tienen que coincidir con los de la lista de artículos.',
-    es.map(function(e){
-      var a=ART.filter(function(x){ return String(x.id)===String(e.articulo_id); })[0]||{};
-      return (a.nombre||'')+' = '+n0(e.pct); }).join('\n'));
-  if(txt===null) return;
-  var filas=txt.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
-  var nuevas=[], malos=[];
-  filas.forEach(function(l){
-    var i=l.lastIndexOf('=');
-    if(i<0){ malos.push(l); return; }
-    var n=l.slice(0,i).trim(), pc=num(l.slice(i+1).replace('%',''));
-    var a=ART.filter(function(x){ return x.nombre.toLowerCase()===n.toLowerCase(); })[0];
-    if(!a){ malos.push(l); return; }
-    nuevas.push({producto_id:p.id, articulo_id:a.id, pct:pc});
-  });
-  if(malos.length){
-    toast('No se reconocieron '+malos.length+' renglón/es: '+malos[0].slice(0,40)+'. No se guardó nada.','err');
-    return;
+  PE={ id:p.id, nombre:p.nombre||'', nota:p.nota||'',
+       esencias:esenciasDe(id).map(function(e){
+         return {articulo_id:e.articulo_id, pct:num(e.pct)}; }) };
+  document.getElementById('t-pe').textContent='✎ Oferta de '+p.nombre;
+  document.getElementById('pe-nombre').value=PE.nombre;
+  document.getElementById('pe-nota').value=PE.nota;
+  pePintar();
+  abrir('ovl-pe');
+}
+function pePintar(){
+  var host=document.getElementById('pe-list');
+  host.innerHTML = PE.esencias.length
+    ? PE.esencias.map(function(e,i){
+        var a=ART.filter(function(x){ return String(x.id)===String(e.articulo_id); })[0]||{};
+        return '<div class="pe-row">'
+          +'<span class="pe-n" title="'+esc(a.nombre||'')+'">'+esc(a.nombre||'#'+e.articulo_id)+'</span>'
+          +'<div class="row" style="gap:5px;align-items:center">'
+            +'<input class="inp pe-p" type="number" min="0" max="500" step="5" value="'+e.pct+'" '
+            +'oninput="pePct('+i+',this.value)" aria-label="Aumento de '+esc(a.nombre||'')+'"/>'
+            +'<span style="font-family:var(--mono);font-size:11.5px;color:var(--muted)">%</span></div>'
+          +'<button class="btn btn-sm" onclick="peQuitar('+i+')" title="Sacar esta esencia">🗑</button>'
+        +'</div>'; }).join('')
+    : '<div class="of-vacio">Esta oferta todavía no tiene esencias. Agregalas abajo.</div>';
+
+  // El desplegable sólo ofrece las que no están puestas
+  var puestas={}; PE.esencias.forEach(function(e){ puestas[e.articulo_id]=1; });
+  var libres=ART.filter(function(a){ return a.activo!==false && !puestas[a.id]; })
+                .sort(function(x,y){ return (x.orden||0)-(y.orden||0); });
+  var sel=document.getElementById('pe-art');
+  sel.innerHTML = libres.length
+    ? '<option value="">Agregar esencia…</option>'
+      +libres.map(function(a){ return '<option value="'+a.id+'">'+esc(a.nombre)+'</option>'; }).join('')
+    : '<option value="">— ya están todas —</option>';
+  sel.disabled = !libres.length;
+  document.getElementById('pe-hint').textContent =
+    PE.esencias.length+(PE.esencias.length===1?' esencia':' esencias')
+    +'. Los cambios se guardan al apretar Guardar; cancelar no toca nada.';
+}
+function pePct(i,v){ if(PE&&PE.esencias[i]) PE.esencias[i].pct=num(v); }
+function peQuitar(i){ PE.esencias.splice(i,1); pePintar(); }
+function peAgregar(){
+  var id=parseInt(document.getElementById('pe-art').value,10);
+  var pct=num(document.getElementById('pe-pct').value);
+  if(!id){ toast('Elegí la esencia a agregar','err'); return; }
+  if(!(pct>0)){ toast('El aumento tiene que ser mayor a 0','err'); return; }
+  PE.esencias.push({articulo_id:id, pct:pct});
+  document.getElementById('pe-art').value='';
+  pePintar();
+}
+function peGuardar(){
+  var nom=(document.getElementById('pe-nombre').value||'').trim();
+  var nota=(document.getElementById('pe-nota').value||'').trim();
+  if(!nom){ toast('El producto no puede quedar sin nombre','err'); return; }
+  if(PRODUCTOS.some(function(p){
+      return String(p.id)!==String(PE.id) && p.nombre.toLowerCase()===nom.toLowerCase(); })){
+    toast('Ya hay otra oferta guardada con ese nombre','err'); return;
   }
-  SB.from('mp_productos').update({nombre:nom}).eq('id',p.id).then(function(r){
-    if(r.error){ toast('No se pudo renombrar: '+r.error.message,'err'); return; }
-    p.nombre=nom;
-    return SB.from('mp_producto_esencias').delete().eq('producto_id',p.id).then(function(){
-      return nuevas.length ? SB.from('mp_producto_esencias').insert(nuevas).select()
-                           : Promise.resolve({data:[],error:null});
+  var b=document.getElementById('btn-pe'); b.disabled=true;
+  SB.from('mp_productos').update({nombre:nom, nota:nota||null}).eq('id',PE.id).select().then(function(r){
+    if(r.error || !(r.data||[]).length){
+      b.disabled=false;
+      toast('No se pudo guardar: '+((r.error&&r.error.message)||'la base rechazó el cambio'),'err');
+      return;
+    }
+    // Se reemplaza la lista entera: es más simple y más seguro que
+    // calcular altas, bajas y cambios de una lista de cinco filas.
+    return SB.from('mp_producto_esencias').delete().eq('producto_id',PE.id).then(function(){
+      return PE.esencias.length
+        ? SB.from('mp_producto_esencias').insert(PE.esencias.map(function(e){
+            return {producto_id:PE.id, articulo_id:e.articulo_id, pct:e.pct}; })).select()
+        : Promise.resolve({data:[],error:null});
     }).then(function(r2){
-      if(r2.error){ toast('Error: '+r2.error.message,'err'); return; }
-      PROD_ESC=PROD_ESC.filter(function(e){ return String(e.producto_id)!==String(p.id); })
+      b.disabled=false;
+      if(r2.error){ toast('Se guardó el nombre, pero no las esencias: '+r2.error.message,'err'); return; }
+      var p=PRODUCTOS.filter(function(x){ return String(x.id)===String(PE.id); })[0];
+      if(p){ p.nombre=nom; p.nota=nota||null; }
+      PROD_ESC=PROD_ESC.filter(function(e){ return String(e.producto_id)!==String(PE.id); })
                        .concat(r2.data||[]);
+      cerrar('ovl-pe');
       pintarProductos();
-      toast('Oferta de «'+nom+'» guardada con '+nuevas.length+' esencia'
-            +(nuevas.length===1?'':'s'),'ok');
+      toast('Oferta de «'+nom+'» guardada con '+PE.esencias.length+' esencia'
+            +(PE.esencias.length===1?'':'s'),'ok');
     });
   });
 }

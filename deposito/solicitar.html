@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Solicitar mercadería — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-28.1134"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-28.1313"/>
 <style>
 /* El pedido que acaba de llegar: se destaca hasta que lo den por visto */
 .sol.llego{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.09);
@@ -44,6 +44,17 @@
 /* Cabecera de la sección: contador + botón de limpiar */
 .mis-h{display:flex;align-items:center;gap:9px;justify-content:space-between;margin-bottom:9px}
 .mis-h .lbl{margin:0}
+
+/* ── Filtro por tipo ────────────────────────────────────────
+   A quien no es administrador le queda un solo tipo (Consumo), y un
+   filtro con una sola opción es ruido: en ese caso no se dibuja. */
+.tipos{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tipo-c{padding:5px 11px;border-radius:20px;border:1px solid var(--bdr,rgba(255,255,255,.12));
+  background:rgba(255,255,255,.03);color:var(--muted-l);font-size:11.5px;font-weight:600;
+  cursor:pointer;white-space:nowrap;font-family:inherit}
+.tipo-c:hover{color:var(--text);background:rgba(255,255,255,.07)}
+.tipo-c.on{background:rgba(27,200,255,.16);border-color:rgba(27,200,255,.42);color:var(--teal-l)}
+.tipo-c .n{font-family:var(--mono);font-size:10px;opacity:.75;margin-left:4px}
 </style>
 </head>
 <body>
@@ -88,6 +99,7 @@
     <div class="lbl">Qué necesitás</div>
     <input class="inp" id="q" type="search" placeholder="Buscar por artículo o código…"
            oninput="buscar()" aria-label="Buscar mercadería por artículo o código"/>
+    <div class="tipos" id="tipos" role="group" aria-label="Filtrar por tipo de mercadería"></div>
     <div class="row" style="margin-top:9px;justify-content:space-between">
       <span id="res-n" style="font-family:var(--mono);font-size:11px;color:var(--muted)">—</span>
       <button class="btn btn-sm" id="btn-todo" onclick="toggleTodo()">Mostrar todo</button>
@@ -108,12 +120,12 @@
 <div id="toast-host" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-08-28.1134"></script>
-<script src="deposito-app.js?v=2026-08-28.1134"></script>
+<script src="../supabase-config.js?v=2026-08-28.1313"></script>
+<script src="deposito-app.js?v=2026-08-28.1313"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-28.1134';
+window.APP_VER='2026-08-28.1313';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -209,7 +221,43 @@ function depSelects(){
 //  Qué artículos están desplegados. Se guarda por nombre y no por
 //  posición: la lista se rearma en cada búsqueda y las posiciones
 //  bailan, el nombre no.
-var ABIERTOS={}, TODO=false;
+var ABIERTOS={}, TODO=false, TIPO_SEL='';
+
+// ── Quién puede pedir qué ─────────────────────────────────────
+//  Consumo lo pide cualquiera: es lo que Fabricantes pide todos los
+//  días. Venta, Venta Piscina e Infraestructura, sólo un administrador.
+//
+//  Esto es NADA MÁS que la pantalla. Quien manda de verdad es
+//  imp_puede_pedir_tipo() en la base (imp_v23_infra.sql): esconder un
+//  botón no impide llamar a la función con el id de un pallet.
+function esAdminUI(){
+  var p = SubatirApp.getProfile();
+  return !!(p && p.role === 'admin');
+}
+function tipoPermitido(t){ return (t||'Consumo') === 'Consumo' || esAdminUI(); }
+
+function pintarTipos(disponibles){
+  var host=document.getElementById('tipos');
+  if(!host) return;
+  var ts=Object.keys(disponibles).sort();
+  // Con un solo tipo el filtro no filtra nada: se oculta.
+  if(ts.length<2){ host.innerHTML=''; return; }
+  var total=ts.reduce(function(a,t){ return a+disponibles[t]; },0);
+  host.innerHTML='<button type="button" class="tipo-c'+(TIPO_SEL?'':' on')+'"'
+      +' aria-pressed="'+(TIPO_SEL?'false':'true')+'" onclick="filtrarTipo(\'\')">'
+      +'Todo<span class="n">'+total+'</span></button>'
+    + ts.map(function(t){
+        return '<button type="button" class="tipo-c'+(TIPO_SEL===t?' on':'')+'"'
+          +' aria-pressed="'+(TIPO_SEL===t)+'" onclick="filtrarTipo('+JSON.stringify(t).replace(/"/g,'&quot;')+')">'
+          +esc(t)+'<span class="n">'+disponibles[t]+'</span></button>';
+      }).join('');
+}
+function filtrarTipo(t){
+  TIPO_SEL = (TIPO_SEL===t) ? '' : t;
+  ABIERTOS={};
+  buscar();
+}
+
 function abrirArt(i){
   var b=document.querySelectorAll('#res .acc-h')[i]; if(!b) return;
   var art=b.getAttribute('data-art');
@@ -226,8 +274,19 @@ function toggleTodo(){
 function buscar(){
   var q=norm(document.getElementById('q').value);
   var org=document.getElementById('f-origen').value;
-  var list=DISP.filter(function(p){
-    if(p.deposito!==org) return false;
+  // Lo que este usuario tiene derecho a ver en este depósito. De acá
+  // salen los chips, así que muestran lo que hay de verdad y no un tipo
+  // vacío que al tocarlo no trae nada.
+  var permitidos=DISP.filter(function(p){
+    return p.deposito===org && tipoPermitido(p.tipo);
+  });
+  var porTipo={};
+  permitidos.forEach(function(p){ var t=p.tipo||'Consumo'; porTipo[t]=(porTipo[t]||0)+1; });
+  if(TIPO_SEL && !porTipo[TIPO_SEL]) TIPO_SEL='';   // el chip elegido se quedó sin nada
+  pintarTipos(porTipo);
+
+  var list=permitidos.filter(function(p){
+    if(TIPO_SEL && (p.tipo||'Consumo')!==TIPO_SEL) return false;
     if(!q) return true;
     return norm(p.articulo).indexOf(q)>=0 || norm(p.art_codigo).indexOf(q)>=0
         || norm(p.codigo).indexOf(q)>=0;
@@ -238,8 +297,10 @@ function buscar(){
     if(cnt) cnt.textContent='0 artículos';
     host.innerHTML='<div class="empty">'+(q
       ? 'Nada disponible con «'+esc(document.getElementById('q').value)+'» en '+esc(org)+'.'
-      : 'No hay pallets disponibles en '+esc(org)+'.<br>Un pallet aparece acá cuando está cerrado, '
-        +'quieto en su lugar y sin pedir por otro.')+'</div>';
+      : TIPO_SEL
+        ? 'No hay pallets de '+esc(TIPO_SEL)+' disponibles en '+esc(org)+'.'
+        : 'No hay pallets disponibles en '+esc(org)+'.<br>Un pallet aparece acá cuando está cerrado, '
+          +'quieto en su lugar y sin pedir por otro.')+'</div>';
     return;
   }
   // Agrupados por artículo y PLEGADOS: la lista completa de pallets no

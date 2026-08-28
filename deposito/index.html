@@ -982,11 +982,11 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-08-28.1134"/>
-<link rel="stylesheet" href="nav.css?v=2026-08-28.1134"/>
-<script src="../supabase-config.js?v=2026-08-28.1134"></script>
-<script src="deposito-app.js?v=2026-08-28.1134"></script>
-<script src="../traslados.js?v=2026-08-28.1134"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-08-28.1313"/>
+<link rel="stylesheet" href="nav.css?v=2026-08-28.1313"/>
+<script src="../supabase-config.js?v=2026-08-28.1313"></script>
+<script src="deposito-app.js?v=2026-08-28.1313"></script>
+<script src="../traslados.js?v=2026-08-28.1313"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -995,7 +995,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-08-28.1134';
+window.APP_VER='2026-08-28.1313';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1017,7 +1017,7 @@ window.APP_VER='2026-08-28.1134';
   </a>
   <!-- El menú lo arma nav.js, que además sigue la sección a la vista -->
   <nav></nav>
-  <script src="nav.js?v=2026-08-28.1134"></script>
+  <script src="nav.js?v=2026-08-28.1313"></script>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-liviano" onclick="toggleLiviano()"
@@ -1064,6 +1064,9 @@ window.APP_VER='2026-08-28.1134';
                   letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">
         🚚 Traslados <span class="badge badge-info" id="tr-cnt" style="font-size:9px;margin-left:4px">—</span>
           <button id="tr-limpiar" style="display:none;margin-left:6px;padding:1px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:none;color:#6b7f93;font-size:9px;cursor:pointer;font-weight:700;letter-spacing:.3px" title="Sacar de la vista los que ya llegaron">✕ Limpiar</button>
+          <!-- Infraestructura no se palletiza: se pide una cantidad del
+               stock suelto. Sólo administradores; lo muestra el bootstrap. -->
+          <button id="btn-infra" style="display:none;margin-left:6px;padding:1px 9px;border-radius:20px;border:1px solid rgba(249,115,22,.34);background:rgba(249,115,22,.12);color:var(--orange-l,#fb923c);font-size:9px;cursor:pointer;font-weight:700;letter-spacing:.3px" onclick="openInfra()" title="Pedir estanterías y otra infraestructura, por cantidad">🏗 Pedir infraestructura</button>
       </div>
       <div id="tr-panel" style="flex:1;min-width:0"></div>
     </div>
@@ -1825,6 +1828,43 @@ window.APP_VER='2026-08-28.1134';
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeScan()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PEDIR INFRAESTRUCTURA ════════════════════════════════════
+     Estanterías y afines: se piden por cantidad del stock suelto, sin
+     armar pallet. El pedido cae en la MISMA bandeja que los de consumo
+     (imp_solicitudes), así el operario mira un solo lugar. -->
+<div class="overlay" id="infra-overlay" role="dialog" aria-modal="true" aria-labelledby="infra-tit">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title" id="infra-tit">🏗 Pedir infraestructura</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeModal('infra-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:150px">
+          <label class="form-label" for="if-org">De dónde sale</label>
+          <select class="form-input" id="if-org" onchange="pintarInfra()"></select>
+        </div>
+        <div style="flex:1;min-width:150px">
+          <label class="form-label" for="if-dst">A dónde va</label>
+          <select class="form-input" id="if-dst"></select>
+        </div>
+      </div>
+      <label class="form-label" style="margin-top:12px">Cuánto de cada cosa</label>
+      <div id="if-lista"></div>
+      <label class="form-label" for="if-nota" style="margin-top:12px">Nota (opcional)</label>
+      <input class="form-input" id="if-nota" type="text" placeholder="Para qué es, dónde va a ir montado…"/>
+      <div id="if-hint" style="margin-top:10px;font-size:12px;color:var(--muted-l);line-height:1.55">
+        Esto no se palletiza: el operario junta la cantidad y la marca a mano,
+        sin QR. Se envía exactamente lo pedido.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('infra-overlay')">Cancelar</button>
+      <button class="btn btn-orange" id="if-ok" onclick="pedirInfra()">Pedir</button>
     </div>
   </div>
 </div>
@@ -4550,6 +4590,89 @@ function pdfLabel(){
   }catch(e){ toast('No se pudo generar el PDF: '+(e&&e.message||e),'err'); }
 }
 
+// ══ PEDIR INFRAESTRUCTURA ═════════════════════════════════════
+//  Estanterías y afines no se palletizan: se pide una CANTIDAD del
+//  stock suelto. El pedido va a imp_solicitudes, la misma tabla que
+//  los de pallets, para que le caiga al operario en una sola bandeja
+//  (ver migracion/imp_v23_infra.sql).
+//
+//  El botón sólo lo ven los administradores, pero eso es cosmética:
+//  quien decide es imp_infra_pedir(), que exige is_admin().
+function artsInfra(){
+  return ART.filter(function(a){ return a.tipo==='Infraestructura' && a.activo!==false; })
+            .sort(function(x,y){ return String(x.descripcion||'').localeCompare(String(y.descripcion||'')); });
+}
+function openInfra(){
+  var o=document.getElementById('if-org'), d=document.getElementById('if-dst');
+  // Origen: de donde se saca (un almacén). Destino: cualquier otro.
+  var alm=DEPS.filter(function(x){ return x.tipo!=='FABRICA'; });
+  o.innerHTML=(alm.length?alm:DEPS).map(function(x){ return '<option>'+esc(x.nombre)+'</option>'; }).join('');
+  d.innerHTML=DEPS.map(function(x){ return '<option>'+esc(x.nombre)+'</option>'; }).join('');
+  var otro=DEPS.find(function(x){ return x.nombre!==o.value; });
+  if(otro) d.value=otro.nombre;
+  document.getElementById('if-nota').value='';
+  pintarInfra();
+  openModal('infra-overlay');
+}
+function pintarInfra(){
+  var org=document.getElementById('if-org').value;
+  var arts=artsInfra();
+  var host=document.getElementById('if-lista');
+  if(!arts.length){
+    host.innerHTML='<div style="font-size:12.5px;color:var(--muted-l);padding:10px 0">'
+      +'No hay artículos de Infraestructura cargados.</div>';
+    return;
+  }
+  // El stock del origen al lado de cada uno: pedir más de lo que hay es
+  // el error natural acá, y lo rebota la base igual — mejor evitarlo antes.
+  host.innerHTML=arts.map(function(a){
+    var hay=stockOf(a.id, org);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;'
+      +'border-bottom:1px solid var(--border,rgba(255,255,255,.06))">'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:13px;font-weight:600;line-height:1.3">'+esc(a.descripcion)+'</div>'
+        +'<div style="font-family:var(--mono);font-size:10.5px;color:var(--muted)">'
+          +esc(a.codigo||'')+' · hay '+fmtNum(hay)+' en '+esc(org)+'</div>'
+      +'</div>'
+      +'<input class="form-input if-cant" type="number" min="0" step="1" placeholder="0"'
+        +' data-art="'+a.id+'" data-max="'+hay+'" style="width:96px;text-align:right"'
+        +' aria-label="Cantidad de '+esc(a.descripcion)+'"/>'
+    +'</div>';
+  }).join('');
+}
+function pedirInfra(){
+  var org=document.getElementById('if-org').value,
+      dst=document.getElementById('if-dst').value;
+  if(org===dst){ toast('El origen y el destino son el mismo depósito','err'); return; }
+  var lineas=[], excedidos=[];
+  document.querySelectorAll('#if-lista .if-cant').forEach(function(inp){
+    var n=parseFloat(inp.value)||0;
+    if(n<=0) return;
+    var max=parseFloat(inp.getAttribute('data-max'))||0;
+    if(n>max) excedidos.push(inp.getAttribute('data-art'));
+    lineas.push({articulo_id:parseInt(inp.getAttribute('data-art'),10), unidades:n});
+  });
+  if(!lineas.length){ toast('Poné una cantidad en al menos un artículo','err'); return; }
+  if(excedidos.length){ toast('Estás pidiendo más de lo que hay en '+org,'err'); return; }
+
+  var b=document.getElementById('if-ok'); b.disabled=true;
+  SB.rpc('imp_infra_pedir',{
+    p_origen:org, p_destino:dst, p_lineas:lineas,
+    p_nota:document.getElementById('if-nota').value||null,
+    p_user:whoName(),
+    p_operador:(SubatirApp.operador && SubatirApp.operador.esCompartida()) ? whoName() : null
+  }).then(function(r){
+    b.disabled=false;
+    if(r.error || (r.data && r.data.ok===false)){
+      toast('No se pudo pedir: '+(r.error?r.error.message:r.data.error),'err'); return;
+    }
+    closeModal('infra-overlay');
+    toast('🏗 Pedido #'+r.data.solicitud+' enviado — '+r.data.items
+          +' artículo'+(r.data.items===1?'':'s')+' hacia '+dst,'ok');
+    load();
+  });
+}
+
 // ── Escaneo por cámara ─────────────────────────────────────────
 function openScan(){
   SCAN_BUSY=false;
@@ -5473,7 +5596,13 @@ document.addEventListener('pointerdown', function(e){
 });
 document.addEventListener('click', function(e){ if(DND_justDragged){ e.stopPropagation(); e.preventDefault(); } }, true);
 
-(window.SubatirApp && SubatirApp.ready ? SubatirApp.ready : Promise.resolve()).then(function(){
+(window.SubatirApp && SubatirApp.ready ? SubatirApp.ready : Promise.resolve()).then(function(p){
+  // Pedir infraestructura es sólo de administradores. Esconder el botón
+  // no es el control — lo es is_admin() dentro de imp_infra_pedir().
+  var perfil = p || (SubatirApp.getProfile && SubatirApp.getProfile());
+  if(perfil && perfil.role==='admin'){
+    var b=document.getElementById('btn-infra'); if(b) b.style.display='';
+  }
   load();
   if(window.SubatirApp && SubatirApp.live) SubatirApp.live(['imp_articulos','imp_stock','imp_pallets','imp_movimientos','imp_zonas','imp_estanterias'], load);
 });

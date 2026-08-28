@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Recorrido — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-08-28.1134"/>
+<link rel="stylesheet" href="movil.css?v=2026-08-28.1313"/>
 <style>
 /* Propio del recorrido: el paso, el lector y la grilla de ranuras */
 .paso{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;margin-bottom:8px;
@@ -198,12 +198,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-08-28.1134"></script>
-<script src="deposito-app.js?v=2026-08-28.1134"></script>
+<script src="../supabase-config.js?v=2026-08-28.1313"></script>
+<script src="deposito-app.js?v=2026-08-28.1313"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-08-28.1134';
+window.APP_VER='2026-08-28.1313';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -219,6 +219,9 @@ window.APP_VER='2026-08-28.1134';
 //  (fabricación) o guardarlo en una estantería.
 // ══════════════════════════════════════════════════════════════
 var SOLS=[], SOL=null, ITEMS=[], PALS=[], EST=[], SUB=[], ART=[], DEPS=[];
+// Renglones sin pallet (Infraestructura): se piden por cantidad y no
+// tienen QR, así que se marcan a mano. Ver migracion/imp_v23_infra.sql.
+var SUELTOS=[];
 var H5=null, SCAN_BUSY=false, LLEGO=null, U_SLOT=null;
 
 function esc(s){ return String(s==null?'':s)
@@ -449,7 +452,11 @@ function abrir(id, silencioso){
     SB.from('imp_solicitud_items').select('*').eq('solicitud_id',id)
   ]).then(function(r){
     if(r[0].error){ toast('Error: '+r[0].error.message,'err'); return; }
-    SOL=r[0].data; ITEMS=(r[1].data||[]).filter(function(i){ return i.estado!=='CANCELADO'; });
+    SOL=r[0].data;
+    var vivos=(r[1].data||[]).filter(function(i){ return i.estado!=='CANCELADO'; });
+    // Un renglón es un pallet o una cantidad suelta, nunca las dos
+    ITEMS  = vivos.filter(function(i){ return i.pallet_id!=null; });
+    SUELTOS= vivos.filter(function(i){ return i.pallet_id==null; });
     var ids=ITEMS.map(function(i){ return i.pallet_id; });
     if(!ids.length){ PALS=[]; pintarRec(); if(!silencioso) verRec(); return; }
     // La segunda consulta trae, de lo que está en camino, qué despachó
@@ -519,8 +526,15 @@ function pintarRec(){
   document.getElementById('btn-volver').style.display='';
   document.getElementById('rec-t').textContent=SOL.origen+' → '+SOL.destino;
   var ch=document.getElementById('rec-e'); ch.className='chip '+c[0]; ch.textContent=c[1];
+  // Un pedido puede mezclar pallets y renglones sueltos: decir "3 pallets"
+  // cuando dos son cantidades sueltas manda a buscar pallets que no existen.
+  var nSueltos = SUELTOS.length, nPallets = SOL.items - nSueltos;
+  var quePide = nSueltos
+    ? [ nPallets ? nPallets+' pallet'+(nPallets===1?'':'s') : null,
+        nSueltos+' suelto'+(nSueltos===1?'':'s') ].filter(Boolean).join(' + ')
+    : SOL.items+' pallet'+(SOL.items===1?'':'s');
   document.getElementById('rec-m').textContent=
-    SOL.items+' pallet'+(SOL.items===1?'':'s')+' · '+fmt(SOL.unidades)+' u. · pidió '+SOL.solicitante;
+    quePide+' · '+fmt(SOL.unidades)+' u. · pidió '+SOL.solicitante;
   document.getElementById('btn-iniciar').style.display = SOL.estado==='PENDIENTE' ? '' : 'none';
 
   // Estado por pallet: lo que sigue en su lugar hay que ir a buscarlo
@@ -528,8 +542,8 @@ function pintarRec(){
   var lista=ITEMS.map(function(i){ return byId[i.pallet_id]; }).filter(Boolean);
   lista.sort(function(a,b){ return ordenDe(a).localeCompare(ordenDe(b)); });
 
-  var n=0, pend=0;
-  document.getElementById('pasos').innerHTML = lista.length ? lista.map(function(p){
+  var n=0, pend=0, pendSuelto=0;
+  var htmlPasos = lista.map(function(p){
     var a=artById(p.articulo_id);
     var cls='', nota='';
     if(p.estado==='EN_TRANSITO'){ cls=' camino';
@@ -551,18 +565,87 @@ function pintarRec(){
       +(nota?('<span class="paso-m">'+nota+'</span>'):'')
       +(falta ? planoHTML(p, n) : '')
       +'</span></div>';
-  }).join('') : '<div class="empty">Este pedido no tiene pallets.</div>';
+  }).join('');
+
+  // ── Renglones sin pallet ────────────────────────────────────
+  //  No hay QR que escanear: se junta la cantidad y se marca a mano.
+  //  Por eso cada paso dice quién lo marcó — es el único rastro que
+  //  queda de que salió lo que se pidió.
+  htmlPasos += SUELTOS.map(function(i){
+    var a=artById(i.articulo_id);
+    var cls='', nota='', accion='';
+    if(i.estado==='ENTREGADO'){
+      cls=' hecho';
+      nota='✓ recibido'+(i.recibido_by?' por '+esc(i.recibido_by):'');
+    } else if(i.estado==='ENVIADO'){
+      cls=' camino';
+      nota='✈ en camino'+(i.despachado_by?' · despachó '+esc(i.despachado_by):'');
+      accion='<button type="button" class="btn btn-orange btn-sm" style="margin-top:9px"'
+        +' onclick="recibirSuelto('+i.id+',this)">✓ Recibí las '+fmt(i.unidades)+'</button>';
+    } else {
+      pend++; pendSuelto++;
+      accion='<button type="button" class="btn btn-orange btn-sm" style="margin-top:9px"'
+        +' onclick="despacharSuelto('+i.id+',this)">✓ Cargué las '+fmt(i.unidades)+'</button>';
+    }
+    n++;
+    return '<div class="paso'+cls+'"><span class="paso-n">'+n+'</span><span class="paso-b">'
+      +'<span class="paso-t">'+esc(a?a.descripcion:('#'+i.articulo_id))+'</span>'
+      +'<span class="paso-u">'+fmt(i.unidades)+'<i>unidades</i></span>'
+      +'<span class="paso-d">📦 suelto en '+esc(i.estado==='ENTREGADO'?SOL.destino:SOL.origen)
+        +' · sin pallet</span>'
+      +(nota?('<span class="paso-m">'+nota+'</span>'):'')
+      +accion
+      +'</span></div>';
+  }).join('');
+
+  document.getElementById('pasos').innerHTML = htmlPasos
+    || '<div class="empty">Este pedido no tiene renglones.</div>';
 
   // Si todo lo que está en camino lo despachó esta cuenta, la llegada no
   // la puede confirmar: mejor decirlo en la barra que dejarlo escanear.
   var enCamino=lista.filter(function(p){ return p.estado==='EN_TRANSITO'; });
   var todoMio = enCamino.length>0 && enCamino.every(function(p){ return p._loDespacheYo; });
+  var pendPallet = pend - pendSuelto;
   document.getElementById('bar-n').textContent = pend ? (pend+' por levantar') : 'Todo despachado';
+  // Los sueltos no se escanean: si lo que falta es sólo eso, mandar a
+  // buscar la cámara sería mandarlo a una pantalla que no le sirve.
   document.getElementById('bar-s').textContent = pend
-    ? 'Escaneá cada pallet al cargarlo'
+    ? (pendPallet
+        ? (pendSuelto ? 'Escaneá los pallets y marcá los sueltos al cargarlos'
+                      : 'Escaneá cada pallet al cargarlo')
+        : 'Marcá cada renglón cuando lo cargues')
     : (todoMio ? 'Lo despachaste vos: la llegada la confirma otra persona en '+SOL.destino
                : 'Escaneá al llegar a '+SOL.destino);
   document.getElementById('barra').style.display = SOL.estado==='PENDIENTE' ? 'none' : 'flex';
+}
+
+// ── Renglones sueltos: los dos pasos, sin QR ──────────────────
+//  El QR es la garantía de que se movió lo que se dice que se movió.
+//  Acá no la hay, así que la base guarda quién marcó cada paso y a qué
+//  hora. Se manda exactamente la cantidad del renglón: no hay parcial.
+function pasoSuelto(rpc, id, btn, exito){
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  SB.rpc(rpc,{p_item:id, p_user:whoName()}).then(function(r){
+    if(r.error || (r.data && r.data.ok===false)){
+      if(btn) btn.disabled=false;
+      toast('No se pudo: '+(r.error?r.error.message:r.data.error),'err');
+      abrir(SOL.id, true);
+      return;
+    }
+    vibrar();
+    toast(exito(r.data),'ok');
+    abrir(SOL.id, true);
+  });
+}
+function despacharSuelto(id, btn){
+  pasoSuelto('imp_infra_despachar', id, btn, function(d){
+    return '🚚 '+fmt(d.unidades)+' u. despachadas hacia '+d.destino;
+  });
+}
+function recibirSuelto(id, btn){
+  pasoSuelto('imp_infra_recibir', id, btn, function(d){
+    return (d.destino_tipo==='FABRICA' ? '🏭 ' : '📥 ')+fmt(d.unidades)+' u. recibidas en '+d.destino;
+  });
 }
 
 function iniciar(){

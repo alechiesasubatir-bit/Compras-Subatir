@@ -1036,6 +1036,10 @@ var CAT_MAP = {};   // NORM(producto) → categoría
 var SORT_K  = 'estado', SORT_D = 'asc';
 var CUR     = null;
 var CHART   = null;
+// Snapshot de las fichas de art_proveedor tal como quedaron pintadas por
+// renderFichasProv (string), para que saveEdit sepa si el usuario tocó
+// algo ahí sin tener que adivinar qué cuenta como "vacío" input por input.
+var FICHAS_SNAP = '';
 // Chip visual de categoría
 function catChip(cat){
   if(!cat) return '<span class="muted">—</span>';
@@ -1857,6 +1861,35 @@ function toggleSeg(){
     document.getElementById('ed-seg').checked ? 'block' : 'none';
 }
 
+// Lee del DOM una ficha de proveedor (el <div data-prov> que pinta
+// renderFichasProv), tal cual la necesita saveArtProveedor. La usan tanto
+// saveReposicion (para guardar) como serializeFichas (para el snapshot de
+// "¿cambió algo?"): una sola lectura, un solo formato.
+function leerFichaBox(box){
+  var v = function(sel){ var e=box.querySelector(sel); return e && e.value!=='' ? parseFloat(e.value) : null; };
+  var c = function(sel){ var e=box.querySelector(sel); return !!(e && e.checked); };
+  return {
+    proveedor: box.getAttribute('data-prov'),
+    demora_dias: v('.ap-demora'), usar_demora: c('.ap-usar-demora'),
+    lote_minimo: v('.ap-lote'), multiplo: v('.ap-mult'), usar_lote: c('.ap-usar-lote'),
+    pact_cantidad: v('.ap-pact-cant'), pact_entregado: v('.ap-pact-ent') || 0,
+    pact_vence: (box.querySelector('.ap-pact-vence')||{}).value || null,
+    usar_pactada: c('.ap-usar-pact')
+  };
+}
+
+// Serializa el estado actual de #ed-fichas a un string comparable: una
+// fila por proveedor, ordenadas por nombre para no depender del orden en
+// que quedaron pintadas. Si no hay fichas (artículo sin proveedores),
+// da '' — igual que el snapshot inicial en ese caso.
+function serializeFichas(){
+  var filas = [].map.call(document.querySelectorAll('#ed-fichas [data-prov]'), function(box){
+    return JSON.stringify(leerFichaBox(box));
+  });
+  filas.sort();
+  return filas.join('|');
+}
+
 // Una ficha por cada proveedor que el artículo ya tiene (la lista que
 // arma collectProvs), con los tres bloques tildables. El proveedor que
 // manda para la fecha límite va marcado.
@@ -1884,6 +1917,9 @@ function renderFichasProv(invId){
        +'<input type="date" class="fi2 ap-pact-vence" value="'+(f.pact_vence||'')+'"/>'
        +'</div>';
     }).join('') || '<div class="muted">Este artículo no tiene proveedores cargados.</div>';
+    // Snapshot DESPUÉS de que el HTML quedó en el DOM (esto es async: si se
+    // tomara antes de este punto, #ed-fichas todavía estaría vacío).
+    FICHAS_SNAP = serializeFichas();
   });
 }
 
@@ -1892,16 +1928,8 @@ function renderFichasProv(invId){
 function saveReposicion(invId){
   var ops = [];
   [].forEach.call(document.querySelectorAll('#ed-fichas [data-prov]'), function(box){
-    var v = function(sel){ var e=box.querySelector(sel); return e && e.value!=='' ? parseFloat(e.value) : null; };
-    var c = function(sel){ var e=box.querySelector(sel); return !!(e && e.checked); };
-    var fila = {
-      inventario_id: invId, proveedor: box.getAttribute('data-prov'),
-      demora_dias: v('.ap-demora'), usar_demora: c('.ap-usar-demora'),
-      lote_minimo: v('.ap-lote'), multiplo: v('.ap-mult'), usar_lote: c('.ap-usar-lote'),
-      pact_cantidad: v('.ap-pact-cant'), pact_entregado: v('.ap-pact-ent') || 0,
-      pact_vence: (box.querySelector('.ap-pact-vence')||{}).value || null,
-      usar_pactada: c('.ap-usar-pact')
-    };
+    var fila = leerFichaBox(box);
+    fila.inventario_id = invId;
     var vacia = !fila.usar_demora && !fila.usar_lote && !fila.usar_pactada &&
                 fila.demora_dias===null && fila.lote_minimo===null && fila.pact_cantidad===null;
     if(!vacia) ops.push(SubatirApp.saveArtProveedor(fila));
@@ -1963,17 +1991,12 @@ function saveEdit(){
   var newCat = (document.getElementById('ed-cat')||{}).value || '';
   var catChanged = newCat !== (CUR.categoria||'');
   var hasFields = Object.keys(fields).length>0;
-  // No comparamos ficha por ficha contra lo que trajo renderFichasProv (habría
-  // que guardar un snapshot aparte): alcanza con mirar si quedó algún tilde o
-  // dato cargado en #ed-fichas. Si el usuario no tocó nada ahí, esto reescribe
-  // fichas sin cambios — pero saveArtProveedor hace upsert, así que es
-  // idempotente y no rompe nada. Sin este chequeo, cargar solo la demora de
-  // un proveedor y guardar caía en el early-return de abajo y se perdía sin
-  // ningún aviso.
-  var hasFichaData = [].some.call(document.querySelectorAll('#ed-fichas [data-prov]'), function(box){
-    return [].some.call(box.querySelectorAll('input[type=checkbox]'), function(c){ return c.checked; }) ||
-           [].some.call(box.querySelectorAll('input[type=number],input[type=date]'), function(i){ return i.value!==''; });
-  });
+  // "¿Cambió algo en las fichas?" = el estado actual del DOM ya no coincide
+  // con el snapshot que renderFichasProv guardó apenas las pintó. Contar
+  // cualquier input no vacío no sirve: pact_entregado siempre sale con
+  // value="0" (columna NOT NULL DEFAULT 0), así que eso daba "hay datos"
+  // para casi cualquier artículo con proveedores, aunque nadie tocara nada.
+  var hasFichaData = serializeFichas() !== FICHAS_SNAP;
   if(!hasFields && !catChanged && !hasFichaData){ closeOv('ov-edit'); return; }
 
   toast('Guardando…','info');

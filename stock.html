@@ -564,6 +564,7 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <link rel="stylesheet" href="nav.css?v=2026-08-28.1328"/>
 <script src="supabase-config.js?v=2026-08-28.1328"></script>
 <script src="subatir-app.js?v=2026-08-28.1328"></script>
+<script src="reposicion-calc.js?v=1"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
@@ -805,6 +806,29 @@ window.APP_VER='2026-08-28.1328';
         <div class="fg">
           <label>Observaciones</label>
           <textarea class="fi2" id="ed-obs" placeholder="Notas internas…"></textarea>
+        </div>
+        <div class="fg" style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ed-seg" onchange="toggleSeg()"/>
+            <span>Seguir la reposición de este artículo</span>
+          </label>
+          <div class="muted" style="font-size:11px;margin-top:4px">
+            Avisa cuándo hay que pedirlo según la demora del proveedor, antes de que toque el mínimo.
+          </div>
+        </div>
+        <div id="ed-rep" style="display:none">
+          <div class="fg-row">
+            <div class="fg">
+              <label>Revisar cada (meses)</label>
+              <input type="number" class="fi2" id="ed-rev-meses" min="1" max="60" step="1" placeholder="—"/>
+            </div>
+            <div class="fg">
+              <label>Próxima revisión</label>
+              <input type="date" class="fi2" id="ed-rev-fecha"/>
+            </div>
+          </div>
+          <div id="ed-fichas"></div>
+          <div id="ed-rep-calc" class="muted" style="font-size:12px;margin-top:10px"></div>
         </div>
       </div>
     </div>
@@ -1828,6 +1852,65 @@ function openDetail(desc){
 
 function openEdit(desc){ openDetail(desc); toggleEdit(); }
 
+function toggleSeg(){
+  document.getElementById('ed-rep').style.display =
+    document.getElementById('ed-seg').checked ? 'block' : 'none';
+}
+
+// Una ficha por cada proveedor que el artículo ya tiene (la lista que
+// arma collectProvs), con los tres bloques tildables. El proveedor que
+// manda para la fecha límite va marcado.
+function renderFichasProv(invId){
+  var cont = document.getElementById('ed-fichas');
+  var provs = (CUR && CUR.provs) || [];
+  SubatirApp.getArtProveedor([invId]).then(function(fichas){
+    var byProv = {}; fichas.forEach(function(f){ byProv[canonProv(f.proveedor)] = f; });
+    cont.innerHTML = provs.map(function(p){
+      var f = byProv[canonProv(p)] || {};
+      var manda = canonProv(p) === canonProv(CUR.proveedor);
+      return ''
+       +'<div class="glass" style="padding:10px;margin-top:8px" data-prov="'+esc(p)+'">'
+       +'<div style="display:flex;justify-content:space-between;align-items:center">'
+       +'<strong>'+esc(p)+'</strong>'
+       +(manda?'<span class="badge b-info">manda</span>':'')+'</div>'
+       +'<label><input type="checkbox" class="ap-usar-demora"'+(f.usar_demora?' checked':'')+'/> Demora</label>'
+       +'<input type="number" class="fi2 ap-demora" min="1" placeholder="días" value="'+(f.demora_dias||'')+'"/>'
+       +'<label><input type="checkbox" class="ap-usar-lote"'+(f.usar_lote?' checked':'')+'/> Lote mínimo / múltiplo</label>'
+       +'<input type="number" class="fi2 ap-lote" placeholder="lote mínimo" value="'+(f.lote_minimo||'')+'"/>'
+       +'<input type="number" class="fi2 ap-mult" placeholder="múltiplo" value="'+(f.multiplo||'')+'"/>'
+       +'<label><input type="checkbox" class="ap-usar-pact"'+(f.usar_pactada?' checked':'')+'/> Compra pactada</label>'
+       +'<input type="number" class="fi2 ap-pact-cant" placeholder="cantidad total" value="'+(f.pact_cantidad||'')+'"/>'
+       +'<input type="number" class="fi2 ap-pact-ent" placeholder="ya entregado" value="'+(f.pact_entregado||0)+'"/>'
+       +'<input type="date" class="fi2 ap-pact-vence" value="'+(f.pact_vence||'')+'"/>'
+       +'</div>';
+    }).join('') || '<div class="muted">Este artículo no tiene proveedores cargados.</div>';
+  });
+}
+
+// Guarda una fila de art_proveedor por ficha con algún bloque tildado.
+// Devuelve una promesa que resuelve con el primer error, si hubo.
+function saveReposicion(invId){
+  var ops = [];
+  [].forEach.call(document.querySelectorAll('#ed-fichas [data-prov]'), function(box){
+    var v = function(sel){ var e=box.querySelector(sel); return e && e.value!=='' ? parseFloat(e.value) : null; };
+    var c = function(sel){ var e=box.querySelector(sel); return !!(e && e.checked); };
+    var fila = {
+      inventario_id: invId, proveedor: box.getAttribute('data-prov'),
+      demora_dias: v('.ap-demora'), usar_demora: c('.ap-usar-demora'),
+      lote_minimo: v('.ap-lote'), multiplo: v('.ap-mult'), usar_lote: c('.ap-usar-lote'),
+      pact_cantidad: v('.ap-pact-cant'), pact_entregado: v('.ap-pact-ent') || 0,
+      pact_vence: (box.querySelector('.ap-pact-vence')||{}).value || null,
+      usar_pactada: c('.ap-usar-pact')
+    };
+    var vacia = !fila.usar_demora && !fila.usar_lote && !fila.usar_pactada &&
+                fila.demora_dias===null && fila.lote_minimo===null && fila.pact_cantidad===null;
+    if(!vacia) ops.push(SubatirApp.saveArtProveedor(fila));
+  });
+  return Promise.all(ops).then(function(res){
+    return (res.filter(function(r){ return r && r.error; })[0]||{}).error || null;
+  });
+}
+
 function toggleEdit(){
   var shown = document.getElementById('edit-form').style.display!=='none';
   if(shown){
@@ -1847,6 +1930,11 @@ function toggleEdit(){
       document.getElementById('ed-prov').value = CUR.proveedor||'';
       document.getElementById('ed-cat').value  = CUR.categoria||'';
       document.getElementById('ed-obs').value  = CUR.obs||'';
+      document.getElementById('ed-seg').checked = !!CUR.seguimiento;
+      document.getElementById('ed-rev-meses').value = CUR.revisarCadaMeses || '';
+      document.getElementById('ed-rev-fecha').value = CUR.proximaRevision || '';
+      toggleSeg();
+      if(CUR.__row) renderFichasProv(CUR.__row);
     }
   }
 }
@@ -1864,6 +1952,14 @@ function saveEdit(){
   var pVal = document.getElementById('ed-prov').value.trim();
   if(pVal && IK.provSugerido) fields[IK.provSugerido] = pVal;
 
+  var seg = document.getElementById('ed-seg').checked;
+  if(seg !== !!CUR.seguimiento) fields['SEGUIMIENTO'] = seg;
+  var rm = document.getElementById('ed-rev-meses').value;
+  var rmVal = rm!=='' ? parseInt(rm,10) : null;
+  if(rmVal !== (CUR.revisarCadaMeses||null)) fields['REVISAR CADA MESES'] = rmVal;
+  var rf = document.getElementById('ed-rev-fecha').value || null;
+  if(rf !== (CUR.proximaRevision||null)) fields['PROXIMA REVISION'] = rf;
+
   var newCat = (document.getElementById('ed-cat')||{}).value || '';
   var catChanged = newCat !== (CUR.categoria||'');
   var hasFields = Object.keys(fields).length>0;
@@ -1878,9 +1974,12 @@ function saveEdit(){
   Promise.all(ops).then(function(res){
     var err=(res||[]).filter(function(d){ return d && d.error; })[0];
     if(err){ toast('Error: '+err.error,'err'); return; }
-    closeOv('ov-edit');
-    toast('Artículo actualizado ✓','ok');
-    load();
+    saveReposicion(CUR.__row).then(function(repErr){
+      if(repErr){ toast('Error: '+repErr,'err'); return; }
+      closeOv('ov-edit');
+      toast('Artículo actualizado ✓','ok');
+      load();
+    });
   });
 }
 

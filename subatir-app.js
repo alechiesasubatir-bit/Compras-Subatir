@@ -598,7 +598,7 @@
   function getArtProveedor(invIds) {
     var q = SB.from('art_proveedor').select('*');
     if (invIds && invIds.length) q = q.in('inventario_id', invIds);
-    return q.then(function (r) { return r.data || []; });
+    return q.then(function (r) { return r.data || []; }, function () { return []; });
   }
 
   function saveArtProveedor(fila) {

@@ -266,7 +266,7 @@ test('canonProv normaliza tildes, espacios y mayusculas', () => {
 
 - [ ] **Step 2: Correr los tests y verificar que fallan**
 
-Run: `node --test test/`
+Run: `node --test` (desde la raíz, SIN pasarle `test/`: Node 24 en Windows no resuelve el directorio como argumento)
 Expected: FAIL — `Cannot find module '../reposicion-calc.js'`
 
 - [ ] **Step 3: Escribir la implementación mínima**
@@ -417,8 +417,8 @@ Crear `reposicion-calc.js`:
 
 - [ ] **Step 4: Correr los tests y verificar que pasan**
 
-Run: `node --test test/`
-Expected: PASS — 27 tests.
+Run: `node --test` (desde la raíz, SIN pasarle `test/`: Node 24 en Windows no resuelve el directorio como argumento)
+Expected: PASS — 26 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1309,8 +1309,8 @@ git commit -m "Stock: corregir solo el proveedor del articulo, con aviso y vuelt
 
 - [ ] **Step 1: Correr los tests**
 
-Run: `node --test test/`
-Expected: PASS, 27 tests. Si falla alguno, **no se publica**.
+Run: `node --test` (desde la raíz, SIN pasarle `test/`: Node 24 en Windows no resuelve el directorio como argumento)
+Expected: PASS, 26 tests. Si falla alguno, **no se publica**.
 
 - [ ] **Step 2: Chequear el JS de cada módulo tocado**
 

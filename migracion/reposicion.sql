@@ -14,7 +14,7 @@ alter table public.inventario
 
 do $$
 begin
-  if not exists (select 1 from pg_constraint where conname = 'inventario_revisar_meses_ck') then
+  if not exists (select 1 from pg_constraint where conname = 'inventario_revisar_meses_ck' and conrelid = 'public.inventario'::regclass) then
     alter table public.inventario
       add constraint inventario_revisar_meses_ck
       check (revisar_cada_meses is null or revisar_cada_meses between 1 and 60);
@@ -47,9 +47,11 @@ create table if not exists public.art_proveedor (
 
   -- Un bloque tildado sin su dato cargado seria una alerta que no puede
   -- calcularse. Se impide en la base, no solo en la pantalla.
-  constraint ap_demora_ck  check (not usar_demora  or demora_dias > 0),
-  constraint ap_lote_ck    check (not usar_lote    or lote_minimo > 0 or multiplo > 0),
-  constraint ap_pactada_ck check (not usar_pactada or (pact_cantidad > 0 and pact_vence is not null))
+  constraint ap_demora_ck  check (not usar_demora  or (demora_dias is not null and demora_dias > 0)),
+  constraint ap_lote_ck    check (not usar_lote    or (lote_minimo is not null and lote_minimo > 0)
+                                                   or (multiplo    is not null and multiplo    > 0)),
+  constraint ap_pactada_ck check (not usar_pactada or (pact_cantidad is not null and pact_cantidad > 0
+                                                       and pact_vence is not null))
 );
 
 create index if not exists art_proveedor_inv_idx on public.art_proveedor(inventario_id);
@@ -76,7 +78,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_publication_tables
-     where pubname = 'supabase_realtime' and tablename = 'art_proveedor'
+     where pubname = 'supabase_realtime' and tablename = 'art_proveedor' and schemaname = 'public'
   ) then
     alter publication supabase_realtime add table public.art_proveedor;
   end if;
@@ -85,14 +87,15 @@ end $$;
 select 'columnas' as que, count(*)::text as valor
   from information_schema.columns
  where table_name = 'inventario'
+   and table_schema = 'public'
    and column_name in ('seguimiento','revisar_cada_meses','proxima_revision','prov_auto_at','prov_auto_oc')
 union all
-select 'tabla art_proveedor', count(*)::text from information_schema.tables where table_name = 'art_proveedor'
+select 'tabla art_proveedor', count(*)::text from information_schema.tables where table_name = 'art_proveedor' and table_schema = 'public'
 union all
 select 'checks', count(*)::text from information_schema.table_constraints
- where table_name = 'art_proveedor' and constraint_type = 'CHECK'
+ where table_name = 'art_proveedor' and table_schema = 'public' and constraint_type = 'CHECK'
    and constraint_name in ('ap_demora_ck','ap_lote_ck','ap_pactada_ck')
 union all
-select 'policies', count(*)::text from pg_policies where tablename = 'art_proveedor';
+select 'policies', count(*)::text from pg_policies where tablename = 'art_proveedor' and schemaname = 'public';
 
 -- Esperado: columnas 5 | tabla art_proveedor 1 | checks 3 | policies 4

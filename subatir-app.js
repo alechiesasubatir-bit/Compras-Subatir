@@ -18,6 +18,7 @@
     'pedidos.html': 'pedidos',
     'recepcion.html': 'recepcion',
     'stock.html': 'stock',
+    'reposicion.html': 'stock',
     'precios.html': 'precios',
     'proveedores.html': 'proveedores',
     'varios.html': 'varios',
@@ -113,9 +114,12 @@
         consumo_mensual: 'CONSUMO MENSUAL', stock_minimo: 'STOCK MÍNIMO', inventario: 'INVENTARIO',
         solicitar: 'SOLICITAR', compra_sugerencia: 'COMPRA SUGERENCIA',
         proveedor_sugerido: 'PROOVEDOR SUGERIDO', pendiente_entrega: 'PENDIENTE DE ENTREGA',
-        proveedor: 'PROVEEDOR', ext_id: 'ID'
+        proveedor: 'PROVEEDOR', ext_id: 'ID',
+        seguimiento: 'SEGUIMIENTO', revisar_cada_meses: 'REVISAR CADA MESES',
+        proxima_revision: 'PROXIMA REVISION', prov_auto_at: 'PROV AUTO AT',
+        prov_auto_oc: 'PROV AUTO OC'
       },
-      num: ['consumo_mensual', 'stock_minimo', 'inventario', 'compra_sugerencia', 'pendiente_entrega'], date: []
+      num: ['consumo_mensual', 'stock_minimo', 'inventario', 'compra_sugerencia', 'pendiente_entrega', 'revisar_cada_meses'], date: ['proxima_revision']
     },
     contactos: {
       table: 'proveedores', payloadKeys: ['contactos', 'proveedores'],
@@ -586,6 +590,35 @@
   function deleteEntrega(id) {
     return SB.from('entregas').delete().eq('id', id)
       .then(function (r) { return r.error ? { error: r.error.message } : { success: true }; });
+  }
+
+  // ── Configuración de reposición por artículo + proveedor ──────
+  // Las tres verifican filas afectadas con .select(): una escritura
+  // bloqueada por RLS devuelve cero filas SIN error.
+  function getArtProveedor(invIds) {
+    var q = SB.from('art_proveedor').select('*');
+    if (invIds && invIds.length) q = q.in('inventario_id', invIds);
+    return q.then(function (r) { return r.data || []; });
+  }
+
+  function saveArtProveedor(fila) {
+    return SB.from('art_proveedor')
+      .upsert(fila, { onConflict: 'inventario_id,proveedor' })
+      .select()
+      .then(function (r) {
+        if (r.error) return { data: null, error: r.error.message };
+        if (!r.data || !r.data.length) return { data: null, error: 'Sin permiso para guardar (0 filas).' };
+        return { data: r.data[0], error: null };
+      });
+  }
+
+  function deleteArtProveedor(id) {
+    return SB.from('art_proveedor').delete().eq('id', id).select()
+      .then(function (r) {
+        if (r.error) return { data: null, error: r.error.message };
+        if (!r.data || !r.data.length) return { data: null, error: 'Sin permiso para borrar (0 filas).' };
+        return { data: r.data[0], error: null };
+      });
   }
 
   // ── Chequeo de versión ─────────────────────────────────────
@@ -1957,6 +1990,7 @@
     categorias: categorias, setCategoria: setCategoria,
     ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto,
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
+    getArtProveedor: getArtProveedor, saveArtProveedor: saveArtProveedor, deleteArtProveedor: deleteArtProveedor,
     PL06: PL06, operador: OPER, stock: STOCK,
     live: live,
     xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH, cat: CAT,

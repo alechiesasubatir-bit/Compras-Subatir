@@ -17,8 +17,12 @@
   var DIAS_AVISO_PACTADA = 30; // cuánto antes de que venza un contrato se avisa
 
   function sumarMeses(fecha, n) {
+    var dia = fecha.getUTCDate();
     var d = new Date(fecha.getTime());
+    d.setUTCDate(1); // evita el rollover: sin esto, un dia 31 en un mes mas corto se corre al mes siguiente
     d.setUTCMonth(d.getUTCMonth() + n);
+    var ultimoDiaMes = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    d.setUTCDate(Math.min(dia, ultimoDiaMes)); // 31/01 + 1 mes = 28/02 (29/02 en bisiesto), no 03/03
     return d;
   }
 
@@ -99,7 +103,7 @@
   // subatir-app.js) + su ficha de art_proveedor al objeto que come
   // calcular(). Vive acá y no en cada pantalla porque lo usan las tres.
   function canonProv(s) {
-    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, ' ').toUpperCase();
   }
 
   function fecha(v) {

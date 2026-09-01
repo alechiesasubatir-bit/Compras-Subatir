@@ -97,6 +97,34 @@ test('regla por meses sin ninguna OC no cuenta desde ningun lado', () => {
   assert.strictEqual(r.motivo, 'sin-oc');
 });
 
+test('la regla por meses no rueda al mes siguiente en meses cortos: 31/01 + 1 mes = 28/02', () => {
+  // sin el tope al ultimo dia del mes, setUTCMonth desborda 31/01 + 1 mes a 03/03
+  const hoyLimite = new Date('2026-02-28T00:00:00Z');
+  const r = Reposicion.calcular(art({
+    stock: 999999, minimo: 10, consumo: 30, demoraDias: 5,
+    revisarCadaMeses: 1, ultimaOC: new Date('2026-01-31T00:00:00Z')
+  }), hoyLimite);
+  assert.strictEqual(r.senal, 'REVISAR'); // si el limite fuera 03/03, el 28/02 todavia no tocaria
+});
+
+test('la regla por meses corregida todavia no dispara un dia antes del limite', () => {
+  const hoyAntes = new Date('2026-02-27T00:00:00Z');
+  const r = Reposicion.calcular(art({
+    stock: 999999, minimo: 10, consumo: 30, demoraDias: 5,
+    revisarCadaMeses: 1, ultimaOC: new Date('2026-01-31T00:00:00Z')
+  }), hoyAntes);
+  assert.strictEqual(r.senal, 'OK');
+});
+
+test('la regla por meses topa al 29/02 en año bisiesto', () => {
+  const hoyLimite = new Date('2028-02-29T00:00:00Z'); // 2028 es bisiesto
+  const r = Reposicion.calcular(art({
+    stock: 999999, minimo: 10, consumo: 30, demoraDias: 5,
+    revisarCadaMeses: 1, ultimaOC: new Date('2028-01-31T00:00:00Z')
+  }), hoyLimite);
+  assert.strictEqual(r.senal, 'REVISAR');
+});
+
 test('la compra pactada avisa 30 dias antes de vencer', () => {
   const r = Reposicion.calcular(art({
     stock: 999999, minimo: 10, consumo: 30, demoraDias: 5,
@@ -129,6 +157,18 @@ test('la pactada vencida deja de aportar pero se marca vencida', () => {
   }), HOY);
   assert.strictEqual(r.senal, 'OK');
   assert.strictEqual(r.pactadaVencida, true);
+});
+
+test('fechaRecordatorio elige la fecha mas temprana entre varias fuentes activas', () => {
+  // proximaRevision sola (01/10) todavia no dispararia; el aviso de la
+  // pactada (30 dias antes del 25/09 => 26/08) es mas temprano y ya paso.
+  // si el codigo usara la primera fuente en vez de Math.min, esto daria OK.
+  const r = Reposicion.calcular(art({
+    stock: 999999, minimo: 10, consumo: 30, demoraDias: 5,
+    proximaRevision: new Date('2026-10-01T00:00:00Z'),
+    pactCantidad: 1000, pactEntregado: 200, pactVence: new Date('2026-09-25T00:00:00Z')
+  }), HOY);
+  assert.strictEqual(r.senal, 'REVISAR');
 });
 
 test('ATRASADO gana sobre REVISAR: lo urgente primero', () => {
@@ -195,6 +235,21 @@ test('desdeFila ignora los bloques destildados', () => {
   assert.strictEqual(a.pactVence, null);
 });
 
+test('desdeFila traduce lote y pactada cuando estan tildados', () => {
+  // el camino positivo: con usar_lote y usar_pactada en true, los valores
+  // tienen que llegar a los campos correctos (no alcanza con probar el
+  // camino destildado, que solo demuestra que todo da null)
+  const a = Reposicion.desdeFila(FILA, {
+    usar_lote: true, lote_minimo: 500, multiplo: 40,
+    usar_pactada: true, pact_cantidad: 1000, pact_entregado: 200, pact_vence: '2026-12-01'
+  }, null);
+  assert.strictEqual(a.loteMinimo, 500);
+  assert.strictEqual(a.multiplo, 40);
+  assert.strictEqual(a.pactCantidad, 1000);
+  assert.strictEqual(a.pactEntregado, 200);
+  assert.strictEqual(a.pactVence.toISOString().slice(0, 10), '2026-12-01');
+});
+
 test('desdeFila tolera un articulo sin ficha', () => {
   const a = Reposicion.desdeFila(FILA, null, null);
   assert.strictEqual(a.demoraDias, null);
@@ -211,5 +266,6 @@ test('desdeFila trata el SEGUIMIENTO en texto como booleano', () => {
 });
 
 test('canonProv normaliza tildes, espacios y mayusculas', () => {
-  assert.strictEqual(Reposicion.canonProv(' Química S.A. '), Reposicion.canonProv('QUIMICA S.A.'));
+  // trim, doble espacio interno y tilde: los tres tienen que colapsar al mismo canon
+  assert.strictEqual(Reposicion.canonProv(' Química   S.A. '), Reposicion.canonProv('QUIMICA S.A.'));
 });

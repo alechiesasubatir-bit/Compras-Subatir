@@ -1963,7 +1963,18 @@ function saveEdit(){
   var newCat = (document.getElementById('ed-cat')||{}).value || '';
   var catChanged = newCat !== (CUR.categoria||'');
   var hasFields = Object.keys(fields).length>0;
-  if(!hasFields && !catChanged){ closeOv('ov-edit'); return; }
+  // No comparamos ficha por ficha contra lo que trajo renderFichasProv (habría
+  // que guardar un snapshot aparte): alcanza con mirar si quedó algún tilde o
+  // dato cargado en #ed-fichas. Si el usuario no tocó nada ahí, esto reescribe
+  // fichas sin cambios — pero saveArtProveedor hace upsert, así que es
+  // idempotente y no rompe nada. Sin este chequeo, cargar solo la demora de
+  // un proveedor y guardar caía en el early-return de abajo y se perdía sin
+  // ningún aviso.
+  var hasFichaData = [].some.call(document.querySelectorAll('#ed-fichas [data-prov]'), function(box){
+    return [].some.call(box.querySelectorAll('input[type=checkbox]'), function(c){ return c.checked; }) ||
+           [].some.call(box.querySelectorAll('input[type=number],input[type=date]'), function(i){ return i.value!==''; });
+  });
+  if(!hasFields && !catChanged && !hasFichaData){ closeOv('ov-edit'); return; }
 
   toast('Guardando…','info');
   var ops=[];

@@ -110,9 +110,16 @@ create table if not exists public.art_proveedor (
 
   -- Un bloque tildado sin su dato cargado sería una alerta que no puede
   -- calcularse. Se impide en la base, no solo en la pantalla.
-  constraint ap_demora_ck  check (not usar_demora  or demora_dias > 0),
-  constraint ap_lote_ck    check (not usar_lote    or lote_minimo > 0 or multiplo > 0),
-  constraint ap_pactada_ck check (not usar_pactada or (pact_cantidad > 0 and pact_vence is not null))
+  --
+  -- El `is not null` de cada lado no es decorativo: un CHECK solo rechaza
+  -- la fila cuando evalúa a FALSE, y `NULL > 0` da NULL, que pasa. Sin él,
+  -- `not usar_demora or demora_dias > 0` deja entrar justo el caso que
+  -- dice bloquear (tildado y vacío).
+  constraint ap_demora_ck  check (not usar_demora  or (demora_dias is not null and demora_dias > 0)),
+  constraint ap_lote_ck    check (not usar_lote    or (lote_minimo is not null and lote_minimo > 0)
+                                                   or (multiplo    is not null and multiplo    > 0)),
+  constraint ap_pactada_ck check (not usar_pactada or (pact_cantidad is not null and pact_cantidad > 0
+                                                       and pact_vence is not null))
 );
 
 create index if not exists art_proveedor_inv_idx on public.art_proveedor(inventario_id);

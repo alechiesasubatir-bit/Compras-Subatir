@@ -72,9 +72,15 @@ alter table public.inventario
 `prov_auto_at` / `prov_auto_oc` son la auditoría del pisado automático de proveedor
 (sección 6.2): sin ellas el dato cambiaría solo y sin explicación.
 
-**No se agregan a `MAPS.inventario`** (`subatir-app.js:109`). Ese adaptador traduce nombres
-de header de la planilla vieja; los campos nuevos no existieron nunca en la planilla y se
-leen y escriben directo con `SB.from('inventario')`, que es el patrón cloud-only vigente.
+**Sí se agregan a `MAPS.inventario`** (`subatir-app.js:109`), con nombres de header propios
+(`SEGUIMIENTO`, `REVISAR CADA MESES`, `PROXIMA REVISION`, `PROV AUTO AT`, `PROV AUTO OC`).
+
+Ese adaptador es un simple renombrador de columnas en las dos direcciones, y `load()` de
+`stock.html:1057` arma `RAW_INV` con lo que él devuelve. Dejarlos afuera obligaría a una
+segunda consulta y a un join manual por id en cada carga, para no ganar nada: la alternativa
+era "no ensuciar la abstracción de la planilla vieja", pero la abstracción ya es solo un mapa
+de nombres. `rowToHeader` (`subatir-app.js:139`) expone `__row = row.id`, así que `CUR.__row`
+en Stock **es** el `inventario.id` y sirve directo como FK de `art_proveedor`.
 
 ### 3.2 · Tabla nueva `art_proveedor`
 
@@ -147,8 +153,14 @@ entre sí.
 
 ## 4 · El cálculo
 
-Función nueva `reposicion(m)` en `stock.html`, al lado de `recalcItem` y llamada desde el
-mismo lugar. **No modifica `m.estado`**: escribe campos nuevos.
+La cuenta vive en un archivo compartido nuevo, **`reposicion-calc.js`**, y no dentro de
+`stock.html`: las tres pantallas de la sección 5 necesitan la misma fórmula, y una fórmula
+de reposición copiada en tres lados es una fórmula que en tres meses no coincide consigo
+misma. Además el archivo se puede cargar desde Node y probar con `node --test` sin
+navegador, que es la única lógica de todo el proyecto que se deja testear de verdad.
+
+Se llama desde `recalcItem` (`stock.html:1362`). **No modifica `m.estado`**: escribe campos
+nuevos.
 
 ```
 si !m.seguimiento           → sin señal, se comporta como hoy
@@ -185,8 +197,9 @@ coincida con `canonProv(inventario.proveedor)`. Si ese proveedor no tiene ficha,
 
 **Recordatorio por fecha** — el que caiga primero de:
 
-- `proxima_revision` (fecha puntual cargada a mano), y
-- fecha de la última OC del artículo + `revisar_cada_meses`.
+- `proxima_revision` (fecha puntual cargada a mano),
+- fecha de la última OC del artículo + `revisar_cada_meses`, y
+- `pact_vence` − 30 días, mientras la compra pactada siga activa (ver 6.4).
 
 Señal `REVISAR` cuando esa fecha es hoy o pasó. Al registrar una compra, la regla por meses
 se recorre sola; `proxima_revision` no, y por eso se muestra tachada una vez cumplida hasta
@@ -237,7 +250,7 @@ La tabla gana:
 - KPI **"Hay que pedir"** en la tira superior.
 - Filtro nuevo para ver solo `ATRASADO` + `PEDIR` + `REVISAR`.
 
-**La tabla ya tiene 12 columnas.** Antes de publicar hay que medir con `td.scrollWidth`
+**La tabla ya tiene 11 columnas** (`stock.html:699-711`). Antes de publicar hay que medir con `td.scrollWidth`
 sobre las primeras ~60 filas e iframes del mismo origen a 1366 / 1200 / 844 px. Estimar los
 anchos a ojo ya cortó datos dos veces.
 
@@ -291,9 +304,14 @@ configuración y con un ícono en Stock. Nunca se calcula con una demora inventa
 
 ### 6.4 · Compra pactada agotada o vencida
 
+Mientras el contrato está activo aporta un recordatorio **30 días antes de `pact_vence`**,
+para llegar a renegociar antes de quedarse sin el precio pactado. Esa ventana es una
+constante del módulo (`DIAS_AVISO_PACTADA`), no un campo por ficha.
+
 `pact_entregado >= pact_cantidad` o `pact_vence < hoy` → la ficha se muestra como vencida y
 deja de aportar al recordatorio, pero **no se borra ni se destilda sola**: el dato histórico
-sirve para renegociar.
+sirve para renegociar. Deja de aportar a propósito — si no, un contrato viejo dejaría el
+artículo en `REVISAR` para siempre y la señal se volvería ruido.
 
 `pact_entregado` **se carga a mano** en la ficha. Deducirlo de las recepciones exigiría
 decidir qué OC pertenecen al contrato y cuáles fueron compras sueltas al mismo proveedor, y

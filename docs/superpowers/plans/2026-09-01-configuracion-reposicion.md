@@ -16,7 +16,7 @@
 - **Toda escritura verifica filas afectadas con `.select()`.** Un UPDATE bloqueado por RLS devuelve cero filas **sin error**. Ya causó una pérdida de datos silenciosa en recepción.
 - **Los cambios de datos van como archivo SQL en `migracion/`, idempotente y con un `select` de verificación al final. Lo corre el usuario**, no el implementador. En el SQL Editor de Supabase `auth.uid()` es NULL, así que las funciones con chequeo de permiso no se prueban ahí.
 - **No se elimina ninguna funcionalidad existente.** El semáforo (`recalcItem`) y todo lo que hoy hace el modal ✏ quedan intactos.
-- **Estética:** fondo oscuro, glassmorphism, acentos naranja/petróleo. Variables CSS ya definidas (`--bg`, `--teal`, `--or`, `--txt`, `--mut`, `--bdr`, `--gl`). Fuentes Syne (títulos) / DM Sans (texto) / IBM Plex Mono (números).
+- **Estética:** fondo oscuro, glassmorphism, acentos naranja/petróleo. Variables CSS ya definidas (`--bg`, `--teal`, `--or`, `--txt`, `--mut`, `--border`). Fuentes Syne (títulos) / DM Sans (texto) / IBM Plex Mono (números).
 - **No se publica desde una tarea.** La publicación es la Tarea 9, una sola vez, al final.
 - **JS de navegador en estilo ES5**, como el resto del proyecto: `var`, `function`, sin arrow functions ni `const` en los archivos que carga el navegador. El archivo de tests sí puede usar sintaxis moderna (corre en Node).
 
@@ -724,7 +724,7 @@ En el `<head>` de `stock.html`, junto a los otros `<script src>`, agregar:
 Al final de `#edit-form` (después del `<div class="fg">` de Observaciones, antes de cerrar el div en `stock.html:809`):
 
 ```html
-        <div class="fg" style="border-top:1px solid var(--bdr);margin-top:14px;padding-top:14px">
+        <div class="fg" style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="ed-seg" onchange="toggleSeg()"/>
             <span>Seguir la reposición de este artículo</span>

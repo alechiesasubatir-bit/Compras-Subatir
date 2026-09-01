@@ -36,6 +36,11 @@
   - `null` = el artículo no tiene seguimiento y no participa.
   - `motivo` = `'falta-consumo' | 'falta-demora' | 'sin-oc'` cuando `senal === 'SIN_DATOS'`, si no `''`.
   - Fechas de entrada y salida como `Date`. `hoy` se pasa siempre por parámetro (nunca `new Date()` adentro) para que los tests sean deterministas.
+- Produces: `Reposicion.desdeFila(invRow, ficha, ultimaOC)` → el objeto `art` que come `calcular`, armado desde una fila de `RAW_INV` (con los nombres de header del adaptador) y su ficha de `art_proveedor`.
+  - **Las tres pantallas (Tareas 5, 6 y 7) lo usan.** Es el único lugar donde se traduce de los nombres de header a los del cálculo. Escrito tres veces, en tres meses no coincide consigo mismo — que es la razón por la que este archivo existe.
+  - `ficha` puede venir `{}` o `null` (artículo sin ficha cargada). **Los bloques destildados se ignoran**: una demora cargada con `usar_demora` en false no se usa.
+  - `ultimaOC` puede venir `null` (el dashboard no arma el índice de OC).
+- Produces: `Reposicion.canonProv(s)` → normalizador de nombre de proveedor, para que las tres pantallas indexen las fichas igual.
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -204,6 +209,59 @@ test('si sobra stock no sugiere comprar', () => {
   const r = Reposicion.calcular(art({ stock: 100000, minimo: 100, consumo: 50, demoraDias: 5 }), HOY);
   assert.strictEqual(r.sugerido, 0);
 });
+
+// ── desdeFila: el adaptador que usan las tres pantallas ──────────────
+const FILA = {
+  __row: 85, 'DESCRIPCIÓN': 'Etiq. Medianas largo', 'PROVEEDOR': 'MIL ROLLOS',
+  'INVENTARIO': 95000, 'STOCK MÍNIMO': 20000, 'CONSUMO MENSUAL': 40000,
+  'PENDIENTE DE ENTREGA': null, 'SEGUIMIENTO': true,
+  'REVISAR CADA MESES': 3, 'PROXIMA REVISION': '2026-10-15'
+};
+
+test('desdeFila traduce los nombres de header a los del calculo', () => {
+  const a = Reposicion.desdeFila(FILA, { demora_dias: 30, usar_demora: true }, null);
+  assert.strictEqual(a.seguimiento, true);
+  assert.strictEqual(a.stock, 95000);
+  assert.strictEqual(a.minimo, 20000);
+  assert.strictEqual(a.consumo, 40000);
+  assert.strictEqual(a.pendiente, 0);
+  assert.strictEqual(a.demoraDias, 30);
+  assert.strictEqual(a.revisarCadaMeses, 3);
+  assert.strictEqual(a.proximaRevision.toISOString().slice(0, 10), '2026-10-15');
+});
+
+test('desdeFila ignora los bloques destildados', () => {
+  // dato cargado pero sin tildar: no se usa. El tilde es el que manda.
+  const a = Reposicion.desdeFila(FILA, {
+    demora_dias: 30, usar_demora: false,
+    lote_minimo: 500, multiplo: 40, usar_lote: false,
+    pact_cantidad: 1000, pact_vence: '2026-12-01', usar_pactada: false
+  }, null);
+  assert.strictEqual(a.demoraDias, null);
+  assert.strictEqual(a.loteMinimo, null);
+  assert.strictEqual(a.multiplo, null);
+  assert.strictEqual(a.pactCantidad, null);
+  assert.strictEqual(a.pactVence, null);
+});
+
+test('desdeFila tolera un articulo sin ficha', () => {
+  const a = Reposicion.desdeFila(FILA, null, null);
+  assert.strictEqual(a.demoraDias, null);
+  assert.strictEqual(a.seguimiento, true);
+  assert.strictEqual(Reposicion.calcular(a, HOY).motivo, 'falta-demora');
+});
+
+test('desdeFila trata el SEGUIMIENTO en texto como booleano', () => {
+  // el adaptador puede devolverlo como string segun de donde venga
+  const a = Reposicion.desdeFila(Object.assign({}, FILA, { 'SEGUIMIENTO': 'true' }), null, null);
+  assert.strictEqual(a.seguimiento, true);
+  const b = Reposicion.desdeFila(Object.assign({}, FILA, { 'SEGUIMIENTO': '' }), null, null);
+  assert.strictEqual(b.seguimiento, false);
+});
+
+test('canonProv normaliza tildes, espacios y mayusculas', () => {
+  assert.strictEqual(Reposicion.canonProv(' Química S.A. '), Reposicion.canonProv('QUIMICA S.A.'));
+});
 ```
 
 - [ ] **Step 2: Correr los tests y verificar que fallan**
@@ -312,14 +370,55 @@ Crear `reposicion-calc.js`:
     return r;
   }
 
-  return { calcular: calcular, MESES_OBJETIVO: MESES_OBJETIVO, DIAS_AVISO: DIAS_AVISO };
+  // ── El adaptador ────────────────────────────────────────────────
+  // Traduce una fila del inventario (nombres de header del adaptador de
+  // subatir-app.js) + su ficha de art_proveedor al objeto que come
+  // calcular(). Vive acá y no en cada pantalla porque lo usan las tres.
+  function canonProv(s) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
+  }
+
+  function fecha(v) {
+    if (!v) return null;
+    var d = new Date(v);
+    return isNaN(d) ? null : d;
+  }
+
+  function desdeFila(inv, ficha, ultimaOC) {
+    inv = inv || {};
+    var f = ficha || {};
+    var seg = inv['SEGUIMIENTO'];
+    return {
+      // El tilde es el que manda: un dato cargado sin tildar no se usa.
+      seguimiento: seg === true || seg === 'true',
+      stock:     +inv['INVENTARIO'] || 0,
+      minimo:    +inv['STOCK MÍNIMO'] || 0,
+      consumo:   +inv['CONSUMO MENSUAL'] || 0,
+      pendiente: +inv['PENDIENTE DE ENTREGA'] || 0,
+      demoraDias:    f.usar_demora  ? (+f.demora_dias || null) : null,
+      loteMinimo:    f.usar_lote    ? (+f.lote_minimo || null) : null,
+      multiplo:      f.usar_lote    ? (+f.multiplo    || null) : null,
+      pactCantidad:  f.usar_pactada ? (+f.pact_cantidad || null) : null,
+      pactEntregado: f.usar_pactada ? (+f.pact_entregado || 0)  : 0,
+      pactVence:     f.usar_pactada ? fecha(f.pact_vence) : null,
+      proximaRevision:  fecha(inv['PROXIMA REVISION']),
+      revisarCadaMeses: +inv['REVISAR CADA MESES'] || null,
+      ultimaOC: ultimaOC || null
+    };
+  }
+
+  return {
+    calcular: calcular, desdeFila: desdeFila, canonProv: canonProv,
+    MESES_OBJETIVO: MESES_OBJETIVO, DIAS_AVISO: DIAS_AVISO,
+    DIAS_AVISO_PACTADA: DIAS_AVISO_PACTADA
+  };
 });
 ```
 
 - [ ] **Step 4: Correr los tests y verificar que pasan**
 
 Run: `node --test test/`
-Expected: PASS — 21 tests.
+Expected: PASS — 27 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -528,6 +627,8 @@ En `subatir-app.js:111-117`, dentro de `inventario.cols`, sumar:
 
 y en la línea `num:` de esa misma definición agregar `'revisar_cada_meses'`, y en `date:` agregar `'proxima_revision'`.
 
+**`seguimiento` y `prov_auto_at` NO van en ninguna de las dos listas.** `date` coerciona a tipo `date` y ya rompió una vez con `f_vto` — por eso se lo sacaron de ahí. El boolean viaja tal cual y el timestamptz se escribe como ISO string.
+
 - [ ] **Step 2: Agregar la entrada de la página nueva**
 
 En `subatir-app.js:16`, dentro de `PAGE_MODULE`, agregar `'reposicion.html': 'stock',`. Reusa el permiso del módulo `stock`: no hay que tocar `usuarios.html` ni repartir permisos nuevos.
@@ -716,14 +817,18 @@ En `toggleEdit` (`stock.html:1843`), dentro del `if(CUR){...}`, agregar:
       if(CUR.__row) renderFichasProv(CUR.__row);
 ```
 
-En `saveEdit`, antes del `Promise.all(ops)`, agregar los tres campos del artículo a `fields` y encadenar el guardado de las fichas:
+En `saveEdit`, antes del `Promise.all(ops)`, agregar los tres campos del artículo a `fields` y encadenar el guardado de las fichas.
+
+**Solo si cambiaron.** `saveEdit` tiene un early-return (`if(!hasFields && !catChanged)`) que evita escribir cuando no se tocó nada; poblarlos siempre lo anula y cada apertura-y-cierre del modal escribiría en la base:
 
 ```js
-  fields['SEGUIMIENTO'] = document.getElementById('ed-seg').checked;
+  var seg = document.getElementById('ed-seg').checked;
+  if(seg !== !!CUR.seguimiento) fields['SEGUIMIENTO'] = seg;
   var rm = document.getElementById('ed-rev-meses').value;
-  fields['REVISAR CADA MESES'] = rm!=='' ? parseInt(rm,10) : null;
-  var rf = document.getElementById('ed-rev-fecha').value;
-  fields['PROXIMA REVISION'] = rf || null;
+  var rmVal = rm!=='' ? parseInt(rm,10) : null;
+  if(rmVal !== (CUR.revisarCadaMeses||null)) fields['REVISAR CADA MESES'] = rmVal;
+  var rf = document.getElementById('ed-rev-fecha').value || null;
+  if(rf !== (CUR.proximaRevision||null)) fields['PROXIMA REVISION'] = rf;
 ```
 
 y en el `.then` de éxito, antes de `load()`, llamar a `saveReposicion(CUR.__row)` y mostrar el error si vuelve alguno.
@@ -778,22 +883,39 @@ Dentro del `RAW_INV.forEach`, junto a `stock`/`minimo`/`consumo`, agregar al obj
 
 - [ ] **Step 2: Llamar a la cuenta desde `recalcItem`**
 
-Al final de `recalcItem`, antes del `return m`:
+En `buildMerged`, guardar en el item la fila cruda y su ficha, y al final de `recalcItem`, antes del `return m`:
 
 ```js
   // La reposición NO toca m.estado: es una señal aparte que convive con
-  // el semáforo de siempre.
-  m.rep = (window.Reposicion ? Reposicion.calcular({
-    seguimiento: m.seguimiento, stock: stock, minimo: minimo, consumo: consumo,
-    pendiente: pend, demoraDias: m.demoraDias, loteMinimo: m.loteMinimo,
-    multiplo: m.multiplo,
-    proximaRevision: m.proximaRevision ? new Date(m.proximaRevision) : null,
-    revisarCadaMeses: m.revisarCadaMeses,
-    ultimaOC: m.ultimaOC ? new Date(m.ultimaOC) : null
-  }, new Date()) : { senal: null });
+  // el semáforo de siempre. El armado del objeto vive en desdeFila, que
+  // es el mismo que usan la pantalla de configuración y el dashboard.
+  m.rep = window.Reposicion
+    ? Reposicion.calcular(Reposicion.desdeFila(m._inv, m._ficha, m.ultimaOC ? new Date(m.ultimaOC) : null), new Date())
+    : { senal: null };
 ```
 
-`demoraDias` / `loteMinimo` / `multiplo` salen de la ficha de `art_proveedor` del proveedor que manda; se cargan una sola vez por `load()` con `SubatirApp.getArtProveedor()` y se indexan por `inventario_id + canonProv(proveedor)` antes de `buildMerged`.
+Para eso, en `buildMerged` sumar al objeto que se pasa a `recalcItem`:
+
+```js
+      _inv:   item,                 // la fila cruda, con los nombres de header
+      _ficha: fichaDe(item.__row, proveedor),
+```
+
+Las fichas se cargan una sola vez por `load()` con `SubatirApp.getArtProveedor()` y se indexan antes de `buildMerged`. **El índice usa `Reposicion.canonProv`, no el `canonProv` de `stock.html`**, para que las tres pantallas emparejen igual:
+
+```js
+var FICHAS_IDX = {};
+function indexarFichas(fichas){
+  FICHAS_IDX = {};
+  (fichas||[]).forEach(function(f){
+    FICHAS_IDX[f.inventario_id + '|' + Reposicion.canonProv(f.proveedor)] = f;
+  });
+}
+// La que manda es la del proveedor de la ficha de stock (decisión del usuario).
+function fichaDe(invId, proveedor){
+  return FICHAS_IDX[invId + '|' + Reposicion.canonProv(proveedor)] || null;
+}
+```
 
 - [ ] **Step 3: Columna, KPI y filtro**
 
@@ -863,6 +985,16 @@ y donde se pintan los otros KPIs:
   setText('k-pedir', pedir.length);
   var atr = pedir.filter(function(m){ return m.rep.senal==='ATRASADO'; }).length;
   setText('k-pedir-sub', atr ? atr+' ya atrasado'+(atr>1?'s':'') : 'con demora contemplada');
+```
+
+**El encabezado ordena por `pedir`, así que el comparador tiene que conocer esa clave** o el `<th>` queda siendo un botón que no hace nada. En la cadena de `if` de `sortCmp` (`stock.html:1585`), junto a las otras:
+
+```js
+  // null (sin seguimiento / sin datos) al fondo, como cobertura
+  else if(SORT_K==='pedir'){
+    va = (a.rep && a.rep.diasParaPedir!=null) ? a.rep.diasParaPedir : 99999;
+    vb = (b.rep && b.rep.diasParaPedir!=null) ? b.rep.diasParaPedir : 99999;
+  }
 ```
 
 Opción nueva en el select `#f-est`: `<option value="REPONER">🔔 Hay que pedir</option>`, y en `applyFilters` tratarla aparte:
@@ -976,6 +1108,17 @@ function filas(){
 }
 ```
 
+La columna **Señal** se calcula con el mismo camino que Stock y el Dashboard — no con uno propio, o la misma etiqueta muestra dos estados distintos según la pantalla:
+
+```js
+function senalDe(par){
+  var rep = Reposicion.calcular(Reposicion.desdeFila(par.art, par.ficha, null), new Date());
+  return rep.senal;   // ultimaOC va null: esta pantalla no arma el índice de OC
+}
+```
+
+`toast()` no existe en una página nueva: copiar la de `stock.html` junto con su CSS, como hace cada módulo del proyecto.
+
 `render()` filtra por los tres controles, arma una fila por elemento de `filas()` con inputs editables (mismos nombres de clase que en la Tarea 4: `.ap-demora`, `.ap-usar-demora`, `.ap-lote`, `.ap-mult`, `.ap-usar-lote`, `.ap-pact-cant`, `.ap-pact-ent`, `.ap-pact-vence`, `.ap-usar-pact`), un checkbox de seguimiento por artículo y un botón 💾 por fila que llama a:
 
 ```js
@@ -1060,26 +1203,18 @@ function renderReposicion(inventario, fichas){
   // Índice de fichas por artículo + proveedor normalizado: la que manda es
   // la del proveedor de la ficha de stock.
   var idx = {};
-  (fichas||[]).forEach(function(f){ idx[f.inventario_id+'|'+canonProv(f.proveedor)] = f; });
+  (fichas||[]).forEach(function(f){
+    idx[f.inventario_id+'|'+Reposicion.canonProv(f.proveedor)] = f;
+  });
 
   var hoy = new Date(), avisos = [];
   (inventario||[]).forEach(function(a){
-    if(!(a['SEGUIMIENTO']===true || a['SEGUIMIENTO']==='true')) return;
-    var f = idx[a.__row+'|'+canonProv(a['PROVEEDOR']||'')] || {};
-    var rep = Reposicion.calcular({
-      seguimiento: true,
-      stock: +a['INVENTARIO']||0, minimo: +a['STOCK MÍNIMO']||0,
-      consumo: +a['CONSUMO MENSUAL']||0, pendiente: +a['PENDIENTE DE ENTREGA']||0,
-      demoraDias: f.usar_demora ? f.demora_dias : null,
-      loteMinimo: f.usar_lote ? f.lote_minimo : null,
-      multiplo: f.usar_lote ? f.multiplo : null,
-      proximaRevision: a['PROXIMA REVISION'] ? new Date(a['PROXIMA REVISION']) : null,
-      revisarCadaMeses: +a['REVISAR CADA MESES']||null,
-      ultimaOC: null,
-      pactCantidad: f.usar_pactada ? f.pact_cantidad : null,
-      pactEntregado: f.pact_entregado || 0,
-      pactVence: f.usar_pactada && f.pact_vence ? new Date(f.pact_vence) : null
-    }, hoy);
+    // La ficha que manda es la del proveedor de la ficha de stock.
+    // ultimaOC va null: el dashboard no arma el índice de OC que tiene
+    // Stock, así que acá la regla "cada N meses" no dispara y sí lo hacen
+    // proxima_revision y la pactada. El aviso completo está en Stock.
+    var f = idx[a.__row+'|'+Reposicion.canonProv(a['PROVEEDOR']||'')] || null;
+    var rep = Reposicion.calcular(Reposicion.desdeFila(a, f, null), hoy);
     if(['ATRASADO','PEDIR','REVISAR'].indexOf(rep.senal)>=0) avisos.push({ a:a, rep:rep });
   });
 
@@ -1100,9 +1235,9 @@ function renderReposicion(inventario, fichas){
 }
 ```
 
-`ultimaOC` va en `null` a propósito: el dashboard no arma el índice de OC que tiene Stock, así que acá la regla "cada N meses" no dispara y sí lo hacen `proxima_revision` y la pactada. El aviso completo está en Stock. **Es una diferencia real entre las dos pantallas y hay que dejarla comentada en el código**, no descubrirla dentro de seis meses.
+La diferencia de `ultimaOC` entre pantallas **queda comentada en el código**, como arriba: no es algo para redescubrir dentro de seis meses.
 
-`canonProv` y `esc` están definidas en `stock.html`, no en `index.html`. Antes de escribir el panel, verificar cuáles existen ya en `index.html` y definir las que falten ahí mismo (`canonProv` alcanza con `String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase()`); no importarlas de otro módulo.
+`esc` está definida en `stock.html`, no necesariamente en `index.html`. Verificar si existe y definirla ahí mismo si falta. `canonProv` sale de `Reposicion`, no se redefine.
 
 El dashboard es un módulo abierto a cualquier autenticado (`OPEN_MODULES`), así que el panel tiene que tolerar que `art_proveedor` venga vacío por permisos sin romper la pantalla.
 
@@ -1175,7 +1310,7 @@ git commit -m "Stock: corregir solo el proveedor del articulo, con aviso y vuelt
 - [ ] **Step 1: Correr los tests**
 
 Run: `node --test test/`
-Expected: PASS, 21 tests. Si falla alguno, **no se publica**.
+Expected: PASS, 27 tests. Si falla alguno, **no se publica**.
 
 - [ ] **Step 2: Chequear el JS de cada módulo tocado**
 

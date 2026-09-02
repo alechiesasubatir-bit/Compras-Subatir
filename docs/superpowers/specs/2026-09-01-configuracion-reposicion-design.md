@@ -62,15 +62,25 @@ alter table public.inventario
   add column if not exists revisar_cada_meses smallint,
   add column if not exists proxima_revision   date,
   add column if not exists prov_auto_at       timestamptz,
-  add column if not exists prov_auto_oc       text;
+  add column if not exists prov_auto_oc       text,
+  add column if not exists prov_auto_anterior text,
+  add column if not exists prov_auto_off      boolean not null default false;
 
 alter table public.inventario
   add constraint inventario_revisar_meses_ck
   check (revisar_cada_meses is null or revisar_cada_meses between 1 and 60);
 ```
 
-`prov_auto_at` / `prov_auto_oc` son la auditoría del pisado automático de proveedor
-(sección 6.2): sin ellas el dato cambiaría solo y sin explicación.
+`prov_auto_at` / `prov_auto_oc` / `prov_auto_anterior` son la auditoría del pisado automático
+de proveedor (sección 6.2): sin ellas el dato cambiaría solo y sin explicación.
+
+`prov_auto_anterior` guarda el proveedor que estaba antes, y no es opcional: **sin él el botón
+de volver atrás no puede existir**, porque el valor viejo se perdió al pisarlo. La app es
+cloud-only (`stock.html` limpia su `localStorage` en cada carga a propósito), así que el dato
+tiene que vivir en la base o no sobrevive a un F5. Ninguna de las 18 columnas ya existentes
+sirve: `proveedor_sugerido` es un campo que la gente edita a mano y reusarlo destruiría datos
+reales, y meterlo dentro de `prov_auto_oc` rompería la guarda anti-bucle, que compara esa
+columna contra el número de OC.
 
 **Sí se agregan a `MAPS.inventario`** (`subatir-app.js:109`), con nombres de header propios
 (`SEGUIMIENTO`, `REVISAR CADA MESES`, `PROXIMA REVISION`, `PROV AUTO AT`, `PROV AUTO OC`).
@@ -110,9 +120,16 @@ create table if not exists public.art_proveedor (
 
   -- Un bloque tildado sin su dato cargado sería una alerta que no puede
   -- calcularse. Se impide en la base, no solo en la pantalla.
-  constraint ap_demora_ck  check (not usar_demora  or demora_dias > 0),
-  constraint ap_lote_ck    check (not usar_lote    or lote_minimo > 0 or multiplo > 0),
-  constraint ap_pactada_ck check (not usar_pactada or (pact_cantidad > 0 and pact_vence is not null))
+  --
+  -- El `is not null` de cada lado no es decorativo: un CHECK solo rechaza
+  -- la fila cuando evalúa a FALSE, y `NULL > 0` da NULL, que pasa. Sin él,
+  -- `not usar_demora or demora_dias > 0` deja entrar justo el caso que
+  -- dice bloquear (tildado y vacío).
+  constraint ap_demora_ck  check (not usar_demora  or (demora_dias is not null and demora_dias > 0)),
+  constraint ap_lote_ck    check (not usar_lote    or (lote_minimo is not null and lote_minimo > 0)
+                                                   or (multiplo    is not null and multiplo    > 0)),
+  constraint ap_pactada_ck check (not usar_pactada or (pact_cantidad is not null and pact_cantidad > 0
+                                                       and pact_vence is not null))
 );
 
 create index if not exists art_proveedor_inv_idx on public.art_proveedor(inventario_id);
@@ -290,8 +307,20 @@ Decisión del usuario: **el sistema corrige `inventario.proveedor` solo**, tomá
 proveedor de la última OC real del artículo. Solo para artículos con `seguimiento = true`.
 
 Para que un cambio automático no aparezca sin explicación, queda auditado: se escriben
-`prov_auto_at` y `prov_auto_oc`, y tanto la ficha como la pantalla de configuración muestran
-*"proveedor actualizado el DD/MM según OC #NNN"*, con un botón para volver atrás.
+`prov_auto_at`, `prov_auto_oc` y `prov_auto_anterior`, y tanto la ficha como la pantalla de
+configuración muestran *"proveedor actualizado el DD/MM según OC #NNN"*, con un botón para
+volver atrás.
+
+**Volver atrás es una decisión, no una postergación.** Un revert que solo restaura el valor
+deja que la próxima OC vuelva a pisarlo, y en un artículo que se compra seguido eso es la
+semana que viene: el botón no revierte nada, posterga. Por eso el revert además prende
+`prov_auto_off`, y la detección saltea los artículos que lo tengan. Se puede volver a
+activar, pero a propósito.
+
+`prov_auto_anterior` guarda **el valor manual original**, no el previo a la última
+corrección. Si se pisara en cada corrección, dos correcciones seguidas dejarían al usuario
+con la opción de "volver" a un valor que el propio sistema inventó, y el que escribió una
+persona no existiría más en ninguna parte.
 
 **Riesgo anotado:** esto pisa un dato cargado a mano. Si la última OC fue una compra puntual
 a un proveedor alternativo, la demora que manda pasa a ser la de ese proveedor. Planteado y

@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Compras"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Reposición — Subatir / Prolimpio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ═══ TOKENS ══════════════════════════════════════════════════ */
+:root{
+  --bg0:#040810;--bg1:#080f1c;--bg2:#0b1628;--bg3:#0e1d34;
+  --teal:#0e6b8a;--teal-l:#12a0cc;--teal-g:rgba(14,107,138,.18);
+  --orange:#f97316;--orange-d:#c2580a;
+  --glass:rgba(255,255,255,.035);--glass-b:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.07);--border-b:rgba(255,255,255,.12);
+  --text:#dde6f0;--muted:#4e6175;--muted-l:#6b7f93;
+  --red:#ef4444;--red-g:rgba(239,68,68,.18);--red-b:rgba(239,68,68,.35);
+  --amber:#f59e0b;--amber-g:rgba(245,158,11,.15);--amber-b:rgba(245,158,11,.3);
+  --green:#22c55e;--green-g:rgba(34,197,94,.12);--green-b:rgba(34,197,94,.25);
+  --mono:'IBM Plex Mono',monospace;
+  --r:13px;--shadow:0 12px 40px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scrollbar-gutter:stable;overflow-x:hidden}
+body{
+  background:var(--bg0);
+  min-height:100vh;color:var(--text);
+  font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 55% at 5% 10%,rgba(167,139,250,.12) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,rgba(14,138,170,.09) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 50%,rgba(249,115,22,.04) 0%,transparent 50%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity:.5;
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(14,107,138,.6);border-radius:3px}
+
+/* ── Glass ─────────────────────────────────────────────────── */
+.glass{
+  background:var(--glass);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);
+}
+
+/* ═══ HEADER ══════════════════════════════════════════════════ */
+header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:13px 22px;
+  background:linear-gradient(90deg,rgba(14,107,138,.2) 0%,rgba(4,8,16,.7) 100%);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(24px);
+}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-mark{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  object-fit:cover;display:block;
+  box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
+}
+.logo h1{font-family:'Manrope',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo p{font-size:10px;color:var(--muted-l);margin-top:1px}
+nav{display:flex;gap:3px;flex-wrap:wrap}
+.nl{
+  padding:5px 13px;border-radius:7px;font-size:12px;font-weight:600;
+  color:var(--muted-l);text-decoration:none;transition:all .18s;border:1px solid transparent;
+}
+.nl:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.nl.on{
+  color:#fff;
+  background:linear-gradient(135deg,rgba(14,138,170,.4),rgba(27,200,255,.25));
+  border-color:rgba(27,200,255,.3);box-shadow:0 0 10px rgba(14,138,170,.25);
+}
+.nl.dim{opacity:.35;cursor:not-allowed;pointer-events:none}
+.hdr-right{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ts{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.btn{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 13px;
+  border-radius:8px;border:none;cursor:pointer;
+  font-size:11px;font-weight:700;letter-spacing:.4px;transition:all .18s;
+}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.1)}
+.btn-teal{background:linear-gradient(135deg,var(--teal),var(--teal-l));color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text)}
+.btn-orange{background:linear-gradient(135deg,var(--orange-d),var(--orange));color:#fff}
+.btn-sm{padding:4px 10px;font-size:10px}
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.12);
+  border-top-color:var(--teal-l);border-radius:50%;animation:spin .65s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══ MAIN ════════════════════════════════════════════════════ */
+.main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
+
+/* ═══ KPI ROW ══════════════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.kpi{
+  padding:12px 14px;position:relative;overflow:hidden;
+  transition:transform .2s;cursor:default;
+}
+.kpi:hover{transform:translateY(-3px)}
+.kpi::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  border-radius:0 0 var(--r) var(--r);
+}
+.kpi-total::after  {background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.kpi-medio::after  {background:linear-gradient(90deg,var(--amber),#fcd34d)}
+.kpi-optimo::after {background:linear-gradient(90deg,var(--green),#4ade80)}
+.kpi-crit::after   {background:linear-gradient(90deg,var(--red),#ff6b6b)}
+.kpi-label{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:10px}
+.kpi-num{font-family:var(--mono);font-size:21px;font-weight:700;line-height:1;letter-spacing:-.5px}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:5px;font-family:var(--mono)}
+.kpi-icon{position:absolute;right:11px;top:10px;font-size:15px;opacity:.35}
+.c-teal{color:var(--teal-l)}.c-red{color:var(--red)}.c-amber{color:var(--amber)}
+.c-green{color:var(--green)}.c-orange{color:var(--orange)}
+
+/* ── Section header ─────────────────────────────────────────── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.sec-hdr h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;letter-spacing:.2px}
+.sec-hdr h2 em{
+  font-style:normal;
+  background:linear-gradient(90deg,var(--teal-l),#5dd8ff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.b-info{background:rgba(14,107,138,.2);color:var(--teal-l);border:1px solid rgba(14,107,138,.3)}
+.b-red {background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid var(--red-b)}
+.b-amb {background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid var(--amber-b)}
+
+/* ─── Filtros ───────────────────────────────────────────────── */
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.fi{
+  padding:6px 10px;border-radius:7px;font-size:11px;
+  background:#0c1119;border:1px solid var(--border);
+  color:var(--text);outline:none;cursor:pointer;
+  color-scheme:dark;
+}
+.fi option{background:#0c1119;color:var(--text)}
+.fi:focus{border-color:var(--teal-l)}
+.fi-search{
+  flex:1;min-width:180px;max-width:280px;
+  padding:6px 10px 6px 30px;border-radius:7px;font-size:11px;
+  background:rgba(255,255,255,.05);border:1px solid var(--border);
+  color:var(--text);outline:none;position:relative;
+}
+.fi-search:focus{border-color:var(--teal-l)}
+.fi-search::placeholder{color:var(--muted)}
+.search-wrap{position:relative;flex:1;min-width:180px;max-width:280px}
+.search-wrap::before{content:'⌕';position:absolute;left:9px;top:50%;
+  transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none}
+
+/* ─── Tabla ─────────────────────────────────────────────────── */
+.tbl-wrap{overflow:auto;max-height:calc(100vh - 320px);min-height:280px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead{position:sticky;top:0;z-index:10}
+thead th{
+  padding:8px 10px;text-align:left;white-space:nowrap;
+  background:rgba(14,138,170,.15);color:var(--teal-l);
+  font-family:'Manrope',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.035);transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.04)}
+tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
+tbody td{padding:7px 10px;vertical-align:top}
+.num{font-family:var(--mono);text-align:right}
+.muted{color:var(--muted-l)}
+.empty-td{text-align:center;padding:28px;color:var(--muted);font-size:13px}
+
+/* ═══ MODAL (comparte estilos con el resto de la app, sin usarse acá) ═══ */
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+.fg label{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:.7px;text-transform:uppercase}
+.fi2{
+  padding:8px 11px;border-radius:8px;font-size:12px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);
+  color:var(--text);outline:none;width:100%;transition:border .18s;
+}
+.fi2:focus{border-color:var(--teal-l)}
+.fi2::placeholder{color:var(--muted)}
+
+/* ═══ TOAST ═══════════════════════════════════════════════════ */
+#tc{position:fixed;bottom:22px;right:22px;z-index:999;
+  display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{
+  padding:10px 15px;border-radius:9px;font-size:12px;font-weight:600;
+  min-width:240px;animation:tin .22s ease;pointer-events:all;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);
+}
+.t-ok {background:rgba(34,197,94,.18);border:1px solid var(--green-b);color:#86efac}
+.t-err{background:rgba(239,68,68,.18);border:1px solid var(--red-b);color:#fca5a5}
+.t-inf{background:rgba(14,107,138,.22);border:1px solid rgba(14,107,138,.4);color:var(--teal-l)}
+@keyframes tin{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ═══ DESPLEGABLES OSCUROS ═══════════════════════════════════ */
+html{color-scheme:dark}
+select{color-scheme:dark}
+select option,select optgroup{background:#0c1119;color:#e2e8f0}
+select option:checked,select option:hover{background:#14212f;color:#fff}
+
+/* ═══ PROPIAS DE REPOSICIÓN ═══════════════════════════════════
+   Cada fila trae hasta tres bloques tildables (demora / lote-múltiplo /
+   pactada) apretados en una tabla compacta: los inputs numéricos van
+   angostos a propósito, y el checkbox que gobierna cada bloque queda
+   pegado arriba del campo para que no haya dudas de a qué tilda. */
+.ap-mini{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--muted-l);
+  margin-bottom:4px;cursor:pointer;user-select:none;white-space:nowrap}
+.ap-mini input{cursor:pointer;width:13px;height:13px;flex-shrink:0}
+input.fi2.ap-demora,input.fi2.ap-lote,input.fi2.ap-mult{width:72px;padding:5px 7px;font-size:11px}
+input.fi2.ap-pact-cant,input.fi2.ap-pact-ent{width:56px;padding:4px 6px;font-size:10px}
+input.fi2.ap-pact-vence{width:118px;padding:4px 6px;font-size:10px}
+.ap-pact-grid{display:flex;gap:4px;flex-wrap:wrap}
+.ap-seg{width:16px;height:16px;cursor:pointer}
+.ap-fam{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.ap-fam.mp {color:#a78bfa;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3)}
+.ap-fam.env{color:#1bc8ff;background:rgba(27,200,255,.13);border:1px solid rgba(27,200,255,.3)}
+.ap-fam.con{color:var(--orange);background:rgba(249,115,22,.14);border:1px solid rgba(249,115,22,.3)}
+.ap-fam.sin{color:var(--muted-l);background:rgba(255,255,255,.06);border:1px solid var(--border)}
+.ap-art-cod{font-family:var(--mono);font-size:9px;color:var(--muted)}
+
+/* Aviso de corrección automática de proveedor (Tarea 8): mismo cartel que
+   stock.html, en versión compacta para la celda de la grilla. */
+.prov-auto-note{
+  margin-top:4px;padding:3px 8px;border-radius:7px;font-size:10px;
+  display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;
+  background:var(--amber-g);border:1px solid var(--amber-b);color:#fcd9a8;
+}
+.prov-auto-note .btn{padding:2px 8px;font-size:9px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="nav.css?v=2026-08-28.1328"/>
+<script src="supabase-config.js?v=2026-08-28.1328"></script>
+<script src="subatir-app.js?v=2026-08-28.1328"></script>
+<script src="reposicion-calc.js?v=1"></script>
+<script>
+// Version del modulo. La compara subatir-app.js contra version.json y si
+// hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
+window.APP_VER='2026-08-28.1328';
+</script>
+</head>
+<body>
+
+<!-- ══ HEADER ════════════════════════════════════════════════ -->
+<header>
+  <a class="logo" href="index.html" style="text-decoration:none">
+    <img class="logo-mark" src="logo.jpg" alt="Subatir"/>
+    <div>
+      <h1>Subatir</h1>
+      <p>Reposición</p>
+    </div>
+  </a>
+  <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
+  <nav></nav>
+  <script src="nav.js?v=2026-08-28.1328"></script>
+  <div class="hdr-right">
+    <span class="ts" id="ts">—</span>
+    <button class="btn btn-ghost btn-sm" onclick="load()">⟳ Actualizar</button>
+  </div>
+</header>
+
+<!-- ══ MAIN ══════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="glass kpi kpi-total">
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-label">Artículos</div>
+      <div class="kpi-num c-teal" id="k-total">—</div>
+      <div class="kpi-sub">en el inventario</div>
+    </div>
+    <div class="glass kpi kpi-optimo">
+      <div class="kpi-icon">👁</div>
+      <div class="kpi-label">Con seguimiento</div>
+      <div class="kpi-num c-green" id="k-seg">—</div>
+      <div class="kpi-sub">reposición activa</div>
+    </div>
+    <div class="glass kpi kpi-medio">
+      <div class="kpi-icon">⚙</div>
+      <div class="kpi-label">Falta configurar</div>
+      <div class="kpi-num c-amber" id="k-falta">—</div>
+      <div class="kpi-sub">filas de la tabla sin cargar</div>
+    </div>
+    <div class="glass kpi kpi-crit">
+      <div class="kpi-icon">🔔</div>
+      <div class="kpi-label">Señal activa</div>
+      <div class="kpi-num c-red" id="k-activas">—</div>
+      <div class="kpi-sub">atrasado o para pedir</div>
+    </div>
+  </div>
+
+  <!-- Tabla de configuración -->
+  <div class="glass" style="padding:18px">
+    <div class="sec-hdr">
+      <h2>🔁 <em>Configuración de Reposición por Artículo</em></h2>
+      <span class="badge b-info" id="tbl-cnt">—</span>
+    </div>
+
+    <div class="filters">
+      <div class="search-wrap">
+        <input class="fi fi-search" id="f-q" placeholder="Buscar artículo, código…" oninput="render()"/>
+      </div>
+      <select class="fi" id="f-fam" onchange="render()">
+        <option value="">Todas las familias</option>
+        <option value="MP">Materia prima</option>
+        <option value="ENV">Envases</option>
+        <option value="CON">Consumibles</option>
+      </select>
+      <select class="fi" id="f-est" onchange="render()">
+        <option value="">Todos</option>
+        <option value="SEG">Solo con seguimiento</option>
+        <option value="FALTA">Falta configurar</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Artículo</th><th>Familia</th><th>Seguir</th><th>Proveedor</th>
+          <th class="num">Demora (d)</th><th class="num">Lote mín.</th><th class="num">Múltiplo</th>
+          <th>Pactada</th><th>Señal</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="10" class="empty-td">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="muted" style="font-size:11px;margin-top:10px">
+      El tilde de cada bloque manda: un dato cargado sin tildar no se usa para calcular la señal.
+      💾 guarda solo la fila de ese proveedor.
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div id="tc"></div>
+
+<!-- ══ SCRIPT ═════════════════════════════════════════════════ -->
+<script>
+// ─── Estado ──────────────────────────────────────────────────
+var ARTS = [], FICHAS = [];
+// Tránsito y última OC por artículo, de la capa compartida
+// (SubatirApp.transito): son los mismos números que usan Stock y el
+// dashboard. Sin ellos esta pantalla calculaba la señal con el tránsito en
+// cero y sin última OC, y le decía "⚙ falta dato" a artículos que el
+// usuario ya había configurado.
+var TRANSITO = null;
+// Qué pasó en la última carga: 'ok' o 'err'. "No pude cargar" y "no hay
+// nada" no pueden verse igual, y ningún camino de salida puede dejar
+// puesto el "Cargando…" del placeholder.
+var CARGA = '';
+// __row → ya se pintó el cartel de auditoría de proveedor (Tarea 8) para
+// ese artículo en este render(): un artículo con varios proveedores tiene
+// varias filas y el aviso es UNO por artículo, no por ficha.
+var PROV_AUTO_MOSTRADOS = {};
+
+// FAM: 'ID' es el campo que trae el ext_id crudo (MP/ENV/CON) — no hace
+// falta pasar por SubatirApp.categorias() para filtrar/mostrar la familia.
+var FAM_LABEL = { MP: 'Materia prima', ENV: 'Envases', CON: 'Consumibles' };
+var FAM_CLASS = { MP: 'mp', ENV: 'env', CON: 'con' };
+
+// Igual criterio en toda la app: el tilde manda, "true" en texto también
+// cuenta (algunas filas vienen de una migración vieja con el valor como string).
+function seguimientoOn(a){
+  var s = a && a['SEGUIMIENTO'];
+  return s === true || s === 'true';
+}
+
+function load(){
+  Promise.all([
+    SubatirApp.getData(),
+    SubatirApp.getArtProveedor()
+  ]).then(function(res){
+    ARTS     = res[0].inventario || [];
+    FICHAS   = res[1] || [];
+    // Mismo cruce OC ↔ artículo que Stock, sin armar un matcher propio.
+    TRANSITO = SubatirApp.transito ? SubatirApp.transito(ARTS, res[0].pedidos || []) : null;
+    CARGA    = 'ok';
+    setText('ts', new Date().toLocaleTimeString('es-UY'));
+    render();
+  }, function(e){
+    // Antes esto solo mostraba un toast y la tabla se quedaba en
+    // "Cargando…" para siempre. Se limpia el estado y se pinta el error:
+    // una pantalla que no pudo leer no puede parecer una que leyó y no
+    // encontró nada.
+    ARTS = []; FICHAS = []; TRANSITO = null; CARGA = 'err';
+    toast('Error cargando datos: '+(e && e.message || e), 'err');
+    render();
+  });
+}
+
+// Tránsito y última OC del artículo, tolerando que la carga haya fallado.
+function trDe(a){
+  return (TRANSITO && TRANSITO.de(a.__row)) || { pendiente:0, ultimaOC:'' };
+}
+
+// Una fila por artículo × proveedor con ficha, más una fila por artículo
+// con seguimiento que todavía no tiene ninguna: son las que hay que cargar.
+function filas(){
+  var porArt = {};
+  FICHAS.forEach(function(f){ (porArt[f.inventario_id] = porArt[f.inventario_id] || []).push(f); });
+  var out = [];
+  ARTS.forEach(function(a){
+    var fs = porArt[a.__row] || [];
+    if(fs.length) fs.forEach(function(f){ out.push({ art: a, ficha: f }); });
+    else out.push({ art: a, ficha: { inventario_id: a.__row, proveedor: a['PROVEEDOR'] || '' } });
+  });
+  return out;
+}
+
+// Único lugar que decide "falta configurar": el KPI de arriba y el filtro
+// del select llaman a esta misma función sobre las mismas filas de
+// filas(), para no volver a mostrar dos números distintos con el mismo
+// nombre. Cuenta por FILA (artículo × proveedor), no por artículo: un
+// artículo con dos proveedores y ninguno cargado son dos filas por
+// completar, no una.
+function faltaConfigurar(par){
+  var f = par.ficha;
+  return seguimientoOn(par.art) && !f.usar_demora && !f.usar_lote && !f.usar_pactada;
+}
+
+// La columna Señal se calcula con el mismo camino que Stock y el
+// Dashboard — no con uno propio, o la misma etiqueta muestra dos estados
+// distintos según la pantalla.
+function senalDe(par){
+  // La última OC y el tránsito salen de SubatirApp.transito(), igual que en
+  // Stock: con ultimaOC en null, un artículo con "revisar cada N meses"
+  // cargado caía en SIN_DATOS/'sin-oc' y esta pantalla mostraba "⚙ falta
+  // dato" para algo que el usuario ya había cargado, mientras Stock decía OK.
+  var tr = trDe(par.art);
+  var rep = Reposicion.calcular(
+    Reposicion.desdeFila(par.art, par.ficha, tr.ultimaOC ? new Date(tr.ultimaOC) : null, tr.pendiente),
+    new Date());
+  return rep.senal;
+}
+
+var REP_LOOK = {
+  ATRASADO:  ['var(--red)',    '🔴 atrasado'],
+  PEDIR:     ['var(--amber)',  '🟠 pedir'],
+  REVISAR:   ['#a78bfa',       '🔔 revisar'],
+  OK:        ['var(--green)',  '✓ ok'],
+  SIN_DATOS: ['var(--muted-l)','⚙ falta dato']
+};
+function senalCell(s){
+  if(!s) return '<span class="muted">—</span>';
+  var look = REP_LOOK[s] || ['var(--muted-l)', s];
+  return '<span style="color:'+look[0]+';font-weight:700;white-space:nowrap">'+look[1]+'</span>';
+}
+
+// Ficha "que manda" de un artículo: la del proveedor que figura en
+// inventario, igual que fichaDe() en stock.html. Sólo se usa para los KPIs
+// (un número por artículo); la tabla de abajo sigue mostrando una fila
+// por cada proveedor que tenga ficha.
+function fichaManda(a, porArt){
+  var fs = porArt[a.__row] || [];
+  var manda = Reposicion.canonProv(a['PROVEEDOR'] || '');
+  var f = null;
+  fs.forEach(function(x){ if(!f && Reposicion.canonProv(x.proveedor) === manda) f = x; });
+  return f || fs[0] || { inventario_id: a.__row, proveedor: a['PROVEEDOR'] || '' };
+}
+
+function actualizarKpis(){
+  var porArt = {};
+  FICHAS.forEach(function(f){ (porArt[f.inventario_id] = porArt[f.inventario_id] || []).push(f); });
+  var total = ARTS.length, seg = 0, activas = 0;
+  ARTS.forEach(function(a){
+    if(!seguimientoOn(a)) return;
+    seg++;
+    var s = senalDe({ art: a, ficha: fichaManda(a, porArt) });
+    if(s === 'ATRASADO' || s === 'PEDIR') activas++;
+  });
+  // Mismo predicado y misma fuente (filas()) que usa el filtro "Falta
+  // configurar": el número de acá tiene que ser exactamente cuántas filas
+  // aparecen si se elige ese filtro, ni una fila más, ni una menos.
+  var falta = filas().filter(faltaConfigurar).length;
+  setText('k-total', total);
+  setText('k-seg', seg);
+  setText('k-falta', falta);
+  setText('k-activas', activas);
+}
+
+function toggleSeguimiento(invId, checked){
+  SubatirApp.write({
+    action: 'updateRow', sheetKey: 'inventario', row: invId,
+    fields: JSON.stringify({ 'SEGUIMIENTO': checked })
+  }).then(function(r){
+    if(r.error){ toast('Error: '+r.error, 'err'); load(); return; }
+    toast(checked ? 'Seguimiento activado ✓' : 'Seguimiento desactivado', 'ok');
+    load();
+  });
+}
+
+// ─── Corrección automática de proveedor (Tarea 8) ────────────
+// La detección y el UPDATE que corrige viven solo en stock.html (ahí está
+// findOCMatch/ocIdx); esta pantalla no arma un matcher propio, solo lee los
+// campos de auditoría de la fila ya corregida y muestra el mismo cartel.
+//
+// "Volver atrás" prende PROV AUTO OFF: no es una postergación, es una
+// decisión firme ("el proveedor de esta ficha lo manejo yo"), y stock.html
+// la respeta salteando la detección para ese artículo hasta que se
+// reactive a propósito (mismo criterio que volverProveedorAnterior() en
+// stock.html — ver el comentario largo ahí).
+function volverProveedorAnterior(invId){
+  var a = ARTS.filter(function(x){ return x.__row === invId; })[0];
+  var anterior = a && a['PROV AUTO ANTERIOR'];
+  if(!anterior){ toast('No hay proveedor anterior guardado para este artículo.', 'err'); return; }
+  SubatirApp.write({
+    action: 'updateRow', sheetKey: 'inventario', row: invId,
+    fields: JSON.stringify({
+      'PROVEEDOR': anterior, 'PROV AUTO AT': '', 'PROV AUTO ANTERIOR': '', 'PROV AUTO OFF': true
+    })
+  }).then(function(r){
+    if(r.error){ toast('Error: '+r.error, 'err'); return; }
+    toast('Proveedor restaurado a "'+anterior+'" ✓ — corrección automática desactivada', 'ok');
+    load();
+  });
+}
+// Vuelve a dejar la corrección automática en manos del sistema para este
+// artículo. No toca PROVEEDOR: la próxima carga de Stock la evalúa contra
+// la OC más reciente tal cual esté en ese momento.
+function reactivarCorreccionProveedor(invId){
+  SubatirApp.write({
+    action: 'updateRow', sheetKey: 'inventario', row: invId,
+    fields: JSON.stringify({ 'PROV AUTO OFF': false })
+  }).then(function(r){
+    if(r.error){ toast('Error: '+r.error, 'err'); return; }
+    toast('Corrección automática reactivada ✓', 'ok');
+    load();
+  });
+}
+
+function guardarFila(tr){
+  var v = function(sel){ var e=tr.querySelector(sel); return e && e.value!=='' ? parseFloat(e.value) : null; };
+  var c = function(sel){ var e=tr.querySelector(sel); return !!(e && e.checked); };
+  var fila = {
+    inventario_id: +tr.getAttribute('data-inv'),
+    proveedor: tr.getAttribute('data-prov'),
+    demora_dias: v('.ap-demora'), usar_demora: c('.ap-usar-demora'),
+    lote_minimo: v('.ap-lote'), multiplo: v('.ap-mult'), usar_lote: c('.ap-usar-lote'),
+    pact_cantidad: v('.ap-pact-cant'), pact_entregado: v('.ap-pact-ent') || 0,
+    pact_vence: (tr.querySelector('.ap-pact-vence')||{}).value || null,
+    usar_pactada: c('.ap-usar-pact')
+  };
+  // Mismo guard que saveReposicion() en stock.html: apretar 💾 en una fila
+  // intacta insertaba una fila de art_proveedor entera en null, que no
+  // configura nada y ensucia la tabla.
+  var vacia = !fila.usar_demora && !fila.usar_lote && !fila.usar_pactada &&
+              fila.demora_dias===null && fila.lote_minimo===null && fila.pact_cantidad===null;
+  if(vacia){ toast('No hay nada para guardar en esta fila: cargá un dato y tildá el bloque.', 'inf'); return; }
+  // Sin proveedor la ficha no se puede emparejar con nada: la señal la
+  // busca por artículo + proveedor, y '' no matchea con ningún artículo.
+  if(!String(fila.proveedor||'').trim()){
+    toast('Este artículo no tiene proveedor cargado: asignale uno en Stock antes de configurar la reposición.', 'err');
+    return;
+  }
+  SubatirApp.saveArtProveedor(fila).then(function(r){
+    if(r.error){ toast('Error: '+r.error, 'err'); return; }
+    toast('Guardado ✓','ok'); load();
+  });
+}
+
+function fmtDiaMesRep(iso){
+  var d = new Date(iso);
+  if(isNaN(d)) return '—';
+  var p = function(n){ return (n<10?'0':'')+n; };
+  return p(d.getDate())+'/'+p(d.getMonth()+1);
+}
+// Cartel de auditoría de proveedor (Tarea 8): UNA vez por artículo (no por
+// ficha — PROV_AUTO_MOSTRADOS lo garantiza), en la primera fila de ese
+// artículo que se pinte. Antes esto se filtraba comparando el proveedor de
+// cada fila contra inventario.PROVEEDOR, pero justo después de una
+// corrección esa columna pasa a ser el proveedor NUEVO (Lipiner) y la ficha
+// que el usuario cargó a mano suele ser la del proveedor VIEJO (MIL
+// ROLLOS): ninguna fila coincidía y el cartel no se pintaba nunca, que es
+// el peor lugar para que falte — es la pantalla donde se configura la
+// reposición. El aviso es sobre el artículo, no sobre una ficha puntual,
+// así que ya no hace falta que coincida con nada.
+function provAutoNota(a){
+  if(PROV_AUTO_MOSTRADOS[a.__row]) return '';
+  PROV_AUTO_MOSTRADOS[a.__row] = true;
+  var off = a['PROV AUTO OFF']===true || a['PROV AUTO OFF']==='true';
+  if(off){
+    return '<div class="prov-auto-note">⚙️ corrección automática desactivada'
+      + ' <button class="btn btn-ghost btn-sm" onclick="reactivarCorreccionProveedor('+a.__row+')">↻ Reactivar</button></div>';
+  }
+  var at = a['PROV AUTO AT'];
+  if(!at) return '';
+  var anterior = a['PROV AUTO ANTERIOR'] || '';
+  return '<div class="prov-auto-note">⚠️ actualizado '+esc(fmtDiaMesRep(at))+' según OC #'+esc(a['PROV AUTO OC']||'—')+'.'
+    + (anterior ? ' <button class="btn btn-ghost btn-sm" onclick="volverProveedorAnterior('+a.__row+')">↩ Volver a '+esc(anterior)+'</button>' : '')
+    + '</div>';
+}
+
+// ─── Pintado de fila ────────────────────────────────────────
+// Mismas clases que stock.html en el modal de ficha por proveedor
+// (.ap-usar-demora, .ap-demora, etc.): las dos pantallas leen el mismo
+// formulario, y si divergen mañana un campo nuevo se agrega en un lado
+// y no en el otro.
+function filaHtml(par){
+  var a = par.art, f = par.ficha;
+  var invId = a.__row;
+  var prov = f.proveedor || a['PROVEEDOR'] || '';
+  var famCod = a['ID'] || '';
+  var famTxt = FAM_LABEL[famCod] || 'Sin familia';
+  var famCls = FAM_CLASS[famCod] || 'sin';
+  var seg = seguimientoOn(a);
+  var senal = senalDe(par);
+  return ''
+    +'<tr data-inv="'+invId+'" data-prov="'+esc(prov)+'">'
+    +'<td><strong>'+esc(a['DESCRIPCIÓN']||'—')+'</strong>'
+      +(a['CODIGO']?'<br><span class="ap-art-cod">'+esc(a['CODIGO'])+'</span>':'')+'</td>'
+    +'<td><span class="ap-fam '+famCls+'">'+esc(famTxt)+'</span></td>'
+    +'<td style="text-align:center">'
+      +'<input type="checkbox" class="ap-seg" '+(seg?'checked':'')+' title="Seguir la reposición de este artículo" '
+      +'onchange="toggleSeguimiento('+invId+',this.checked)"/></td>'
+    +'<td>'+(prov ? esc(prov) : '<span class="muted">—</span>')+provAutoNota(a)+'</td>'
+    +'<td class="num">'
+      +'<label class="ap-mini"><input type="checkbox" class="ap-usar-demora"'+(f.usar_demora?' checked':'')+'/> usar</label>'
+      +'<input type="number" class="fi2 ap-demora" min="1" placeholder="días" value="'+(f.demora_dias||'')+'"/>'
+    +'</td>'
+    +'<td class="num">'
+      +'<label class="ap-mini"><input type="checkbox" class="ap-usar-lote"'+(f.usar_lote?' checked':'')+'/> usar</label>'
+      +'<input type="number" class="fi2 ap-lote" placeholder="mínimo" value="'+(f.lote_minimo||'')+'"/>'
+    +'</td>'
+    +'<td class="num"><input type="number" class="fi2 ap-mult" placeholder="múltiplo" value="'+(f.multiplo||'')+'"/></td>'
+    +'<td>'
+      +'<label class="ap-mini"><input type="checkbox" class="ap-usar-pact"'+(f.usar_pactada?' checked':'')+'/> usar</label>'
+      +'<div class="ap-pact-grid">'
+        +'<input type="number" class="fi2 ap-pact-cant" placeholder="cant." value="'+(f.pact_cantidad||'')+'"/>'
+        +'<input type="number" class="fi2 ap-pact-ent" placeholder="entreg." value="'+(f.pact_entregado||0)+'"/>'
+        +'<input type="date" class="fi2 ap-pact-vence" value="'+(f.pact_vence||'')+'"/>'
+      +'</div>'
+    +'</td>'
+    +'<td>'+senalCell(senal)+'</td>'
+    +'<td><button class="btn btn-teal btn-sm" onclick="guardarFila(this.closest(\'tr\'))">💾</button></td>'
+    +'</tr>';
+}
+
+function render(){
+  // Sin artículos hay dos motivos muy distintos y no pueden verse igual:
+  // la carga falló, o cargó bien y el inventario está vacío. Antes los dos
+  // caían en "Cargando…", así que un error de red se veía como una pantalla
+  // que todavía está cargando y no termina nunca.
+  if(!ARTS.length){
+    document.getElementById('tbody').innerHTML = CARGA === 'err'
+      ? '<tr><td colspan="10" class="empty-td" style="color:var(--amber)">⚠ No se pudieron cargar los datos. '
+        + '<button class="btn btn-ghost btn-sm" onclick="load()">↻ Reintentar</button></td></tr>'
+      : '<tr><td colspan="10" class="empty-td">No hay artículos en el inventario.</td></tr>';
+    setText('tbl-cnt','—');
+    // Los KPI arrancan en "—" y ahí se quedan: un 0 sería afirmar algo que
+    // no se pudo leer.
+    ['k-total','k-seg','k-falta','k-activas'].forEach(function(id){ setText(id,'—'); });
+    return;
+  }
+  actualizarKpis();
+  PROV_AUTO_MOSTRADOS = {}; // un cartel por artículo, no por fila — se resetea en cada pintado
+  var q   = document.getElementById('f-q').value.trim().toUpperCase();
+  var fam = document.getElementById('f-fam').value;
+  var est = document.getElementById('f-est').value;
+
+  var rows = filas().filter(function(par){
+    var a = par.art;
+    if(fam && (a['ID']||'') !== fam) return false;
+    if(q){
+      var hay = (String(a['DESCRIPCIÓN']||'')+' '+String(a['CODIGO']||'')).toUpperCase();
+      if(hay.indexOf(q) === -1) return false;
+    }
+    if(est === 'SEG' && !seguimientoOn(a)) return false;
+    // Misma función que usa el KPI "Falta configurar" de arriba: los dos
+    // números tienen que salir de un solo lugar o vuelven a divergir.
+    if(est === 'FALTA' && !faltaConfigurar(par)) return false;
+    return true;
+  });
+  rows.sort(function(x,y){
+    return String(x.art['DESCRIPCIÓN']||'').localeCompare(String(y.art['DESCRIPCIÓN']||''), 'es');
+  });
+
+  setText('tbl-cnt', rows.length + ' de ' + ARTS.length + ' artículos');
+  document.getElementById('tbody').innerHTML =
+    rows.map(filaHtml).join('') || '<tr><td colspan="10" class="empty-td">Sin resultados para el filtro.</td></tr>';
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+function toast(msg,type){
+  var c=document.getElementById('tc'),d=document.createElement('div');
+  d.className='toast t-'+(type||'inf');d.textContent=msg;c.appendChild(d);
+  setTimeout(function(){d.style.opacity='0';d.style.transition='opacity .35s';setTimeout(function(){d.remove();},350);},3600);
+}
+
+// ─── Init ─────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  load();
+  // 'pedidos' entró con el tránsito compartido: esta pantalla ahora calcula
+  // la señal con las OC pendientes, así que una OC nueva la cambia.
+  if(window.SubatirApp && SubatirApp.live) SubatirApp.live(['inventario','art_proveedor','pedidos'], load);
+});
+</script>
+<script>
+// PWA: instalable y abre sin señal. El worker vive en la raíz.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>

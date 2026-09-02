@@ -18,6 +18,7 @@
     'pedidos.html': 'pedidos',
     'recepcion.html': 'recepcion',
     'stock.html': 'stock',
+    'reposicion.html': 'stock',
     'precios.html': 'precios',
     'proveedores.html': 'proveedores',
     'varios.html': 'varios',
@@ -113,9 +114,13 @@
         consumo_mensual: 'CONSUMO MENSUAL', stock_minimo: 'STOCK MÍNIMO', inventario: 'INVENTARIO',
         solicitar: 'SOLICITAR', compra_sugerencia: 'COMPRA SUGERENCIA',
         proveedor_sugerido: 'PROOVEDOR SUGERIDO', pendiente_entrega: 'PENDIENTE DE ENTREGA',
-        proveedor: 'PROVEEDOR', ext_id: 'ID'
+        proveedor: 'PROVEEDOR', ext_id: 'ID',
+        seguimiento: 'SEGUIMIENTO', revisar_cada_meses: 'REVISAR CADA MESES',
+        proxima_revision: 'PROXIMA REVISION', prov_auto_at: 'PROV AUTO AT',
+        prov_auto_oc: 'PROV AUTO OC', prov_auto_anterior: 'PROV AUTO ANTERIOR',
+        prov_auto_off: 'PROV AUTO OFF'
       },
-      num: ['consumo_mensual', 'stock_minimo', 'inventario', 'compra_sugerencia', 'pendiente_entrega'], date: []
+      num: ['consumo_mensual', 'stock_minimo', 'inventario', 'compra_sugerencia', 'pendiente_entrega', 'revisar_cada_meses'], date: ['proxima_revision']
     },
     contactos: {
       table: 'proveedores', payloadKeys: ['contactos', 'proveedores'],
@@ -586,6 +591,50 @@
   function deleteEntrega(id) {
     return SB.from('entregas').delete().eq('id', id)
       .then(function (r) { return r.error ? { error: r.error.message } : { success: true }; });
+  }
+
+  // ── Configuración de reposición por artículo + proveedor ──────
+  // Las tres verifican filas afectadas con .select(): una escritura
+  // bloqueada por RLS devuelve cero filas SIN error.
+  //  Devolvía [] tanto cuando no había fichas como cuando la consulta
+  //  fallaba, y las tres pantallas leían ese [] como "no hay nada que
+  //  pedir": el KPI mostraba 0, el dashboard decía "Nada para pedir ✓" y
+  //  el modal de Stock pintaba los campos vacíos — y si el usuario
+  //  tipeaba encima, el upsert pisaba la configuración que sí existía.
+  //  "No pude leer" y "no hay nada" no pueden verse igual, así que un
+  //  error ahora RECHAZA la promesa y cada pantalla decide qué mostrar.
+  //  (Ojo: Supabase no rechaza ante un error de permisos — lo devuelve
+  //  en r.error con r.data en null. Por eso se mira r.error a mano.)
+  function getArtProveedor(invIds) {
+    var q = SB.from('art_proveedor').select('*');
+    if (invIds && invIds.length) q = q.in('inventario_id', invIds);
+    return q.then(function (r) {
+      if (r.error) throw new Error(r.error.message);
+      if (!r.data) throw new Error('La base no devolvió las fichas de reposición.');
+      return r.data;
+    }, function (e) {
+      throw new Error((e && e.message) || 'No se pudieron leer las fichas de reposición.');
+    });
+  }
+
+  function saveArtProveedor(fila) {
+    return SB.from('art_proveedor')
+      .upsert(fila, { onConflict: 'inventario_id,proveedor' })
+      .select()
+      .then(function (r) {
+        if (r.error) return { data: null, error: r.error.message };
+        if (!r.data || !r.data.length) return { data: null, error: 'Sin permiso para guardar (0 filas).' };
+        return { data: r.data[0], error: null };
+      });
+  }
+
+  function deleteArtProveedor(id) {
+    return SB.from('art_proveedor').delete().eq('id', id).select()
+      .then(function (r) {
+        if (r.error) return { data: null, error: r.error.message };
+        if (!r.data || !r.data.length) return { data: null, error: 'Sin permiso para borrar (0 filas).' };
+        return { data: r.data[0], error: null };
+      });
   }
 
   // ── Chequeo de versión ─────────────────────────────────────
@@ -1405,6 +1454,151 @@
              invalidar: invalidar };
   })();
 
+  // ══ En tránsito por artículo ═══════════════════════════════
+  //  Lo que ya está pedido y todavía no llegó es parte de la cuenta de
+  //  la reposición: días de stock = (stock + tránsito − mínimo) / consumo
+  //  diario, y falta = objetivo − stock − tránsito. Sin ese dato, un
+  //  artículo con 20.000 unidades viajando se marca atrasado y se vuelve
+  //  a pedir.
+  //
+  //  Vive acá y no en stock.html porque las TRES pantallas que muestran
+  //  la señal (Stock, Reposición y el Dashboard) tienen que contar el
+  //  mismo tránsito. Con la cuenta en una sola de ellas, el mismo
+  //  artículo mostraba estados distintos según dónde se lo mirara —
+  //  justo el descuadre que este módulo existe para terminar.
+  //
+  //  La columna 'PENDIENTE DE ENTREGA' de inventario NO se usa: es
+  //  herencia del Sheet viejo, no la escribe nadie y está en null en
+  //  casi todos los artículos.
+  //
+  //  Cómo se atribuye cada OC:
+  //    · Si trae 'ID Inventario', va a ESE artículo y a ninguno más. Es
+  //      el dato duro: no hay nada que adivinar.
+  //    · Si no lo trae (la mayoría de las órdenes viejas), se cruza por
+  //      descripción con el MISMO matcher que usa Recepción para sumar
+  //      al stock (MATCH, acá arriba). Dos criterios distintos harían
+  //      que la mercadería se le sume a una ficha y se la espere en otra.
+  //  Solo suman las OC SIN fecha de recepción: lo ya recibido está en el
+  //  inventario, y contarlo de nuevo sería contarlo dos veces.
+  function _numTr(v) {
+    if (v === null || v === undefined || v === '') return 0;
+    var s = String(v).replace(/[^\d.,-]/g, '').replace(',', '.');
+    var n = parseFloat(s);
+    return isFinite(n) ? n : 0;
+  }
+  function _txtTr(v) { return v === null || v === undefined ? '' : String(v).trim(); }
+
+  //  Devuelve { porArticulo: {invId: acumulador}, usadas: {...}, de(invId) }.
+  //  `usadas` es {descNorm: {pendiente, valorPendiente}}: CUÁNTO de cada
+  //  descripción ya encontró dueño. Stock lo resta del total de esa
+  //  descripción para mostrar aparte lo que quedó sin artículo.
+  //  Es una cantidad y no un booleano porque una misma descripción puede
+  //  tener líneas con dueño y líneas sin dueño a la vez: con un booleano,
+  //  una sola línea con id borraba de la pantalla a todas las demás.
+  function transito(inventario, pedidos) {
+    var C = MAPS.pedidos.cols, IC = MAPS.inventario.cols;
+    inventario = inventario || [];
+    pedidos = pedidos || [];
+    var out = { porArticulo: {}, usadas: {} };
+
+    function vacio() {
+      return { pendiente: 0, valorPendiente: 0, ultimaOC: '', ultimaOrden: '', ultimoProv: '' };
+    }
+    function sumar(acc, p) {
+      var recibido = _txtTr(p[C.f_recepcion]).toUpperCase();
+      var sinRecibir = !recibido || recibido === '—' || recibido === '-' || recibido === 'N/A' || recibido === '0';
+      var cant = _numTr(p[C.cantidad]);
+      if (sinRecibir && cant > 0) {
+        acc.pendiente += cant;
+        acc.valorPendiente += cant * _numTr(p[C.precio_un]);
+      }
+      // Última OC = la de fecha más reciente, recibida o no: es desde
+      // donde cuenta la regla "revisar cada N meses".
+      var f = _txtTr(p[C.fecha]);
+      if (f > acc.ultimaOC) {
+        acc.ultimaOC = f;
+        acc.ultimaOrden = _txtTr(p[C.n_orden]);
+        acc.ultimoProv = _txtTr(p[C.proveedor]);
+      }
+      return acc;
+    }
+    function fundir(acc, otro) {
+      acc.pendiente += otro.pendiente;
+      acc.valorPendiente += otro.valorPendiente;
+      if (otro.ultimaOC > acc.ultimaOC) {
+        acc.ultimaOC = otro.ultimaOC;
+        acc.ultimaOrden = otro.ultimaOrden;
+        acc.ultimoProv = otro.ultimoProv;
+      }
+      return acc;
+    }
+
+    //  Anota que `cuanto` de la descripción `nd` ya encontró dueño. Se
+    //  anota la CANTIDAD y no un booleano a propósito: una misma
+    //  descripción puede tener líneas que encontraron artículo y líneas
+    //  que no, y quien muestra las OC sin dueño tiene que poder quedarse
+    //  con la diferencia en vez de borrar la descripción entera.
+    function marcarUsada(nd, cuanto) {
+      if (!nd) return;
+      var u = out.usadas[nd];
+      if (!u) { u = out.usadas[nd] = { pendiente: 0, valorPendiente: 0 }; }
+      u.pendiente += cuanto.pendiente;
+      u.valorPendiente += cuanto.valorPendiente;
+    }
+
+    // porId: lo que cada OC declara con 'ID Inventario'.
+    // descsDeId: lo mismo pero abierto por descripción, para poder marcar
+    //   como usadas SOLO las descripciones de los ids que después
+    //   resuelvan a una fila real del inventario. La columna es un bigint
+    //   pelado, sin foreign key: un id colgado es posible, y esa
+    //   mercadería no tiene dueño — tiene que seguir a la vista.
+    // porDesc: las que no declaran nada y se cruzan por nombre.
+    var porId = {}, descsDeId = {}, porDesc = {};
+    pedidos.forEach(function (p) {
+      var nd = MATCH.norm(_txtTr(p[C.descripcion]));
+      var id = p[C.inventario_id];
+      if (id !== '' && id !== null && id !== undefined) {
+        var k = String(id);
+        porId[k] = sumar(porId[k] || vacio(), p);
+        if (nd) {
+          if (!descsDeId[k]) descsDeId[k] = {};
+          descsDeId[k][nd] = sumar(descsDeId[k][nd] || vacio(), p);
+        }
+        return;
+      }
+      if (!nd || nd.length < 3) return;
+      porDesc[nd] = sumar(porDesc[nd] || vacio(), p);
+    });
+
+    var descYaMarcada = {};  // una descripción se cobra UNA vez, aunque la
+                             // reclamen dos artículos (los dos la suman, es
+                             // el comportamiento de siempre, pero como
+                             // "usada" vale una sola vez o restaría de más)
+    inventario.forEach(function (a) {
+      var id = a.__row;
+      if (id === undefined || id === null || id === '') return;
+      var k = String(id);
+      var acc = vacio();
+      if (porId[k]) {
+        // Recién acá el id tiene dueño: existe la fila del inventario que
+        // dice ser. Ahora sí sus descripciones cuentan como usadas.
+        fundir(acc, porId[k]);
+        var descs = descsDeId[k] || {};
+        Object.keys(descs).forEach(function (nd) { marcarUsada(nd, descs[nd]); });
+      }
+      MATCH.keys(_txtTr(a[IC.descripcion]), porDesc).forEach(function (kd) {
+        if (!descYaMarcada[kd]) { descYaMarcada[kd] = true; marcarUsada(kd, porDesc[kd]); }
+        fundir(acc, porDesc[kd]);
+      });
+      out.porArticulo[id] = acc;
+    });
+
+    // Acceso cómodo: nunca devuelve undefined, así quien llama no tiene
+    // que acordarse de defenderse en cada uso.
+    out.de = function (invId) { return out.porArticulo[invId] || vacio(); };
+    return out;
+  }
+
   // ══════════════════════════════════════════════════════════
   //  SUMAR AL STOCK LO QUE SE RECIBE
   //
@@ -1957,9 +2151,11 @@
     categorias: categorias, setCategoria: setCategoria,
     ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto,
     getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
+    getArtProveedor: getArtProveedor, saveArtProveedor: saveArtProveedor, deleteArtProveedor: deleteArtProveedor,
     PL06: PL06, operador: OPER, stock: STOCK,
     live: live,
     xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH, cat: CAT,
+    transito: transito,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule
   };

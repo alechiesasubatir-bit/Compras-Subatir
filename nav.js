@@ -24,6 +24,8 @@
     { k: 'pedidos',      href: 'pedidos.html',        ico: '📦', txt: 'Pedidos' },
     { k: 'recepcion',    href: 'recepcion.html',      ico: '📥', txt: 'Recepción' },
     { k: 'stock',        href: 'stock.html',          ico: '📊', txt: 'Stock' },
+    { k: 'stock',        href: 'reposicion.html',     ico: '🔁', txt: 'Reposición',
+      title: 'Cargar de una sentada la configuración de reposición: demora, lote y compras pactadas' },
     { k: 'precios',      href: 'precios.html',        ico: '💲', txt: 'Precios' },
     { k: 'proveedores',  href: 'proveedores.html',    ico: '🏭', txt: 'Proveedores' },
     { k: 'varios',       href: 'varios.html',         ico: '🧾', txt: 'Pedidos Varios' },

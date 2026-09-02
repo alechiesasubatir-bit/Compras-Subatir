@@ -347,6 +347,16 @@ textarea.fi2{resize:vertical;min-height:65px;font-family:inherit}
 .dtile.s2{grid-column:1/-1}
 .dtile-div{grid-column:1/-1;height:1px;background:var(--border)}
 
+/* Aviso de corrección automática de proveedor (Tarea 8): que un dato que
+   cambió solo nunca aparezca sin explicación ni sin forma de deshacerlo. */
+.prov-auto-note{
+  display:none;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 13px;margin-bottom:14px;border-radius:9px;font-size:12px;
+  background:var(--amber-g);border:1px solid var(--amber-b);color:#fcd9a8;
+}
+.prov-auto-note strong{color:var(--amber);font-weight:700}
+.prov-auto-note .btn{margin-left:auto}
+
 /* ═══ TOAST ═══════════════════════════════════════════════════ */
 #tc{position:fixed;bottom:22px;right:22px;z-index:999;
   display:flex;flex-direction:column;gap:7px;pointer-events:none}
@@ -564,6 +574,7 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <link rel="stylesheet" href="nav.css?v=2026-08-28.1328"/>
 <script src="supabase-config.js?v=2026-08-28.1328"></script>
 <script src="subatir-app.js?v=2026-08-28.1328"></script>
+<script src="reposicion-calc.js?v=1"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
@@ -646,6 +657,12 @@ window.APP_VER='2026-08-28.1328';
       <div class="kpi-num c-green" id="k-opt">—</div>
       <div class="kpi-sub">cobertura adecuada</div>
     </div>
+    <div class="glass kpi" style="--accent:var(--orange)">
+      <div class="kpi-icon">🔔</div>
+      <div class="kpi-label">Hay que pedir</div>
+      <div class="kpi-num c-amber" id="k-pedir">—</div>
+      <div class="kpi-sub" id="k-pedir-sub">con demora contemplada</div>
+    </div>
     <div class="glass kpi kpi-total" style="--accent:var(--teal-l)">
       <div class="kpi-icon">✈</div>
       <div class="kpi-label">Valor en tránsito</div>
@@ -675,6 +692,7 @@ window.APP_VER='2026-08-28.1328';
           <option value="MEDIO">🟡 Medio</option>
           <option value="OPTIMO">🟢 Óptimo</option>
           <option value="TRANSITO">✈ Solo en tránsito</option>
+          <option value="REPONER">🔔 Hay que pedir</option>
         </select>
         <select class="fi" id="f-prov" onchange="applyFilters()">
           <option value="">Todos los proveedores</option>
@@ -705,13 +723,14 @@ window.APP_VER='2026-08-28.1328';
               <th onclick="sortBy('minimo')" class="num">Mínimo</th>
               <th onclick="sortBy('consumo')" class="num">Cons./mes</th>
               <th onclick="sortBy('cobertura')">Cobertura</th>
+              <th onclick="sortBy('pedir')">Pedir antes de</th>
               <th onclick="sortBy('pendiente')" class="num">En tránsito</th>
               <th>Último proveedor</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="tbody">
-            <tr><td colspan="11" class="empty-td">Cargando…</td></tr>
+            <tr><td colspan="12" class="empty-td">Cargando…</td></tr>
           </tbody>
         </table>
       </div>
@@ -771,6 +790,7 @@ window.APP_VER='2026-08-28.1328';
       <button class="modal-x" onclick="closeOv('ov-edit')">✕</button>
     </div>
     <div class="modal-body">
+      <div id="prov-auto-note" class="prov-auto-note"></div>
       <div id="detail-tiles" class="dtiles"></div>
       <div id="edit-form" style="display:none">
         <div class="fg-row">
@@ -805,6 +825,29 @@ window.APP_VER='2026-08-28.1328';
         <div class="fg">
           <label>Observaciones</label>
           <textarea class="fi2" id="ed-obs" placeholder="Notas internas…"></textarea>
+        </div>
+        <div class="fg" style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="ed-seg" onchange="toggleSeg()"/>
+            <span>Seguir la reposición de este artículo</span>
+          </label>
+          <div class="muted" style="font-size:11px;margin-top:4px">
+            Avisa cuándo hay que pedirlo según la demora del proveedor, antes de que toque el mínimo.
+          </div>
+        </div>
+        <div id="ed-rep" style="display:none">
+          <div class="fg-row">
+            <div class="fg">
+              <label>Revisar cada (meses)</label>
+              <input type="number" class="fi2" id="ed-rev-meses" min="1" max="60" step="1" placeholder="—"/>
+            </div>
+            <div class="fg">
+              <label>Próxima revisión</label>
+              <input type="date" class="fi2" id="ed-rev-fecha"/>
+            </div>
+          </div>
+          <div id="ed-fichas"></div>
+          <div id="ed-rep-calc" class="muted" style="font-size:12px;margin-top:10px"></div>
         </div>
       </div>
     </div>
@@ -1008,10 +1051,22 @@ var URL_AS = 'https://sb.local/';
 var RAW_INV = [], RAW_STK = [], RAW_PED = [], RAW_PREC = [], RAW_PROVS = [];
 var MERGED  = [];
 var FILT    = [];
+// Correcciones de proveedor detectadas en el último buildMerged(), pendientes
+// de escribir (Tarea 8). Se arma acá y se dispara aparte, después de pintar
+// la tabla, para que un error de red al escribir no retrase el render.
+var PROV_AUTO_PEND = [];
 var CAT_MAP = {};   // NORM(producto) → categoría
 var SORT_K  = 'estado', SORT_D = 'asc';
 var CUR     = null;
 var CHART   = null;
+// Snapshot de las fichas de art_proveedor tal como quedaron pintadas por
+// renderFichasProv (string), para que saveEdit sepa si el usuario tocó
+// algo ahí sin tener que adivinar qué cuenta como "vacío" input por input.
+var FICHAS_SNAP = '';
+// true cuando la última lectura de art_proveedor falló. No es lo mismo que
+// "no hay fichas": con esto en true el KPI "Hay que pedir" muestra "—" en
+// vez de un 0 que no se leyó de ningún lado.
+var FICHAS_ERR = false;
 // Chip visual de categoría
 function catChip(cat){
   if(!cat) return '<span class="muted">—</span>';
@@ -1032,9 +1087,12 @@ window.addEventListener('DOMContentLoaded', function(){
   if (!URL_AS){
     toast('Sin URL de Apps Script. Configurá desde el Dashboard.','err');
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="11" class="empty-td">⚠ <a href="index.html" style="color:var(--teal-l)">Configurar URL →</a></td></tr>';
+      '<tr><td colspan="12" class="empty-td">⚠ <a href="index.html" style="color:var(--teal-l)">Configurar URL →</a></td></tr>';
   } else { load(); }
-  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['inventario','pedidos'], load);
+  // art_proveedor también: la demora y el lote que se cargan en la pantalla
+  // de Reposición cambian la señal de esta tabla, y sin esta suscripción
+  // Stock seguía mostrando la señal vieja hasta que alguien apretara F5.
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['inventario','pedidos','art_proveedor'], load);
   updateSyncUI();
 });
 
@@ -1069,11 +1127,23 @@ function load(){
       if(RAW_INV.length) console.log('[Stock] Cols COMPRAS:', Object.keys(RAW_INV[0]).join(' | '));
       if(RAW_INV.length===0) toast('⚠ Hoja COMPRAS vacía. Hojas: '+(d.sheetNames||[]).join(', '),'err');
       detectKeys();
-      // Cargar categorías y recién ahí construir la tabla
-      (window.SubatirApp && SubatirApp.categorias ? SubatirApp.categorias() : Promise.resolve({}))
-        .then(function(map){ CAT_MAP = map || {}; })
-        .catch(function(){ CAT_MAP = {}; })
-        .then(function(){ buildMerged(); renderAll(); });
+      // Cargar categorías y las fichas de reposición (art_proveedor, todas
+      // de una sola vez) y recién ahí construir la tabla.
+      // Si art_proveedor no se pudo leer, la tabla se pinta igual (es la
+      // pantalla principal), pero NO se hace pasar el silencio por "no hay
+      // nada que pedir": FICHAS_ERR deja el KPI en "—" y avisa.
+      Promise.all([
+        (window.SubatirApp && SubatirApp.categorias ? SubatirApp.categorias() : Promise.resolve({}))
+          .catch(function(){ return {}; }),
+        (window.SubatirApp && SubatirApp.getArtProveedor ? SubatirApp.getArtProveedor([]) : Promise.resolve([]))
+          .then(function(f){ FICHAS_ERR = false; return f; },
+                function(e){ FICHAS_ERR = true; console.warn('[Stock] art_proveedor:', e && e.message); return []; })
+      ]).then(function(res){
+        CAT_MAP = res[0] || {};
+        indexarFichas(res[1]);
+        if(FICHAS_ERR) toast('No se pudo leer la configuración de reposición: las señales quedan sin calcular.','err');
+        buildMerged(); renderAll(); dispararCorreccionesProveedor();
+      });
       setLoading(false);
       if(d.timestamp){
         var dt = new Date(d.timestamp);
@@ -1127,6 +1197,8 @@ function detectKeys(){
     PK.recep    = fk(p,['F.Recepción','F. Recepción','F.Recepcion','F. Recepcion','Recepcion','RECEPCION','FECHA RECEPCION','Fecha Recepción','Recibido','RECIBIDO','Fecha entrega','FECHA ENTREGA']);
     PK.cantidad = fk(p,['Cantidad','CANTIDAD','CANT']);
     PK.precio   = fk(p,['Precio un','precio un','PRECIO UN','PRECIO UNIT','PRECIO','Precio']);
+    // N° de orden: lo necesita ultimaOCOrden, para el cartel de auditoría (Tarea 8)
+    PK.orden    = fk(p,['N° Orden','N°Orden','N° OC','N°OC','Nro Orden','Nro. Orden','N Orden','N OC','Orden','ORDEN','OC','N°']);
   }
   console.log('[Stock] IK detectado:', JSON.stringify(IK));
   console.log('[Stock] PK detectado:', JSON.stringify(PK));
@@ -1165,11 +1237,11 @@ function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').t
 
 // ─── Construye índice de OCs por artículo (en-tránsito + último proveedor) ───
 function buildOCIndex(){
-  var idx = {}; // normalizedDesc → { pendiente, valorPendiente, lastProv, lastFecha, lastPrecio, provs }
+  var idx = {}; // normalizedDesc → { pendiente, valorPendiente, lastProv, lastFecha, lastPrecio, lastOrden, provs }
   RAW_PED.forEach(function(oc){
     var desc = norm(String(oc[PK.desc]||''));
     if(!desc || desc.length < 3) return;
-    if(!idx[desc]) idx[desc] = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', provs:{}, origDesc: String(oc[PK.desc]||'').trim() };
+    if(!idx[desc]) idx[desc] = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', lastOrden:'', provs:{}, origDesc: String(oc[PK.desc]||'').trim() };
 
     // TODOS los proveedores que alguna vez lo vendieron, no solo el último
     var pv = String(oc[PK.prov]||'').trim();
@@ -1192,6 +1264,7 @@ function buildOCIndex(){
       idx[desc].lastFecha  = fecha;
       idx[desc].lastProv   = String(oc[PK.prov]||'').trim();
       idx[desc].lastPrecio = precio > 0 ? precio : idx[desc].lastPrecio;
+      idx[desc].lastOrden  = String(oc[PK.orden]||'').trim();
     }
   });
   return idx;
@@ -1317,7 +1390,7 @@ function findOCMatch(desc, ocIdx){
 
   // Sumar pendiente de TODAS las claves que coincidan
   // (un mismo artículo puede estar con descripción levemente distinta en varias OC)
-  var result = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', provs:{} };
+  var result = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', lastOrden:'', provs:{} };
   keys.forEach(function(k){
     var m = ocIdx[k];
     result.pendiente      += m.pendiente;
@@ -1327,9 +1400,88 @@ function findOCMatch(desc, ocIdx){
       result.lastFecha  = m.lastFecha;
       result.lastProv   = m.lastProv;
       result.lastPrecio = m.lastPrecio || result.lastPrecio;
+      result.lastOrden  = m.lastOrden || result.lastOrden;
     }
   });
   return result;
+}
+
+// ─── Corrección automática del proveedor de ficha (Tarea 8) ─────────────────
+// La demora que manda para la fecha límite de reposición sale de la ficha
+// del proveedor que figura en inventario.PROVEEDOR. Si ese dato quedó viejo
+// (las etiquetas dicen "MIL ROLLOS" pero la última OC real fue a otro
+// proveedor) la alerta se calcula con una demora que ya no corresponde.
+// Decisión del usuario (spec 6.2): el sistema lo corrige solo, pero solo
+// para artículos con seguimiento=true, y queda auditado y es reversible —
+// ver el cartel en openDetail() y volverProveedorAnterior().
+//
+// No escribe acá mismo: solo detecta y encola en PROV_AUTO_PEND. Quien la
+// llama es buildMerged(), que ya tiene ocData calculado por artículo (no se
+// arma un matcher nuevo), y el disparo real de los UPDATE lo hace
+// dispararCorreccionesProveedor() después de pintar la tabla.
+//
+// La guarda contra el bucle NO es el número de OC (con OC sin número nunca
+// bloqueaba, y el revert se deshacía solo en el load siguiente — hallazgo de
+// la revisión). La guarda real es PROV AUTO OFF: "volver atrás" no es una
+// postergación, es una decisión — el usuario dijo "el proveedor de esta
+// ficha lo manejo yo" y esa decisión queda firme hasta que él mismo la
+// reactive, sin importar cuántas OC nuevas entren mientras tanto.
+function detectarCorreccionProveedor(item, ocData){
+  if(!item.__row) return; // sin fila real en inventario, no hay dónde escribir
+  var seg = item['SEGUIMIENTO']===true || item['SEGUIMIENTO']==='true';
+  if(!seg) return;
+  var off = item['PROV AUTO OFF']===true || item['PROV AUTO OFF']==='true';
+  if(off) return; // el usuario ya decidió que este proveedor lo maneja a mano
+  if(!ocData || !ocData.lastProv) return; // sin OC real para este artículo, nada para comparar
+
+  // Se compara y se escribe la grafía CANÓNICA (la del maestro de
+  // proveedores), no la cruda de la OC: hay una migración previa
+  // (normalizar_inventario_prov.sql) que ya limpió esta columna a propósito,
+  // y escribir la variante de pedidos la volvería a ensuciar. Si el nombre
+  // normalizado queda vacío (proveedor sin letras reales) no se escribe
+  // nada: un vacío no puede pisar un proveedor bueno.
+  var proveedorCanon = canonProv(ocData.lastProv);
+  if(!proveedorCanon) return;
+
+  var fichaProv = String(item['PROVEEDOR']||'').trim();
+  if(canonProv(fichaProv) === proveedorCanon) return; // ya coincide, nada que corregir
+
+  var fields = {
+    'PROVEEDOR':    proveedorCanon,
+    'PROV AUTO AT': new Date().toISOString(),
+    'PROV AUTO OC': ocData.lastOrden || ''
+  };
+  // PROV AUTO ANTERIOR tiene que ser el valor manual ORIGINAL, no "el que
+  // había antes de esta corrección": si ya hay una corrección vigente (este
+  // campo ya tiene algo, de una corrección previa que el usuario no revirtió
+  // ni desactivó), no se pisa — si no, tras una segunda corrección el primer
+  // valor cargado a mano se pierde para siempre y "volver atrás" ofrece un
+  // valor que el propio sistema inventó, no el que la persona escribió.
+  var anteriorYaGuardado = String(item['PROV AUTO ANTERIOR']||'').trim();
+  if(!anteriorYaGuardado) fields['PROV AUTO ANTERIOR'] = fichaProv;
+
+  PROV_AUTO_PEND.push({ row: item.__row, fields: fields });
+}
+
+// Dispara los UPDATE encolados por detectarCorreccionProveedor() durante el
+// buildMerged() más reciente. Vive aparte de buildMerged (que es sync y solo
+// arma MERGED) para no bloquear el render con escrituras de red.
+//
+// SubatirApp.write ya confirma con .select() que el UPDATE afectó filas
+// (updateRow, subatir-app.js): un usuario sin el módulo stock recibe
+// {error:...} en vez de éxito silencioso. Acá no hay cartel de éxito que
+// mentir — es una corrección de fondo — así que un error solo se loguea.
+function dispararCorreccionesProveedor(){
+  var pend = PROV_AUTO_PEND;
+  PROV_AUTO_PEND = [];
+  if(!pend.length) return;
+  console.log('[Stock] Corrigiendo proveedor automáticamente en '+pend.length+' artículo(s): fila(s) '+pend.map(function(p){return p.row;}).join(', '));
+  pend.forEach(function(p){
+    SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:p.row, fields:JSON.stringify(p.fields)})
+      .then(function(r){
+        if(r && r.error) console.warn('[Stock] No se pudo corregir proveedor de la fila '+p.row+': '+r.error);
+      });
+  });
 }
 
 // ─── Todos los proveedores de un artículo ────────────────────────────────────
@@ -1352,6 +1504,23 @@ function collectProvs(desc, item, ov, ocData, precIdx, provSugeridoHoja){
   if(ov && ov.proveedor) add(ov.proveedor);
 
   return Object.keys(set).map(function(n){ return set[n]; }).sort();
+}
+
+// ─── Fichas de reposición por artículo+proveedor (art_proveedor) ────────────
+// Se cargan una sola vez por load() con SubatirApp.getArtProveedor() y se
+// indexan acá antes de buildMerged(). Usa Reposicion.canonProv (no el
+// canonProv local de esta página) para que las tres pantallas del proyecto
+// (Stock, la de configuración y el Dashboard) emparejen igual.
+var FICHAS_IDX = {};
+function indexarFichas(fichas){
+  FICHAS_IDX = {};
+  (fichas||[]).forEach(function(f){
+    FICHAS_IDX[f.inventario_id + '|' + Reposicion.canonProv(f.proveedor)] = f;
+  });
+}
+// La que manda es la del proveedor de la ficha de stock (decisión del usuario).
+function fichaDe(invId, proveedor){
+  return FICHAS_IDX[invId + '|' + Reposicion.canonProv(proveedor)] || null;
 }
 
 // ─── Merge COMPRAS + OC para calcular stock real ──────────────
@@ -1389,15 +1558,48 @@ function recalcItem(m){
     m.estado='OPTIMO';
   }
 
+  // La reposición NO toca m.estado: es una señal aparte que convive con
+  // el semáforo de siempre. El armado del objeto vive en desdeFila, que
+  // es el mismo que usan la pantalla de configuración y el dashboard.
+  //
+  // Los valores efectivos (stock/mínimo/consumo/tránsito) se le pisan
+  // ENCIMA a lo que desdeFila leyó de la fila cruda: el semáforo de acá
+  // arriba ya se calcula con ellos, y la señal tiene que hablar de la
+  // misma fila. Sin esto, guardar un conteo en el Control de Stock (que
+  // toca m.stock y no m._inv) dejaba la fila contradiciéndose sola —
+  // semáforo en rojo y "Pedir antes de" con el stock anterior — y los
+  // overrides locales no llegaban nunca a la señal.
+  if(window.Reposicion){
+    var art = Reposicion.desdeFila(m._inv, m._ficha,
+                                   m.ultimaOC ? new Date(m.ultimaOC) : null, pend);
+    art.stock   = stock;
+    art.minimo  = minimo;
+    art.consumo = consumo;
+    m.rep = Reposicion.calcular(art, new Date());
+  } else {
+    m.rep = { senal: null };
+  }
+
   return m;
 }
 
 function buildMerged(){
   MERGED = [];
+  PROV_AUTO_PEND = [];
   buildProvCanon();
   var ocIdx   = buildOCIndex();
   var precIdx = buildPrecIndex();
-  var ocUsadas = {};  // claves de OC ya atribuidas a un artículo del inventario
+
+  // El "en tránsito" por artículo sale de la capa compartida
+  // (SubatirApp.transito): es el MISMO número que muestran la pantalla de
+  // Reposición y el dashboard, y el mismo que come la cuenta de la señal.
+  // Antes la columna "En tránsito ✈" salía de acá y "Pedir antes de" de una
+  // columna muerta del inventario, así que la misma fila se contradecía.
+  // ocIdx se sigue usando para lo demás que el cruce por descripción aporta
+  // (último proveedor y precio, el set de proveedores, las OC huérfanas).
+  var TR = (window.SubatirApp && SubatirApp.transito)
+    ? SubatirApp.transito(RAW_INV, RAW_PED)
+    : { de: function(){ return { pendiente:0, valorPendiente:0, ultimaOC:'', ultimaOrden:'' }; }, usadas:{} };
 
   RAW_INV.forEach(function(item){
     var codigo  = String(item[IK.codigo]||'').trim();
@@ -1410,13 +1612,22 @@ function buildMerged(){
     var minimo  = ov.minimo  !== undefined ? ov.minimo  : pn(item[IK.min]);
     var consumo = ov.consumo !== undefined ? ov.consumo : pn(item[IK.consumo]);
 
-    // En tránsito: fuzzy match contra OC/Recepción pendientes
+    // OC del artículo: el cruce por descripción sigue dando el último
+    // proveedor/precio y el set de proveedores. El tránsito y la última OC
+    // salen de la capa compartida (que además atribuye por ID Inventario
+    // cuando la orden lo trae).
     var ocData        = findOCMatch(desc, ocIdx);
-    var pendiente     = ocData.pendiente      || 0;
-    var valorPendiente= ocData.valorPendiente || 0;
-    // Se anotan las OC que este artículo se lleva, para saber después
-    // cuáles quedaron sin dueño y hay que mostrar aparte
-    matchKeys(desc, ocIdx).forEach(function(k){ ocUsadas[k] = true; });
+    var tr            = TR.de(item.__row);
+    var pendiente     = tr.pendiente      || 0;
+    var valorPendiente= tr.valorPendiente || 0;
+    // (Lo que cada artículo se lleva de cada descripción lo anota la propia
+    // SubatirApp.transito en TR.usadas, con el mismo cruce con el que lo
+    // reparte. Anotarlo otra vez acá, con otro índice, era justamente lo
+    // que hacía desaparecer mercadería: ver el bucle de huérfanas abajo.)
+
+    // Corrección automática del proveedor de ficha (Tarea 8): solo detecta
+    // y encola acá, con el mismo ocData que ya se calculó arriba.
+    detectarCorreccionProveedor(item, ocData);
 
     // Proveedor sugerido: prioridad override local → OC más reciente → hoja COMPRAS
     var provSugeridoHoja = IK.provSugerido ? String(item[IK.provSugerido]||'').trim() : '';
@@ -1445,7 +1656,40 @@ function buildMerged(){
       categoria:     catOf(desc),
       // bandera SOLICITAR heredada del Sheet: la lee recalcItem como último recurso
       _sol:          String(item[IK.solicitar]||''),
-      _mod:          !!(ov.stock!==undefined || ov.minimo || ov.consumo || ov.proveedor)
+      _mod:          !!(ov.stock!==undefined || ov.minimo || ov.consumo || ov.proveedor),
+      // Señal de reposición (Tarea 5): seguimiento/revisión vienen de RAW_INV,
+      // la ficha se busca por proveedor efectivo y la cuenta la hace recalcItem.
+      seguimiento:      item['SEGUIMIENTO'] === true || item['SEGUIMIENTO'] === 'true',
+      revisarCadaMeses: pn(item['REVISAR CADA MESES']),
+      proximaRevision:  item['PROXIMA REVISION'] || '',
+      // Auditoría de la corrección automática de proveedor (Tarea 8): si
+      // provAutoAt tiene valor, openDetail() muestra el cartel con el botón
+      // para volver al proveedor anterior (provAutoAnterior). provAutoOff
+      // en true es la decisión firme del usuario de manejarlo a mano.
+      provAutoAt:       item['PROV AUTO AT'] || '',
+      provAutoOc:       item['PROV AUTO OC'] || '',
+      provAutoAnterior: item['PROV AUTO ANTERIOR'] || '',
+      provAutoOff:      item['PROV AUTO OFF'] === true || item['PROV AUTO OFF'] === 'true',
+      // Proveedor CRUDO de la ficha (inventario.PROVEEDOR), sin el fallback a
+      // la última OC que sí usa `proveedor` (columna "Último proveedor"):
+      // son dos datos distintos y el detalle tiene que poder mostrar los dos,
+      // si no el revert de "volver atrás" es indistinguible de un botón roto.
+      fichaProveedor:   item['PROVEEDOR'] || '',
+      // Última OC del artículo: por inventario_id cuando está (solo 160
+      // de 680 filas lo tienen) y si no, por el match difuso de descripción
+      // que ya se usa para el "en tránsito". No se arma un matcher nuevo:
+      // sale del mismo SubatirApp.transito() que el tránsito de arriba.
+      ultimaOC:        tr.ultimaOC || '',
+      ultimaOCOrden:   tr.ultimaOrden || '',
+      _inv:   item,                 // la fila cruda, con los nombres de header
+      // La ficha que manda es la del proveedor de la ficha de stock
+      // (inventario.PROVEEDOR), NO la de `proveedor` — que es la cadena
+      // "última OC → proveedor sugerido" que pinta la columna "Último
+      // proveedor" y alimenta los filtros. Son dos columnas distintas y
+      // difieren en la mayoría de los artículos: buscando por la de arriba,
+      // un artículo bien configurado dejaba de alertar en silencio.
+      // Mismo criterio que reposicion.html e index.html.
+      _ficha: fichaDe(item.__row, item['PROVEEDOR'])
     }));
   });
 
@@ -1457,14 +1701,31 @@ function buildMerged(){
   // tapada por "Botella Pet Ambar 500 mL con Válvula" porque las dos empiezan
   // con "BOTELLA PET ". Resultado: lo pedido no aparecía en tránsito en su
   // artículo NI salía como fila aparte — desaparecía de la pantalla.
-  // Ahora no se adivina: se usa la lista de OC que los artículos del
-  // inventario efectivamente se llevaron (ocUsadas, del mismo matcher que
-  // reparte el tránsito). Lo que quedó sin dueño, se muestra.
+  // Ahora no se adivina: se RESTA. TR.usadas dice cuánto de cada descripción
+  // se llevaron los artículos del inventario (por nombre o por ID
+  // Inventario), con el mismo cruce que repartió el tránsito, y acá queda
+  // lo que sobró.
+  //
+  // Es una resta y no un "esta descripción ya tiene dueño" porque una misma
+  // descripción puede tener líneas con dueño y líneas sin dueño a la vez:
+  // una línea con ID Inventario y otras sin id que ningún artículo matchea
+  // por nombre, o —peor— un id colgado, que la columna admite porque es un
+  // bigint pelado sin foreign key. Con la marca booleana, esa sola línea
+  // tapaba la clave entera y las demás cantidades desaparecían de la
+  // pantalla: no entraban en ningún artículo, no salían como fila huérfana
+  // y no sumaban al KPI de tránsito. Y lo que se perdía de vista era
+  // mercadería real en camino.
+  //
+  // La resta cubre las dos mitades: no se pierde nada (lo no atribuido
+  // aparece) y no se duplica nada (lo atribuido da cero y no sale acá).
   Object.keys(ocIdx).forEach(function(normKey){
-    if(ocUsadas[normKey]) return;
-
     var ocData = ocIdx[normKey];
-    if(!ocData || ocData.pendiente <= 0) return; // solo mostrar si hay algo en tránsito
+    if(!ocData) return;
+
+    var tomado         = (TR.usadas||{})[normKey] || { pendiente:0, valorPendiente:0 };
+    var pendSobrante   = ocData.pendiente      - (tomado.pendiente      || 0);
+    var valorSobrante  = ocData.valorPendiente - (tomado.valorPendiente || 0);
+    if(pendSobrante <= 0) return; // solo mostrar si quedó algo en tránsito sin dueño
 
     MERGED.push({
       codigo:        '',
@@ -1472,8 +1733,8 @@ function buildMerged(){
       stock:         0,
       minimo:        0,
       consumo:       0,
-      pendiente:     ocData.pendiente,
-      valorPendiente:ocData.valorPendiente,
+      pendiente:     pendSobrante,
+      valorPendiente:Math.max(0, valorSobrante),
       proveedor:     canonProv(ocData.lastProv || ''),
       provs:         collectProvs(ocData.origDesc || normKey, null, null, ocData, precIdx, ''),
       precio:        ocData.lastPrecio || '',
@@ -1516,6 +1777,21 @@ function updateKPIs(){
   setText('k-medio',    medio.length);
   setText('k-opt',      opt.length);
 
+  // KPI señal de reposición: cuántos artículos hay que pedir (atrasados + próximos)
+  var pedir = MERGED.filter(function(m){
+    var s=(m.rep||{}).senal; return s==='ATRASADO'||s==='PEDIR';
+  });
+  // Sin las fichas leídas este número sería 0 por no haber podido mirar,
+  // no por no haber nada: se dice que no se pudo, no se muestra un cero.
+  if(FICHAS_ERR){
+    setText('k-pedir', '—');
+    setText('k-pedir-sub', 'no se pudo leer la configuración');
+  } else {
+    setText('k-pedir', pedir.length);
+    var atr = pedir.filter(function(m){ return m.rep.senal==='ATRASADO'; }).length;
+    setText('k-pedir-sub', atr ? atr+' ya atrasado'+(atr>1?'s':'') : 'con demora contemplada');
+  }
+
   // KPI valor en tránsito
   var elTransit = document.getElementById('k-transit');
   if(elTransit){
@@ -1550,7 +1826,10 @@ function applyFilters(){
 
   FILT = MERGED.filter(function(x){
     if(q && (x.desc+' '+x.codigo).toLowerCase().indexOf(q)<0) return false;
-    if(est && x.estado!==est) return false;
+    if(est === 'REPONER'){
+      var s = (x.rep||{}).senal;
+      if(s!=='ATRASADO' && s!=='PEDIR' && s!=='REVISAR') return false;
+    } else if(est && x.estado!==est) return false;
     // Proveedor: coincide si el artículo lo tiene en CUALQUIERA de sus proveedores
     // (lista de precios / historial de OC / ficha), no solo como último proveedor
     if(prov && !hasProv(x, prov)) return false;
@@ -1586,6 +1865,11 @@ function sortVal(a,b){
   // cobertura null → -1 para que queden al fondo al ordenar asc
   else if(SORT_K==='cobertura') {va=a.cobertura!==null?a.cobertura:-1; vb=b.cobertura!==null?b.cobertura:-1;}
   else if(SORT_K==='pendiente') {va=a.pendiente; vb=b.pendiente;}
+  // null (sin seguimiento / sin datos) al fondo, como cobertura
+  else if(SORT_K==='pedir'){
+    va = (a.rep && a.rep.diasParaPedir!=null) ? a.rep.diasParaPedir : 99999;
+    vb = (b.rep && b.rep.diasParaPedir!=null) ? b.rep.diasParaPedir : 99999;
+  }
   else {va=a.desc; vb=b.desc;}
   var d = SORT_D==='asc'?1:-1;
   if(va<vb) return -1*d; if(va>vb) return 1*d; return 0;
@@ -1608,7 +1892,7 @@ function clearFilters(){
 // ─── Tabla principal ──────────────────────────────────────────
 function renderTable(){
   if(!FILT.length){
-    document.getElementById('tbody').innerHTML='<tr><td colspan="11" class="empty-td">Sin resultados.</td></tr>';
+    document.getElementById('tbody').innerHTML='<tr><td colspan="12" class="empty-td">Sin resultados.</td></tr>';
     return;
   }
   var html='';
@@ -1647,6 +1931,8 @@ function renderTable(){
     html += '<td class="num" style="color:var(--muted-l)">'+( x.consumo>0?fmtN(x.consumo):'—')+'</td>';
     // Cobertura: texto coloreado con clase semáforo
     html += '<td><span class="cob-text '+cobCls+'">'+cobLabel+'</span></td>';
+    // Señal de reposición: aparte del semáforo de estado, no lo reemplaza
+    html += '<td>'+repCell(x)+'</td>';
     // En tránsito: con ícono ✈
     html += '<td>'+transitHtml+'</td>';
     // Último proveedor + cuántos otros lo proveen (tooltip con la lista completa)
@@ -1813,6 +2099,7 @@ function openDetail(desc){
     {l:'Cobertura',   v:cobStr,               cls:''},
     {l:'Precio ref.', v:x.precio||'—',        cls:''},
     {l:'Último proveedor', v:x.proveedor||'—', cls:'s2'},
+    {l:'Proveedor de ficha', v:x.fichaProveedor||'—', cls:'s2'},
     {l:'Proveedores que lo tienen ('+(x.provs||[]).length+')',
      v:(x.provs||[]).length ? x.provs.join(' · ') : '—', cls:'s2'},
     {l:'',            v:'',                   cls:'div'},
@@ -1823,10 +2110,188 @@ function openDetail(desc){
     return '<div class="dtile '+t.cls+'"><div class="dtile-lbl">'+t.l+'</div><div class="dtile-val">'+esc(String(t.v))+'</div></div>';
   }).join('');
   document.getElementById('detail-tiles').innerHTML = html;
+  renderProvAutoNote(x);
   openOv('ov-edit');
 }
 
+// ─── Cartel de auditoría de la corrección automática de proveedor (Tarea 8) ─
+// "Un dato que cambia solo y sin explicación es peor que un dato viejo"
+// (spec 6.2): si provAutoAt tiene valor, se avisa cuándo y por qué OC, con
+// un botón para deshacerlo. Si en cambio provAutoOff está activo, la
+// corrección automática ya fue apagada a propósito (por ese mismo botón) y
+// se avisa distinto, con la forma de reactivarla. Las dos notas son
+// mutuamente excluyentes: revertir apaga AT y prende OFF en la misma escritura.
+function fmtDiaMes(iso){
+  var d = new Date(iso);
+  if(isNaN(d)) return '—';
+  var p = function(n){ return (n<10?'0':'')+n; };
+  return p(d.getDate())+'/'+p(d.getMonth()+1);
+}
+function renderProvAutoNote(x){
+  var box = document.getElementById('prov-auto-note');
+  if(!box) return;
+  if(x && x.provAutoOff){
+    box.innerHTML =
+      '⚙️ <span>La corrección automática de proveedor está <strong>desactivada</strong> para este artículo'
+      + ' (se apagó al volver a un proveedor anterior).</span>'
+      + '<button class="btn btn-ghost btn-sm" onclick="reactivarCorreccionProveedor()">↻ Reactivar</button>';
+    box.style.display = 'flex';
+    return;
+  }
+  if(!x || !x.provAutoAt){ box.style.display='none'; box.innerHTML=''; return; }
+  var anterior = x.provAutoAnterior || '';
+  box.innerHTML =
+    '⚠️ <span>Proveedor actualizado el <strong>'+esc(fmtDiaMes(x.provAutoAt))+'</strong>'
+    + ' según OC #<strong>'+esc(x.provAutoOc||'—')+'</strong></span>'
+    + (anterior
+        ? '<button class="btn btn-ghost btn-sm" onclick="volverProveedorAnterior()">↩ Volver a '+esc(anterior)+'</button>'
+        : '');
+  box.style.display = 'flex';
+}
+// Restaura PROVEEDOR al valor guardado en PROV AUTO ANTERIOR, limpia AT y
+// ANTERIOR, y prende PROV AUTO OFF. "Volver atrás" no es una postergación,
+// es una decisión: el usuario dijo "el proveedor de esta ficha lo manejo
+// yo", y esa decisión tiene que quedar firme aunque entren OC nuevas
+// después — si no, la próxima corrección automática lo pisa de nuevo y el
+// botón deja de ser confiable. detectarCorreccionProveedor() saltea de
+// entrada cualquier artículo con OFF en true; reactivarCorreccionProveedor()
+// es la única forma de volver a prenderla, y es explícita.
+function volverProveedorAnterior(){
+  if(!CUR || !CUR.__row) return;
+  var anterior = CUR.provAutoAnterior;
+  if(!anterior){ toast('No hay proveedor anterior guardado para este artículo.','err'); return; }
+  var fields = {
+    'PROVEEDOR':          anterior,
+    'PROV AUTO AT':       '',
+    'PROV AUTO ANTERIOR': '',
+    'PROV AUTO OFF':      true
+  };
+  toast('Restaurando proveedor…','info');
+  SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:CUR.__row, fields:JSON.stringify(fields)})
+    .then(function(r){
+      if(r && r.error){ toast('Error: '+r.error,'err'); return; }
+      toast('Proveedor restaurado a "'+anterior+'" ✓ — corrección automática desactivada','ok');
+      closeOv('ov-edit');
+      load();
+    });
+}
+// Vuelve a dejar la corrección automática en manos del sistema. No toca
+// PROVEEDOR: la próxima carga la evalúa contra la OC más reciente, tal cual
+// corresponde en ese momento (puede corregir de nuevo, o no, según los datos).
+function reactivarCorreccionProveedor(){
+  if(!CUR || !CUR.__row) return;
+  toast('Reactivando…','info');
+  SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:CUR.__row, fields:JSON.stringify({'PROV AUTO OFF': false})})
+    .then(function(r){
+      if(r && r.error){ toast('Error: '+r.error,'err'); return; }
+      toast('Corrección automática reactivada ✓','ok');
+      closeOv('ov-edit');
+      load();
+    });
+}
+
 function openEdit(desc){ openDetail(desc); toggleEdit(); }
+
+function toggleSeg(){
+  document.getElementById('ed-rep').style.display =
+    document.getElementById('ed-seg').checked ? 'block' : 'none';
+}
+
+// Lee del DOM una ficha de proveedor (el <div data-prov> que pinta
+// renderFichasProv), tal cual la necesita saveArtProveedor. La usan tanto
+// saveReposicion (para guardar) como serializeFichas (para el snapshot de
+// "¿cambió algo?"): una sola lectura, un solo formato.
+function leerFichaBox(box){
+  var v = function(sel){ var e=box.querySelector(sel); return e && e.value!=='' ? parseFloat(e.value) : null; };
+  var c = function(sel){ var e=box.querySelector(sel); return !!(e && e.checked); };
+  return {
+    proveedor: box.getAttribute('data-prov'),
+    demora_dias: v('.ap-demora'), usar_demora: c('.ap-usar-demora'),
+    lote_minimo: v('.ap-lote'), multiplo: v('.ap-mult'), usar_lote: c('.ap-usar-lote'),
+    pact_cantidad: v('.ap-pact-cant'), pact_entregado: v('.ap-pact-ent') || 0,
+    pact_vence: (box.querySelector('.ap-pact-vence')||{}).value || null,
+    usar_pactada: c('.ap-usar-pact')
+  };
+}
+
+// Serializa el estado actual de #ed-fichas a un string comparable: una
+// fila por proveedor, ordenadas por nombre para no depender del orden en
+// que quedaron pintadas. Si no hay fichas (artículo sin proveedores),
+// da '' — igual que el snapshot inicial en ese caso.
+function serializeFichas(){
+  var filas = [].map.call(document.querySelectorAll('#ed-fichas [data-prov]'), function(box){
+    return JSON.stringify(leerFichaBox(box));
+  });
+  filas.sort();
+  return filas.join('|');
+}
+
+// Una ficha por cada proveedor que el artículo ya tiene (la lista que
+// arma collectProvs), con los tres bloques tildables. El proveedor que
+// manda para la fecha límite va marcado.
+function renderFichasProv(invId){
+  var cont = document.getElementById('ed-fichas');
+  var provs = (CUR && CUR.provs) || [];
+  // La ficha que manda es la del proveedor de la ficha de stock
+  // (inventario.PROVEEDOR), la misma que busca fichaDe() para calcular la
+  // señal — y con el mismo canon, o el cartelito marcaría una ficha y la
+  // cuenta usaría otra.
+  var mandaProv = Reposicion.canonProv((CUR && CUR.fichaProveedor) || '');
+  SubatirApp.getArtProveedor([invId]).then(function(fichas){
+    var byProv = {}; fichas.forEach(function(f){ byProv[canonProv(f.proveedor)] = f; });
+    cont.innerHTML = provs.map(function(p){
+      var f = byProv[canonProv(p)] || {};
+      var manda = !!mandaProv && Reposicion.canonProv(p) === mandaProv;
+      return ''
+       +'<div class="glass" style="padding:10px;margin-top:8px" data-prov="'+esc(p)+'">'
+       +'<div style="display:flex;justify-content:space-between;align-items:center">'
+       +'<strong>'+esc(p)+'</strong>'
+       +(manda?'<span class="badge b-info">manda</span>':'')+'</div>'
+       +'<label><input type="checkbox" class="ap-usar-demora"'+(f.usar_demora?' checked':'')+'/> Demora</label>'
+       +'<input type="number" class="fi2 ap-demora" min="1" placeholder="días" value="'+(f.demora_dias||'')+'"/>'
+       +'<label><input type="checkbox" class="ap-usar-lote"'+(f.usar_lote?' checked':'')+'/> Lote mínimo / múltiplo</label>'
+       +'<input type="number" class="fi2 ap-lote" placeholder="lote mínimo" value="'+(f.lote_minimo||'')+'"/>'
+       +'<input type="number" class="fi2 ap-mult" placeholder="múltiplo" value="'+(f.multiplo||'')+'"/>'
+       +'<label><input type="checkbox" class="ap-usar-pact"'+(f.usar_pactada?' checked':'')+'/> Compra pactada</label>'
+       +'<input type="number" class="fi2 ap-pact-cant" placeholder="cantidad total" value="'+(f.pact_cantidad||'')+'"/>'
+       +'<input type="number" class="fi2 ap-pact-ent" placeholder="ya entregado" value="'+(f.pact_entregado||0)+'"/>'
+       +'<input type="date" class="fi2 ap-pact-vence" value="'+(f.pact_vence||'')+'"/>'
+       +'</div>';
+    }).join('') || '<div class="muted">Este artículo no tiene proveedores cargados.</div>';
+    // Snapshot DESPUÉS de que el HTML quedó en el DOM (esto es async: si se
+    // tomara antes de este punto, #ed-fichas todavía estaría vacío).
+    FICHAS_SNAP = serializeFichas();
+  }, function(e){
+    // No se pudo leer la configuración: NO se pintan los campos vacíos.
+    // Un formulario en blanco acá es indistinguible de "no hay nada
+    // configurado", y guardar encima pisaría con nulls la configuración
+    // que sí existe. Sin cajas [data-prov] no hay nada que saveReposicion
+    // pueda escribir, que es exactamente lo que corresponde.
+    cont.innerHTML = '<div class="glass" style="padding:10px;margin-top:8px;' +
+      'border:1px solid var(--amber-b);color:#fcd9a8">⚠ No se pudo leer la ' +
+      'configuración de reposición de este artículo, así que no se muestra ' +
+      'ni se puede guardar (para no pisar lo que ya esté cargado). ' +
+      'Reintentá en un momento.</div>';
+    FICHAS_SNAP = serializeFichas();
+    console.warn('[Stock] art_proveedor del artículo '+invId+':', e && e.message);
+  });
+}
+
+// Guarda una fila de art_proveedor por ficha con algún bloque tildado.
+// Devuelve una promesa que resuelve con el primer error, si hubo.
+function saveReposicion(invId){
+  var ops = [];
+  [].forEach.call(document.querySelectorAll('#ed-fichas [data-prov]'), function(box){
+    var fila = leerFichaBox(box);
+    fila.inventario_id = invId;
+    var vacia = !fila.usar_demora && !fila.usar_lote && !fila.usar_pactada &&
+                fila.demora_dias===null && fila.lote_minimo===null && fila.pact_cantidad===null;
+    if(!vacia) ops.push(SubatirApp.saveArtProveedor(fila));
+  });
+  return Promise.all(ops).then(function(res){
+    return (res.filter(function(r){ return r && r.error; })[0]||{}).error || null;
+  });
+}
 
 function toggleEdit(){
   var shown = document.getElementById('edit-form').style.display!=='none';
@@ -1847,6 +2312,11 @@ function toggleEdit(){
       document.getElementById('ed-prov').value = CUR.proveedor||'';
       document.getElementById('ed-cat').value  = CUR.categoria||'';
       document.getElementById('ed-obs').value  = CUR.obs||'';
+      document.getElementById('ed-seg').checked = !!CUR.seguimiento;
+      document.getElementById('ed-rev-meses').value = CUR.revisarCadaMeses || '';
+      document.getElementById('ed-rev-fecha').value = CUR.proximaRevision || '';
+      toggleSeg();
+      if(CUR.__row) renderFichasProv(CUR.__row);
     }
   }
 }
@@ -1864,10 +2334,24 @@ function saveEdit(){
   var pVal = document.getElementById('ed-prov').value.trim();
   if(pVal && IK.provSugerido) fields[IK.provSugerido] = pVal;
 
+  var seg = document.getElementById('ed-seg').checked;
+  if(seg !== !!CUR.seguimiento) fields['SEGUIMIENTO'] = seg;
+  var rm = document.getElementById('ed-rev-meses').value;
+  var rmVal = rm!=='' ? parseInt(rm,10) : null;
+  if(rmVal !== (CUR.revisarCadaMeses||null)) fields['REVISAR CADA MESES'] = rmVal;
+  var rf = document.getElementById('ed-rev-fecha').value || null;
+  if(rf !== (CUR.proximaRevision||null)) fields['PROXIMA REVISION'] = rf;
+
   var newCat = (document.getElementById('ed-cat')||{}).value || '';
   var catChanged = newCat !== (CUR.categoria||'');
   var hasFields = Object.keys(fields).length>0;
-  if(!hasFields && !catChanged){ closeOv('ov-edit'); return; }
+  // "¿Cambió algo en las fichas?" = el estado actual del DOM ya no coincide
+  // con el snapshot que renderFichasProv guardó apenas las pintó. Contar
+  // cualquier input no vacío no sirve: pact_entregado siempre sale con
+  // value="0" (columna NOT NULL DEFAULT 0), así que eso daba "hay datos"
+  // para casi cualquier artículo con proveedores, aunque nadie tocara nada.
+  var hasFichaData = serializeFichas() !== FICHAS_SNAP;
+  if(!hasFields && !catChanged && !hasFichaData){ closeOv('ov-edit'); return; }
 
   toast('Guardando…','info');
   var ops=[];
@@ -1878,9 +2362,12 @@ function saveEdit(){
   Promise.all(ops).then(function(res){
     var err=(res||[]).filter(function(d){ return d && d.error; })[0];
     if(err){ toast('Error: '+err.error,'err'); return; }
-    closeOv('ov-edit');
-    toast('Artículo actualizado ✓','ok');
-    load();
+    saveReposicion(CUR.__row).then(function(repErr){
+      if(repErr){ toast('Error: '+repErr,'err'); return; }
+      closeOv('ov-edit');
+      toast('Artículo actualizado ✓','ok');
+      load();
+    });
   });
 }
 
@@ -2858,6 +3345,41 @@ function pn(v){if(!v&&v!==0)return 0;var s=String(v).replace(/[^\d.,-]/g,'').rep
 function fmtN(n){if(!n&&n!==0)return '—';return n%1===0?n.toLocaleString('es-UY'):(+n).toLocaleString('es-UY',{minimumFractionDigits:1,maximumFractionDigits:1});}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+// Cómo se ve la señal de reposición en la tabla. Sin seguimiento no se
+// muestra nada: el artículo no participa y un "OK" mentiría.
+// Tokens de :root de este archivo (no --amb/--grn/--mut2, que no existen acá).
+// REVISAR usa el mismo morado que ya pinta la categoría "Materias Primas".
+var REP_LOOK = {
+  ATRASADO:  ['var(--red)',    '🔴 atrasado'],
+  PEDIR:     ['var(--amber)',  '🟠 pedir'],
+  REVISAR:   ['#a78bfa',       '🔔 revisar'],
+  OK:        ['var(--green)',  '✓'],
+  SIN_DATOS: ['var(--muted-l)','⚙ falta dato']
+};
+var REP_MOTIVO = {
+  'falta-consumo': 'sin consumo cargado',
+  'falta-demora':  'sin demora cargada',
+  'sin-oc':        'sin OC previa'
+};
+// stock.html tiene fmtN/esc/setText pero ninguna de fecha.
+function fmtFecha(d){
+  if(!(d instanceof Date) || isNaN(d)) return '';
+  var p=function(n){ return (n<10?'0':'')+n; };
+  return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear();
+}
+function repCell(x){
+  var rep = x.rep || {}, s = rep.senal;
+  if(!s) return '<span class="muted">—</span>';
+  var look = REP_LOOK[s] || ['var(--muted-l)', s];
+  var det = '';
+  if(s === 'SIN_DATOS')      det = REP_MOTIVO[rep.motivo] || '';
+  else if(rep.fechaLimite)   det = fmtFecha(rep.fechaLimite) + ' · ' +
+                                   (rep.diasParaPedir < 0
+                                     ? Math.abs(rep.diasParaPedir)+'d tarde'
+                                     : rep.diasParaPedir+'d');
+  return '<span style="color:'+look[0]+';font-weight:700;white-space:nowrap">'+look[1]+'</span>'
+       + (det ? '<br><span class="muted" style="font-size:10px">'+esc(det)+'</span>' : '');
+}
 function saveLocal(){localStorage.setItem('subatir_stock_local',JSON.stringify(LOCAL));updateSyncUI();}
 function toast(msg,type){
   var c=document.getElementById('tc'),d=document.createElement('div');

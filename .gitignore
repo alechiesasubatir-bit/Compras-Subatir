@@ -5,3 +5,6 @@
 # Ojo con lo que se commitea acá: el repo entero se publica en GitHub
 # Pages, así que todo archivo versionado queda accesible por URL.
 .claude/settings.local.json
+
+# Scratch de los planes (ledger, briefs, reportes). No es del proyecto.
+.superpowers/

@@ -600,7 +600,7 @@ window.APP_VER='2026-09-02.0936';
 <div class="ovl" id="edit-ovl">
   <div class="modal">
     <h3 id="ed-title">Editar precio</h3>
-    <div class="msub" id="ed-sub">Los cambios se guardan localmente y se envían a la base de datos al Sincronizar.</div>
+    <div class="msub" id="ed-sub">Los cambios se guardan en la base de datos.</div>
     <div class="frm">
       <div class="fg full">
         <label>Artículo *</label>
@@ -1560,7 +1560,7 @@ function findRec(ref){
 function openNew(){
   ED_REF=null;
   document.getElementById('ed-title').textContent='Nuevo precio';
-  document.getElementById('ed-sub').textContent='Se agrega a la base de datos al Sincronizar.';
+  document.getElementById('ed-sub').textContent='Se agrega a la base de datos al guardar.';
   document.getElementById('ed-del').style.display='none';
   ['ed-articulo','ed-codigo','ed-proveedor','ed-usd','ed-pso','ed-pago'].forEach(function(id){document.getElementById(id).value='';});
   ['ed-calidad','ed-atencion','ed-demora','ed-cat'].forEach(function(id){document.getElementById(id).value='';});
@@ -1579,7 +1579,7 @@ function openEdit(ref){
   if(!r){ toast('No se encontró el registro.','err'); return; }
   ED_REF=ref;
   document.getElementById('ed-title').textContent='Editar precio';
-  document.getElementById('ed-sub').textContent='Los cambios se envían a la base de datos al Sincronizar.';
+  document.getElementById('ed-sub').textContent='Los cambios se guardan en la base de datos.';
   document.getElementById('ed-del').style.display='inline-flex';
   document.getElementById('ed-articulo').value = PK.articulo ? (r[PK.articulo]||'') : '';
   document.getElementById('ed-codigo').value   = PK.codigo   ? (r[PK.codigo]||'')   : '';

@@ -1589,7 +1589,6 @@ function buildMerged(){
   buildProvCanon();
   var ocIdx   = buildOCIndex();
   var precIdx = buildPrecIndex();
-  var ocUsadas = {};  // claves de OC ya atribuidas a un artículo del inventario
 
   // El "en tránsito" por artículo sale de la capa compartida
   // (SubatirApp.transito): es el MISMO número que muestran la pantalla de
@@ -1601,9 +1600,6 @@ function buildMerged(){
   var TR = (window.SubatirApp && SubatirApp.transito)
     ? SubatirApp.transito(RAW_INV, RAW_PED)
     : { de: function(){ return { pendiente:0, valorPendiente:0, ultimaOC:'', ultimaOrden:'' }; }, usadas:{} };
-  // Las OC que la capa compartida ya le atribuyó a un artículo (incluidas
-  // las que traen ID Inventario y no cruzan por nombre) no son huérfanas.
-  Object.keys(TR.usadas||{}).forEach(function(k){ ocUsadas[k] = true; });
 
   RAW_INV.forEach(function(item){
     var codigo  = String(item[IK.codigo]||'').trim();
@@ -1624,9 +1620,10 @@ function buildMerged(){
     var tr            = TR.de(item.__row);
     var pendiente     = tr.pendiente      || 0;
     var valorPendiente= tr.valorPendiente || 0;
-    // Se anotan las OC que este artículo se lleva, para saber después
-    // cuáles quedaron sin dueño y hay que mostrar aparte
-    matchKeys(desc, ocIdx).forEach(function(k){ ocUsadas[k] = true; });
+    // (Lo que cada artículo se lleva de cada descripción lo anota la propia
+    // SubatirApp.transito en TR.usadas, con el mismo cruce con el que lo
+    // reparte. Anotarlo otra vez acá, con otro índice, era justamente lo
+    // que hacía desaparecer mercadería: ver el bucle de huérfanas abajo.)
 
     // Corrección automática del proveedor de ficha (Tarea 8): solo detecta
     // y encola acá, con el mismo ocData que ya se calculó arriba.
@@ -1704,14 +1701,31 @@ function buildMerged(){
   // tapada por "Botella Pet Ambar 500 mL con Válvula" porque las dos empiezan
   // con "BOTELLA PET ". Resultado: lo pedido no aparecía en tránsito en su
   // artículo NI salía como fila aparte — desaparecía de la pantalla.
-  // Ahora no se adivina: se usa la lista de OC que los artículos del
-  // inventario efectivamente se llevaron (ocUsadas, del mismo matcher que
-  // reparte el tránsito). Lo que quedó sin dueño, se muestra.
+  // Ahora no se adivina: se RESTA. TR.usadas dice cuánto de cada descripción
+  // se llevaron los artículos del inventario (por nombre o por ID
+  // Inventario), con el mismo cruce que repartió el tránsito, y acá queda
+  // lo que sobró.
+  //
+  // Es una resta y no un "esta descripción ya tiene dueño" porque una misma
+  // descripción puede tener líneas con dueño y líneas sin dueño a la vez:
+  // una línea con ID Inventario y otras sin id que ningún artículo matchea
+  // por nombre, o —peor— un id colgado, que la columna admite porque es un
+  // bigint pelado sin foreign key. Con la marca booleana, esa sola línea
+  // tapaba la clave entera y las demás cantidades desaparecían de la
+  // pantalla: no entraban en ningún artículo, no salían como fila huérfana
+  // y no sumaban al KPI de tránsito. Y lo que se perdía de vista era
+  // mercadería real en camino.
+  //
+  // La resta cubre las dos mitades: no se pierde nada (lo no atribuido
+  // aparece) y no se duplica nada (lo atribuido da cero y no sale acá).
   Object.keys(ocIdx).forEach(function(normKey){
-    if(ocUsadas[normKey]) return;
-
     var ocData = ocIdx[normKey];
-    if(!ocData || ocData.pendiente <= 0) return; // solo mostrar si hay algo en tránsito
+    if(!ocData) return;
+
+    var tomado         = (TR.usadas||{})[normKey] || { pendiente:0, valorPendiente:0 };
+    var pendSobrante   = ocData.pendiente      - (tomado.pendiente      || 0);
+    var valorSobrante  = ocData.valorPendiente - (tomado.valorPendiente || 0);
+    if(pendSobrante <= 0) return; // solo mostrar si quedó algo en tránsito sin dueño
 
     MERGED.push({
       codigo:        '',
@@ -1719,8 +1733,8 @@ function buildMerged(){
       stock:         0,
       minimo:        0,
       consumo:       0,
-      pendiente:     ocData.pendiente,
-      valorPendiente:ocData.valorPendiente,
+      pendiente:     pendSobrante,
+      valorPendiente:Math.max(0, valorSobrante),
       proveedor:     canonProv(ocData.lastProv || ''),
       provs:         collectProvs(ocData.origDesc || normKey, null, null, ocData, precIdx, ''),
       precio:        ocData.lastPrecio || '',

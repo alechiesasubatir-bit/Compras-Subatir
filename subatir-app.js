@@ -1488,9 +1488,13 @@
   }
   function _txtTr(v) { return v === null || v === undefined ? '' : String(v).trim(); }
 
-  //  Devuelve { porArticulo: {invId: acumulador}, usadas: {descNorm:true}, de(invId) }.
-  //  `usadas` son las descripciones de OC que ya encontraron dueño: Stock
-  //  las necesita para saber cuáles quedaron huérfanas y mostrarlas aparte.
+  //  Devuelve { porArticulo: {invId: acumulador}, usadas: {...}, de(invId) }.
+  //  `usadas` es {descNorm: {pendiente, valorPendiente}}: CUÁNTO de cada
+  //  descripción ya encontró dueño. Stock lo resta del total de esa
+  //  descripción para mostrar aparte lo que quedó sin artículo.
+  //  Es una cantidad y no un booleano porque una misma descripción puede
+  //  tener líneas con dueño y líneas sin dueño a la vez: con un booleano,
+  //  una sola línea con id borraba de la pantalla a todas las demás.
   function transito(inventario, pedidos) {
     var C = MAPS.pedidos.cols, IC = MAPS.inventario.cols;
     inventario = inventario || [];
@@ -1529,28 +1533,62 @@
       return acc;
     }
 
-    var porId = {}, porDesc = {};
+    //  Anota que `cuanto` de la descripción `nd` ya encontró dueño. Se
+    //  anota la CANTIDAD y no un booleano a propósito: una misma
+    //  descripción puede tener líneas que encontraron artículo y líneas
+    //  que no, y quien muestra las OC sin dueño tiene que poder quedarse
+    //  con la diferencia en vez de borrar la descripción entera.
+    function marcarUsada(nd, cuanto) {
+      if (!nd) return;
+      var u = out.usadas[nd];
+      if (!u) { u = out.usadas[nd] = { pendiente: 0, valorPendiente: 0 }; }
+      u.pendiente += cuanto.pendiente;
+      u.valorPendiente += cuanto.valorPendiente;
+    }
+
+    // porId: lo que cada OC declara con 'ID Inventario'.
+    // descsDeId: lo mismo pero abierto por descripción, para poder marcar
+    //   como usadas SOLO las descripciones de los ids que después
+    //   resuelvan a una fila real del inventario. La columna es un bigint
+    //   pelado, sin foreign key: un id colgado es posible, y esa
+    //   mercadería no tiene dueño — tiene que seguir a la vista.
+    // porDesc: las que no declaran nada y se cruzan por nombre.
+    var porId = {}, descsDeId = {}, porDesc = {};
     pedidos.forEach(function (p) {
       var nd = MATCH.norm(_txtTr(p[C.descripcion]));
       var id = p[C.inventario_id];
       if (id !== '' && id !== null && id !== undefined) {
         var k = String(id);
         porId[k] = sumar(porId[k] || vacio(), p);
-        if (nd) out.usadas[nd] = true;  // ya tiene dueño: no es huérfana
+        if (nd) {
+          if (!descsDeId[k]) descsDeId[k] = {};
+          descsDeId[k][nd] = sumar(descsDeId[k][nd] || vacio(), p);
+        }
         return;
       }
       if (!nd || nd.length < 3) return;
       porDesc[nd] = sumar(porDesc[nd] || vacio(), p);
     });
 
+    var descYaMarcada = {};  // una descripción se cobra UNA vez, aunque la
+                             // reclamen dos artículos (los dos la suman, es
+                             // el comportamiento de siempre, pero como
+                             // "usada" vale una sola vez o restaría de más)
     inventario.forEach(function (a) {
       var id = a.__row;
       if (id === undefined || id === null || id === '') return;
+      var k = String(id);
       var acc = vacio();
-      if (porId[String(id)]) fundir(acc, porId[String(id)]);
-      MATCH.keys(_txtTr(a[IC.descripcion]), porDesc).forEach(function (k) {
-        out.usadas[k] = true;
-        fundir(acc, porDesc[k]);
+      if (porId[k]) {
+        // Recién acá el id tiene dueño: existe la fila del inventario que
+        // dice ser. Ahora sí sus descripciones cuentan como usadas.
+        fundir(acc, porId[k]);
+        var descs = descsDeId[k] || {};
+        Object.keys(descs).forEach(function (nd) { marcarUsada(nd, descs[nd]); });
+      }
+      MATCH.keys(_txtTr(a[IC.descripcion]), porDesc).forEach(function (kd) {
+        if (!descYaMarcada[kd]) { descYaMarcada[kd] = true; marcarUsada(kd, porDesc[kd]); }
+        fundir(acc, porDesc[kd]);
       });
       out.porArticulo[id] = acc;
     });

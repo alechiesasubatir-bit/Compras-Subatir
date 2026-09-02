@@ -1063,6 +1063,10 @@ var CHART   = null;
 // renderFichasProv (string), para que saveEdit sepa si el usuario tocó
 // algo ahí sin tener que adivinar qué cuenta como "vacío" input por input.
 var FICHAS_SNAP = '';
+// true cuando la última lectura de art_proveedor falló. No es lo mismo que
+// "no hay fichas": con esto en true el KPI "Hay que pedir" muestra "—" en
+// vez de un 0 que no se leyó de ningún lado.
+var FICHAS_ERR = false;
 // Chip visual de categoría
 function catChip(cat){
   if(!cat) return '<span class="muted">—</span>';
@@ -1085,7 +1089,10 @@ window.addEventListener('DOMContentLoaded', function(){
     document.getElementById('tbody').innerHTML =
       '<tr><td colspan="12" class="empty-td">⚠ <a href="index.html" style="color:var(--teal-l)">Configurar URL →</a></td></tr>';
   } else { load(); }
-  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['inventario','pedidos'], load);
+  // art_proveedor también: la demora y el lote que se cargan en la pantalla
+  // de Reposición cambian la señal de esta tabla, y sin esta suscripción
+  // Stock seguía mostrando la señal vieja hasta que alguien apretara F5.
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['inventario','pedidos','art_proveedor'], load);
   updateSyncUI();
 });
 
@@ -1122,13 +1129,19 @@ function load(){
       detectKeys();
       // Cargar categorías y las fichas de reposición (art_proveedor, todas
       // de una sola vez) y recién ahí construir la tabla.
+      // Si art_proveedor no se pudo leer, la tabla se pinta igual (es la
+      // pantalla principal), pero NO se hace pasar el silencio por "no hay
+      // nada que pedir": FICHAS_ERR deja el KPI en "—" y avisa.
       Promise.all([
         (window.SubatirApp && SubatirApp.categorias ? SubatirApp.categorias() : Promise.resolve({}))
           .catch(function(){ return {}; }),
         (window.SubatirApp && SubatirApp.getArtProveedor ? SubatirApp.getArtProveedor([]) : Promise.resolve([]))
+          .then(function(f){ FICHAS_ERR = false; return f; },
+                function(e){ FICHAS_ERR = true; console.warn('[Stock] art_proveedor:', e && e.message); return []; })
       ]).then(function(res){
         CAT_MAP = res[0] || {};
         indexarFichas(res[1]);
+        if(FICHAS_ERR) toast('No se pudo leer la configuración de reposición: las señales quedan sin calcular.','err');
         buildMerged(); renderAll(); dispararCorreccionesProveedor();
       });
       setLoading(false);
@@ -1548,9 +1561,24 @@ function recalcItem(m){
   // La reposición NO toca m.estado: es una señal aparte que convive con
   // el semáforo de siempre. El armado del objeto vive en desdeFila, que
   // es el mismo que usan la pantalla de configuración y el dashboard.
-  m.rep = window.Reposicion
-    ? Reposicion.calcular(Reposicion.desdeFila(m._inv, m._ficha, m.ultimaOC ? new Date(m.ultimaOC) : null), new Date())
-    : { senal: null };
+  //
+  // Los valores efectivos (stock/mínimo/consumo/tránsito) se le pisan
+  // ENCIMA a lo que desdeFila leyó de la fila cruda: el semáforo de acá
+  // arriba ya se calcula con ellos, y la señal tiene que hablar de la
+  // misma fila. Sin esto, guardar un conteo en el Control de Stock (que
+  // toca m.stock y no m._inv) dejaba la fila contradiciéndose sola —
+  // semáforo en rojo y "Pedir antes de" con el stock anterior — y los
+  // overrides locales no llegaban nunca a la señal.
+  if(window.Reposicion){
+    var art = Reposicion.desdeFila(m._inv, m._ficha,
+                                   m.ultimaOC ? new Date(m.ultimaOC) : null, pend);
+    art.stock   = stock;
+    art.minimo  = minimo;
+    art.consumo = consumo;
+    m.rep = Reposicion.calcular(art, new Date());
+  } else {
+    m.rep = { senal: null };
+  }
 
   return m;
 }
@@ -1563,6 +1591,20 @@ function buildMerged(){
   var precIdx = buildPrecIndex();
   var ocUsadas = {};  // claves de OC ya atribuidas a un artículo del inventario
 
+  // El "en tránsito" por artículo sale de la capa compartida
+  // (SubatirApp.transito): es el MISMO número que muestran la pantalla de
+  // Reposición y el dashboard, y el mismo que come la cuenta de la señal.
+  // Antes la columna "En tránsito ✈" salía de acá y "Pedir antes de" de una
+  // columna muerta del inventario, así que la misma fila se contradecía.
+  // ocIdx se sigue usando para lo demás que el cruce por descripción aporta
+  // (último proveedor y precio, el set de proveedores, las OC huérfanas).
+  var TR = (window.SubatirApp && SubatirApp.transito)
+    ? SubatirApp.transito(RAW_INV, RAW_PED)
+    : { de: function(){ return { pendiente:0, valorPendiente:0, ultimaOC:'', ultimaOrden:'' }; }, usadas:{} };
+  // Las OC que la capa compartida ya le atribuyó a un artículo (incluidas
+  // las que traen ID Inventario y no cruzan por nombre) no son huérfanas.
+  Object.keys(TR.usadas||{}).forEach(function(k){ ocUsadas[k] = true; });
+
   RAW_INV.forEach(function(item){
     var codigo  = String(item[IK.codigo]||'').trim();
     var desc    = String(item[IK.desc]  ||'').trim();
@@ -1574,10 +1616,14 @@ function buildMerged(){
     var minimo  = ov.minimo  !== undefined ? ov.minimo  : pn(item[IK.min]);
     var consumo = ov.consumo !== undefined ? ov.consumo : pn(item[IK.consumo]);
 
-    // En tránsito: fuzzy match contra OC/Recepción pendientes
+    // OC del artículo: el cruce por descripción sigue dando el último
+    // proveedor/precio y el set de proveedores. El tránsito y la última OC
+    // salen de la capa compartida (que además atribuye por ID Inventario
+    // cuando la orden lo trae).
     var ocData        = findOCMatch(desc, ocIdx);
-    var pendiente     = ocData.pendiente      || 0;
-    var valorPendiente= ocData.valorPendiente || 0;
+    var tr            = TR.de(item.__row);
+    var pendiente     = tr.pendiente      || 0;
+    var valorPendiente= tr.valorPendiente || 0;
     // Se anotan las OC que este artículo se lleva, para saber después
     // cuáles quedaron sin dueño y hay que mostrar aparte
     matchKeys(desc, ocIdx).forEach(function(k){ ocUsadas[k] = true; });
@@ -1634,11 +1680,19 @@ function buildMerged(){
       fichaProveedor:   item['PROVEEDOR'] || '',
       // Última OC del artículo: por inventario_id cuando está (solo 160
       // de 680 filas lo tienen) y si no, por el match difuso de descripción
-      // que ya se usa para el "en tránsito". No se arma un matcher nuevo.
-      ultimaOC:        ocData.lastFecha || '',
-      ultimaOCOrden:   ocData.lastOrden || '',
+      // que ya se usa para el "en tránsito". No se arma un matcher nuevo:
+      // sale del mismo SubatirApp.transito() que el tránsito de arriba.
+      ultimaOC:        tr.ultimaOC || '',
+      ultimaOCOrden:   tr.ultimaOrden || '',
       _inv:   item,                 // la fila cruda, con los nombres de header
-      _ficha: fichaDe(item.__row, proveedor)
+      // La ficha que manda es la del proveedor de la ficha de stock
+      // (inventario.PROVEEDOR), NO la de `proveedor` — que es la cadena
+      // "última OC → proveedor sugerido" que pinta la columna "Último
+      // proveedor" y alimenta los filtros. Son dos columnas distintas y
+      // difieren en la mayoría de los artículos: buscando por la de arriba,
+      // un artículo bien configurado dejaba de alertar en silencio.
+      // Mismo criterio que reposicion.html e index.html.
+      _ficha: fichaDe(item.__row, item['PROVEEDOR'])
     }));
   });
 
@@ -1713,9 +1767,16 @@ function updateKPIs(){
   var pedir = MERGED.filter(function(m){
     var s=(m.rep||{}).senal; return s==='ATRASADO'||s==='PEDIR';
   });
-  setText('k-pedir', pedir.length);
-  var atr = pedir.filter(function(m){ return m.rep.senal==='ATRASADO'; }).length;
-  setText('k-pedir-sub', atr ? atr+' ya atrasado'+(atr>1?'s':'') : 'con demora contemplada');
+  // Sin las fichas leídas este número sería 0 por no haber podido mirar,
+  // no por no haber nada: se dice que no se pudo, no se muestra un cero.
+  if(FICHAS_ERR){
+    setText('k-pedir', '—');
+    setText('k-pedir-sub', 'no se pudo leer la configuración');
+  } else {
+    setText('k-pedir', pedir.length);
+    var atr = pedir.filter(function(m){ return m.rep.senal==='ATRASADO'; }).length;
+    setText('k-pedir-sub', atr ? atr+' ya atrasado'+(atr>1?'s':'') : 'con demora contemplada');
+  }
 
   // KPI valor en tránsito
   var elTransit = document.getElementById('k-transit');
@@ -2157,11 +2218,16 @@ function serializeFichas(){
 function renderFichasProv(invId){
   var cont = document.getElementById('ed-fichas');
   var provs = (CUR && CUR.provs) || [];
+  // La ficha que manda es la del proveedor de la ficha de stock
+  // (inventario.PROVEEDOR), la misma que busca fichaDe() para calcular la
+  // señal — y con el mismo canon, o el cartelito marcaría una ficha y la
+  // cuenta usaría otra.
+  var mandaProv = Reposicion.canonProv((CUR && CUR.fichaProveedor) || '');
   SubatirApp.getArtProveedor([invId]).then(function(fichas){
     var byProv = {}; fichas.forEach(function(f){ byProv[canonProv(f.proveedor)] = f; });
     cont.innerHTML = provs.map(function(p){
       var f = byProv[canonProv(p)] || {};
-      var manda = canonProv(p) === canonProv(CUR.proveedor);
+      var manda = !!mandaProv && Reposicion.canonProv(p) === mandaProv;
       return ''
        +'<div class="glass" style="padding:10px;margin-top:8px" data-prov="'+esc(p)+'">'
        +'<div style="display:flex;justify-content:space-between;align-items:center">'
@@ -2181,6 +2247,19 @@ function renderFichasProv(invId){
     // Snapshot DESPUÉS de que el HTML quedó en el DOM (esto es async: si se
     // tomara antes de este punto, #ed-fichas todavía estaría vacío).
     FICHAS_SNAP = serializeFichas();
+  }, function(e){
+    // No se pudo leer la configuración: NO se pintan los campos vacíos.
+    // Un formulario en blanco acá es indistinguible de "no hay nada
+    // configurado", y guardar encima pisaría con nulls la configuración
+    // que sí existe. Sin cajas [data-prov] no hay nada que saveReposicion
+    // pueda escribir, que es exactamente lo que corresponde.
+    cont.innerHTML = '<div class="glass" style="padding:10px;margin-top:8px;' +
+      'border:1px solid var(--amber-b);color:#fcd9a8">⚠ No se pudo leer la ' +
+      'configuración de reposición de este artículo, así que no se muestra ' +
+      'ni se puede guardar (para no pisar lo que ya esté cargado). ' +
+      'Reintentá en un momento.</div>';
+    FICHAS_SNAP = serializeFichas();
+    console.warn('[Stock] art_proveedor del artículo '+invId+':', e && e.message);
   });
 }
 

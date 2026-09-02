@@ -912,7 +912,7 @@ function avisoRevisionMP(){
 //  Mismo cálculo que Stock y la pantalla de configuración
 //  (Reposicion.calcular, en reposicion-calc.js): un aviso acá con reglas
 //  propias terminaría diciendo algo distinto que esas dos pantallas.
-function renderReposicion(inventario, fichas){
+function renderReposicion(inventario, fichas, pedidos){
   // Índice de fichas por artículo + proveedor normalizado: la que manda es
   // la del proveedor de la ficha de stock.
   var idx = {};
@@ -920,14 +920,20 @@ function renderReposicion(inventario, fichas){
     idx[f.inventario_id+'|'+Reposicion.canonProv(f.proveedor)] = f;
   });
 
+  // Tránsito y última OC por artículo: los mismos que usan Stock y la
+  // pantalla de configuración, del cruce compartido con las OC pendientes.
+  // Sin esto el panel calculaba con el tránsito en cero (avisaba de pedir
+  // cosas que ya venían en camino) y sin última OC (la regla "cada N meses"
+  // no disparaba nunca).
+  var tr = SubatirApp.transito(inventario || [], pedidos || []);
+
   var hoy = new Date(), avisos = [];
   (inventario||[]).forEach(function(a){
     // La ficha que manda es la del proveedor de la ficha de stock.
-    // ultimaOC va null: el dashboard no arma el índice de OC que tiene
-    // Stock, así que acá la regla "cada N meses" no dispara y sí lo hacen
-    // proxima_revision y la pactada. El aviso completo está en Stock.
     var f = idx[a.__row+'|'+Reposicion.canonProv(a['PROVEEDOR']||'')] || null;
-    var rep = Reposicion.calcular(Reposicion.desdeFila(a, f, null), hoy);
+    var t = tr.de(a.__row);
+    var rep = Reposicion.calcular(
+      Reposicion.desdeFila(a, f, t.ultimaOC ? new Date(t.ultimaOC) : null, t.pendiente), hoy);
     if(['ATRASADO','PEDIR','REVISAR'].indexOf(rep.senal)>=0) avisos.push({ a:a, rep:rep });
   });
 
@@ -963,21 +969,22 @@ function repNoDisponible(){
 }
 
 // El dashboard está abierto a cualquier autenticado (OPEN_MODULES), a
-// diferencia de Stock: si art_proveedor no trae nada por permisos el
-// panel tiene que seguir mostrando algo sensato, no romperse.
-// SubatirApp.getArtProveedor() ya degrada a [] sola ante cualquier error,
-// pero acá cubrimos además: que reposicion-calc.js no haya cargado (queda
-// window.Reposicion sin definir), que la promesa igual rechace por algo
-// no previsto, y que renderReposicion explote ya con los datos en mano.
-// Ningún camino puede dejar puesto el "Cargando…" del placeholder inicial:
-// o se pinta la lista, o se pinta este aviso.
+// diferencia de Stock: si art_proveedor no se puede leer por permisos o
+// por red, el panel tiene que decir "no disponible" — NO "nada para pedir".
+// getArtProveedor() rechaza ante cualquier error (antes devolvía [], y ese
+// [] se leía como "revisé y no hay nada"), así que el "no disponible" que
+// vive acá abajo por fin se dispara.
+// Se cubre además: que reposicion-calc.js no haya cargado (queda
+// window.Reposicion sin definir) y que renderReposicion explote ya con los
+// datos en mano. Ningún camino puede dejar puesto el "Cargando…" del
+// placeholder inicial: o se pinta la lista, o se pinta este aviso.
 function cargarReposicion(){
   var host = document.getElementById('rep-list');
   if(!host) return;
-  if(!window.SubatirApp || !SubatirApp.getArtProveedor || !window.Reposicion){ repNoDisponible(); return; }
+  if(!window.SubatirApp || !SubatirApp.getArtProveedor || !SubatirApp.transito || !window.Reposicion){ repNoDisponible(); return; }
   try{
     SubatirApp.getArtProveedor().then(function(fichas){
-      try{ renderReposicion(DATA.inventario, fichas || []); }
+      try{ renderReposicion(DATA.inventario, fichas || [], DATA.pedidos || []); }
       catch(e){ repNoDisponible(); }
     }, function(){ repNoDisponible(); });
   }catch(e){ repNoDisponible(); }

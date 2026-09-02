@@ -352,6 +352,16 @@ window.APP_VER='2026-08-28.1328';
 <script>
 // ─── Estado ──────────────────────────────────────────────────
 var ARTS = [], FICHAS = [];
+// Tránsito y última OC por artículo, de la capa compartida
+// (SubatirApp.transito): son los mismos números que usan Stock y el
+// dashboard. Sin ellos esta pantalla calculaba la señal con el tránsito en
+// cero y sin última OC, y le decía "⚙ falta dato" a artículos que el
+// usuario ya había configurado.
+var TRANSITO = null;
+// Qué pasó en la última carga: 'ok' o 'err'. "No pude cargar" y "no hay
+// nada" no pueden verse igual, y ningún camino de salida puede dejar
+// puesto el "Cargando…" del placeholder.
+var CARGA = '';
 // __row → ya se pintó el cartel de auditoría de proveedor (Tarea 8) para
 // ese artículo en este render(): un artículo con varios proveedores tiene
 // varias filas y el aviso es UNO por artículo, no por ficha.
@@ -374,13 +384,27 @@ function load(){
     SubatirApp.getData(),
     SubatirApp.getArtProveedor()
   ]).then(function(res){
-    ARTS   = res[0].inventario || [];
-    FICHAS = res[1] || [];
+    ARTS     = res[0].inventario || [];
+    FICHAS   = res[1] || [];
+    // Mismo cruce OC ↔ artículo que Stock, sin armar un matcher propio.
+    TRANSITO = SubatirApp.transito ? SubatirApp.transito(ARTS, res[0].pedidos || []) : null;
+    CARGA    = 'ok';
     setText('ts', new Date().toLocaleTimeString('es-UY'));
     render();
-  }).catch(function(e){
+  }, function(e){
+    // Antes esto solo mostraba un toast y la tabla se quedaba en
+    // "Cargando…" para siempre. Se limpia el estado y se pinta el error:
+    // una pantalla que no pudo leer no puede parecer una que leyó y no
+    // encontró nada.
+    ARTS = []; FICHAS = []; TRANSITO = null; CARGA = 'err';
     toast('Error cargando datos: '+(e && e.message || e), 'err');
+    render();
   });
+}
+
+// Tránsito y última OC del artículo, tolerando que la carga haya fallado.
+function trDe(a){
+  return (TRANSITO && TRANSITO.de(a.__row)) || { pendiente:0, ultimaOC:'' };
 }
 
 // Una fila por artículo × proveedor con ficha, más una fila por artículo
@@ -412,8 +436,15 @@ function faltaConfigurar(par){
 // Dashboard — no con uno propio, o la misma etiqueta muestra dos estados
 // distintos según la pantalla.
 function senalDe(par){
-  var rep = Reposicion.calcular(Reposicion.desdeFila(par.art, par.ficha, null), new Date());
-  return rep.senal;   // ultimaOC va null: esta pantalla no arma el índice de OC
+  // La última OC y el tránsito salen de SubatirApp.transito(), igual que en
+  // Stock: con ultimaOC en null, un artículo con "revisar cada N meses"
+  // cargado caía en SIN_DATOS/'sin-oc' y esta pantalla mostraba "⚙ falta
+  // dato" para algo que el usuario ya había cargado, mientras Stock decía OK.
+  var tr = trDe(par.art);
+  var rep = Reposicion.calcular(
+    Reposicion.desdeFila(par.art, par.ficha, tr.ultimaOC ? new Date(tr.ultimaOC) : null, tr.pendiente),
+    new Date());
+  return rep.senal;
 }
 
 var REP_LOOK = {
@@ -514,7 +545,7 @@ function reactivarCorreccionProveedor(invId){
 function guardarFila(tr){
   var v = function(sel){ var e=tr.querySelector(sel); return e && e.value!=='' ? parseFloat(e.value) : null; };
   var c = function(sel){ var e=tr.querySelector(sel); return !!(e && e.checked); };
-  SubatirApp.saveArtProveedor({
+  var fila = {
     inventario_id: +tr.getAttribute('data-inv'),
     proveedor: tr.getAttribute('data-prov'),
     demora_dias: v('.ap-demora'), usar_demora: c('.ap-usar-demora'),
@@ -522,7 +553,20 @@ function guardarFila(tr){
     pact_cantidad: v('.ap-pact-cant'), pact_entregado: v('.ap-pact-ent') || 0,
     pact_vence: (tr.querySelector('.ap-pact-vence')||{}).value || null,
     usar_pactada: c('.ap-usar-pact')
-  }).then(function(r){
+  };
+  // Mismo guard que saveReposicion() en stock.html: apretar 💾 en una fila
+  // intacta insertaba una fila de art_proveedor entera en null, que no
+  // configura nada y ensucia la tabla.
+  var vacia = !fila.usar_demora && !fila.usar_lote && !fila.usar_pactada &&
+              fila.demora_dias===null && fila.lote_minimo===null && fila.pact_cantidad===null;
+  if(vacia){ toast('No hay nada para guardar en esta fila: cargá un dato y tildá el bloque.', 'inf'); return; }
+  // Sin proveedor la ficha no se puede emparejar con nada: la señal la
+  // busca por artículo + proveedor, y '' no matchea con ningún artículo.
+  if(!String(fila.proveedor||'').trim()){
+    toast('Este artículo no tiene proveedor cargado: asignale uno en Stock antes de configurar la reposición.', 'err');
+    return;
+  }
+  SubatirApp.saveArtProveedor(fila).then(function(r){
     if(r.error){ toast('Error: '+r.error, 'err'); return; }
     toast('Guardado ✓','ok'); load();
   });
@@ -606,9 +650,19 @@ function filaHtml(par){
 }
 
 function render(){
+  // Sin artículos hay dos motivos muy distintos y no pueden verse igual:
+  // la carga falló, o cargó bien y el inventario está vacío. Antes los dos
+  // caían en "Cargando…", así que un error de red se veía como una pantalla
+  // que todavía está cargando y no termina nunca.
   if(!ARTS.length){
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="10" class="empty-td">Cargando…</td></tr>';
+    document.getElementById('tbody').innerHTML = CARGA === 'err'
+      ? '<tr><td colspan="10" class="empty-td" style="color:var(--amber)">⚠ No se pudieron cargar los datos. '
+        + '<button class="btn btn-ghost btn-sm" onclick="load()">↻ Reintentar</button></td></tr>'
+      : '<tr><td colspan="10" class="empty-td">No hay artículos en el inventario.</td></tr>';
     setText('tbl-cnt','—');
+    // Los KPI arrancan en "—" y ahí se quedan: un 0 sería afirmar algo que
+    // no se pudo leer.
+    ['k-total','k-seg','k-falta','k-activas'].forEach(function(id){ setText(id,'—'); });
     return;
   }
   actualizarKpis();
@@ -651,7 +705,9 @@ function toast(msg,type){
 // ─── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
   load();
-  if(window.SubatirApp && SubatirApp.live) SubatirApp.live(['inventario','art_proveedor'], load);
+  // 'pedidos' entró con el tránsito compartido: esta pantalla ahora calcula
+  // la señal con las OC pendientes, así que una OC nueva la cambia.
+  if(window.SubatirApp && SubatirApp.live) SubatirApp.live(['inventario','art_proveedor','pedidos'], load);
 });
 </script>
 <script>

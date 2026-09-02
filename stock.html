@@ -347,16 +347,6 @@ textarea.fi2{resize:vertical;min-height:65px;font-family:inherit}
 .dtile.s2{grid-column:1/-1}
 .dtile-div{grid-column:1/-1;height:1px;background:var(--border)}
 
-/* Aviso de corrección automática de proveedor (Tarea 8): que un dato que
-   cambió solo nunca aparezca sin explicación ni sin forma de deshacerlo. */
-.prov-auto-note{
-  display:none;align-items:center;gap:10px;flex-wrap:wrap;
-  padding:10px 13px;margin-bottom:14px;border-radius:9px;font-size:12px;
-  background:var(--amber-g);border:1px solid var(--amber-b);color:#fcd9a8;
-}
-.prov-auto-note strong{color:var(--amber);font-weight:700}
-.prov-auto-note .btn{margin-left:auto}
-
 /* ═══ TOAST ═══════════════════════════════════════════════════ */
 #tc{position:fixed;bottom:22px;right:22px;z-index:999;
   display:flex;flex-direction:column;gap:7px;pointer-events:none}
@@ -790,7 +780,6 @@ window.APP_VER='2026-09-02.1229';
       <button class="modal-x" onclick="closeOv('ov-edit')">✕</button>
     </div>
     <div class="modal-body">
-      <div id="prov-auto-note" class="prov-auto-note"></div>
       <div id="detail-tiles" class="dtiles"></div>
       <div id="edit-form" style="display:none">
         <div class="fg-row">
@@ -809,8 +798,11 @@ window.APP_VER='2026-09-02.1229';
             <input type="number" class="fi2" id="ed-cons" step="0.01" placeholder="0"/>
           </div>
           <div class="fg">
-            <label>Proveedor sugerido</label>
+            <label>Proveedor</label>
             <input type="text" class="fi2" id="ed-prov" placeholder="Nombre del proveedor"/>
+            <div class="muted" style="font-size:11px;margin-top:4px">
+              Se usa mientras el articulo no tenga ninguna orden de compra. Despues manda el proveedor de la ultima OC.
+            </div>
           </div>
         </div>
         <div class="fg">
@@ -1006,7 +998,7 @@ window.APP_VER='2026-09-02.1229';
           <input type="number" class="fi2" id="nw-art-cons" step="0.01" placeholder="0"/>
         </div>
         <div class="fg">
-          <label>Proveedor sugerido</label>
+          <label>Proveedor</label>
           <input type="text" class="fi2" id="nw-art-prov" placeholder="Nombre del proveedor"/>
         </div>
       </div>
@@ -1052,9 +1044,6 @@ var RAW_INV = [], RAW_STK = [], RAW_PED = [], RAW_PREC = [], RAW_PROVS = [];
 var MERGED  = [];
 var FILT    = [];
 // Correcciones de proveedor detectadas en el último buildMerged(), pendientes
-// de escribir (Tarea 8). Se arma acá y se dispara aparte, después de pintar
-// la tabla, para que un error de red al escribir no retrase el render.
-var PROV_AUTO_PEND = [];
 var CAT_MAP = {};   // NORM(producto) → categoría
 var SORT_K  = 'estado', SORT_D = 'asc';
 var CUR     = null;
@@ -1142,7 +1131,7 @@ function load(){
         CAT_MAP = res[0] || {};
         indexarFichas(res[1]);
         if(FICHAS_ERR) toast('No se pudo leer la configuración de reposición: las señales quedan sin calcular.','err');
-        buildMerged(); renderAll(); dispararCorreccionesProveedor();
+        buildMerged(); renderAll();
       });
       setLoading(false);
       if(d.timestamp){
@@ -1407,83 +1396,6 @@ function findOCMatch(desc, ocIdx){
 }
 
 // ─── Corrección automática del proveedor de ficha (Tarea 8) ─────────────────
-// La demora que manda para la fecha límite de reposición sale de la ficha
-// del proveedor que figura en inventario.PROVEEDOR. Si ese dato quedó viejo
-// (las etiquetas dicen "MIL ROLLOS" pero la última OC real fue a otro
-// proveedor) la alerta se calcula con una demora que ya no corresponde.
-// Decisión del usuario (spec 6.2): el sistema lo corrige solo, pero solo
-// para artículos con seguimiento=true, y queda auditado y es reversible —
-// ver el cartel en openDetail() y volverProveedorAnterior().
-//
-// No escribe acá mismo: solo detecta y encola en PROV_AUTO_PEND. Quien la
-// llama es buildMerged(), que ya tiene ocData calculado por artículo (no se
-// arma un matcher nuevo), y el disparo real de los UPDATE lo hace
-// dispararCorreccionesProveedor() después de pintar la tabla.
-//
-// La guarda contra el bucle NO es el número de OC (con OC sin número nunca
-// bloqueaba, y el revert se deshacía solo en el load siguiente — hallazgo de
-// la revisión). La guarda real es PROV AUTO OFF: "volver atrás" no es una
-// postergación, es una decisión — el usuario dijo "el proveedor de esta
-// ficha lo manejo yo" y esa decisión queda firme hasta que él mismo la
-// reactive, sin importar cuántas OC nuevas entren mientras tanto.
-function detectarCorreccionProveedor(item, ocData){
-  if(!item.__row) return; // sin fila real en inventario, no hay dónde escribir
-  var seg = item['SEGUIMIENTO']===true || item['SEGUIMIENTO']==='true';
-  if(!seg) return;
-  var off = item['PROV AUTO OFF']===true || item['PROV AUTO OFF']==='true';
-  if(off) return; // el usuario ya decidió que este proveedor lo maneja a mano
-  if(!ocData || !ocData.lastProv) return; // sin OC real para este artículo, nada para comparar
-
-  // Se compara y se escribe la grafía CANÓNICA (la del maestro de
-  // proveedores), no la cruda de la OC: hay una migración previa
-  // (normalizar_inventario_prov.sql) que ya limpió esta columna a propósito,
-  // y escribir la variante de pedidos la volvería a ensuciar. Si el nombre
-  // normalizado queda vacío (proveedor sin letras reales) no se escribe
-  // nada: un vacío no puede pisar un proveedor bueno.
-  var proveedorCanon = canonProv(ocData.lastProv);
-  if(!proveedorCanon) return;
-
-  var fichaProv = String(item['PROVEEDOR']||'').trim();
-  if(canonProv(fichaProv) === proveedorCanon) return; // ya coincide, nada que corregir
-
-  var fields = {
-    'PROVEEDOR':    proveedorCanon,
-    'PROV AUTO AT': new Date().toISOString(),
-    'PROV AUTO OC': ocData.lastOrden || ''
-  };
-  // PROV AUTO ANTERIOR tiene que ser el valor manual ORIGINAL, no "el que
-  // había antes de esta corrección": si ya hay una corrección vigente (este
-  // campo ya tiene algo, de una corrección previa que el usuario no revirtió
-  // ni desactivó), no se pisa — si no, tras una segunda corrección el primer
-  // valor cargado a mano se pierde para siempre y "volver atrás" ofrece un
-  // valor que el propio sistema inventó, no el que la persona escribió.
-  var anteriorYaGuardado = String(item['PROV AUTO ANTERIOR']||'').trim();
-  if(!anteriorYaGuardado) fields['PROV AUTO ANTERIOR'] = fichaProv;
-
-  PROV_AUTO_PEND.push({ row: item.__row, fields: fields });
-}
-
-// Dispara los UPDATE encolados por detectarCorreccionProveedor() durante el
-// buildMerged() más reciente. Vive aparte de buildMerged (que es sync y solo
-// arma MERGED) para no bloquear el render con escrituras de red.
-//
-// SubatirApp.write ya confirma con .select() que el UPDATE afectó filas
-// (updateRow, subatir-app.js): un usuario sin el módulo stock recibe
-// {error:...} en vez de éxito silencioso. Acá no hay cartel de éxito que
-// mentir — es una corrección de fondo — así que un error solo se loguea.
-function dispararCorreccionesProveedor(){
-  var pend = PROV_AUTO_PEND;
-  PROV_AUTO_PEND = [];
-  if(!pend.length) return;
-  console.log('[Stock] Corrigiendo proveedor automáticamente en '+pend.length+' artículo(s): fila(s) '+pend.map(function(p){return p.row;}).join(', '));
-  pend.forEach(function(p){
-    SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:p.row, fields:JSON.stringify(p.fields)})
-      .then(function(r){
-        if(r && r.error) console.warn('[Stock] No se pudo corregir proveedor de la fila '+p.row+': '+r.error);
-      });
-  });
-}
-
 // ─── Todos los proveedores de un artículo ────────────────────────────────────
 // Antes cada artículo guardaba UN solo proveedor (el de la OC más reciente), así
 // que filtrar por proveedor dejaba afuera los artículos que ese proveedor vende
@@ -1518,7 +1430,9 @@ function indexarFichas(fichas){
     FICHAS_IDX[f.inventario_id + '|' + Reposicion.canonProv(f.proveedor)] = f;
   });
 }
-// La que manda es la del proveedor de la ficha de stock (decisión del usuario).
+// La que manda es la del PROVEEDOR TITULAR: el de la última OC, y si el
+// artículo nunca se compró, el que tenga cargado la ficha. La regla vive en
+// SubatirApp.transito().titular() para que las tres pantallas resuelvan igual.
 function fichaDe(invId, proveedor){
   return FICHAS_IDX[invId + '|' + Reposicion.canonProv(proveedor)] || null;
 }
@@ -1585,7 +1499,6 @@ function recalcItem(m){
 
 function buildMerged(){
   MERGED = [];
-  PROV_AUTO_PEND = [];
   buildProvCanon();
   var ocIdx   = buildOCIndex();
   var precIdx = buildPrecIndex();
@@ -1618,16 +1531,16 @@ function buildMerged(){
     // cuando la orden lo trae).
     var ocData        = findOCMatch(desc, ocIdx);
     var tr            = TR.de(item.__row);
+    // Proveedor titular: el de la ultima OC, y si nunca se compro, el de
+    // la ficha. La regla vive en SubatirApp para que las tres pantallas
+    // resuelvan igual.
+    var titular       = TR.titular(item.__row, item);
     var pendiente     = tr.pendiente      || 0;
     var valorPendiente= tr.valorPendiente || 0;
     // (Lo que cada artículo se lleva de cada descripción lo anota la propia
     // SubatirApp.transito en TR.usadas, con el mismo cruce con el que lo
     // reparte. Anotarlo otra vez acá, con otro índice, era justamente lo
     // que hacía desaparecer mercadería: ver el bucle de huérfanas abajo.)
-
-    // Corrección automática del proveedor de ficha (Tarea 8): solo detecta
-    // y encola acá, con el mismo ocData que ya se calculó arriba.
-    detectarCorreccionProveedor(item, ocData);
 
     // Proveedor sugerido: prioridad override local → OC más reciente → hoja COMPRAS
     var provSugeridoHoja = IK.provSugerido ? String(item[IK.provSugerido]||'').trim() : '';
@@ -1662,14 +1575,6 @@ function buildMerged(){
       seguimiento:      item['SEGUIMIENTO'] === true || item['SEGUIMIENTO'] === 'true',
       revisarCadaMeses: pn(item['REVISAR CADA MESES']),
       proximaRevision:  item['PROXIMA REVISION'] || '',
-      // Auditoría de la corrección automática de proveedor (Tarea 8): si
-      // provAutoAt tiene valor, openDetail() muestra el cartel con el botón
-      // para volver al proveedor anterior (provAutoAnterior). provAutoOff
-      // en true es la decisión firme del usuario de manejarlo a mano.
-      provAutoAt:       item['PROV AUTO AT'] || '',
-      provAutoOc:       item['PROV AUTO OC'] || '',
-      provAutoAnterior: item['PROV AUTO ANTERIOR'] || '',
-      provAutoOff:      item['PROV AUTO OFF'] === true || item['PROV AUTO OFF'] === 'true',
       // Proveedor CRUDO de la ficha (inventario.PROVEEDOR), sin el fallback a
       // la última OC que sí usa `proveedor` (columna "Último proveedor"):
       // son dos datos distintos y el detalle tiene que poder mostrar los dos,
@@ -1682,14 +1587,18 @@ function buildMerged(){
       ultimaOC:        tr.ultimaOC || '',
       ultimaOCOrden:   tr.ultimaOrden || '',
       _inv:   item,                 // la fila cruda, con los nombres de header
-      // La ficha que manda es la del proveedor de la ficha de stock
-      // (inventario.PROVEEDOR), NO la de `proveedor` — que es la cadena
-      // "última OC → proveedor sugerido" que pinta la columna "Último
-      // proveedor" y alimenta los filtros. Son dos columnas distintas y
-      // difieren en la mayoría de los artículos: buscando por la de arriba,
-      // un artículo bien configurado dejaba de alertar en silencio.
-      // Mismo criterio que reposicion.html e index.html.
-      _ficha: fichaDe(item.__row, item['PROVEEDOR'])
+      // La ficha que manda es la del PROVEEDOR TITULAR: el de la última
+      // orden de compra, y si el artículo nunca se compró, el que tenga
+      // cargado la ficha. La regla vive en SubatirApp para que esta
+      // pantalla, la de Reposición y el dashboard resuelvan igual.
+      //
+      // Antes se buscaba por la columna `inventario.proveedor` a secas, y
+      // eso dejaba sin configurar a todo artículo creado desde la app: el
+      // campo que se edita en el modal escribe en `proveedor_sugerido`,
+      // así que la columna quedaba vacía y la ficha nunca coincidía. El
+      // modal te dejaba cargar la demora y después la ignoraba.
+      _titular: titular,
+      _ficha: fichaDe(item.__row, titular)
     }));
   });
 
@@ -2099,6 +2008,7 @@ function openDetail(desc){
     {l:'Cobertura',   v:cobStr,               cls:''},
     {l:'Precio ref.', v:x.precio||'—',        cls:''},
     {l:'Último proveedor', v:x.proveedor||'—', cls:'s2'},
+    {l:'Proveedor titular', v:x._titular||'—', cls:'s2'},
     {l:'Proveedor de ficha', v:x.fichaProveedor||'—', cls:'s2'},
     {l:'Proveedores que lo tienen ('+(x.provs||[]).length+')',
      v:(x.provs||[]).length ? x.provs.join(' · ') : '—', cls:'s2'},
@@ -2110,84 +2020,7 @@ function openDetail(desc){
     return '<div class="dtile '+t.cls+'"><div class="dtile-lbl">'+t.l+'</div><div class="dtile-val">'+esc(String(t.v))+'</div></div>';
   }).join('');
   document.getElementById('detail-tiles').innerHTML = html;
-  renderProvAutoNote(x);
   openOv('ov-edit');
-}
-
-// ─── Cartel de auditoría de la corrección automática de proveedor (Tarea 8) ─
-// "Un dato que cambia solo y sin explicación es peor que un dato viejo"
-// (spec 6.2): si provAutoAt tiene valor, se avisa cuándo y por qué OC, con
-// un botón para deshacerlo. Si en cambio provAutoOff está activo, la
-// corrección automática ya fue apagada a propósito (por ese mismo botón) y
-// se avisa distinto, con la forma de reactivarla. Las dos notas son
-// mutuamente excluyentes: revertir apaga AT y prende OFF en la misma escritura.
-function fmtDiaMes(iso){
-  var d = new Date(iso);
-  if(isNaN(d)) return '—';
-  var p = function(n){ return (n<10?'0':'')+n; };
-  return p(d.getDate())+'/'+p(d.getMonth()+1);
-}
-function renderProvAutoNote(x){
-  var box = document.getElementById('prov-auto-note');
-  if(!box) return;
-  if(x && x.provAutoOff){
-    box.innerHTML =
-      '⚙️ <span>La corrección automática de proveedor está <strong>desactivada</strong> para este artículo'
-      + ' (se apagó al volver a un proveedor anterior).</span>'
-      + '<button class="btn btn-ghost btn-sm" onclick="reactivarCorreccionProveedor()">↻ Reactivar</button>';
-    box.style.display = 'flex';
-    return;
-  }
-  if(!x || !x.provAutoAt){ box.style.display='none'; box.innerHTML=''; return; }
-  var anterior = x.provAutoAnterior || '';
-  box.innerHTML =
-    '⚠️ <span>Proveedor actualizado el <strong>'+esc(fmtDiaMes(x.provAutoAt))+'</strong>'
-    + ' según OC #<strong>'+esc(x.provAutoOc||'—')+'</strong></span>'
-    + (anterior
-        ? '<button class="btn btn-ghost btn-sm" onclick="volverProveedorAnterior()">↩ Volver a '+esc(anterior)+'</button>'
-        : '');
-  box.style.display = 'flex';
-}
-// Restaura PROVEEDOR al valor guardado en PROV AUTO ANTERIOR, limpia AT y
-// ANTERIOR, y prende PROV AUTO OFF. "Volver atrás" no es una postergación,
-// es una decisión: el usuario dijo "el proveedor de esta ficha lo manejo
-// yo", y esa decisión tiene que quedar firme aunque entren OC nuevas
-// después — si no, la próxima corrección automática lo pisa de nuevo y el
-// botón deja de ser confiable. detectarCorreccionProveedor() saltea de
-// entrada cualquier artículo con OFF en true; reactivarCorreccionProveedor()
-// es la única forma de volver a prenderla, y es explícita.
-function volverProveedorAnterior(){
-  if(!CUR || !CUR.__row) return;
-  var anterior = CUR.provAutoAnterior;
-  if(!anterior){ toast('No hay proveedor anterior guardado para este artículo.','err'); return; }
-  var fields = {
-    'PROVEEDOR':          anterior,
-    'PROV AUTO AT':       '',
-    'PROV AUTO ANTERIOR': '',
-    'PROV AUTO OFF':      true
-  };
-  toast('Restaurando proveedor…','info');
-  SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:CUR.__row, fields:JSON.stringify(fields)})
-    .then(function(r){
-      if(r && r.error){ toast('Error: '+r.error,'err'); return; }
-      toast('Proveedor restaurado a "'+anterior+'" ✓ — corrección automática desactivada','ok');
-      closeOv('ov-edit');
-      load();
-    });
-}
-// Vuelve a dejar la corrección automática en manos del sistema. No toca
-// PROVEEDOR: la próxima carga la evalúa contra la OC más reciente, tal cual
-// corresponde en ese momento (puede corregir de nuevo, o no, según los datos).
-function reactivarCorreccionProveedor(){
-  if(!CUR || !CUR.__row) return;
-  toast('Reactivando…','info');
-  SubatirApp.write({action:'updateRow', sheetKey:'inventario', row:CUR.__row, fields:JSON.stringify({'PROV AUTO OFF': false})})
-    .then(function(r){
-      if(r && r.error){ toast('Error: '+r.error,'err'); return; }
-      toast('Corrección automática reactivada ✓','ok');
-      closeOv('ov-edit');
-      load();
-    });
 }
 
 function openEdit(desc){ openDetail(desc); toggleEdit(); }
@@ -2232,11 +2065,10 @@ function serializeFichas(){
 function renderFichasProv(invId){
   var cont = document.getElementById('ed-fichas');
   var provs = (CUR && CUR.provs) || [];
-  // La ficha que manda es la del proveedor de la ficha de stock
-  // (inventario.PROVEEDOR), la misma que busca fichaDe() para calcular la
-  // señal — y con el mismo canon, o el cartelito marcaría una ficha y la
-  // cuenta usaría otra.
-  var mandaProv = Reposicion.canonProv((CUR && CUR.fichaProveedor) || '');
+  // La ficha que manda es la del proveedor TITULAR, la misma que busca
+  // fichaDe() para calcular la señal — y con el mismo canon, o el cartelito
+  // marcaría una ficha y la cuenta usaría otra.
+  var mandaProv = Reposicion.canonProv((CUR && CUR._titular) || '');
   SubatirApp.getArtProveedor([invId]).then(function(fichas){
     var byProv = {}; fichas.forEach(function(f){ byProv[canonProv(f.proveedor)] = f; });
     cont.innerHTML = provs.map(function(p){

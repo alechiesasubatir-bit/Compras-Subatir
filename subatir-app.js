@@ -1596,6 +1596,26 @@
     // Acceso cómodo: nunca devuelve undefined, así quien llama no tiene
     // que acordarse de defenderse en cada uso.
     out.de = function (invId) { return out.porArticulo[invId] || vacio(); };
+
+    //  Quién es el proveedor TITULAR de un artículo: el de su última
+    //  orden de compra. Decidido por el usuario el 02/09/2026, contra
+    //  la regla anterior que miraba la columna `inventario.proveedor`.
+    //
+    //  Por qué la última OC y no un campo cargado a mano: es a quien le
+    //  compra de verdad, se mantiene solo y no hay que acordarse de
+    //  actualizarlo. El "proveedor sugerido" por mejor precio no se usa
+    //  — elegir proveedor es una decisión del momento, mirando precios,
+    //  no una regla automática.
+    //
+    //  Sin OC (65 de 156 artículos al 02/09) cae al campo de la ficha,
+    //  que ahí es el único dato que hay. Con eso quedan 155 de 156
+    //  resueltos; el que sobra no tiene ningún proveedor en ningún lado.
+    out.titular = function (invId, inv) {
+      var acc = out.porArticulo[invId];
+      if (acc && acc.ultimoProv) return acc.ultimoProv;
+      inv = inv || {};
+      return inv[IC.proveedor] || inv[IC.proveedor_sugerido] || '';
+    };
     return out;
   }
 

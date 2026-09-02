@@ -929,8 +929,11 @@ function renderReposicion(inventario, fichas, pedidos){
 
   var hoy = new Date(), avisos = [];
   (inventario||[]).forEach(function(a){
-    // La ficha que manda es la del proveedor de la ficha de stock.
-    var f = idx[a.__row+'|'+Reposicion.canonProv(a['PROVEEDOR']||'')] || null;
+    // Proveedor TITULAR: el de la ultima OC, y si el articulo nunca se
+    // compro, el que tenga cargado la ficha. Misma regla que Stock y que
+    // la pantalla de Reposicion: sale de SubatirApp para no divergir.
+    var titular = tr ? tr.titular(a.__row, a) : (a['PROVEEDOR']||a['PROOVEDOR SUGERIDO']||'');
+    var f = idx[a.__row+'|'+Reposicion.canonProv(titular)] || null;
     var t = tr.de(a.__row);
     var rep = Reposicion.calcular(
       Reposicion.desdeFila(a, f, t.ultimaOC ? new Date(t.ultimaOC) : null, t.pendiente), hoy);

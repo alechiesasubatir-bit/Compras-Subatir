@@ -314,7 +314,7 @@ window.APP_VER='2026-09-02.1020';
 
     <div class="filters">
       <div class="search-wrap">
-        <input class="fi fi-search" id="f-q" placeholder="Buscar artículo, código…" oninput="render()"/>
+        <input class="fi fi-search" id="f-q" placeholder="Buscar artículo, código o proveedor…" oninput="render()"/>
       </div>
       <select class="fi" id="f-fam" onchange="render()">
         <option value="">Todas las familias</option>
@@ -675,7 +675,12 @@ function render(){
     var a = par.art;
     if(fam && (a['ID']||'') !== fam) return false;
     if(q){
-      var hay = (String(a['DESCRIPCIÓN']||'')+' '+String(a['CODIGO']||'')).toUpperCase();
+      // El proveedor entra en la busqueda a proposito: esta pantalla es
+      // para cargar en lote, y lo natural es traer todo lo de un mismo
+      // proveedor para cargarle las demoras de una sentada. Buscando solo
+      // por descripcion no hay un texto que junte, por ejemplo, las
+      // etiquetas con los ribons del mismo proveedor.
+      var hay = (String(a['DESCRIPCIÓN']||'')+' '+String(a['CODIGO']||'')+' '+String(par.ficha.proveedor||'')).toUpperCase();
       if(hay.indexOf(q) === -1) return false;
     }
     if(est === 'SEG' && !seguimientoOn(a)) return false;

@@ -5,4 +5,5 @@ alter table public.inventario
   drop column if exists revisar_cada_meses,
   drop column if exists proxima_revision,
   drop column if exists prov_auto_at,
-  drop column if exists prov_auto_oc;
+  drop column if exists prov_auto_oc,
+  drop column if exists prov_auto_anterior;

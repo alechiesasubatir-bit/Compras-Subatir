@@ -62,15 +62,24 @@ alter table public.inventario
   add column if not exists revisar_cada_meses smallint,
   add column if not exists proxima_revision   date,
   add column if not exists prov_auto_at       timestamptz,
-  add column if not exists prov_auto_oc       text;
+  add column if not exists prov_auto_oc       text,
+  add column if not exists prov_auto_anterior text;
 
 alter table public.inventario
   add constraint inventario_revisar_meses_ck
   check (revisar_cada_meses is null or revisar_cada_meses between 1 and 60);
 ```
 
-`prov_auto_at` / `prov_auto_oc` son la auditoría del pisado automático de proveedor
-(sección 6.2): sin ellas el dato cambiaría solo y sin explicación.
+`prov_auto_at` / `prov_auto_oc` / `prov_auto_anterior` son la auditoría del pisado automático
+de proveedor (sección 6.2): sin ellas el dato cambiaría solo y sin explicación.
+
+`prov_auto_anterior` guarda el proveedor que estaba antes, y no es opcional: **sin él el botón
+de volver atrás no puede existir**, porque el valor viejo se perdió al pisarlo. La app es
+cloud-only (`stock.html` limpia su `localStorage` en cada carga a propósito), así que el dato
+tiene que vivir en la base o no sobrevive a un F5. Ninguna de las 18 columnas ya existentes
+sirve: `proveedor_sugerido` es un campo que la gente edita a mano y reusarlo destruiría datos
+reales, y meterlo dentro de `prov_auto_oc` rompería la guarda anti-bucle, que compara esa
+columna contra el número de OC.
 
 **Sí se agregan a `MAPS.inventario`** (`subatir-app.js:109`), con nombres de header propios
 (`SEGUIMIENTO`, `REVISAR CADA MESES`, `PROXIMA REVISION`, `PROV AUTO AT`, `PROV AUTO OC`).

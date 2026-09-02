@@ -233,6 +233,15 @@ input.fi2.ap-pact-vence{width:118px;padding:4px 6px;font-size:10px}
 .ap-fam.con{color:var(--orange);background:rgba(249,115,22,.14);border:1px solid rgba(249,115,22,.3)}
 .ap-fam.sin{color:var(--muted-l);background:rgba(255,255,255,.06);border:1px solid var(--border)}
 .ap-art-cod{font-family:var(--mono);font-size:9px;color:var(--muted)}
+
+/* Aviso de corrección automática de proveedor (Tarea 8): mismo cartel que
+   stock.html, en versión compacta para la celda de la grilla. */
+.prov-auto-note{
+  margin-top:4px;padding:3px 8px;border-radius:7px;font-size:10px;
+  display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;
+  background:var(--amber-g);border:1px solid var(--amber-b);color:#fcd9a8;
+}
+.prov-auto-note .btn{padding:2px 8px;font-size:9px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="nav.css?v=2026-08-28.1328"/>
@@ -459,6 +468,32 @@ function toggleSeguimiento(invId, checked){
   });
 }
 
+// ─── Corrección automática de proveedor (Tarea 8) ────────────
+// La detección y el UPDATE que corrige viven solo en stock.html (ahí está
+// findOCMatch/ocIdx); esta pantalla no arma un matcher propio, solo lee los
+// campos de auditoría de la fila ya corregida y muestra el mismo cartel.
+//
+// PROV AUTO OC NO se limpia acá a propósito (mismo motivo que en stock.html):
+// la guarda anti-bucle de stock.html compara ese campo contra la OC real
+// para no reescribir dos veces. Si se limpiara, el próximo load() de Stock
+// volvería a ver un desacuerdo con esa misma OC y reaplicaría la corrección
+// sola, deshaciendo este botón en menos de un segundo.
+function volverProveedorAnterior(invId){
+  var a = ARTS.filter(function(x){ return x.__row === invId; })[0];
+  var anterior = a && a['PROV AUTO ANTERIOR'];
+  if(!anterior){ toast('No hay proveedor anterior guardado para este artículo.', 'err'); return; }
+  SubatirApp.write({
+    action: 'updateRow', sheetKey: 'inventario', row: invId,
+    fields: JSON.stringify({
+      'PROVEEDOR': anterior, 'PROV AUTO AT': '', 'PROV AUTO ANTERIOR': ''
+    })
+  }).then(function(r){
+    if(r.error){ toast('Error: '+r.error, 'err'); return; }
+    toast('Proveedor restaurado a "'+anterior+'" ✓', 'ok');
+    load();
+  });
+}
+
 function guardarFila(tr){
   var v = function(sel){ var e=tr.querySelector(sel); return e && e.value!=='' ? parseFloat(e.value) : null; };
   var c = function(sel){ var e=tr.querySelector(sel); return !!(e && e.checked); };
@@ -474,6 +509,26 @@ function guardarFila(tr){
     if(r.error){ toast('Error: '+r.error, 'err'); return; }
     toast('Guardado ✓','ok'); load();
   });
+}
+
+function fmtDiaMesRep(iso){
+  var d = new Date(iso);
+  if(isNaN(d)) return '—';
+  var p = function(n){ return (n<10?'0':'')+n; };
+  return p(d.getDate())+'/'+p(d.getMonth()+1);
+}
+// Cartel "proveedor actualizado…" (Tarea 8): solo en la fila del proveedor
+// que hoy manda para ese artículo (mismo criterio que fichaManda), para no
+// repetirlo en cada fila cuando el artículo tiene varios proveedores — el
+// aviso es sobre inventario.PROVEEDOR, no sobre cada ficha por separado.
+function provAutoNota(a, prov){
+  var at = a['PROV AUTO AT'];
+  if(!at) return '';
+  if(Reposicion.canonProv(prov) !== Reposicion.canonProv(a['PROVEEDOR']||'')) return '';
+  var anterior = a['PROV AUTO ANTERIOR'] || '';
+  return '<div class="prov-auto-note">⚠️ actualizado '+esc(fmtDiaMesRep(at))+' según OC #'+esc(a['PROV AUTO OC']||'—')+'.'
+    + (anterior ? ' <button class="btn btn-ghost btn-sm" onclick="volverProveedorAnterior('+a.__row+')">↩ Volver a '+esc(anterior)+'</button>' : '')
+    + '</div>';
 }
 
 // ─── Pintado de fila ────────────────────────────────────────
@@ -498,7 +553,7 @@ function filaHtml(par){
     +'<td style="text-align:center">'
       +'<input type="checkbox" class="ap-seg" '+(seg?'checked':'')+' title="Seguir la reposición de este artículo" '
       +'onchange="toggleSeguimiento('+invId+',this.checked)"/></td>'
-    +'<td>'+(prov ? esc(prov) : '<span class="muted">—</span>')+'</td>'
+    +'<td>'+(prov ? esc(prov) : '<span class="muted">—</span>')+provAutoNota(a,prov)+'</td>'
     +'<td class="num">'
       +'<label class="ap-mini"><input type="checkbox" class="ap-usar-demora"'+(f.usar_demora?' checked':'')+'/> usar</label>'
       +'<input type="number" class="fi2 ap-demora" min="1" placeholder="días" value="'+(f.demora_dias||'')+'"/>'

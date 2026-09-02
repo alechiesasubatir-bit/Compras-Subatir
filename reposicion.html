@@ -286,7 +286,7 @@ window.APP_VER='2026-08-28.1328';
       <div class="kpi-icon">⚙</div>
       <div class="kpi-label">Falta configurar</div>
       <div class="kpi-num c-amber" id="k-falta">—</div>
-      <div class="kpi-sub">sin demora, lote ni pactada</div>
+      <div class="kpi-sub">filas de la tabla sin cargar</div>
     </div>
     <div class="glass kpi kpi-crit">
       <div class="kpi-icon">🔔</div>
@@ -384,6 +384,17 @@ function filas(){
   return out;
 }
 
+// Único lugar que decide "falta configurar": el KPI de arriba y el filtro
+// del select llaman a esta misma función sobre las mismas filas de
+// filas(), para no volver a mostrar dos números distintos con el mismo
+// nombre. Cuenta por FILA (artículo × proveedor), no por artículo: un
+// artículo con dos proveedores y ninguno cargado son dos filas por
+// completar, no una.
+function faltaConfigurar(par){
+  var f = par.ficha;
+  return seguimientoOn(par.art) && !f.usar_demora && !f.usar_lote && !f.usar_pactada;
+}
+
 // La columna Señal se calcula con el mismo camino que Stock y el
 // Dashboard — no con uno propio, o la misma etiqueta muestra dos estados
 // distintos según la pantalla.
@@ -420,16 +431,17 @@ function fichaManda(a, porArt){
 function actualizarKpis(){
   var porArt = {};
   FICHAS.forEach(function(f){ (porArt[f.inventario_id] = porArt[f.inventario_id] || []).push(f); });
-  var total = ARTS.length, seg = 0, falta = 0, activas = 0;
+  var total = ARTS.length, seg = 0, activas = 0;
   ARTS.forEach(function(a){
     if(!seguimientoOn(a)) return;
     seg++;
-    var fs = porArt[a.__row] || [];
-    var algunaConfig = fs.some(function(f){ return f.usar_demora || f.usar_lote || f.usar_pactada; });
-    if(!algunaConfig) falta++;
     var s = senalDe({ art: a, ficha: fichaManda(a, porArt) });
     if(s === 'ATRASADO' || s === 'PEDIR') activas++;
   });
+  // Mismo predicado y misma fuente (filas()) que usa el filtro "Falta
+  // configurar": el número de acá tiene que ser exactamente cuántas filas
+  // aparecen si se elige ese filtro, ni una fila más, ni una menos.
+  var falta = filas().filter(faltaConfigurar).length;
   setText('k-total', total);
   setText('k-seg', seg);
   setText('k-falta', falta);
@@ -521,15 +533,16 @@ function render(){
   var est = document.getElementById('f-est').value;
 
   var rows = filas().filter(function(par){
-    var a = par.art, f = par.ficha;
+    var a = par.art;
     if(fam && (a['ID']||'') !== fam) return false;
     if(q){
       var hay = (String(a['DESCRIPCIÓN']||'')+' '+String(a['CODIGO']||'')).toUpperCase();
       if(hay.indexOf(q) === -1) return false;
     }
-    var seg = seguimientoOn(a);
-    if(est === 'SEG' && !seg) return false;
-    if(est === 'FALTA' && !(seg && !f.usar_demora && !f.usar_lote && !f.usar_pactada)) return false;
+    if(est === 'SEG' && !seguimientoOn(a)) return false;
+    // Misma función que usa el KPI "Falta configurar" de arriba: los dos
+    // números tienen que salir de un solo lugar o vuelven a divergir.
+    if(est === 'FALTA' && !faltaConfigurar(par)) return false;
     return true;
   });
   rows.sort(function(x,y){

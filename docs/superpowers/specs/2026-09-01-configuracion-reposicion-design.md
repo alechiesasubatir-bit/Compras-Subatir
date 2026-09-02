@@ -63,7 +63,8 @@ alter table public.inventario
   add column if not exists proxima_revision   date,
   add column if not exists prov_auto_at       timestamptz,
   add column if not exists prov_auto_oc       text,
-  add column if not exists prov_auto_anterior text;
+  add column if not exists prov_auto_anterior text,
+  add column if not exists prov_auto_off      boolean not null default false;
 
 alter table public.inventario
   add constraint inventario_revisar_meses_ck
@@ -306,8 +307,20 @@ Decisión del usuario: **el sistema corrige `inventario.proveedor` solo**, tomá
 proveedor de la última OC real del artículo. Solo para artículos con `seguimiento = true`.
 
 Para que un cambio automático no aparezca sin explicación, queda auditado: se escriben
-`prov_auto_at` y `prov_auto_oc`, y tanto la ficha como la pantalla de configuración muestran
-*"proveedor actualizado el DD/MM según OC #NNN"*, con un botón para volver atrás.
+`prov_auto_at`, `prov_auto_oc` y `prov_auto_anterior`, y tanto la ficha como la pantalla de
+configuración muestran *"proveedor actualizado el DD/MM según OC #NNN"*, con un botón para
+volver atrás.
+
+**Volver atrás es una decisión, no una postergación.** Un revert que solo restaura el valor
+deja que la próxima OC vuelva a pisarlo, y en un artículo que se compra seguido eso es la
+semana que viene: el botón no revierte nada, posterga. Por eso el revert además prende
+`prov_auto_off`, y la detección saltea los artículos que lo tengan. Se puede volver a
+activar, pero a propósito.
+
+`prov_auto_anterior` guarda **el valor manual original**, no el previo a la última
+corrección. Si se pisara en cada corrección, dos correcciones seguidas dejarían al usuario
+con la opción de "volver" a un valor que el propio sistema inventó, y el que escribió una
+persona no existiría más en ninguna parte.
 
 **Riesgo anotado:** esto pisa un dato cargado a mano. Si la última OC fue una compra puntual
 a un proveedor alternativo, la demora que manda pasa a ser la de ese proveedor. Planteado y

@@ -444,6 +444,23 @@ tbody td{padding:8px 11px;white-space:nowrap;overflow:hidden;text-overflow:ellip
 .dot-yellow{background:var(--amb);box-shadow:0 0 7px var(--amb)}
 .dot-green{background:var(--grn);box-shadow:0 0 7px var(--grn)}
 
+/* ── Reposición ────────────────────────────────────────────── */
+.rep-list{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto}
+.rep-row{
+  display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
+  padding:9px 13px;border-radius:9px;
+  background:rgba(255,255,255,.025);border:1px solid var(--bdr);
+  transition:background .12s, border-color .12s;
+  text-decoration:none;color:inherit;
+}
+.rep-row:hover{background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.3)}
+.rep-row strong{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rep-row span{font-size:10px;font-weight:700;white-space:nowrap}
+.rep-sig-atrasado{color:var(--red)}
+.rep-sig-pedir{color:var(--amb)}
+.rep-sig-revisar{color:var(--pur)}
+.rep-row .rep-sug{font-weight:600;color:var(--mut2)}
+
 /* ── Charts ─────────────────────────────────────────────────── */
 .right-col{display:flex;flex-direction:column;gap:18px}
 .chart-wrap{position:relative;height:190px;display:flex;align-items:center;justify-content:center}
@@ -496,6 +513,7 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=2026-08-28.1328"></script>
 <script src="subatir-app.js?v=2026-08-28.1328"></script>
+<script src="reposicion-calc.js?v=1"></script>
 <script src="traslados.js?v=2026-08-28.1328"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
@@ -740,6 +758,17 @@ window.APP_VER='2026-08-28.1328';
           </div>
         </div>
 
+        <!-- Reposición: mismo cálculo que Stock y la pantalla de configuración -->
+        <div class="card" style="padding:18px">
+          <div class="section-title">
+            <h2>🔔 <span>Reposición</span></h2>
+            <span class="badge badge-warn" id="rep-cnt">—</span>
+          </div>
+          <div class="rep-list" id="rep-list">
+            <div class="empty">Cargando…</div>
+          </div>
+        </div>
+
       </div>
     </div><!-- /grid-main -->
 
@@ -879,6 +908,65 @@ function avisoRevisionMP(){
   });
 }
 
+// ══ Aviso: reposición de artículos con seguimiento ═════════════
+//  Mismo cálculo que Stock y la pantalla de configuración
+//  (Reposicion.calcular, en reposicion-calc.js): un aviso acá con reglas
+//  propias terminaría diciendo algo distinto que esas dos pantallas.
+function renderReposicion(inventario, fichas){
+  // Índice de fichas por artículo + proveedor normalizado: la que manda es
+  // la del proveedor de la ficha de stock.
+  var idx = {};
+  (fichas||[]).forEach(function(f){
+    idx[f.inventario_id+'|'+Reposicion.canonProv(f.proveedor)] = f;
+  });
+
+  var hoy = new Date(), avisos = [];
+  (inventario||[]).forEach(function(a){
+    // La ficha que manda es la del proveedor de la ficha de stock.
+    // ultimaOC va null: el dashboard no arma el índice de OC que tiene
+    // Stock, así que acá la regla "cada N meses" no dispara y sí lo hacen
+    // proxima_revision y la pactada. El aviso completo está en Stock.
+    var f = idx[a.__row+'|'+Reposicion.canonProv(a['PROVEEDOR']||'')] || null;
+    var rep = Reposicion.calcular(Reposicion.desdeFila(a, f, null), hoy);
+    if(['ATRASADO','PEDIR','REVISAR'].indexOf(rep.senal)>=0) avisos.push({ a:a, rep:rep });
+  });
+
+  avisos.sort(function(x,y){
+    return (x.rep.diasParaPedir==null?9999:x.rep.diasParaPedir)
+         - (y.rep.diasParaPedir==null?9999:y.rep.diasParaPedir);
+  });
+
+  var REP_SIG_CLASS = { ATRASADO:'rep-sig-atrasado', PEDIR:'rep-sig-pedir', REVISAR:'rep-sig-revisar' };
+  var REP_SIG_LABEL = { ATRASADO:'🔴 atrasado', PEDIR:'🟠 pedir', REVISAR:'🔔 revisar' };
+
+  document.getElementById('rep-cnt').textContent = avisos.length;
+  document.getElementById('rep-list').innerHTML = avisos.length
+    ? avisos.map(function(x){
+        return '<a href="stock.html" class="rep-row">'
+             + '<strong>'+esc(x.a['DESCRIPCIÓN']||'—')+'</strong>'
+             + '<span class="'+(REP_SIG_CLASS[x.rep.senal]||'')+'">'+(REP_SIG_LABEL[x.rep.senal]||x.rep.senal)+'</span>'
+             + '<span class="rep-sug">'+(x.rep.sugerido>0 ? 'pedir '+x.rep.sugerido : '')+'</span></a>';
+      }).join('')
+    : '<div class="empty" style="padding:14px 0">Nada para pedir. ✓</div>';
+}
+
+// El dashboard está abierto a cualquier autenticado (OPEN_MODULES), a
+// diferencia de Stock: si art_proveedor no trae nada por permisos el
+// panel tiene que seguir mostrando algo sensato, no romperse.
+// SubatirApp.getArtProveedor() ya degrada a [] sola ante cualquier error;
+// el try/catch de acá es por si renderReposicion falla por otro motivo:
+// un aviso caído no puede llevarse puesto el resto del dashboard.
+function cargarReposicion(){
+  var host = document.getElementById('rep-list');
+  if(!host || !window.SubatirApp || !SubatirApp.getArtProveedor || !window.Reposicion) return;
+  try{
+    SubatirApp.getArtProveedor().then(function(fichas){
+      try{ renderReposicion(DATA.inventario, fichas || []); }
+      catch(e){ /* no rompe el resto del dashboard */ }
+    });
+  }catch(e){ /* no rompe el resto del dashboard */ }
+}
+
 // ── Inicialización ─────────────────────────────────────────────
 (function init(){
   // Se limpia el rastro del Apps Script viejo: quedaba guardado por
@@ -890,7 +978,7 @@ function avisoRevisionMP(){
   // perder por un error en otra cosa.
   avisoRevisionMP();
   load();
-  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','proveedores'], load);
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','proveedores','art_proveedor'], load);
   // Aviso de lo que viene en camino desde los depósitos
   loadEnCamino();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['imp_pallets'], loadEnCamino);
@@ -1107,6 +1195,7 @@ function renderAll(){
   renderCobertura();
   renderAlertBanner();
   populateProveedorFilter();
+  cargarReposicion();
 }
 
 // ── Mapa moneda desde PRECIOS ──────────────────────────────────

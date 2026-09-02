@@ -221,6 +221,46 @@ test('desdeFila traduce los nombres de header a los del calculo', () => {
   assert.strictEqual(a.proximaRevision.toISOString().slice(0, 10), '2026-10-15');
 });
 
+// ── El pendiente entra por parametro, no por la fila ─────────────────
+test('desdeFila toma el pendiente del cuarto argumento', () => {
+  const a = Reposicion.desdeFila(FILA, null, null, 20000);
+  assert.strictEqual(a.pendiente, 20000);
+});
+
+test('desdeFila da pendiente 0 cuando no se lo pasan', () => {
+  // sin el dato no se inventa: cero, y el que llama es el que sabe
+  assert.strictEqual(Reposicion.desdeFila(FILA, null, null).pendiente, 0);
+  assert.strictEqual(Reposicion.desdeFila(FILA, null, null, null).pendiente, 0);
+  assert.strictEqual(Reposicion.desdeFila(FILA, null, null, 'no es un numero').pendiente, 0);
+});
+
+test('desdeFila YA NO lee la columna PENDIENTE DE ENTREGA', () => {
+  // Esa columna es herencia del Sheet viejo: no la escribe nadie y esta en
+  // null en casi todos los articulos. Aunque traiga un valor, no se usa —
+  // el tránsito bueno sale del cruce con las OC pendientes y entra por
+  // parametro. Si esto vuelve a leerse, el numero que muestra la columna
+  // "En transito" y el que usa la cuenta se separan otra vez.
+  const fila = Object.assign({}, FILA, { 'PENDIENTE DE ENTREGA': 99999 });
+  assert.strictEqual(Reposicion.desdeFila(fila, null, null).pendiente, 0);
+  assert.strictEqual(Reposicion.desdeFila(fila, null, null, 7).pendiente, 7);
+});
+
+test('el pendiente que entra por parametro llega hasta la senal', () => {
+  // 20.000 ya viajando: sin contarlos el articulo queda atrasado y se
+  // vuelve a pedir; contandolos, esta OK.
+  const fila = Object.assign({}, FILA, {
+    'INVENTARIO': 10000, 'STOCK MÍNIMO': 20000, 'CONSUMO MENSUAL': 30000,
+    'REVISAR CADA MESES': null, 'PROXIMA REVISION': null
+  });
+  const ficha = { usar_demora: true, demora_dias: 10 };
+  const sin = Reposicion.calcular(Reposicion.desdeFila(fila, ficha, null, 0), HOY);
+  const con = Reposicion.calcular(Reposicion.desdeFila(fila, ficha, null, 40000), HOY);
+  assert.strictEqual(sin.senal, 'ATRASADO');
+  assert.strictEqual(con.senal, 'OK');
+  // y la cantidad a pedir tambien descuenta lo que ya viene en camino
+  assert.ok(con.falta < sin.falta);
+});
+
 test('desdeFila ignora los bloques destildados', () => {
   // dato cargado pero sin tildar: no se usa. El tilde es el que manda.
   const a = Reposicion.desdeFila(FILA, {

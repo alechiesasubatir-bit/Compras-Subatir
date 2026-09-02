@@ -112,7 +112,15 @@
     return isNaN(d) ? null : d;
   }
 
-  function desdeFila(inv, ficha, ultimaOC) {
+  // `pendiente` (lo que ya está pedido y todavía no llegó) entra por
+  // parámetro, igual que `ultimaOC`, y NO se lee de la fila: la columna
+  // 'PENDIENTE DE ENTREGA' del inventario es herencia del Sheet viejo,
+  // no la escribe nadie y está en null en casi todos los artículos. Con
+  // ese cero, un artículo con 20.000 unidades ya viajando se marcaba
+  // atrasado y se volvía a pedir. El dato bueno sale del cruce con las
+  // OC pendientes, que vive en SubatirApp.transito() y lo usan las tres
+  // pantallas.
+  function desdeFila(inv, ficha, ultimaOC, pendiente) {
     inv = inv || {};
     var f = ficha || {};
     var seg = inv['SEGUIMIENTO'];
@@ -122,7 +130,7 @@
       stock:     +inv['INVENTARIO'] || 0,
       minimo:    +inv['STOCK MÍNIMO'] || 0,
       consumo:   +inv['CONSUMO MENSUAL'] || 0,
-      pendiente: +inv['PENDIENTE DE ENTREGA'] || 0,
+      pendiente: +pendiente || 0,
       demoraDias:    f.usar_demora  ? (+f.demora_dias || null) : null,
       loteMinimo:    f.usar_lote    ? (+f.lote_minimo || null) : null,
       multiplo:      f.usar_lote    ? (+f.multiplo    || null) : null,

@@ -11,7 +11,8 @@ alter table public.inventario
   add column if not exists proxima_revision   date,
   add column if not exists prov_auto_at       timestamptz,
   add column if not exists prov_auto_oc       text,
-  add column if not exists prov_auto_anterior text;
+  add column if not exists prov_auto_anterior text,
+  add column if not exists prov_auto_off      boolean not null default false;
 
 do $$
 begin
@@ -89,7 +90,7 @@ select 'columnas' as que, count(*)::text as valor
   from information_schema.columns
  where table_name = 'inventario'
    and table_schema = 'public'
-   and column_name in ('seguimiento','revisar_cada_meses','proxima_revision','prov_auto_at','prov_auto_oc','prov_auto_anterior')
+   and column_name in ('seguimiento','revisar_cada_meses','proxima_revision','prov_auto_at','prov_auto_oc','prov_auto_anterior','prov_auto_off')
 union all
 select 'tabla art_proveedor', count(*)::text from information_schema.tables where table_name = 'art_proveedor' and table_schema = 'public'
 union all
@@ -99,4 +100,4 @@ select 'checks', count(*)::text from information_schema.table_constraints
 union all
 select 'policies', count(*)::text from pg_policies where tablename = 'art_proveedor' and schemaname = 'public';
 
--- Esperado: columnas 6 | tabla art_proveedor 1 | checks 3 | policies 4
+-- Esperado: columnas 7 | tabla art_proveedor 1 | checks 3 | policies 4

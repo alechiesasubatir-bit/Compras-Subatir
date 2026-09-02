@@ -352,6 +352,10 @@ window.APP_VER='2026-08-28.1328';
 <script>
 // ─── Estado ──────────────────────────────────────────────────
 var ARTS = [], FICHAS = [];
+// __row → ya se pintó el cartel de auditoría de proveedor (Tarea 8) para
+// ese artículo en este render(): un artículo con varios proveedores tiene
+// varias filas y el aviso es UNO por artículo, no por ficha.
+var PROV_AUTO_MOSTRADOS = {};
 
 // FAM: 'ID' es el campo que trae el ext_id crudo (MP/ENV/CON) — no hace
 // falta pasar por SubatirApp.categorias() para filtrar/mostrar la familia.
@@ -473,11 +477,11 @@ function toggleSeguimiento(invId, checked){
 // findOCMatch/ocIdx); esta pantalla no arma un matcher propio, solo lee los
 // campos de auditoría de la fila ya corregida y muestra el mismo cartel.
 //
-// PROV AUTO OC NO se limpia acá a propósito (mismo motivo que en stock.html):
-// la guarda anti-bucle de stock.html compara ese campo contra la OC real
-// para no reescribir dos veces. Si se limpiara, el próximo load() de Stock
-// volvería a ver un desacuerdo con esa misma OC y reaplicaría la corrección
-// sola, deshaciendo este botón en menos de un segundo.
+// "Volver atrás" prende PROV AUTO OFF: no es una postergación, es una
+// decisión firme ("el proveedor de esta ficha lo manejo yo"), y stock.html
+// la respeta salteando la detección para ese artículo hasta que se
+// reactive a propósito (mismo criterio que volverProveedorAnterior() en
+// stock.html — ver el comentario largo ahí).
 function volverProveedorAnterior(invId){
   var a = ARTS.filter(function(x){ return x.__row === invId; })[0];
   var anterior = a && a['PROV AUTO ANTERIOR'];
@@ -485,11 +489,24 @@ function volverProveedorAnterior(invId){
   SubatirApp.write({
     action: 'updateRow', sheetKey: 'inventario', row: invId,
     fields: JSON.stringify({
-      'PROVEEDOR': anterior, 'PROV AUTO AT': '', 'PROV AUTO ANTERIOR': ''
+      'PROVEEDOR': anterior, 'PROV AUTO AT': '', 'PROV AUTO ANTERIOR': '', 'PROV AUTO OFF': true
     })
   }).then(function(r){
     if(r.error){ toast('Error: '+r.error, 'err'); return; }
-    toast('Proveedor restaurado a "'+anterior+'" ✓', 'ok');
+    toast('Proveedor restaurado a "'+anterior+'" ✓ — corrección automática desactivada', 'ok');
+    load();
+  });
+}
+// Vuelve a dejar la corrección automática en manos del sistema para este
+// artículo. No toca PROVEEDOR: la próxima carga de Stock la evalúa contra
+// la OC más reciente tal cual esté en ese momento.
+function reactivarCorreccionProveedor(invId){
+  SubatirApp.write({
+    action: 'updateRow', sheetKey: 'inventario', row: invId,
+    fields: JSON.stringify({ 'PROV AUTO OFF': false })
+  }).then(function(r){
+    if(r.error){ toast('Error: '+r.error, 'err'); return; }
+    toast('Corrección automática reactivada ✓', 'ok');
     load();
   });
 }
@@ -517,14 +534,26 @@ function fmtDiaMesRep(iso){
   var p = function(n){ return (n<10?'0':'')+n; };
   return p(d.getDate())+'/'+p(d.getMonth()+1);
 }
-// Cartel "proveedor actualizado…" (Tarea 8): solo en la fila del proveedor
-// que hoy manda para ese artículo (mismo criterio que fichaManda), para no
-// repetirlo en cada fila cuando el artículo tiene varios proveedores — el
-// aviso es sobre inventario.PROVEEDOR, no sobre cada ficha por separado.
-function provAutoNota(a, prov){
+// Cartel de auditoría de proveedor (Tarea 8): UNA vez por artículo (no por
+// ficha — PROV_AUTO_MOSTRADOS lo garantiza), en la primera fila de ese
+// artículo que se pinte. Antes esto se filtraba comparando el proveedor de
+// cada fila contra inventario.PROVEEDOR, pero justo después de una
+// corrección esa columna pasa a ser el proveedor NUEVO (Lipiner) y la ficha
+// que el usuario cargó a mano suele ser la del proveedor VIEJO (MIL
+// ROLLOS): ninguna fila coincidía y el cartel no se pintaba nunca, que es
+// el peor lugar para que falte — es la pantalla donde se configura la
+// reposición. El aviso es sobre el artículo, no sobre una ficha puntual,
+// así que ya no hace falta que coincida con nada.
+function provAutoNota(a){
+  if(PROV_AUTO_MOSTRADOS[a.__row]) return '';
+  PROV_AUTO_MOSTRADOS[a.__row] = true;
+  var off = a['PROV AUTO OFF']===true || a['PROV AUTO OFF']==='true';
+  if(off){
+    return '<div class="prov-auto-note">⚙️ corrección automática desactivada'
+      + ' <button class="btn btn-ghost btn-sm" onclick="reactivarCorreccionProveedor('+a.__row+')">↻ Reactivar</button></div>';
+  }
   var at = a['PROV AUTO AT'];
   if(!at) return '';
-  if(Reposicion.canonProv(prov) !== Reposicion.canonProv(a['PROVEEDOR']||'')) return '';
   var anterior = a['PROV AUTO ANTERIOR'] || '';
   return '<div class="prov-auto-note">⚠️ actualizado '+esc(fmtDiaMesRep(at))+' según OC #'+esc(a['PROV AUTO OC']||'—')+'.'
     + (anterior ? ' <button class="btn btn-ghost btn-sm" onclick="volverProveedorAnterior('+a.__row+')">↩ Volver a '+esc(anterior)+'</button>' : '')
@@ -553,7 +582,7 @@ function filaHtml(par){
     +'<td style="text-align:center">'
       +'<input type="checkbox" class="ap-seg" '+(seg?'checked':'')+' title="Seguir la reposición de este artículo" '
       +'onchange="toggleSeguimiento('+invId+',this.checked)"/></td>'
-    +'<td>'+(prov ? esc(prov) : '<span class="muted">—</span>')+provAutoNota(a,prov)+'</td>'
+    +'<td>'+(prov ? esc(prov) : '<span class="muted">—</span>')+provAutoNota(a)+'</td>'
     +'<td class="num">'
       +'<label class="ap-mini"><input type="checkbox" class="ap-usar-demora"'+(f.usar_demora?' checked':'')+'/> usar</label>'
       +'<input type="number" class="fi2 ap-demora" min="1" placeholder="días" value="'+(f.demora_dias||'')+'"/>'
@@ -583,6 +612,7 @@ function render(){
     return;
   }
   actualizarKpis();
+  PROV_AUTO_MOSTRADOS = {}; // un cartel por artículo, no por fila — se resetea en cada pintado
   var q   = document.getElementById('f-q').value.trim().toUpperCase();
   var fam = document.getElementById('f-fam').value;
   var est = document.getElementById('f-est').value;

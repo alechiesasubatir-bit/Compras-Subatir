@@ -117,7 +117,8 @@
         proveedor: 'PROVEEDOR', ext_id: 'ID',
         seguimiento: 'SEGUIMIENTO', revisar_cada_meses: 'REVISAR CADA MESES',
         proxima_revision: 'PROXIMA REVISION', prov_auto_at: 'PROV AUTO AT',
-        prov_auto_oc: 'PROV AUTO OC', prov_auto_anterior: 'PROV AUTO ANTERIOR'
+        prov_auto_oc: 'PROV AUTO OC', prov_auto_anterior: 'PROV AUTO ANTERIOR',
+        prov_auto_off: 'PROV AUTO OFF'
       },
       num: ['consumo_mensual', 'stock_minimo', 'inventario', 'compra_sugerencia', 'pendiente_entrega', 'revisar_cada_meses'], date: ['proxima_revision']
     },

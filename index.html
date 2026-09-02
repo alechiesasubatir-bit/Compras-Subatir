@@ -950,21 +950,37 @@ function renderReposicion(inventario, fichas){
     : '<div class="empty" style="padding:14px 0">Nada para pedir. ✓</div>';
 }
 
+// "No pude revisar" no es lo mismo que "revisé y no hay nada": si se
+// confunden, alguien con un artículo atrasado se va pensando que está
+// todo bien. Este estado es para cuando el panel no puede armarse (script
+// no cargó, falló la consulta, etc.) — se distingue a propósito del
+// "Nada para pedir. ✓" de renderReposicion.
+function repNoDisponible(){
+  var cnt = document.getElementById('rep-cnt');
+  if(cnt) cnt.textContent = '—';
+  var host = document.getElementById('rep-list');
+  if(host) host.innerHTML = '<div class="empty" style="padding:14px 0">⚠ Avisos de reposición no disponibles en este momento.</div>';
+}
+
 // El dashboard está abierto a cualquier autenticado (OPEN_MODULES), a
 // diferencia de Stock: si art_proveedor no trae nada por permisos el
 // panel tiene que seguir mostrando algo sensato, no romperse.
-// SubatirApp.getArtProveedor() ya degrada a [] sola ante cualquier error;
-// el try/catch de acá es por si renderReposicion falla por otro motivo:
-// un aviso caído no puede llevarse puesto el resto del dashboard.
+// SubatirApp.getArtProveedor() ya degrada a [] sola ante cualquier error,
+// pero acá cubrimos además: que reposicion-calc.js no haya cargado (queda
+// window.Reposicion sin definir), que la promesa igual rechace por algo
+// no previsto, y que renderReposicion explote ya con los datos en mano.
+// Ningún camino puede dejar puesto el "Cargando…" del placeholder inicial:
+// o se pinta la lista, o se pinta este aviso.
 function cargarReposicion(){
   var host = document.getElementById('rep-list');
-  if(!host || !window.SubatirApp || !SubatirApp.getArtProveedor || !window.Reposicion) return;
+  if(!host) return;
+  if(!window.SubatirApp || !SubatirApp.getArtProveedor || !window.Reposicion){ repNoDisponible(); return; }
   try{
     SubatirApp.getArtProveedor().then(function(fichas){
       try{ renderReposicion(DATA.inventario, fichas || []); }
-      catch(e){ /* no rompe el resto del dashboard */ }
-    });
-  }catch(e){ /* no rompe el resto del dashboard */ }
+      catch(e){ repNoDisponible(); }
+    }, function(){ repNoDisponible(); });
+  }catch(e){ repNoDisponible(); }
 }
 
 // ── Inicialización ─────────────────────────────────────────────

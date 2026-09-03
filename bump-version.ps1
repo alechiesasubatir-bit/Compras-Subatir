@@ -46,7 +46,7 @@ $SUB_APP = @{
   que = 'window.APP_VER'
 }
 $SUB_BUST = @{
-  pat = '((?:supabase-config|subatir-app|deposito-app|traslados|nav|reposicion-calc)\.(?:js|css)\?v=)[^"'']*'
+  pat = '((?:supabase-config|subatir-app|deposito-app|traslados|nav|reposicion-calc|oc-pdf)\.(?:js|css)\?v=)[^"'']*'
   rep = '${1}' + $v
   que = 'el ?v= de los scripts compartidos'
 }

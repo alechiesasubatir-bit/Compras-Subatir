@@ -412,6 +412,7 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="oc-pdf.js?v=1"></script>
 <link rel="stylesheet" href="nav.css?v=2026-09-03.1347"/>
 <script src="supabase-config.js?v=2026-09-03.1347"></script>
 <script src="subatir-app.js?v=2026-09-03.1347"></script>
@@ -571,8 +572,22 @@ window.APP_VER='2026-09-03.1347';
         </div>
         <div class="form-group span2">
           <label>Proveedor *</label>
-          <input type="text" class="form-input" id="ed-prov" list="dl-prov" placeholder="A quién se le compra"/>
+          <input type="text" class="form-input" id="ed-prov" list="dl-prov" placeholder="A quién se le compra" oninput="autoProv()"/>
           <datalist id="dl-prov"></datalist>
+        </div>
+        <div class="form-group">
+          <label>RUT</label>
+          <input type="text" class="form-input" id="ed-rut" placeholder="Opcional"/>
+        </div>
+        <div class="form-group">
+          <label>Teléfono</label>
+          <input type="text" class="form-input" id="ed-tel" placeholder="Opcional"/>
+        </div>
+        <div class="form-group span2">
+          <div class="hint-note" style="font-size:11px;color:var(--muted-l)">
+            RUT y teléfono se usan sólo si después emitís una orden de compra formal.
+            Se guardan en el maestro de proveedores para no tener que volver a cargarlos.
+          </div>
         </div>
       </div>
 
@@ -648,6 +663,7 @@ window.APP_VER='2026-09-03.1347';
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" id="rc-reabrir" onclick="reabrir()" style="display:none">↩ Reabrir</button>
+      <button class="btn btn-ghost btn-sm" id="rc-orden" onclick="ordenDesdeDetalle()">📄 Crear orden</button>
       <button class="btn btn-orange" id="rc-save" onclick="recibir()">✅ Marcar recibido</button>
       <button class="btn btn-ghost" onclick="closeModal('ov-recv')">Cerrar</button>
     </div>
@@ -734,7 +750,12 @@ function load(){
   setLoading(true);
   return Promise.all([
     SB.from('pedidos_varios').select('*').order('fecha',{ascending:false}).order('id',{ascending:false}),
-    SB.from('pedidos_varios_items').select('*').order('pedido_id').order('orden')
+    SB.from('pedidos_varios_items').select('*').order('pedido_id').order('orden'),
+    // El maestro: de aca salen el RUT y el telefono que van impresos en
+    // la orden, y el autocompletado del alta. Si falla, el modulo sigue
+    // andando sin ordenes formales, que es como venia funcionando.
+    SB.from('proveedores').select('empresa,rut,celular,telefono,nombre_contacto,direccion')
+      .then(function(x){ return x; }, function(){ return {data:[]}; })
   ]).then(function(r){
       setLoading(false);
       var err = r[0].error || r[1].error;
@@ -752,12 +773,116 @@ function load(){
       var porPedido={};
       (r[1].data||[]).forEach(function(i){ (porPedido[i.pedido_id]=porPedido[i.pedido_id]||[]).push(i); });
       DATA.forEach(function(d){ d.items = porPedido[d.id] || []; });
+      MAESTRO = {};
+      (r[2] && r[2].data || []).forEach(function(x){
+        if(x.empresa) MAESTRO[normProv(x.empresa)] = x;
+      });
       poblarProveedores();
       applyFilters();
       renderKPIs();
       document.getElementById('last-update').textContent =
         'Actualizado: '+new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
     });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ORDEN DE COMPRA FORMAL
+//
+//  Algunos proveedores piden el papel. La orden queda DENTRO del pedido
+//  vario: no toca la tabla pedidos ni aparece en la pantalla de Pedidos.
+//  El dibujo es el mismo de las OC normales — sale de oc-pdf.js, que las
+//  dos pantallas comparten justamente para que no dejen de ser iguales.
+// ══════════════════════════════════════════════════════════════
+var MAESTRO = {};   // normProv(empresa) → ficha del maestro de proveedores
+
+function normProv(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().toUpperCase(); }
+
+// Al tipear o elegir un proveedor conocido, se traen su RUT y telefono.
+// No pisa lo que la persona ya escribio: si el campo tiene algo, se deja.
+function autoProv(){
+  var f = MAESTRO[normProv(document.getElementById('ed-prov').value)];
+  if(!f) return;
+  var rut = document.getElementById('ed-rut'), tel = document.getElementById('ed-tel');
+  if(rut && !rut.value.trim()) rut.value = f.rut || '';
+  if(tel && !tel.value.trim()) tel.value = f.celular || f.telefono || '';
+}
+
+// Guarda el proveedor en el maestro para no volver a cargarlo nunca mas.
+//  · Si no existe, se crea con lo que se haya cargado.
+//  · Si existe, se le COMPLETAN solo los campos vacios. Nunca se pisa un
+//    dato que ya estaba: el maestro lo mantienen otras pantallas y un
+//    pedido vario no tiene autoridad para corregirles el RUT.
+//  Falla en silencio a proposito: que no se pueda guardar la ficha no
+//  puede impedir que se guarde el pedido, que es lo que la persona vino
+//  a hacer.
+function guardarProveedor(nombre, rut, tel){
+  nombre = String(nombre||'').trim();
+  if(!nombre || (!rut && !tel)) return Promise.resolve();
+  var f = MAESTRO[normProv(nombre)];
+  if(!f){
+    return SB.from('proveedores').insert({empresa:nombre, rut:rut||null, celular:tel||null})
+      .then(function(){}, function(){});
+  }
+  var patch = {};
+  if(rut && !String(f.rut||'').trim())                                  patch.rut = rut;
+  if(tel && !String(f.celular||'').trim() && !String(f.telefono||'').trim()) patch.celular = tel;
+  if(!Object.keys(patch).length) return Promise.resolve();
+  return SB.from('proveedores').update(patch).eq('empresa', f.empresa)
+    .then(function(){}, function(){});
+}
+
+// Emite la orden: pide el numero a la base y despues baja el PDF.
+//  El numero lo asigna varios_emitir_orden() con una secuencia, no un
+//  max()+1: si dos personas emiten a la vez, max()+1 les da el mismo
+//  numero a las dos. Y si el pedido ya tenia orden, devuelve la que
+//  tiene en vez de gastar un numero nuevo.
+function emitirOrden(id){
+  toast('Emitiendo orden…','info');
+  SB.rpc('varios_emitir_orden', {p_id: id}).then(function(r){
+    if(r.error){
+      toast(/varios_emitir_orden/.test(r.error.message||'')
+        ? 'Falta correr migracion/varios_orden_compra.sql'
+        : 'Error: '+r.error.message, 'err');
+      return;
+    }
+    var fila = Array.isArray(r.data) ? r.data[0] : r.data;
+    toast('Orden '+(fila && fila.orden_nro || '')+' emitida ✓','ok');
+    load().then(function(){
+      var d = DATA.filter(function(x){ return x.id===id; })[0];
+      if(d) descargarOrden(d.id);
+    });
+  });
+}
+
+// Arma el PDF desde los datos del pedido, en el momento. No se guarda el
+// archivo: si mañana se corrige el pedido, el papel sale al dia.
+function descargarOrden(id){
+  var d = DATA.filter(function(x){ return x.id===id; })[0];
+  if(!d) return;
+  if(!d.orden_nro){ toast('Este pedido todavía no tiene orden emitida.','err'); return; }
+  var f = MAESTRO[normProv(d.proveedor)] || {};
+  try{
+    OCPdf.build({
+      orden: d.orden_nro,
+      fecha: d.orden_fecha || d.fecha,
+      proveedor: d.proveedor,
+      obs: d.nota || '',
+      contacto: { rut: f.rut||'', cel: f.celular||'', tel: f.telefono||'',
+                  direccion: f.direccion||'', contacto: f.nombre_contacto||'' },
+      lines: (d.items||[]).map(function(i){
+        return { desc:i.articulo, cant:i.cantidad, prec:i.precio, moneda: d.moneda==='U$S'?'U$S':'$' };
+      })
+    }, 'compra');
+  }catch(e){
+    toast(e.message || 'No se pudo generar el PDF','err');
+  }
+}
+
+// El boton del detalle: emite si no hay orden, descarga si ya hay.
+function ordenDesdeDetalle(){
+  if(!CUR) return;
+  if(CUR.orden_nro) descargarOrden(CUR.id);
+  else              emitirOrden(CUR.id);
 }
 
 function poblarProveedores(){
@@ -891,7 +1016,7 @@ function openNuevo(){
   CUR=null;
   document.getElementById('ed-title').textContent='➕ Nuevo pedido';
   document.getElementById('ed-fecha').value=hoy();
-  ['ed-prov','ed-nota'].forEach(function(i){ document.getElementById(i).value=''; });
+  ['ed-prov','ed-nota','ed-rut','ed-tel'].forEach(function(i){ document.getElementById(i).value=''; });
   document.getElementById('ed-moneda').value='$';
   document.getElementById('ed-iva-inc').checked=false;
   document.getElementById('ed-iva-tasa').value='22';
@@ -905,6 +1030,10 @@ function openEditar(id){
   document.getElementById('ed-title').textContent='✎ Editar pedido';
   document.getElementById('ed-fecha').value=d.fecha||hoy();
   document.getElementById('ed-prov').value=d.proveedor||'';
+  // RUT y telefono viven en el maestro, no en el pedido: se traen de ahi
+  var fp = MAESTRO[normProv(d.proveedor)] || {};
+  document.getElementById('ed-rut').value = fp.rut || '';
+  document.getElementById('ed-tel').value = fp.celular || fp.telefono || '';
   document.getElementById('ed-moneda').value=d.moneda||'$';
   document.getElementById('ed-iva-inc').checked=!!d.iva_incluido;
   document.getElementById('ed-iva-tasa').value=String(d.iva_tasa==null?22:d.iva_tasa);
@@ -1018,6 +1147,12 @@ function guardar(){
         return {pedido_id:pid, articulo:i.articulo, cantidad:i.cantidad, precio:i.precio, orden:i.orden};
       }));
     }).then(function(r2){
+      // La ficha del proveedor, para no volver a cargarla nunca mas.
+      // Va despues del pedido y sin bloquear: si falla, el pedido igual
+      // quedo guardado, que es lo que la persona vino a hacer.
+      guardarProveedor(prov,
+        document.getElementById('ed-rut').value.trim(),
+        document.getElementById('ed-tel').value.trim());
       btn.disabled=false;
       if(r2 && r2.error){ toast('Error en los artículos: '+r2.error.message,'err'); return; }
       toast(CUR?'Pedido actualizado':'Pedido cargado','ok');
@@ -1057,7 +1192,17 @@ function openRecibir(id){
       +'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Neto'+(d.iva_tasa>0?(' + IVA '+d.iva_tasa+'%'):'')+'</div><div class="detail-value">'+money(d.subtotal,d.moneda)+'</div></div>'
     +'<div class="detail-item"><div class="detail-label">Total c/IVA</div><div class="detail-value">'+money(d.total,d.moneda)+'</div></div>'
-    +'<div class="detail-item span2"><div class="detail-label">Estado</div><div class="detail-value">'+pill(d.estado)+'</div></div>';
+    +'<div class="detail-item span2"><div class="detail-label">Estado</div><div class="detail-value">'+pill(d.estado)+'</div></div>'
+    +(d.orden_nro
+       ? '<div class="detail-item span2"><div class="detail-label">Orden de compra</div><div class="detail-value">'
+         +'<b style="color:var(--orange-l);font-family:var(--mono)">'+esc(d.orden_nro)+'</b>'
+         +' <span style="color:var(--muted-l);font-size:12px">emitida el '+fmtDate(d.orden_fecha)+'</span></div></div>'
+       : '');
+  // El boton dice que hacer segun corresponda: emitir la primera vez,
+  // descargar despues. Emitir dos veces no gasta un numero nuevo, pero
+  // el texto tiene que decir la verdad igual.
+  var bo = document.getElementById('rc-orden');
+  if(bo) bo.textContent = d.orden_nro ? '📄 Descargar orden '+d.orden_nro : '📄 Crear orden';
   document.getElementById('rc-fecha').value = d.f_recepcion || hoy();
   document.getElementById('rc-total').value = d.total==null?'':d.total;
   document.getElementById('rc-obs').value   = d.obs_recepcion||'';

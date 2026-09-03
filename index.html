@@ -1063,12 +1063,18 @@ function load(){
       if(SubatirApp.getEntregas){
         SubatirApp.getEntregas().then(function(ents){
           ENTREGAS = ents || [];
+          TRANSITO_DASH = (SubatirApp.transito)
+            ? SubatirApp.transito(DATA.inventario || [], DATA.pedidos || [], ENTREGAS)
+            : null;
           ENTREGAS_POR_PEDIDO = {};
           ENTREGAS.forEach(function(e){
             (ENTREGAS_POR_PEDIDO[e.pedido_id] = ENTREGAS_POR_PEDIDO[e.pedido_id] || []).push(e);
           });
           refreshBotonesCalidad();
           renderKPIs();
+          // El panel de criticos muestra el "(+N)" en camino, que ahora
+          // sale del transito real: hay que repintarlo cuando llega.
+          renderStockCritico();
           // El panel de reposicion se pinto antes con el transito sin
           // descontar lo entregado: hay que rehacerlo con el numero bueno.
           cargarReposicion();
@@ -1139,7 +1145,6 @@ function detectKeys(){
     KEYS.invMinimo  = findKey(ki, ['STOCK MÍNIMO','STOCK MINIMO','Mínimo','Minimo']);
     KEYS.invProv    = findKey(ki, ['PROVEEDOR SUGERIDO','Proveedor sugerido']);
     KEYS.invConsumo = findKey(ki, ['CONSUMO MENSUAL','Consumo mensual','consumo']);
-    KEYS.invPendiente = findKey(ki, ['PENDIENTE DE ENTREGA','Pendiente de entrega']);
   }
   if (DATA.stock.length > 0){
     var ks = Object.keys(DATA.stock[0]);
@@ -1206,6 +1211,19 @@ function faltaLote(row){
 // Mientras las entregas no hayan llegado, no avisa nada: mejor callado que
 // marcando en rojo lineas que todavia no se pudieron mirar.
 var ENTREGAS_POR_PEDIDO = {};
+// El transito por articulo, para el panel de criticos y para que el
+// "(+N)" sea el mismo numero que muestran Stock y Reposicion.
+var TRANSITO_DASH = null;
+// Que proporcion de una linea abierta todavia NO llego. Mientras las
+// entregas no hayan cargado devuelve 1 (la linea entera), que es como
+// venia: mejor un numero de mas por un instante que uno de menos.
+function fracPendiente(row){
+  var cant = pNum(row[KEYS.cantidad]);
+  if(!(cant > 0)) return 1;
+  var ents = ENTREGAS_POR_PEDIDO[row.__row] || [];
+  var llego = ents.reduce(function(s,e){ return s + (parseFloat(e.cantidad)||0); }, 0);
+  return Math.max(0, Math.min(1, (cant - llego) / cant));
+}
 // La lista cruda, para SubatirApp.transito: necesita el array, no el
 // agrupado por pedido que usa el aviso de check list.
 var ENTREGAS = [];
@@ -1350,8 +1368,11 @@ function renderTicker(){
   var pendientes = pedidos.filter(isPendiente);
   var criticos   = inv.filter(isCritical);
   var sinCOA     = pedidos.filter(faltaCOA);
-  var totalUSD   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)==='USD'?s+pNum(p[KEYS.siva]):s; },0);
-  var totalPSO   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)!=='USD'?s+pNum(p[KEYS.siva]):s; },0);
+  // La plata que FALTA pagar, no la que se pidio: una entrega parcial no
+  // cierra la linea, asi que sin prorratear el importe entero seguia
+  // contando aunque la mercaderia ya estuviera en el deposito.
+  var totalUSD   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)==='USD'?s+pNum(p[KEYS.siva])*fracPendiente(p):s; },0);
+  var totalPSO   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)!=='USD'?s+pNum(p[KEYS.siva])*fracPendiente(p):s; },0);
   var vals = {
     'tk-pend':pendientes.length, 'tk-pend2':pendientes.length,
     'tk-crit':criticos.length,   'tk-crit2':criticos.length,
@@ -1606,7 +1627,12 @@ function renderStockCritico(){
   } else {
     criticos.forEach(function(i){
       var stock_act = pNum(i[KEYS.invStock]);
-      var pend      = pNum(i[KEYS.invPendiente]);
+      // El "(+N)" sale del transito REAL (cruce con las OC sin recibir,
+      // descontando entregas parciales), no de inventario.pendiente_entrega:
+      // esa columna es herencia del Sheet viejo, no la escribe nadie y esta
+      // vacia en 144 de 157 articulos. Mostraba "nada en camino" para casi
+      // todo, y un numero viejo de SQL manual para el resto.
+      var pend      = TRANSITO_DASH ? (TRANSITO_DASH.de(i.__row).pendiente || 0) : 0;
       html += '<a class="stock-item" href="stock.html" title="Ver en módulo Stock">'
             + '<div class="dot dot-red"></div>'
             + '<div class="stock-item-name">' + esc(i[KEYS.invDesc]||'—') + '</div>'

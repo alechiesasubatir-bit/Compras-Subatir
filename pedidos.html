@@ -1283,8 +1283,11 @@ function updateKPIs(){
   var sinCOA   = all.filter(faltaCOA);
   var sinLote  = all.filter(faltaLote);
   var sinChk   = all.filter(faltaChecklist);
-  var totalUSD = pend.reduce(function(s,r){ return ocMoneda(r)==='USD' ? s+pNum(r[K.siva]) : s; }, 0);
-  var totalPSO = pend.reduce(function(s,r){ return ocMoneda(r)!=='USD' ? s+pNum(r[K.siva]) : s; }, 0);
+  // La plata que FALTA pagar, no la que se pidio: si de 39.000 etiquetas
+  // ya llegaron 31.200, lo pendiente es el 20% del importe, no el total.
+  // Sin esto el KPI crece con cada entrega parcial que quede abierta.
+  var totalUSD = pend.reduce(function(s,r){ return ocMoneda(r)==='USD' ? s+pNum(r[K.siva])*fracPendiente(r) : s; }, 0);
+  var totalPSO = pend.reduce(function(s,r){ return ocMoneda(r)!=='USD' ? s+pNum(r[K.siva])*fracPendiente(r) : s; }, 0);
 
   setText('kpi-total',      all.length);
   setText('kpi-total-sub',  all.length + ' órdenes en el sistema');
@@ -2534,6 +2537,17 @@ function pdfChecklistActual(){
   SubatirApp.PL06.pdf(d, toast);
 }
 function isPendiente(r){ var v = r[K.recepcion]; return !v || v === '' || v === '0000-00-00'; }
+
+// Que proporcion de una linea abierta todavia NO llego. Una entrega
+// parcial no le pone fecha de recepcion a la linea, asi que sin esto el
+// importe entero seguia contando como pendiente aunque la mercaderia ya
+// estuviera en el deposito. Se prorratea porque el importe es de la
+// linea entera y no hay precio por entrega.
+function fracPendiente(r){
+  var st = lineStats(r);
+  if(!st || !(st.pedida > 0)) return 1;
+  return Math.max(0, Math.min(1, st.saldo / st.pedida));
+}
 
 // La categoria vive en subatir-app.js (SubatirApp.cat): la usan Pedidos,
 // Recepcion y el Dashboard para saber a quien pedirle COA y lote.

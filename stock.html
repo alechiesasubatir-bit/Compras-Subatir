@@ -1236,6 +1236,12 @@ function norm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').t
 // ─── Construye índice de OCs por artículo (en-tránsito + último proveedor) ───
 function buildOCIndex(){
   var idx = {}; // normalizedDesc → { pendiente, valorPendiente, lastProv, lastFecha, lastPrecio, lastOrden, provs }
+  // Lo ya entregado por línea, indexado una vez. Recorrer las entregas
+  // dentro del bucle seria 680 x 129 vueltas para el mismo resultado.
+  var entregado = {};
+  (RAW_ENT||[]).forEach(function(e){
+    if(e && e.pedido_id!=null) entregado[e.pedido_id] = (entregado[e.pedido_id]||0) + (parseFloat(e.cantidad)||0);
+  });
   RAW_PED.forEach(function(oc){
     var desc = norm(String(oc[PK.desc]||''));
     if(!desc || desc.length < 3) return;
@@ -1249,11 +1255,18 @@ function buildOCIndex(){
     var cant     = pn(oc[PK.cantidad]);
     var precio   = pn(oc[PK.precio]);
 
-    // Sin fecha de recepción → en tránsito
+    // Sin fecha de recepción → en tránsito, pero DESCONTANDO lo que ya
+    // llegó por entregas parciales. Tiene que usar la misma regla que
+    // SubatirApp.transito: de este índice sale el total por descripción y
+    // de aquél lo que cada artículo se lleva, y la fila "huérfana" es la
+    // resta de los dos. Con reglas distintas, la resta inventa una fila
+    // por lo ya recibido — que es exactamente lo que paso al corregir el
+    // transito sin tocar esto.
     var sinRecibir = !recibido || recibido==='—' || recibido==='-' || recibido.toUpperCase()==='N/A' || recibido==='0';
-    if(sinRecibir && cant > 0){
-      idx[desc].pendiente      += cant;
-      idx[desc].valorPendiente += cant * precio;
+    var saldo = Math.max(0, cant - (entregado[oc.__row]||0));
+    if(sinRecibir && saldo > 0){
+      idx[desc].pendiente      += saldo;
+      idx[desc].valorPendiente += saldo * precio;
     }
 
     // Último proveedor: OC con fecha más reciente

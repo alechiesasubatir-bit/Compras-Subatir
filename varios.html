@@ -870,7 +870,10 @@ function descargarOrden(id){
       contacto: { rut: f.rut||'', cel: f.celular||'', tel: f.telefono||'',
                   direccion: f.direccion||'', contacto: f.nombre_contacto||'' },
       lines: (d.items||[]).map(function(i){
-        return { desc:i.articulo, cant:i.cantidad, prec:i.precio, moneda: d.moneda==='U$S'?'U$S':'$' };
+        // La tasa va por linea porque el papel la lee ahi. En Varios es
+        // una sola para todo el pedido; en Pedidos es por articulo.
+        return { desc:i.articulo, cant:i.cantidad, prec:i.precio,
+                 moneda: d.moneda==='U$S'?'U$S':'$', iva: (d.iva_tasa||0)/100 };
       })
     }, 'compra');
   }catch(e){

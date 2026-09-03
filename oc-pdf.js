@@ -50,6 +50,21 @@ window.OCPdf = (function(){
     var d = Math.max(2, decCargados(n));
     return n.toLocaleString('es-UY',{minimumFractionDigits:d, maximumFractionDigits:d});
   }
+  // La tasa de IVA de un renglon. Las dos pantallas la modelan distinto y
+  // el papel no tiene por que saberlo:
+  //   · Pedidos Varios: una tasa por pedido, la manda en cada linea.
+  //   · Pedidos: una tasa por ARTICULO, que resuelve SubatirApp.ivaTasa.
+  // Si no hay ninguna de las dos, 22%, que es la general en Uruguay.
+  //
+  // Esta funcion existe porque al extraer el modulo de pedidos.html se me
+  // paso que llamaba a un ivaTasa() global de esa pagina: en Pedidos
+  // funcionaba por el scope y en Varios reventaba con "not defined".
+  function tasaIva(l){
+    if(l && l.iva != null) return parseFloat(l.iva) || 0;
+    if(window.SubatirApp && SubatirApp.ivaTasa) return SubatirApp.ivaTasa(l && l.desc);
+    return 0.22;
+  }
+
   function fmtDate(d){
     if (!d || d==='' || d==='0000-00-00') return '—';
     var p = String(d).split('-');
@@ -189,7 +204,7 @@ window.OCPdf = (function(){
       (oc.lines||[]).forEach(function(l){
         var sym=l.moneda==='$'?'$':'U$S';
         var neto=(parseFloat(l.cant)||0)*(parseFloat(l.prec)||0);
-        var pct=Math.round(ivaTasa(l.desc)*100);
+        var pct=Math.round(tasaIva(l)*100);
         tot[sym].neto+=neto;
         tot[sym].iva[pct]=(tot[sym].iva[pct]||0)+neto*pct/100;
       });

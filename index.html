@@ -1217,6 +1217,18 @@ var TRANSITO_DASH = null;
 // Que proporcion de una linea abierta todavia NO llego. Mientras las
 // entregas no hayan cargado devuelve 1 (la linea entera), que es como
 // venia: mejor un numero de mas por un instante que uno de menos.
+// La plata que falta pagar de las lineas abiertas, prorrateada por lo que
+// todavia no llego. Vive en UN solo lugar porque estaba escrita dos veces
+// —el ticker y los KPIs— y al corregir el prorrateo parchee una sola: el
+// ticker mostraba 10.667 y el KPI de al lado 11.354, en la misma pantalla.
+function plataPendiente(lineas, moneda){
+  return (lineas||[]).reduce(function(s,p){
+    var esUSD = ocRowMoneda(p)==='USD';
+    if((moneda==='USD') !== esUSD) return s;
+    return s + pNum(p[KEYS.siva]) * fracPendiente(p);
+  }, 0);
+}
+
 function fracPendiente(row){
   var cant = pNum(row[KEYS.cantidad]);
   if(!(cant > 0)) return 1;
@@ -1371,8 +1383,8 @@ function renderTicker(){
   // La plata que FALTA pagar, no la que se pidio: una entrega parcial no
   // cierra la linea, asi que sin prorratear el importe entero seguia
   // contando aunque la mercaderia ya estuviera en el deposito.
-  var totalUSD   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)==='USD'?s+pNum(p[KEYS.siva])*fracPendiente(p):s; },0);
-  var totalPSO   = pendientes.reduce(function(s,p){ return ocRowMoneda(p)!=='USD'?s+pNum(p[KEYS.siva])*fracPendiente(p):s; },0);
+  var totalUSD   = plataPendiente(pendientes, 'USD');
+  var totalPSO   = plataPendiente(pendientes, 'PSO');
   var vals = {
     'tk-pend':pendientes.length, 'tk-pend2':pendientes.length,
     'tk-crit':criticos.length,   'tk-crit2':criticos.length,
@@ -1394,8 +1406,8 @@ function renderKPIs(){
   var pendientes  = pedidos.filter(isPendiente);
   var criticos    = inv.filter(isCritical);
   var sinCOA      = pedidos.filter(faltaCOA);
-  var totalUSD    = pendientes.reduce(function(s,p){ return ocRowMoneda(p)==='USD'?s+pNum(p[KEYS.siva]):s; }, 0);
-  var totalPSO    = pendientes.reduce(function(s,p){ return ocRowMoneda(p)!=='USD'?s+pNum(p[KEYS.siva]):s; }, 0);
+  var totalUSD    = plataPendiente(pendientes, 'USD');
+  var totalPSO    = plataPendiente(pendientes, 'PSO');
 
   set('kpi-pending',   pendientes.length);
   set('kpi-critical',  criticos.length);

@@ -2359,7 +2359,13 @@ function editarEntrega(id){
   document.getElementById('en-lote').value  = e.lote || '';
   document.getElementById('en-vto').value   = isVtoNA(e.f_vto) ? '' : (e.f_vto || '');
   document.getElementById('en-obs').value   = e.observaciones || '';
-  document.getElementById('en-conforme').checked = ['SI','S','1','TRUE'].indexOf(String(e.conforme||'').toUpperCase()) >= 0;
+  var eraConforme = ['SI','S','1','TRUE'].indexOf(String(e.conforme||'').toUpperCase()) >= 0;
+  // En materia prima "conforme" ya no puede saltear el PL-06, asi que al
+  // abrir la correccion se destilda solo: si no, el check list queda
+  // escondido y hay que darse cuenta de destildarlo para poder cargarlo.
+  // Justo el caso que trae a alguien a corregir una entrega.
+  var esMP = esMateriaPrima(CUR_LINE);
+  document.getElementById('en-conforme').checked = eraConforme && !esMP;
   document.getElementById('en-who').textContent = e.recibido_por || whoName();
   SubatirApp.PL06.mount('cl-host');
   SubatirApp.PL06.fill(e);

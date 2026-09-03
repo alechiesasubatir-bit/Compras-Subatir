@@ -668,6 +668,12 @@ window.APP_VER='2026-09-03.1001';
         <div class="kpi-value" id="kpi-lote">—</div>
         <div class="kpi-sub">sin trazabilidad</div>
       </div>
+      <div class="card kpi kpi-conform" title="Materias primas recibidas sin el Check List PL-06. En materia prima es obligatorio.">
+        <div class="kpi-icon">📝</div>
+        <div class="kpi-label">Sin Check List</div>
+        <div class="kpi-value" id="kpi-chk">—</div>
+        <div class="kpi-sub">materia prima sin PL-06</div>
+      </div>
     </div>
 
     </div>
@@ -709,6 +715,8 @@ window.APP_VER='2026-09-03.1001';
                     onclick="toggleFiltroCoa()">⚠ Falta COA (<span id="coa-count">0</span>)</button>
             <button class="btn-clear-f" id="btn-lote-filtro" style="display:none;border:1px solid rgba(239,68,68,.45);color:#fca5a5"
                     onclick="toggleFiltroLote()">⚠ Falta lote (<span id="lote-count">0</span>)</button>
+            <button class="clear-btn" id="btn-chk-filtro" style="display:none;border:1px solid rgba(239,68,68,.45);color:#fca5a5"
+                    onclick="toggleFiltroChk()">⚠ Falta check list (<span id="chk-count">0</span>)</button>
             <button class="btn-clear-f" onclick="clearDashFilters()">✕ Limpiar</button>
           </div>
 
@@ -1048,6 +1056,20 @@ function load(){
       SubatirApp.cat.cargar(DATA.inventario || []);   // COA y lote: solo materias primas
       detectKeys();
       renderAll();
+      // El check list vive en la entrega, no en la linea de la OC, asi que
+      // el dashboard necesita las entregas para poder avisar. Va aparte y
+      // despues de pintar: si esta consulta falla, el dashboard entero no
+      // se puede quedar sin dibujar por un aviso.
+      if(SubatirApp.getEntregas){
+        SubatirApp.getEntregas().then(function(ents){
+          ENTREGAS_POR_PEDIDO = {};
+          (ents||[]).forEach(function(e){
+            (ENTREGAS_POR_PEDIDO[e.pedido_id] = ENTREGAS_POR_PEDIDO[e.pedido_id] || []).push(e);
+          });
+          refreshBotonesCalidad();
+          renderKPIs();
+        });
+      }
       // Una sola vez: montar en cada load() dejaría suscripciones duplicadas
       if(window.Traslados && !window.__TR){ window.__TR = Traslados.montar('#tr-panel'); }
       setLoading(false);
@@ -1174,10 +1196,25 @@ function faltaCOA(row){
 function faltaLote(row){
   return !isPendiente(row) && esMP(row) && isEmpty(row[KEYS.lote]);
 }
+// Falta el check list PL-06: materia prima, ya llego, y alguna entrega sin
+// checklist. Solo desde que el PL-06 existe (11/08/2026): reclamar lo
+// anterior seria pedir algo que nadie pudo haber hecho.
+// Mientras las entregas no hayan llegado, no avisa nada: mejor callado que
+// marcando en rojo lineas que todavia no se pudieron mirar.
+var ENTREGAS_POR_PEDIDO = {};
+var PL06_DESDE = '2026-08-11';
+function faltaChecklist(row){
+  if(isPendiente(row) || !esMP(row)) return false;
+  var ents = ENTREGAS_POR_PEDIDO[row.__row] || [];
+  if(!ents.length) return false;
+  return ents.some(function(e){
+    return String(e.fecha||'') >= PL06_DESDE && !e.checklist;
+  });
+}
 
 // Accesos directos a lo que hay que resolver. Los avisos ya parpadean en
 // la tabla, pero entre cientos de filas hay que poder aislarlos.
-var FILTRO_COA = false, FILTRO_LOTE = false;
+var FILTRO_COA = false, FILTRO_LOTE = false, FILTRO_CHK = false;
 function toggleFiltroCoa(){
   FILTRO_COA = !FILTRO_COA;
   document.getElementById('btn-coa-filtro').style.background = FILTRO_COA ? 'rgba(239,68,68,.20)' : '';
@@ -1188,14 +1225,19 @@ function toggleFiltroLote(){
   document.getElementById('btn-lote-filtro').style.background = FILTRO_LOTE ? 'rgba(239,68,68,.20)' : '';
   renderPedidos();
 }
+function toggleFiltroChk(){
+  FILTRO_CHK = !FILTRO_CHK;
+  document.getElementById('btn-chk-filtro').style.background = FILTRO_CHK ? 'rgba(239,68,68,.20)' : '';
+  renderPedidos();
+}
 function refreshBotonesCalidad(){
-  [['btn-coa-filtro','coa-count',faltaCOA,'COA'],['btn-lote-filtro','lote-count',faltaLote,'LOTE']]
+  [['btn-coa-filtro','coa-count',faltaCOA,'COA'],['btn-lote-filtro','lote-count',faltaLote,'LOTE'],['btn-chk-filtro','chk-count',faltaChecklist,'CHK']]
   .forEach(function(cfg){
     var n=(DATA.pedidos||[]).filter(cfg[2]).length;
     var b=document.getElementById(cfg[0]); if(!b) return;
     b.style.display = n ? 'inline-flex' : 'none';
     var c=document.getElementById(cfg[1]); if(c) c.textContent=n;
-    if(!n){ if(cfg[3]==='COA'){ FILTRO_COA=false; } else { FILTRO_LOTE=false; } b.style.background=''; }
+    if(!n){ if(cfg[3]==='COA'){ FILTRO_COA=false; } else if(cfg[3]==='LOTE'){ FILTRO_LOTE=false; } else { FILTRO_CHK=false; } b.style.background=''; }
   });
 }
 function isCritical(inv){
@@ -1343,6 +1385,12 @@ function renderKPIs(){
   var cardLote=elLote && elLote.closest('.kpi');
   if(cardLote) cardLote.classList.toggle('kpi-alerta', sinLote.length>0);
 
+  var sinChk = pedidos.filter(faltaChecklist);
+  set('kpi-chk', sinChk.length);
+  var elChk=document.getElementById('kpi-chk');
+  var cardChk=elChk && elChk.closest('.kpi');
+  if(cardChk) cardChk.classList.toggle('kpi-alerta', sinChk.length>0);
+
   set('kpi-pending-sub',  'de ' + pedidos.length + ' pedidos totales');
   set('kpi-critical-sub', 'requieren reposición urgente');
   set('kpi-usd-sub',      'pedidos en dólares');
@@ -1385,6 +1433,7 @@ function renderPedidos(){
   var rows = (DATA.pedidos || []).filter(function(p){
     if (FILTRO_COA  && !faltaCOA(p))  return false;
     if (FILTRO_LOTE && !faltaLote(p)) return false;
+    if (FILTRO_CHK  && !faltaChecklist(p)) return false;
     if (buscar){
       var hay = (String(p[KEYS.desc]||'')+' '+String(p[KEYS.proveedor]||'')+' '+String(p[KEYS.orden]||'')).toLowerCase();
       if (hay.indexOf(buscar) < 0) return false;
@@ -1460,6 +1509,7 @@ function exportarCSV(){
   var rows = (DATA.pedidos || []).filter(function(p){
     if (FILTRO_COA  && !faltaCOA(p))  return false;
     if (FILTRO_LOTE && !faltaLote(p)) return false;
+    if (FILTRO_CHK  && !faltaChecklist(p)) return false;
     if (buscar){
       var hay = (String(p[KEYS.desc]||'')+' '+String(p[KEYS.proveedor]||'')+' '+String(p[KEYS.orden]||'')).toLowerCase();
       if (hay.indexOf(buscar) < 0) return false;

@@ -558,6 +558,11 @@ window.APP_VER='2026-09-03.1001';
       <div class="kpi-val c-warn" id="kpi-lote">—</div>
       <div class="kpi-sub">sin trazabilidad</div>
     </div>
+    <div class="card kpi">
+      <div class="kpi-label">Sin Check List</div>
+      <div class="kpi-val c-danger" id="kpi-chk">—</div>
+      <div class="kpi-sub">materia prima sin PL-06</div>
+    </div>
   </div>
 
   <!-- Tabla principal -->
@@ -606,6 +611,8 @@ window.APP_VER='2026-09-03.1001';
               onclick="toggleFiltroCoa()">⚠ Falta COA (<span id="coa-count">0</span>)</button>
       <button class="clear-btn" id="btn-lote-filtro" style="display:none;border:1px solid rgba(239,68,68,.45);color:#fca5a5"
               onclick="toggleFiltroLote()">⚠ Falta lote (<span id="lote-count">0</span>)</button>
+      <button class="clear-btn" id="btn-chk-filtro" style="display:none;border:1px solid rgba(239,68,68,.45);color:#fca5a5"
+              onclick="toggleFiltroChk()">⚠ Falta check list (<span id="chk-count">0</span>)</button>
       <button class="clear-btn" onclick="clearFilters()">✕ Limpiar filtros</button>
     </div>
 
@@ -1274,6 +1281,7 @@ function updateKPIs(){
   // recibidas, el mismo criterio con el que Recepcion las muestra.
   var sinCOA   = all.filter(faltaCOA);
   var sinLote  = all.filter(faltaLote);
+  var sinChk   = all.filter(faltaChecklist);
   var totalUSD = pend.reduce(function(s,r){ return ocMoneda(r)==='USD' ? s+pNum(r[K.siva]) : s; }, 0);
   var totalPSO = pend.reduce(function(s,r){ return ocMoneda(r)!=='USD' ? s+pNum(r[K.siva]) : s; }, 0);
 
@@ -1285,10 +1293,12 @@ function updateKPIs(){
   setText('kpi-pso',        fmtPSO(totalPSO));
   setText('kpi-coa',        sinCOA.length);
   setText('kpi-lote',       sinLote.length);
+  setText('kpi-chk',        sinChk.length);
   // La tarjeta parpadea mientras quede algo por resolver, y se queda
   // quieta sola cuando llega a cero
   alertaKPI('kpi-coa',  sinCOA.length);
   alertaKPI('kpi-lote', sinLote.length);
+  alertaKPI('kpi-chk',  sinChk.length);
   // Actualizar contador en header
   var hdrCounter = document.getElementById('hdr-counter');
   if (hdrCounter && all.length > 0){
@@ -1311,6 +1321,7 @@ function applyFilters(){
   FILTERED = DATA_DISPLAY.filter(function(r){
     if (FILTRO_COA  && !faltaCOA(r))  return false;
     if (FILTRO_LOTE && !faltaLote(r)) return false;
+    if (FILTRO_CHK  && !faltaChecklist(r)) return false;
     if (buscar){
       var haystack = [r[K.desc],r[K.proveedor],r[K.orden],r[K.lote],codigoDe(r)].join(' ').toLowerCase();
       if (haystack.indexOf(buscar) < 0) return false;
@@ -2533,10 +2544,22 @@ function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.d
 // accionable, y es el mismo criterio con el que Recepcion las marca
 function faltaCOA(r){  return !isPendiente(r) && esMateriaPrima(r) && !coaOkR(r[K.coa]); }
 function faltaLote(r){ return !isPendiente(r) && esMateriaPrima(r) && !String(r[K.lote]||'').trim(); }
+// Falta el check list PL-06: materia prima, ya llego, y alguna entrega sin
+// checklist. Se mira solo lo cargado DESDE que el PL-06 existe (11/08/2026):
+// reclamar lo anterior seria pedir algo que nadie pudo haber hecho.
+var PL06_DESDE = '2026-08-11';
+function faltaChecklist(r){
+  if(isPendiente(r) || !esMateriaPrima(r)) return false;
+  var st = lineStats(r);
+  if(st.legacy) return false;
+  return (st.entregas||[]).some(function(e){
+    return String(e.fecha||'') >= PL06_DESDE && !e.checklist;
+  });
+}
 
 // Accesos directos a lo que hay que resolver: los avisos parpadean pero
 // quedan perdidos entre cientos de filas si no se pueden aislar
-var FILTRO_COA = false, FILTRO_LOTE = false;
+var FILTRO_COA = false, FILTRO_LOTE = false, FILTRO_CHK = false;
 function toggleFiltroCoa(){
   FILTRO_COA = !FILTRO_COA;
   document.getElementById('btn-coa-filtro').style.background = FILTRO_COA ? 'rgba(239,68,68,.20)' : '';
@@ -2547,14 +2570,19 @@ function toggleFiltroLote(){
   document.getElementById('btn-lote-filtro').style.background = FILTRO_LOTE ? 'rgba(239,68,68,.20)' : '';
   applyFilters();
 }
+function toggleFiltroChk(){
+  FILTRO_CHK = !FILTRO_CHK;
+  document.getElementById('btn-chk-filtro').style.background = FILTRO_CHK ? 'rgba(239,68,68,.20)' : '';
+  applyFilters();
+}
 function refreshBotonesCalidad(){
-  [['btn-coa-filtro','coa-count',faltaCOA,'COA'],['btn-lote-filtro','lote-count',faltaLote,'LOTE']]
+  [['btn-coa-filtro','coa-count',faltaCOA,'COA'],['btn-lote-filtro','lote-count',faltaLote,'LOTE'],['btn-chk-filtro','chk-count',faltaChecklist,'CHK']]
   .forEach(function(cfg){
     var n=(DATA_DISPLAY||[]).filter(cfg[2]).length;
     var b=document.getElementById(cfg[0]); if(!b) return;
     b.style.display = n ? 'inline-flex' : 'none';
     var c=document.getElementById(cfg[1]); if(c) c.textContent=n;
-    if(!n){ if(cfg[3]==='COA'){ FILTRO_COA=false; } else { FILTRO_LOTE=false; } b.style.background=''; }
+    if(!n){ if(cfg[3]==='COA'){ FILTRO_COA=false; } else if(cfg[3]==='LOTE'){ FILTRO_LOTE=false; } else { FILTRO_CHK=false; } b.style.background=''; }
   });
 }
 

@@ -2363,8 +2363,17 @@ function renderGridControls(){
   var gd=document.getElementById('g-dep'); if(!gd) return;
   var deps=DEPS.map(function(d){return d.nombre;});
   if(!(GRID.dep && deps.indexOf(GRID.dep)>=0)){
-    var withPal=deps.filter(function(d){ return PALLETS.some(function(p){ return p.deposito===d; }); })[0];
-    GRID.dep = withPal || deps[0] || '';
+    // El mapa arranca en el ALMACEN, que es donde la mercaderia se guarda
+    // y donde el mapa sirve de verdad. Antes tomaba el primero que tuviera
+    // pallets y eso caia en Artigas, que es fabrica: ahi la mercaderia se
+    // consume al llegar, asi que abrir el mapa en Artigas mostraba la
+    // pantalla equivocada todos los dias.
+    //
+    // Se busca por TIPO y no por nombre a proposito: clavar "Furriol" se
+    // rompe el dia que lo renombren o abran otro almacen.
+    var alm = (DEPS.filter(function(d){ return d.tipo==='ALMACEN'; })[0]||{}).nombre;
+    var withPal = deps.filter(function(d){ return PALLETS.some(function(p){ return p.deposito===d; }); })[0];
+    GRID.dep = alm || withPal || deps[0] || '';
   }
   gd.innerHTML=deps.map(function(d){return '<option '+(d===GRID.dep?'selected':'')+'>'+esc(d)+'</option>';}).join('');
   onGridDep();

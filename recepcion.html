@@ -538,6 +538,11 @@ window.APP_VER='2026-09-02.1632';
       <div class="kpi-val c-danger" id="kpi-lote">—</div>
       <div class="kpi-sub">recibido sin trazabilidad</div>
     </div>
+    <div class="card kpi">
+      <div class="kpi-label">Sin Check List</div>
+      <div class="kpi-val c-danger" id="kpi-chk">—</div>
+      <div class="kpi-sub">materia prima sin PL-06</div>
+    </div>
   </div>
 
   <!-- Tabla principal -->
@@ -577,6 +582,8 @@ window.APP_VER='2026-09-02.1632';
               onclick="toggleFiltroCoa()">⚠ Falta COA (<span id="coa-count">0</span>)</button>
       <button class="clear-btn" id="btn-lote-filtro" style="display:none;border-color:rgba(239,68,68,.45);color:#fca5a5"
               onclick="toggleFiltroLote()">⚠ Falta lote (<span id="lote-count">0</span>)</button>
+      <button class="clear-btn" id="btn-chk-filtro" style="display:none;border-color:rgba(239,68,68,.45);color:#fca5a5"
+              onclick="toggleFiltroChk()">⚠ Falta check list (<span id="chk-count">0</span>)</button>
       <button class="clear-btn" onclick="clearFilters()">✕ Limpiar filtros</button>
     </div>
 
@@ -658,6 +665,12 @@ window.APP_VER='2026-09-02.1632';
           <!-- Antes había tres tildes acá. El vencimiento y el COA los
                controla ahora el Check List PL-06 (puntos 1 y 4), así que
                pedirlos dos veces sólo daba lugar a que no coincidieran. -->
+          <div class="form-group span2" id="edit-entrega-aviso"
+               style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;border-radius:9px;
+                      background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.32);color:#fcd9a8;font-size:12px">
+            <span>✏ <b>Corrigiendo una entrega ya registrada.</b> La cantidad no se edita: es lo único que movería el stock.</span>
+            <button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="cancelarEdicion()">Cancelar</button>
+          </div>
           <div class="form-group span2">
             <div class="check-row"><input type="checkbox" id="en-conforme" onchange="onConforme()"/><label for="en-conforme">Mercadería conforme</label></div>
             <div class="check-hint">Tildar <b>sólo si NO es Materia Prima ni Producto Químico</b>.
@@ -1101,6 +1114,7 @@ function applyFilters(){
     }
     if (FILTRO_COA && !faltaCoa(r)) return false;
     if (FILTRO_LOTE && !faltaLoteR(r)) return false;
+    if (FILTRO_CHK && !faltaChecklistR(r)) return false;
     if (estado && lineStats(r).estado !== estado) return false;
     if (prov && String(r[K.proveedor]||'').toLowerCase() !== prov.toLowerCase()) return false;
     if (desde && r[K.fecha] && r[K.fecha] < desde) return false;
@@ -1221,7 +1235,7 @@ function buildCatMap(inv){ SubatirApp.cat.cargar(inv); }
 function catDeLinea(r){ return SubatirApp.cat.de(r['ID Inventario'], r[K.desc]); }
 function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.desc]); }
 
-var FILTRO_COA = false, FILTRO_LOTE = false;
+var FILTRO_COA = false, FILTRO_LOTE = false, FILTRO_CHK = false;
 
 // Una linea reclama COA cuando es materia prima, ya llego algo y no esta
 function faltaCoa(r){
@@ -1241,6 +1255,20 @@ function faltaLoteR(r){
                    : (st.entregas||[]).some(function(e){ return !String(e.lote||'').trim(); });
 }
 
+// Falta el check list PL-06: materia prima, ya llego, y alguna entrega sin
+// checklist guardado. Se mira solo lo cargado DESDE que el PL-06 existe
+// (11/08/2026): antes la funcion no estaba y reclamar esas entregas seria
+// pedir algo que nadie pudo haber hecho.
+var PL06_DESDE = '2026-08-11';
+function faltaChecklistR(r){
+  if(!esMateriaPrima(r)) return false;
+  var st = lineStats(r);
+  if(st.estado==='PENDIENTE' || st.legacy) return false;
+  return (st.entregas||[]).some(function(e){
+    return String(e.fecha||'') >= PL06_DESDE && !e.checklist;
+  });
+}
+
 // Los que parpadean quedaban perdidos entre 651 filas: estos botones los
 // dejan a mano y muestran cuantos son sin tener que buscarlos
 function toggleFiltroCoa(){
@@ -1255,6 +1283,12 @@ function toggleFiltroLote(){
   b.style.background = FILTRO_LOTE ? 'rgba(239,68,68,.20)' : '';
   applyFilters();
 }
+function toggleFiltroChk(){
+  FILTRO_CHK = !FILTRO_CHK;
+  var b=document.getElementById('btn-chk-filtro');
+  b.style.background = FILTRO_CHK ? 'rgba(239,68,68,.20)' : '';
+  applyFilters();
+}
 function refreshBotonCoa(){
   var n=(DATA_DISPLAY||[]).filter(faltaCoa).length;
   var b=document.getElementById('btn-coa-filtro'); if(!b) return;
@@ -1263,10 +1297,21 @@ function refreshBotonCoa(){
   if(!n && FILTRO_COA){ FILTRO_COA=false; b.style.background=''; }
 
   var nl=(DATA_DISPLAY||[]).filter(faltaLoteR).length;
-  var bl=document.getElementById('btn-lote-filtro'); if(!bl) return;
-  bl.style.display = nl ? 'inline-flex' : 'none';
-  setText('lote-count', nl);
-  if(!nl && FILTRO_LOTE){ FILTRO_LOTE=false; bl.style.background=''; }
+  var bl=document.getElementById('btn-lote-filtro');
+  if(bl){
+    bl.style.display = nl ? 'inline-flex' : 'none';
+    setText('lote-count', nl);
+    if(!nl && FILTRO_LOTE){ FILTRO_LOTE=false; bl.style.background=''; }
+  }
+
+  var nc=(DATA_DISPLAY||[]).filter(faltaChecklistR).length;
+  var bc=document.getElementById('btn-chk-filtro');
+  if(bc){
+    bc.style.display = nc ? 'inline-flex' : 'none';
+    setText('chk-count', nc);
+    if(!nc && FILTRO_CHK){ FILTRO_CHK=false; bc.style.background=''; }
+  }
+  setText('kpi-chk', nc);
 }
 
 // ── El COA en el listado ─────────────────────────────────────────────
@@ -1328,6 +1373,11 @@ function openEntrega(pid){
   var completa = st.estado==='COMPLETA';
   document.getElementById('entrega-form-wrap').style.display = completa ? 'none' : 'block';
   document.getElementById('btn-save-entrega').style.display = completa ? 'none' : 'inline-flex';
+  // Abrir la ficha siempre vuelve a modo alta: si se quedo a medias una
+  // correccion, el formulario no puede seguir apuntando a esa entrega.
+  EDIT_ENTREGA = null;
+  document.getElementById('en-cant').disabled = false;
+  marcarModoEdicion(false);
   document.getElementById('en-cant').value = st.saldo>0 ? st.saldo : '';
   document.getElementById('en-fecha').value = new Date().toISOString().slice(0,10);
   document.getElementById('en-lote').value='';
@@ -1377,9 +1427,66 @@ function renderHist(r, st){
       +ckPill
       +'<span style="margin-left:auto;color:var(--teal-l);font-family:var(--mono);font-size:11px">'+esc(String(e.recibido_por||''))+'</span>'
       +(ck?'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Imprimir Check List PL-06" onclick="pdfChecklist('+e.id+')">📋</button>':'')
+      +'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Corregir lote, check list u observaciones" onclick="editarEntrega('+e.id+')">✏</button>'
       +'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Eliminar entrega" onclick="delEntrega('+e.id+')">🗑</button>'
       +'</div>';
   }).join('');
+}
+
+// ── Corregir una entrega ya registrada ────────────────────────
+// Antes una entrega se podia crear y borrar, nada mas. Si al recibir se
+// omitia el lote o el check list no habia forma de arreglarlo: borrar y
+// volver a cargar DUPLICA el stock (la suma la hizo inventario_sumar al
+// recibir y borrar la entrega no la descuenta).
+//
+// La cantidad NO se edita a proposito. Es lo unico que toca el inventario,
+// y es justo donde vive el riesgo que este arreglo viene a evitar. Una
+// cantidad mal cargada se corrige por SQL, con verificacion antes/despues.
+var EDIT_ENTREGA = null;   // id de la entrega en edicion, o null si es alta
+
+function editarEntrega(id){
+  if(!CUR_LINE) return;
+  var st = lineStats(CUR_LINE);
+  var e = (st.entregas||[]).filter(function(x){ return x.id === id; })[0];
+  if(!e){ toast('No se encontro la entrega','err'); return; }
+  EDIT_ENTREGA = id;
+
+  // El formulario se ve siempre en modo edicion, aunque la linea este
+  // completa: justamente se corrigen entregas de lineas ya cerradas.
+  document.getElementById('entrega-form-wrap').style.display = 'block';
+  document.getElementById('btn-save-entrega').style.display = 'inline-flex';
+
+  var cant = document.getElementById('en-cant');
+  cant.value = e.cantidad;
+  cant.disabled = true;
+  document.getElementById('en-fecha').value = e.fecha || '';
+  document.getElementById('en-lote').value  = e.lote || '';
+  document.getElementById('en-vto').value   = isVtoNA(e.f_vto) ? '' : (e.f_vto || '');
+  document.getElementById('en-obs').value   = e.observaciones || '';
+  document.getElementById('en-conforme').checked = ['SI','S','1','TRUE'].indexOf(String(e.conforme||'').toUpperCase()) >= 0;
+  document.getElementById('en-who').textContent = e.recibido_por || whoName();
+
+  SubatirApp.PL06.mount('cl-host');
+  SubatirApp.PL06.fill(e);          // vuelve a poner lo que se habia marcado
+  onConforme();
+  marcarModoEdicion(true);
+  document.getElementById('en-lote').focus();
+}
+
+function cancelarEdicion(){
+  EDIT_ENTREGA = null;
+  document.getElementById('en-cant').disabled = false;
+  marcarModoEdicion(false);
+  if(CUR_LINE) openEntrega(CUR_LINE.__row);
+}
+
+// Que se note que se esta corrigiendo algo y no cargando una entrega nueva:
+// el formulario es el mismo y sin esto no hay forma de saber en cual esta.
+function marcarModoEdicion(on){
+  var btn  = document.getElementById('btn-save-entrega');
+  var aviso= document.getElementById('edit-entrega-aviso');
+  if(btn) btn.textContent = on ? '💾 Guardar correccion' : '💾 Registrar entrega';
+  if(aviso) aviso.style.display = on ? 'flex' : 'none';
 }
 
 function saveEntrega(){
@@ -1394,6 +1501,17 @@ function saveEntrega(){
   var conforme = document.getElementById('en-conforme').checked;
   var chk = SubatirApp.PL06.read();
   var chkUsado = chk.some(function(i){ return i.conforme || i.obs; });
+  // En materia prima el PL-06 es obligatorio y el tilde "Mercaderia
+  // conforme" NO lo saltea. El cartelito del formulario ya pedia no tildarlo
+  // en MP, pero era un pedido de buena fe: nada lo impedia, y asi entraron
+  // entregas de materia prima sin check list y sin que nadie se enterara.
+  // La pantalla ya sabe cuales son MP (lo usa para los KPI de COA y lote).
+  if(conforme && esMateriaPrima(r)){
+    toast('Este articulo es Materia Prima: el Check List PL-06 es obligatorio y no se puede saltear con "Mercaderia conforme".','err');
+    document.getElementById('en-conforme').checked = false;
+    onConforme();
+    return;
+  }
   if(!conforme && !SubatirApp.PL06.validate(toast)) return;
 
   var row={
@@ -1414,6 +1532,28 @@ function saveEntrega(){
     checklist: (conforme && !chkUsado) ? null : chk
   };
   document.getElementById('btn-save-entrega').disabled=true;
+
+  // ── Correccion de una entrega ya registrada ──
+  // No pasa por addEntrega ni toca el stock: la cantidad no se edita, asi
+  // que lo que ya se sumo al inventario sigue siendo valido.
+  if(EDIT_ENTREGA){
+    delete row.pedido_id; delete row.n_orden; delete row.descripcion;
+    delete row.cantidad;  delete row.recibido_por;
+    toast('Guardando correccion…','info');
+    SubatirApp.updateEntrega(EDIT_ENTREGA, row).then(function(d){
+      document.getElementById('btn-save-entrega').disabled=false;
+      if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+      toast('Entrega corregida ✓','ok');
+      EDIT_ENTREGA=null;
+      document.getElementById('en-cant').disabled=false;
+      marcarModoEdicion(false);
+      load();
+      var pid = CUR_LINE ? CUR_LINE.__row : null;
+      if(pid) setTimeout(function(){ if(findLine(pid)) openEntrega(pid); }, 1600);
+    });
+    return;
+  }
+
   toast('Registrando entrega…','info');
   SubatirApp.addEntrega(row).then(function(d){
     if(d && d.error && SubatirApp.PL06.esErrorDeEsquema(d.error)){

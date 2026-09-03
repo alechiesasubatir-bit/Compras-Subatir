@@ -785,6 +785,12 @@ window.APP_VER='2026-09-02.1632';
             <input type="date" class="form-input" id="en-vto"/>
           </div>
           <div class="form-group span2">
+            <div id="edit-entrega-aviso"
+                 style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;border-radius:9px;margin-bottom:10px;
+                        background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.32);color:#fcd9a8;font-size:12px">
+              <span>✏ <b>Corrigiendo una entrega ya registrada.</b> La cantidad no se edita: es lo único que movería el stock.</span>
+              <button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="cancelarEdicion()">Cancelar</button>
+            </div>
             <div class="check-row"><input type="checkbox" id="en-conforme" onchange="onConforme()"/><label for="en-conforme">Mercadería conforme</label></div>
             <div class="check-hint">Tildar <b>sólo si NO es Materia Prima ni Producto Químico</b>.
               En ese caso no hace falta completar el Check List PL-06.</div>
@@ -2276,6 +2282,9 @@ function openEntrega(pid){
   var completa = st.estado==='COMPLETA';
   document.getElementById('entrega-form-wrap').style.display = completa ? 'none' : 'block';
   document.getElementById('btn-save-entrega').style.display = completa ? 'none' : 'inline-flex';
+  EDIT_ENTREGA = null;
+  document.getElementById('en-cant').disabled = false;
+  marcarModoEdicion(false);
   document.getElementById('en-cant').value = st.saldo>0 ? st.saldo : '';
   document.getElementById('en-fecha').value = new Date().toISOString().slice(0,10);
   document.getElementById('en-lote').value='';
@@ -2324,10 +2333,53 @@ function renderHist(r, st){
       +ckPill
       +'<span style="margin-left:auto;color:var(--teal-l);font-family:var(--mono);font-size:11px">'+esc(String(e.recibido_por||''))+'</span>'
       +(ck?'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Imprimir Check List PL-06" onclick="pdfChecklist('+e.id+')">📋</button>':'')
+      +'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Corregir lote, check list u observaciones" onclick="editarEntrega('+e.id+')">✏</button>'
       +'<button class="btn btn-ghost btn-sm" style="padding:2px 7px" title="Eliminar entrega" onclick="delEntrega('+e.id+')">🗑</button>'
       +'</div>';
   }).join('');
 }
+// ── Corregir una entrega ya registrada ────────────────────────
+// Mismo criterio que recepcion.html: una entrega se podia crear y borrar
+// nada mas, y borrar+recargar DUPLICA el stock (la suma la hizo
+// inventario_sumar al recibir y borrar la entrega no la descuenta).
+// La cantidad no se edita: es lo unico que mueve el inventario.
+var EDIT_ENTREGA = null;
+
+function editarEntrega(id){
+  if(!CUR_LINE) return;
+  var st = lineStats(CUR_LINE);
+  var e = (st.entregas||[]).filter(function(x){ return x.id === id; })[0];
+  if(!e){ toast('No se encontro la entrega','err'); return; }
+  EDIT_ENTREGA = id;
+  document.getElementById('entrega-form-wrap').style.display = 'block';
+  document.getElementById('btn-save-entrega').style.display = 'inline-flex';
+  var cant = document.getElementById('en-cant');
+  cant.value = e.cantidad; cant.disabled = true;
+  document.getElementById('en-fecha').value = e.fecha || '';
+  document.getElementById('en-lote').value  = e.lote || '';
+  document.getElementById('en-vto').value   = isVtoNA(e.f_vto) ? '' : (e.f_vto || '');
+  document.getElementById('en-obs').value   = e.observaciones || '';
+  document.getElementById('en-conforme').checked = ['SI','S','1','TRUE'].indexOf(String(e.conforme||'').toUpperCase()) >= 0;
+  document.getElementById('en-who').textContent = e.recibido_por || whoName();
+  SubatirApp.PL06.mount('cl-host');
+  SubatirApp.PL06.fill(e);
+  onConforme();
+  marcarModoEdicion(true);
+  document.getElementById('en-lote').focus();
+}
+function cancelarEdicion(){
+  EDIT_ENTREGA = null;
+  document.getElementById('en-cant').disabled = false;
+  marcarModoEdicion(false);
+  if(CUR_LINE) openEntrega(CUR_LINE.__row);
+}
+function marcarModoEdicion(on){
+  var btn  = document.getElementById('btn-save-entrega');
+  var aviso= document.getElementById('edit-entrega-aviso');
+  if(btn) btn.textContent = on ? '💾 Guardar correccion' : '💾 Registrar entrega';
+  if(aviso) aviso.style.display = on ? 'flex' : 'none';
+}
+
 function saveEntrega(){
   if(!CUR_LINE) return;
   var r=CUR_LINE, pid=r.__row, st=lineStats(r);
@@ -2340,6 +2392,14 @@ function saveEntrega(){
   var conforme = document.getElementById('en-conforme').checked;
   var chk = SubatirApp.PL06.read();
   var chkUsado = chk.some(function(i){ return i.conforme || i.obs; });
+  // En materia prima el PL-06 es obligatorio: el tilde "Mercaderia
+  // conforme" no lo saltea. Mismo criterio que recepcion.html.
+  if(conforme && esMateriaPrima(r)){
+    toast('Este articulo es Materia Prima: el Check List PL-06 es obligatorio y no se puede saltear con "Mercaderia conforme".','err');
+    document.getElementById('en-conforme').checked = false;
+    onConforme();
+    return;
+  }
   if(!conforme && !SubatirApp.PL06.validate(toast)) return;
 
   var row={
@@ -2360,6 +2420,25 @@ function saveEntrega(){
     checklist: (conforme && !chkUsado) ? null : chk
   };
   document.getElementById('btn-save-entrega').disabled=true;
+
+  if(EDIT_ENTREGA){
+    delete row.pedido_id; delete row.n_orden; delete row.descripcion;
+    delete row.cantidad;  delete row.recibido_por;
+    toast('Guardando correccion…','info');
+    SubatirApp.updateEntrega(EDIT_ENTREGA, row).then(function(d){
+      document.getElementById('btn-save-entrega').disabled=false;
+      if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+      toast('Entrega corregida ✓','ok');
+      EDIT_ENTREGA=null;
+      document.getElementById('en-cant').disabled=false;
+      marcarModoEdicion(false);
+      load();
+      var pid2 = CUR_LINE ? CUR_LINE.__row : null;
+      if(pid2) setTimeout(function(){ if(findLine(pid2)) openEntrega(pid2); }, 1600);
+    });
+    return;
+  }
+
   toast('Registrando entrega…','info');
   SubatirApp.addEntrega(row).then(function(d){
     if(d && d.error && SubatirApp.PL06.esErrorDeEsquema(d.error)){

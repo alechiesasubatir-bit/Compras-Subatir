@@ -588,9 +588,34 @@
     return SB.from('entregas').insert(row).select('id').single()
       .then(function (r) { return r.error ? { error: r.error.message } : { success: true, id: r.data && r.data.id }; });
   }
+  //  Corregir una entrega ya registrada. No existía: una entrega se podía
+  //  crear y borrar, nada más. Si al recibir se omitía el lote o el check
+  //  list, el único camino era borrarla y volver a cargarla — y eso DUPLICA
+  //  el stock, porque la suma la hizo inventario_sumar al recibir y borrar
+  //  la entrega no la descuenta.
+  //
+  //  Ojo: acá NO se toca el stock. El ajuste por diferencia de cantidad lo
+  //  hace quien llama, que es el único que sabe cuánto había antes.
+  function updateEntrega(id, row) {
+    return SB.from('entregas').update(row).eq('id', id).select('id')
+      .then(function (r) {
+        if (r.error) return { error: r.error.message };
+        // Cero filas = RLS lo bloqueó. Sin este chequeo la pantalla canta
+        // "guardado" sobre algo que nunca se escribió.
+        if (!r.data || !r.data.length) return { error: 'Sin permiso para editar la entrega (0 filas afectadas).' };
+        return { success: true, id: id };
+      });
+  }
   function deleteEntrega(id) {
-    return SB.from('entregas').delete().eq('id', id)
-      .then(function (r) { return r.error ? { error: r.error.message } : { success: true }; });
+    // .select() y cero filas = error, por lo mismo que updateEntrega: sin
+    // esto, un borrado que RLS rechaza devolvía {success:true} y la pantalla
+    // avisaba "Entrega eliminada" sin haber borrado nada.
+    return SB.from('entregas').delete().eq('id', id).select('id')
+      .then(function (r) {
+        if (r.error) return { error: r.error.message };
+        if (!r.data || !r.data.length) return { error: 'Sin permiso para eliminar la entrega (0 filas afectadas).' };
+        return { success: true };
+      });
   }
 
   // ── Configuración de reposición por artículo + proveedor ──────
@@ -2170,7 +2195,7 @@
     legacyFetch: legacyFetch, write: write,
     categorias: categorias, setCategoria: setCategoria,
     ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto,
-    getEntregas: getEntregas, addEntrega: addEntrega, deleteEntrega: deleteEntrega,
+    getEntregas: getEntregas, addEntrega: addEntrega, updateEntrega: updateEntrega, deleteEntrega: deleteEntrega,
     getArtProveedor: getArtProveedor, saveArtProveedor: saveArtProveedor, deleteArtProveedor: deleteArtProveedor,
     PL06: PL06, operador: OPER, stock: STOCK,
     live: live,

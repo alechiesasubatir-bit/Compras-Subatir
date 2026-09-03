@@ -1070,14 +1070,14 @@ function load(){
           ENTREGAS.forEach(function(e){
             (ENTREGAS_POR_PEDIDO[e.pedido_id] = ENTREGAS_POR_PEDIDO[e.pedido_id] || []).push(e);
           });
+          // Repintar TODO, no una lista de consumidores a mano: la primera
+          // pasada se dibujo sin las entregas (transito inflado, plata
+          // pendiente de mas, sin avisos de check list). Cuando llame a
+          // mano solo a algunos, el ticker se quedo mostrando U$S 11.354
+          // al lado de un KPI que ya decia 10.667, en la misma pantalla.
+          // renderAll() solo repinta, asi que llamarlo de nuevo es seguro.
           refreshBotonesCalidad();
-          renderKPIs();
-          // El panel de criticos muestra el "(+N)" en camino, que ahora
-          // sale del transito real: hay que repintarlo cuando llega.
-          renderStockCritico();
-          // El panel de reposicion se pinto antes con el transito sin
-          // descontar lo entregado: hay que rehacerlo con el numero bueno.
-          cargarReposicion();
+          renderAll();
         });
       }
       // Una sola vez: montar en cada load() dejaría suscripciones duplicadas

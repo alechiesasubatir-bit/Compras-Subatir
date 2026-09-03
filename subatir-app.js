@@ -1520,11 +1520,26 @@
   //  Es una cantidad y no un booleano porque una misma descripción puede
   //  tener líneas con dueño y líneas sin dueño a la vez: con un booleano,
   //  una sola línea con id borraba de la pantalla a todas las demás.
-  function transito(inventario, pedidos) {
+  function transito(inventario, pedidos, entregas) {
     var C = MAPS.pedidos.cols, IC = MAPS.inventario.cols;
     inventario = inventario || [];
     pedidos = pedidos || [];
     var out = { porArticulo: {}, usadas: {} };
+
+    //  Cuanto ya llego de cada linea. Una entrega parcial no le pone
+    //  fecha de recepcion a la linea (sigue abierta hasta completarse),
+    //  asi que sin esto la linea entera contaba como "en camino" y la
+    //  pantalla mostraba mercaderia que ya estaba en el deposito.
+    //  El cruce es por id exacto (entregas.pedido_id contra el id de la
+    //  linea), no por nombre: aca no hay match difuso que valga.
+    //  El argumento es opcional a proposito: una pantalla que todavia no
+    //  cargue las entregas se comporta como antes en vez de romperse.
+    var entregado = {};
+    (entregas || []).forEach(function (e) {
+      var k = e && e.pedido_id;
+      if (k == null) return;
+      entregado[k] = (entregado[k] || 0) + (parseFloat(e.cantidad) || 0);
+    });
 
     function vacio() {
       return { pendiente: 0, valorPendiente: 0, ultimaOC: '', ultimaOrden: '', ultimoProv: '' };
@@ -1533,9 +1548,12 @@
       var recibido = _txtTr(p[C.f_recepcion]).toUpperCase();
       var sinRecibir = !recibido || recibido === '—' || recibido === '-' || recibido === 'N/A' || recibido === '0';
       var cant = _numTr(p[C.cantidad]);
-      if (sinRecibir && cant > 0) {
-        acc.pendiente += cant;
-        acc.valorPendiente += cant * _numTr(p[C.precio_un]);
+      // Lo que falta llegar, no lo que se pidio. Nunca negativo: si
+      // entregaron de mas, lo que falta es cero, no un numero en contra.
+      var saldo = Math.max(0, cant - (entregado[p.__row] || 0));
+      if (sinRecibir && saldo > 0) {
+        acc.pendiente += saldo;
+        acc.valorPendiente += saldo * _numTr(p[C.precio_un]);
       }
       // Última OC = la de fecha más reciente, recibida o no: es desde
       // donde cuenta la regla "revisar cada N meses".

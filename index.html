@@ -933,7 +933,7 @@ function renderReposicion(inventario, fichas, pedidos){
   // Sin esto el panel calculaba con el tránsito en cero (avisaba de pedir
   // cosas que ya venían en camino) y sin última OC (la regla "cada N meses"
   // no disparaba nunca).
-  var tr = SubatirApp.transito(inventario || [], pedidos || []);
+  var tr = SubatirApp.transito(inventario || [], pedidos || [], ENTREGAS);
 
   var hoy = new Date(), avisos = [];
   (inventario||[]).forEach(function(a){
@@ -1062,12 +1062,16 @@ function load(){
       // se puede quedar sin dibujar por un aviso.
       if(SubatirApp.getEntregas){
         SubatirApp.getEntregas().then(function(ents){
+          ENTREGAS = ents || [];
           ENTREGAS_POR_PEDIDO = {};
-          (ents||[]).forEach(function(e){
+          ENTREGAS.forEach(function(e){
             (ENTREGAS_POR_PEDIDO[e.pedido_id] = ENTREGAS_POR_PEDIDO[e.pedido_id] || []).push(e);
           });
           refreshBotonesCalidad();
           renderKPIs();
+          // El panel de reposicion se pinto antes con el transito sin
+          // descontar lo entregado: hay que rehacerlo con el numero bueno.
+          cargarReposicion();
         });
       }
       // Una sola vez: montar en cada load() dejaría suscripciones duplicadas
@@ -1202,6 +1206,9 @@ function faltaLote(row){
 // Mientras las entregas no hayan llegado, no avisa nada: mejor callado que
 // marcando en rojo lineas que todavia no se pudieron mirar.
 var ENTREGAS_POR_PEDIDO = {};
+// La lista cruda, para SubatirApp.transito: necesita el array, no el
+// agrupado por pedido que usa el aviso de check list.
+var ENTREGAS = [];
 var PL06_DESDE = '2026-08-11';
 function faltaChecklist(row){
   if(isPendiente(row) || !esMP(row)) return false;

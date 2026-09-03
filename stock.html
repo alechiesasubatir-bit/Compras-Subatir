@@ -1041,6 +1041,9 @@ window.APP_VER='2026-09-03.1611';
 // Sheets: ya no se llama, pero daba la impresion de una integracion viva.
 var URL_AS = 'https://sb.local/';
 var RAW_INV = [], RAW_STK = [], RAW_PED = [], RAW_PREC = [], RAW_PROVS = [];
+// Entregas parciales: sin esto el "en transito" cuenta la linea entera
+// aunque parte ya haya llegado. Ver SubatirApp.transito.
+var RAW_ENT = [];
 var MERGED  = [];
 var FILT    = [];
 // Correcciones de proveedor detectadas en el último buildMerged(), pendientes
@@ -1126,10 +1129,16 @@ function load(){
           .catch(function(){ return {}; }),
         (window.SubatirApp && SubatirApp.getArtProveedor ? SubatirApp.getArtProveedor([]) : Promise.resolve([]))
           .then(function(f){ FICHAS_ERR = false; return f; },
-                function(e){ FICHAS_ERR = true; console.warn('[Stock] art_proveedor:', e && e.message); return []; })
+                function(e){ FICHAS_ERR = true; console.warn('[Stock] art_proveedor:', e && e.message); return []; }),
+        // Entregas parciales, para que el "en transito" muestre el saldo
+        // y no la cantidad pedida entera. Si falla, se degrada al numero
+        // viejo (linea completa) en vez de dejar la pantalla sin datos.
+        (window.SubatirApp && SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
+          .then(function(e){ return e; }, function(){ return []; })
       ]).then(function(res){
         CAT_MAP = res[0] || {};
         indexarFichas(res[1]);
+        RAW_ENT = res[2] || [];
         if(FICHAS_ERR) toast('No se pudo leer la configuración de reposición: las señales quedan sin calcular.','err');
         buildMerged(); renderAll();
       });
@@ -1511,7 +1520,7 @@ function buildMerged(){
   // ocIdx se sigue usando para lo demás que el cruce por descripción aporta
   // (último proveedor y precio, el set de proveedores, las OC huérfanas).
   var TR = (window.SubatirApp && SubatirApp.transito)
-    ? SubatirApp.transito(RAW_INV, RAW_PED)
+    ? SubatirApp.transito(RAW_INV, RAW_PED, RAW_ENT)
     : { de: function(){ return { pendiente:0, valorPendiente:0, ultimaOC:'', ultimaOrden:'' }; }, usadas:{} };
 
   RAW_INV.forEach(function(item){

@@ -372,12 +372,17 @@ function seguimientoOn(a){
 function load(){
   Promise.all([
     SubatirApp.getData(),
-    SubatirApp.getArtProveedor()
+    SubatirApp.getArtProveedor(),
+    // Entregas parciales: sin esto el transito cuenta la linea entera
+    // aunque parte ya haya llegado, y la senal avisa mas tarde de lo que
+    // corresponde. Si falla, se degrada al numero viejo.
+    (SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
+      .then(function(e){ return e; }, function(){ return []; })
   ]).then(function(res){
     ARTS     = res[0].inventario || [];
     FICHAS   = res[1] || [];
     // Mismo cruce OC ↔ artículo que Stock, sin armar un matcher propio.
-    TRANSITO = SubatirApp.transito ? SubatirApp.transito(ARTS, res[0].pedidos || []) : null;
+    TRANSITO = SubatirApp.transito ? SubatirApp.transito(ARTS, res[0].pedidos || [], res[2] || []) : null;
     CARGA    = 'ok';
     setText('ts', new Date().toLocaleTimeString('es-UY'));
     render();

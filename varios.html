@@ -412,14 +412,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="oc-pdf.js?v=2026-09-03.1757"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-03.1757"/>
-<script src="supabase-config.js?v=2026-09-03.1757"></script>
-<script src="subatir-app.js?v=2026-09-03.1757"></script>
+<script src="oc-pdf.js?v=2026-09-04.1146"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-04.1146"/>
+<script src="supabase-config.js?v=2026-09-04.1146"></script>
+<script src="subatir-app.js?v=2026-09-04.1146"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-03.1757';
+window.APP_VER='2026-09-04.1146';
 </script>
 </head>
 <body>
@@ -435,7 +435,7 @@ window.APP_VER='2026-09-03.1757';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-03.1757"></script>
+  <script src="nav.js?v=2026-09-04.1146"></script>
   <div class="header-right">
     <!-- Quién opera, en cuentas compartidas. Lo pinta SubatirApp.operador -->
     <span id="oper-chip"></span>
@@ -754,7 +754,7 @@ function load(){
     // El maestro: de aca salen el RUT y el telefono que van impresos en
     // la orden, y el autocompletado del alta. Si falla, el modulo sigue
     // andando sin ordenes formales, que es como venia funcionando.
-    SB.from('proveedores').select('empresa,rut,celular,telefono,nombre_contacto,direccion')
+    SB.from('proveedores').select('id,empresa,rut,celular,telefono,nombre_contacto,direccion')
       .then(function(x){ return x; }, function(){ return {data:[]}; })
   ]).then(function(r){
       setLoading(false);
@@ -827,7 +827,10 @@ function guardarProveedor(nombre, rut, tel){
   if(rut && !String(f.rut||'').trim())                                  patch.rut = rut;
   if(tel && !String(f.celular||'').trim() && !String(f.telefono||'').trim()) patch.celular = tel;
   if(!Object.keys(patch).length) return Promise.resolve();
-  return SB.from('proveedores').update(patch).eq('empresa', f.empresa)
+  // Por id, NO por nombre: filtrando por empresa, un nombre repetido en el
+  // maestro hace que el patch caiga sobre TODAS las fichas que se llamen
+  // igual. Fue lo que dejo las dos fichas de Wurth identicas.
+  return SB.from('proveedores').update(patch).eq('id', f.id)
     .then(function(){}, function(){});
 }
 
@@ -1151,15 +1154,23 @@ function guardar(){
       }));
     }).then(function(r2){
       // La ficha del proveedor, para no volver a cargarla nunca mas.
-      // Va despues del pedido y sin bloquear: si falla, el pedido igual
-      // quedo guardado, que es lo que la persona vino a hacer.
-      guardarProveedor(prov,
+      // Va despues del pedido: si falla, el pedido igual quedo guardado,
+      // que es lo que la persona vino a hacer (guardarProveedor se traga
+      // sus propios errores, asi que esta promesa siempre resuelve).
+      //
+      // Se ESPERA antes de recargar. load() reconstruye MAESTRO leyendo la
+      // base, y si sale en paralelo con este insert lo lee sin la ficha
+      // recien creada: MAESTRO queda desactualizado y el proximo guardado
+      // del mismo pedido la vuelve a insertar. Asi se duplico "Wurth
+      // Uruguay S.A" — dos fichas identicas con 56 segundos de diferencia.
+      var ficha = guardarProveedor(prov,
         document.getElementById('ed-rut').value.trim(),
         document.getElementById('ed-tel').value.trim());
       btn.disabled=false;
       if(r2 && r2.error){ toast('Error en los artículos: '+r2.error.message,'err'); return; }
       toast(CUR?'Pedido actualizado':'Pedido cargado','ok');
-      closeModal('ov-edit'); load();
+      closeModal('ov-edit');
+      return ficha.then(load);
     });
   });
 }

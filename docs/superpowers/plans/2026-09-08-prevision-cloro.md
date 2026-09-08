@@ -1022,6 +1022,20 @@ if(!temporadaPrevia(temporadaActual())){
 
 Y las columnas de previsión, sugerido y kg de MP de la tabla muestran `—`, **no cero**. Un cero se lee como "no hay que envasar nada", que es exactamente la conclusión opuesta a la correcta.
 
+- [ ] **Step 4c: El caso "no hay con qué calcular un stock"** *(agregado al ejecutar)*
+
+Con las temporadas históricas cargadas —ventas sí, envasado no— la pantalla mostró `stock hoy −69.309 u` y sugirió envasar 13.227 unidades de Cloro Shock 240 g. Es aritmética correcta sobre datos que no están, y sale con cara de dato.
+
+```js
+// Un stock inicial cargado EN CERO sí cuenta: es una afirmación, no una
+// ausencia. Por eso se mira si existe la fila, no su valor.
+function hayBaseDeStock(){
+  return Object.keys(STOCK0).length>0 || ENVASADO.length>0;
+}
+```
+
+Mientras `hayBaseDeStock()` sea falso, `stock`, `sugerido` y `kg de MP` van en `—` (fila, total y KPI) y un aviso explica qué falta cargar. Las ventas y la previsión **sí** se muestran: esas no dependen del stock.
+
 - [ ] **Step 5: Verificar que los tres `<script>` inline parsean**
 
 ```bash
@@ -1065,6 +1079,8 @@ Después, abrir `cloro.html` en el navegador y comprobar contra la base que los 
 - [ ] **Step 1: El modal**
 
 Un `<div class="ovl" id="ovl-conf">` con dos secciones:
+
+**Nueva temporada** *(agregado al ejecutar: no estaba en el plan original y sin esto el módulo no se puede usar)* — nombre, fecha de inicio y de fin, y un tilde de "activa". Al crearla se inserta también su fila en `cl_parametros`, copiando los parámetros de la temporada que se estaba viendo. Sin esta pantalla las temporadas sólo se pueden crear por SQL, y la 2026-2027 —la que de verdad hay que planificar— no existe todavía.
 
 **Parámetros de la temporada** — suavizado (semanas, impar), horizonte (semanas), colchón (semanas), umbral de baja rotación, y crecimiento: un checkbox "calcular solo" y, si se destilda, un campo de %.
 

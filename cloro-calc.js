@@ -95,11 +95,88 @@
     return { pct: 0, modo: 'sin-datos' };
   }
 
+  // ─── La prevision ──────────────────────────────────────────────────
+  // El historico suavizado, corregido por el crecimiento. El orden
+  // importa: se suaviza PRIMERO. Crecer sobre la serie cruda y suavizar
+  // despues mezclaria semanas ya infladas con otras que no.
+  function prever(o) {
+    var suave = suavizar(o.anterior || [], o.ventana || 1);
+    var f = 1 + (parseFloat(o.crecimientoPct) || 0);
+    var out = [];
+    for (var i = 0; i < o.semanas; i++) out.push((suave[i] || 0) * f);
+    return out;
+  }
+
+  // Stock de producto terminado semana a semana. En las semanas ya
+  // cerradas manda la venta REAL; en las que vienen, la prevista.
+  //
+  // Puede quedar negativo y NO se recorta: un stock negativo es la senal
+  // de que falta envasar, y taparlo en cero esconderia justamente lo que
+  // el modulo viene a avisar.
+  function proyectarStock(o) {
+    var n = Math.max((o.ventas || []).length, (o.envasado || []).length, (o.prevision || []).length);
+    var s = parseFloat(o.stockInicial) || 0, out = [], i, salida;
+    for (i = 0; i < n; i++) {
+      salida = (i < o.semanasCerradas)
+        ? (parseFloat((o.ventas || [])[i]) || 0)
+        : (parseFloat((o.prevision || [])[i]) || 0);
+      s = s + (parseFloat((o.envasado || [])[i]) || 0) - salida;
+      out.push(s);
+    }
+    return out;
+  }
+
+  // Cuanto envasar: lo que se va a vender en el horizonte, mas un colchon
+  // proporcional, menos lo que ya hay, redondeado para arriba al lote.
+  function sugerido(o) {
+    var h = Math.max(1, o.horizonte || 1);
+    var desde = Math.max(1, o.desdeSemana || 1);
+    var dem = 0, i;
+    for (i = desde - 1; i < desde - 1 + h; i++) dem += (parseFloat((o.prevision || [])[i]) || 0);
+    var colchon = (parseFloat(o.semanasSeguridad) || 0) * (dem / h);
+    var bruto = Math.max(0, dem + colchon - (parseFloat(o.stockHoy) || 0));
+    var lote = parseFloat(o.lote) || 1;
+    if (lote <= 1) return Math.ceil(bruto);
+    return Math.ceil(bruto / lote) * lote;
+  }
+
+  // Un producto que vende menos que `umbral` por semana no admite
+  // prevision semanal: el ruido es mas grande que la senal. Medido en los
+  // datos reales, cuatro productos promedian entre 0,9 y 4,8 u/semana y
+  // el siguiente hacia arriba promedia 32; el corte es limpio.
+  // Se preve igual, pero la pantalla lo muestra por mes.
+  function bajaRotacion(serie, umbral) {
+    var a = serie || [];
+    if (!a.length) return true;
+    return (suma(a) / a.length) < (parseFloat(umbral) || 0);
+  }
+
+  // kg de materia prima. Un producto sin materia asignada o sin kg por
+  // unidad NO se reparte a ningun lado ni se estima: se devuelve en
+  // `sinAsignar` para que la pantalla lo cante. Adivinar aca termina en
+  // una compra de toneladas equivocada.
+  function kgMateria(productos, sugeridos) {
+    var porMateria = {}, sinAsignar = [];
+    (productos || []).forEach(function (p) {
+      var u = parseFloat((sugeridos || {})[p.id]) || 0;
+      var kgu = parseFloat(p.kg_mp_por_unidad) || 0;
+      if (p.materia_id == null || kgu <= 0) { sinAsignar.push(p.id); return; }
+      var kg = u * kgu * (1 + (parseFloat(p.merma_pct) || 0) / 100);
+      porMateria[p.materia_id] = (porMateria[p.materia_id] || 0) + kg;
+    });
+    return { porMateria: porMateria, sinAsignar: sinAsignar };
+  }
+
   return {
     lunesInicio: lunesInicio,
     semanaDe: semanaDe,
     semanasDeTemporada: semanasDeTemporada,
     suavizar: suavizar,
-    crecimiento: crecimiento
+    crecimiento: crecimiento,
+    prever: prever,
+    proyectarStock: proyectarStock,
+    sugerido: sugerido,
+    bajaRotacion: bajaRotacion,
+    kgMateria: kgMateria
   };
 });

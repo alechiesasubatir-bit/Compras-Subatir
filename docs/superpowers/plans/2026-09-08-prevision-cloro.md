@@ -1307,8 +1307,8 @@ Regla `@media print` copiada de `mp-importacion.html:343` (esconde header, conte
 
 - [ ] **Step 3: Correr todos los tests**
 
-Run: `node --test test/`
-Expected: PASS, los 26 de `cloro-calc` más los de `reposicion-calc`.
+Run: `node --test` (sin argumentos: descubre solo todo lo que hay en `test/`. `node --test test/` **no** funciona en Node 24, interpreta `test` como un archivo).
+Expected: PASS, 61 tests — los 26 de `cloro-calc` más los 35 de `reposicion-calc`.
 
 - [ ] **Step 4: Verificación final en el navegador**
 

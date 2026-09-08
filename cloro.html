@@ -387,6 +387,18 @@ function semanaHoy(t){
 function temporadaTerminada(t){
   return Cloro.semanaDe(new Date(), dIni(t)) > NSEM;
 }
+
+// ¿Hay con qué calcular un stock? Sin stock inicial cargado y sin una
+// sola orden de envasado, "envasado − ventas" da menos toda la temporada
+// y el sugerido pasa a ser "envasá todo lo que vendiste el año pasado".
+// Es aritmética correcta sobre datos que no están, y sale con cara de
+// dato. Mientras no haya base, stock y sugerido se muestran en "—".
+//
+// Un stock inicial cargado EN CERO sí cuenta: es una afirmación, no una
+// ausencia. Por eso se mira si existe la fila, no su valor.
+function hayBaseDeStock(){
+  return Object.keys(STOCK0).length>0 || ENVASADO.length>0;
+}
 function temporadaNoArranco(t){
   return Cloro.semanaDe(new Date(), dIni(t)) < 1;
 }
@@ -505,6 +517,7 @@ function filas(){
   var t=temporadaActual(); if(!t || !PAR) return [];
   var prev=temporadaPrevia(t), prev2=prev?temporadaPrevia(prev):null;
   var cerradas=Math.max(0, SEM_ACTUAL-1);
+  var base=hayBaseDeStock();
   return PROD.filter(function(p){ return p.activo!==false; })
     .sort(function(a,b){ return (a.orden||0)-(b.orden||0); })
     .map(function(p){
@@ -519,17 +532,18 @@ function filas(){
                         crecimientoPct:CREC.pct, semanas:NSEM})
         : null;
       var env = envasadoPorSemana(t, p.id);
-      var stock = prevision
+      var conStock = base && prevision;
+      var stock = conStock
         ? Cloro.proyectarStock({stockInicial:(STOCK0[p.id]||0), ventas:vAct,
                                 envasado:env, prevision:prevision, semanasCerradas:cerradas})
         : null;
-      var stockHoy = stock ? num(stock[SEM_ACTUAL-1]) : 0;
-      var sug = prevision
+      var stockHoy = stock ? num(stock[SEM_ACTUAL-1]) : null;
+      var sug = conStock
         ? Cloro.sugerido({prevision:prevision, desdeSemana:SEM_ACTUAL,
                           horizonte:PAR.horizonte_semanas,
                           semanasSeguridad:PAR.semanas_seguridad,
                           stockHoy:stockHoy, lote:p.lote_unidades})
-        : 0;
+        : null;
       var demH=0, i;
       if(prevision) for(i=SEM_ACTUAL-1;i<SEM_ACTUAL-1+num(PAR.horizonte_semanas);i++) demH+=num(prevision[i]);
       return {prod:p, vAct:vAct, vPrev:vPrev, vPre2:vPre2,
@@ -574,6 +588,12 @@ function pintarAvisos(){
     a.push({t:'info', txt:'<b>Esta temporada todavía no arrancó</b> (empieza el '+fechaCorta(t.fecha_ini)
       +'). La previsión se muestra desde la semana 1.'});
   }
+  if(!hayBaseDeStock()){
+    a.push({t:'temp', txt:'<b>Todavía no hay stock inicial ni órdenes de envasado en esta temporada</b>, '
+      +'así que el stock y el sugerido no se calculan: sin ese punto de partida, «envasado menos ventas» '
+      +'daría menos toda la temporada y el módulo te diría que envases de nuevo lo que ya vendiste. '
+      +'Las ventas y la previsión de arriba sí son buenas.'});
+  }
   var sinMP = PROD.filter(function(p){ return p.activo!==false && (p.materia_id==null || num(p.kg_mp_por_unidad)<=0); });
   if(sinMP.length){
     a.push({t:'urg', txt:'<b>'+sinMP.length+' producto'+(sinMP.length===1?'':'s')
@@ -617,9 +637,10 @@ function pintarKPIs(){
   var vPrevTramo = fs.reduce(function(s,f){
     return s + f.vPrev.slice(0,cerradas).reduce(function(a,x){ return a+num(x); },0); },0);
   var envTemp = fs.reduce(function(s,f){ return s+f.envasadoTemp; },0);
-  var stkHoy  = fs.reduce(function(s,f){ return s+f.stockHoy; },0);
+  var base    = hayBaseDeStock();
+  var stkHoy  = fs.reduce(function(s,f){ return s+num(f.stockHoy); },0);
   var demH    = fs.reduce(function(s,f){ return s+f.demandaH; },0);
-  var sug={}; fs.forEach(function(f){ sug[f.prod.id]=f.sugerido; });
+  var sug={}; fs.forEach(function(f){ sug[f.prod.id]=num(f.sugerido); });
   var mp = Cloro.kgMateria(PROD.filter(function(p){ return p.activo!==false; }), sug);
   var kgTot = Object.keys(mp.porMateria).reduce(function(s,k){ return s+mp.porMateria[k]; },0);
 
@@ -632,11 +653,13 @@ function pintarKPIs(){
          dif==null ? 'sin comparación' : 'contra el mismo tramo del año pasado: '
            +'<span class="dif '+(dif>=0?'up':'dn')+'">'+(dif>=0?'+':'')+n1(dif)+'%</span>')
    + kpi('b','Envasado', n0(envTemp)+' u', 'c-te', 'órdenes cargadas en la temporada')
-   + kpi('c','Stock hoy', n0(stkHoy)+' u', 'c-pu', 'inicial + envasado − ventas')
+   + kpi('c','Stock hoy', base?(n0(stkHoy)+' u'):'—', 'c-pu',
+         base ? 'inicial + envasado − ventas' : 'falta cargar stock inicial y envasado')
    + kpi('d','Demanda '+n0(PAR.horizonte_semanas)+' semanas', n0(demH)+' u', 'c-gr',
          'de la semana '+SEM_ACTUAL+' a la '+Math.min(NSEM, SEM_ACTUAL+num(PAR.horizonte_semanas)-1))
-   + kpi('e','Materia prima a comprar', n0(kgTot)+' kg', 'c-or',
-         mp.sinAsignar.length ? '<span class="c-rd">'+mp.sinAsignar.length+' producto'
+   + kpi('e','Materia prima a comprar', base?(n0(kgTot)+' kg'):'—', 'c-or',
+         !base ? 'sin base de stock no se puede sugerir'
+         : mp.sinAsignar.length ? '<span class="c-rd">'+mp.sinAsignar.length+' producto'
            +(mp.sinAsignar.length===1?'':'s')+' sin asignar, afuera de esta cuenta</span>'
          : 'todos los productos asignados');
 }
@@ -657,12 +680,13 @@ function pintarTabla(){
   fs.forEach(function(f){
     var p=f.prod;
     var sinMP = p.materia_id==null || num(p.kg_mp_por_unidad)<=0;
-    var kg = sinMP ? null : f.sugerido*num(p.kg_mp_por_unidad)*(1+num(p.merma_pct)/100);
+    var kg = (sinMP || f.sugerido==null) ? null
+           : f.sugerido*num(p.kg_mp_por_unidad)*(1+num(p.merma_pct)/100);
     var proxSem = f.prevision ? num(f.prevision[SEM_ACTUAL-1]) : null;
     // Cobertura: cuántas semanas aguanta el stock al ritmo previsto.
     var ritmo = f.demandaH>0 ? f.demandaH/num(PAR.horizonte_semanas) : 0;
-    var cob = ritmo>0 ? f.stockHoy/ritmo : null;
-    var cls = (f.stockHoy<0 ? 'falta ' : '') + (sinMP ? 'sinmp' : '');
+    var cob = (f.stockHoy!=null && ritmo>0) ? f.stockHoy/ritmo : null;
+    var cls = (f.stockHoy!=null && f.stockHoy<0 ? 'falta ' : '') + (sinMP ? 'sinmp' : '');
 
     h+='<tr class="'+cls+'">'
       +'<td class="l"><div class="art">'+esc(p.nombre)
@@ -674,26 +698,28 @@ function pintarTabla(){
             +(num(p.merma_pct)>0?' +'+n1(p.merma_pct)+'%':''))+'</td>'
       +'<td>'+n0(f.ventasTemp)+'</td>'
       +'<td class="calc">'+n0(f.envasadoTemp)+'</td>'
-      +'<td>'+n0(f.stockHoy)
+      +'<td>'+(f.stockHoy==null?'<span class="calc">—</span>':n0(f.stockHoy))
          +(cob==null?'' :'<span class="cob '+(cob<2?'bajo':(cob<4?'medio':''))+'">'
              +(f.stockHoy<0?'FALTA ENVASAR':n1(cob)+' sem')+'</span>')+'</td>'
       +'<td class="calc">'+(proxSem==null?'—':n0(proxSem))+'</td>'
       +'<td class="calc">'+(f.prevision?n0(f.demandaH):'—')+'</td>'
-      +'<td class="sug">'+(f.prevision?n0(f.sugerido):'—')+'</td>'
-      +'<td class="kgmp">'+(kg==null?'—':n0(kg))+'</td>'
+      +'<td class="sug">'+(f.sugerido==null?'<span class="calc">—</span>':n0(f.sugerido))+'</td>'
+      +'<td class="kgmp">'+(kg==null?'<span class="calc">—</span>':n0(kg))+'</td>'
       +'</tr>';
-    tot.v+=f.ventasTemp; tot.e+=f.envasadoTemp; tot.s+=f.stockHoy;
-    tot.d+=f.demandaH; tot.g+=f.sugerido; tot.kg+=(kg||0);
+    tot.v+=f.ventasTemp; tot.e+=f.envasadoTemp; tot.s+=num(f.stockHoy);
+    tot.d+=f.demandaH; tot.g+=num(f.sugerido); tot.kg+=(kg||0);
   });
+  var base=hayBaseDeStock();
   h+='<tr class="tot"><td class="l">TOTAL</td><td class="l"></td>'
-    +'<td>'+n0(tot.v)+'</td><td>'+n0(tot.e)+'</td><td>'+n0(tot.s)+'</td>'
-    +'<td></td><td>'+n0(tot.d)+'</td><td>'+n0(tot.g)+'</td><td>'+n0(tot.kg)+'</td></tr>';
+    +'<td>'+n0(tot.v)+'</td><td>'+n0(tot.e)+'</td><td>'+(base?n0(tot.s):'—')+'</td>'
+    +'<td></td><td>'+n0(tot.d)+'</td><td>'+(base?n0(tot.g):'—')+'</td>'
+    +'<td>'+(base?n0(tot.kg):'—')+'</td></tr>';
   document.getElementById('tbody').innerHTML=h;
 }
 
 function pintarMP(){
   var fs=filas();
-  var sug={}; fs.forEach(function(f){ sug[f.prod.id]=f.sugerido; });
+  var sug={}; fs.forEach(function(f){ sug[f.prod.id]=num(f.sugerido); });
   var activos = PROD.filter(function(p){ return p.activo!==false; });
   var r = Cloro.kgMateria(activos, sug);
   var h='', tot=0;

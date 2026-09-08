@@ -45,9 +45,61 @@
     return semanaDe(fechaFin, fechaIni);
   }
 
+  // ─── Suavizado ─────────────────────────────────────────────────────
+  // Semana contra semana las temporadas se parecen poco: se midio 0,68 de
+  // correlacion entre 2024-25 y 2025-26 en el total de la linea, y el pico
+  // cayo en la semana 27 de una y en la 23 de la otra. Son camiones
+  // mayoristas que caen en semanas distintas. Con una ventana centrada de
+  // 5 la correlacion sube a 0,84, y a 0,92 en los productos grandes.
+  // Sin esto, la prevision diria "la semana que viene 15.000 unidades"
+  // porque el ano pasado justo ahi cargo un camion.
+
+  // Media movil centrada. En los bordes promedia lo que hay en vez de
+  // rellenar con ceros: rellenar hundiria artificialmente el arranque y
+  // el final de la temporada, que es justo donde menos datos hay.
+  function suavizar(serie, ventana) {
+    var n = Math.max(1, Math.floor(ventana || 1));
+    if (n <= 1) return serie.slice();
+    var k = Math.floor(n / 2), out = [], i, j, a, b, s, c;
+    for (i = 0; i < serie.length; i++) {
+      a = Math.max(0, i - k);
+      b = Math.min(serie.length - 1, i + k);
+      s = 0; c = 0;
+      for (j = a; j <= b; j++) { s += (parseFloat(serie[j]) || 0); c++; }
+      out.push(c ? s / c : 0);
+    }
+    return out;
+  }
+
+  function suma(a, hasta) {
+    var s = 0, n = (hasta == null ? (a || []).length : Math.min(hasta, (a || []).length));
+    for (var i = 0; i < n; i++) s += (parseFloat(a[i]) || 0);
+    return s;
+  }
+
+  // ─── Crecimiento del ano ───────────────────────────────────────────
+  // Se mide comparando el MISMO TRAMO de las dos temporadas. Comparar lo
+  // que va de esta contra la anterior entera diria que las ventas se
+  // derrumbaron todos los agostos.
+  function crecimiento(o) {
+    var min = o.minSemanas == null ? 4 : o.minSemanas;
+    var cerradas = o.semanasCerradas || 0;
+    if (cerradas >= min) {
+      var den = suma(o.anterior, cerradas);
+      if (den > 0) return { pct: suma(o.actual, cerradas) / den - 1, modo: 'auto' };
+    }
+    // Temporada recien arrancada: todavia no hay tramo que comparar, asi
+    // que se hereda el crecimiento que hubo entre las dos anteriores.
+    var denPrevia = suma(o.previa);
+    if (denPrevia > 0) return { pct: suma(o.anterior) / denPrevia - 1, modo: 'temporada-completa' };
+    return { pct: 0, modo: 'sin-datos' };
+  }
+
   return {
     lunesInicio: lunesInicio,
     semanaDe: semanaDe,
-    semanasDeTemporada: semanasDeTemporada
+    semanasDeTemporada: semanasDeTemporada,
+    suavizar: suavizar,
+    crecimiento: crecimiento
   };
 });

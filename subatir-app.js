@@ -23,6 +23,7 @@
     'proveedores.html': 'proveedores',
     'varios.html': 'varios',
     'mp-importacion.html': 'mp_importacion',
+    'cloro.html': 'cloro',
     'usuarios.html': 'usuarios'
   };
   // Módulos visibles/accesibles para cualquier usuario autenticado

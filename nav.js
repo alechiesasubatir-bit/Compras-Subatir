@@ -31,6 +31,8 @@
     { k: 'varios',       href: 'varios.html',         ico: '🧾', txt: 'Pedidos Varios' },
     { k: 'mp_importacion', href: 'mp-importacion.html', ico: '🧪', txt: 'MP Importación',
       title: 'Previsión y control de compra de materia prima importada' },
+    { k: 'cloro', href: 'cloro.html', ico: '💧', txt: 'Previsión Cloro',
+      title: 'Previsión de envasado y compra de materia prima de la línea de piscinas' },
     { k: 'deposito',     href: 'deposito/index.html', ico: '🏢', txt: 'Depósitos',
       title: 'Ir a la app de Control de Stock de Depósitos' },
     { k: 'usuarios',     href: 'usuarios.html',       ico: '👥', txt: 'Usuarios' }

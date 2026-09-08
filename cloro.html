@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Previsión Cloro — Subatir / Prolimpio</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:    #07090f; --bg1:#0c1119; --bg2:#111926;
+  --teal:  #0e8aaa; --teal-l:#1bc8ff;
+  --orange:#f97316; --orange-d:#c2580a; --orange-l:#fb923c; --gold:#f5c842;
+  --glass: rgba(255,255,255,.04);
+  --border:rgba(255,255,255,.07); --border-b:rgba(255,255,255,.12);
+  --text:  #e2e8f0; --muted:#5a6a80; --muted-l:#7a8fa8;
+  --red:   #ef4444; --amber:#f59e0b; --green:#22c55e; --purple:#a78bfa;
+  --agua:  #38bdf8; --agua-d:#0369a1;
+  --mono:  'IBM Plex Mono',monospace; --display:'Manrope',sans-serif;
+  --r:     14px; --shadow:0 8px 32px rgba(0,0,0,.45);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 55% at 5% 10%,rgba(56,189,248,.13) 0%,transparent 55%),
+             radial-gradient(ellipse 60% 50% at 95% 90%,rgba(249,115,22,.08) 0%,transparent 55%)}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:13px 22px;background:rgba(7,9,15,.9);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(24px)}
+.logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--text)}
+.logo-icon{width:38px;height:38px;border-radius:50%;flex-shrink:0;object-fit:cover;display:block;
+  box-shadow:0 0 0 2px rgba(56,189,248,.5),0 0 14px rgba(56,189,248,.25)}
+.logo h1{font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo p{font-size:10px;color:var(--muted-l);margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+
+main{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:18px 20px 40px;
+  display:flex;flex-direction:column;gap:14px}
+.card{background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);
+  border-radius:var(--r);box-shadow:var(--shadow)}
+
+/* ── Barra de contexto ────────────────────────────────────── */
+.ctx{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 16px}
+.ctx-l{font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:1.3px;
+  text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
+.ctx-g{display:flex;flex-direction:column;min-width:0}
+.ctx-sp{flex:1}
+.inp,select.inp{background:rgba(255,255,255,.04);border:1px solid var(--border-b);border-radius:9px;
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 11px;min-height:38px}
+.inp:focus{outline:2px solid rgba(56,189,248,.5);outline-offset:1px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;
+  border:1px solid var(--border-b);background:rgba(255,255,255,.06);color:var(--text);
+  font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;
+  min-height:38px;transition:filter .15s,transform .15s}
+.btn:hover{filter:brightness(1.15)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible{outline:2px solid rgba(56,189,248,.7);outline-offset:2px}
+.btn-pri{background:linear-gradient(135deg,var(--agua-d),var(--agua));border-color:transparent;color:#04121c}
+.btn-teal{background:rgba(14,138,170,.22);border-color:rgba(27,200,255,.32);color:var(--teal-l)}
+.btn-sm{padding:5px 10px;font-size:11.5px;min-height:32px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;
+  font-family:var(--mono);font-size:10.5px;font-weight:600;
+  background:rgba(56,189,248,.12);color:var(--agua);border:1px solid rgba(56,189,248,.28)}
+.chip.warn{background:rgba(245,158,11,.12);color:#fcd34d;border-color:rgba(245,158,11,.3)}
+.chip.bad{background:rgba(239,68,68,.12);color:#fca5a5;border-color:rgba(239,68,68,.32)}
+
+/* ── KPIs ─────────────────────────────────────────────────── */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:11px}
+.kpi{padding:14px 16px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;left:0;right:0;top:0;height:2px}
+.kpi-a::after{background:linear-gradient(90deg,var(--agua-d),var(--agua))}
+.kpi-b::after{background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.kpi-c::after{background:linear-gradient(90deg,var(--purple),#c084fc)}
+.kpi-d::after{background:linear-gradient(90deg,var(--green),#4ade80)}
+.kpi-e::after{background:linear-gradient(90deg,var(--orange-d),var(--orange))}
+.kpi-l{font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:1.1px;
+  text-transform:uppercase;color:var(--muted-l)}
+.kpi-v{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-1px;margin-top:5px;
+  font-variant-numeric:tabular-nums}
+.kpi-s{font-size:11px;color:var(--muted);margin-top:3px}
+.c-ag{color:var(--agua)} .c-te{color:var(--teal-l)} .c-pu{color:var(--purple)}
+.c-gr{color:#4ade80} .c-go{color:var(--gold)} .c-rd{color:#fca5a5} .c-or{color:var(--orange-l)}
+
+/* ── Paneles ──────────────────────────────────────────────── */
+.sec{padding:16px}
+.sec-h{display:flex;align-items:center;gap:11px;justify-content:space-between;flex-wrap:wrap;margin-bottom:13px}
+.sec-t{display:flex;align-items:center;gap:9px;min-width:0}
+.sec-ico{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;background:rgba(56,189,248,.13);border:1px solid rgba(56,189,248,.25);flex:none}
+.sec-ico.or{background:rgba(249,115,22,.13);border-color:rgba(249,115,22,.28)}
+.sec-eyebrow{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--muted)}
+.sec-t h2{font-family:var(--display);font-size:15.5px;font-weight:800;letter-spacing:-.2px}
+.sec-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* ── Tabla ────────────────────────────────────────────────── */
+.twrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.16)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+thead th{padding:9px 8px;text-align:right;white-space:nowrap;background:linear-gradient(180deg,#101a26,#0c1520);
+  color:var(--agua);font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.6px;
+  text-transform:uppercase;border-bottom:1px solid rgba(56,189,248,.18)}
+thead th.l{text-align:left}
+thead th.c{text-align:center}
+thead th.out{color:var(--gold)}
+tbody td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;
+  font-family:var(--mono);font-variant-numeric:tabular-nums}
+tbody td.l{text-align:left;font-family:'DM Sans',sans-serif}
+tbody td.c{text-align:center}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+.tot td{background:rgba(255,255,255,.05);font-weight:700;border-top:1px solid var(--border-b)}
+.art{max-width:270px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.cod{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.calc{color:var(--muted-l)}
+.sug{font-weight:700;font-size:13px;color:var(--gold)}
+.kgmp{font-weight:600;color:var(--orange-l)}
+.dif{font-family:var(--mono);font-size:10.5px}
+.dif.up{color:#4ade80} .dif.dn{color:#fca5a5}
+/* Cobertura del stock, en semanas. Va debajo del propio stock. */
+.cob{display:block;font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.4px;
+  color:var(--muted);margin-top:3px;white-space:nowrap}
+.cob.medio{color:var(--orange-l)}
+.cob.bajo{color:#fca5a5}
+/* Stock proyectado negativo: falta envasar. Se ve de lejos y ademas lo dice. */
+tr.falta{background:rgba(239,68,68,.07)}
+tr.falta:hover{background:rgba(239,68,68,.11)}
+tr.falta td:first-child{box-shadow:inset 3px 0 0 var(--red)}
+/* Producto sin materia prima asignada: no suma kg y hay que verlo. */
+tr.sinmp td.mp{color:#fca5a5}
+.tag{display:inline-flex;align-items:center;padding:1px 7px;border-radius:20px;white-space:nowrap;
+  font-family:var(--display);font-size:8.5px;font-weight:800;letter-spacing:.4px;margin-left:6px}
+.tag.rot{background:rgba(167,139,250,.16);color:var(--purple);border:1px solid rgba(167,139,250,.32)}
+.tag.nomp{background:rgba(239,68,68,.14);color:#fca5a5;border:1px solid rgba(239,68,68,.32)}
+
+/* ── Varios ───────────────────────────────────────────────── */
+.empty{padding:34px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.65}
+.aviso{padding:11px 15px;border-radius:11px;font-size:12.5px;line-height:1.55;margin-bottom:10px}
+.aviso.urg{background:rgba(239,68,68,.11);border:1px solid rgba(239,68,68,.35);color:#fca5a5}
+.aviso.info{background:rgba(56,189,248,.09);border:1px solid rgba(56,189,248,.28);color:var(--agua)}
+.aviso.temp{background:rgba(249,115,22,.10);border:1px solid rgba(249,115,22,.32);color:var(--orange-l)}
+.ovl{position:fixed;inset:0;z-index:500;background:rgba(4,6,11,.72);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:18px}
+.ovl.open{display:flex}
+.modal{width:100%;max-width:560px;background:linear-gradient(160deg,var(--bg1),var(--bg2));
+  border:1px solid var(--border-b);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.6);
+  max-height:90vh;display:flex;flex-direction:column}
+.modal-h{display:flex;align-items:center;justify-content:space-between;padding:17px 20px 14px;
+  border-bottom:1px solid var(--border);font-family:var(--display);font-size:15px;font-weight:800}
+.modal-b{padding:18px 20px;overflow:auto}
+.modal-f{display:flex;justify-content:flex-end;gap:9px;padding:14px 20px;border-top:1px solid var(--border)}
+.x{background:none;border:none;color:var(--muted-l);font-size:19px;line-height:1;cursor:pointer;
+  padding:3px 8px;border-radius:7px}
+.x:hover{color:#fff;background:rgba(255,255,255,.08)}
+.hint{font-size:11.5px;color:var(--muted-l);line-height:1.6;margin-top:7px}
+.toasts{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px}
+.toast{padding:11px 15px;border-radius:10px;font-size:12.5px;font-weight:600;max-width:420px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.toast.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#86efac}
+.toast.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5}
+.toast.info{background:rgba(56,189,248,.13);border:1px solid rgba(56,189,248,.35);color:var(--agua)}
+html{color-scheme:dark}
+select option{background:#0c1119;color:#e2e8f0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{
+  header,.ctx,.sec-tools,.toasts,.btn{display:none!important}
+  body::before{display:none}
+  body{background:#fff;color:#000}
+  .card{border-color:#ccc;box-shadow:none;background:#fff}
+  thead th{background:#eee;color:#000}
+  .twrap{max-height:none;overflow:visible}
+}
+@media (max-width:760px){
+  main{padding:14px 12px 30px}
+  .kpi-v{font-size:22px}
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-08.1349"/>
+<script src="supabase-config.js?v=2026-09-08.1349"></script>
+<script src="subatir-app.js?v=2026-09-08.1349"></script>
+<script>
+// Version del modulo. La compara subatir-app.js contra version.json y si
+// hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
+window.APP_VER='2026-09-08.1349';
+</script>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">
+    <img class="logo-icon" src="logo.jpg" alt=""/>
+    <div><h1>Subatir</h1><p>Previsión Cloro</p></div>
+  </a>
+  <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
+  <nav></nav>
+  <script src="nav.js?v=2026-09-08.1349"></script>
+  <div class="hdr-r">
+    <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
+    <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══ Contexto ═══════════════════════════════════════════ -->
+  <div class="card ctx">
+    <div class="ctx-g" style="flex:1;max-width:280px">
+      <span class="ctx-l">Temporada</span>
+      <select class="inp" id="f-temp" onchange="cambioTemporada()" aria-label="Temporada"></select>
+    </div>
+    <div class="ctx-g">
+      <span class="ctx-l">Semana</span>
+      <span id="sem-actual" class="chip">—</span>
+    </div>
+    <div class="ctx-g">
+      <span class="ctx-l">Crecimiento</span>
+      <span id="crec" class="chip">—</span>
+    </div>
+    <div class="ctx-sp"></div>
+    <div class="sec-tools">
+      <button class="btn btn-sm" onclick="openConfig()"
+              title="Materias primas, kg por unidad y parámetros de la temporada">⚙ Configuración</button>
+      <button class="btn btn-sm btn-teal" onclick="openImportar()"
+              title="Subir los .xls de ventas del ERP">📥 Importar ventas</button>
+      <button class="btn btn-sm btn-pri" onclick="openEnvasado()">➕ Orden de envasado</button>
+      <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
+    </div>
+  </div>
+
+  <div id="avisos"></div>
+
+  <!-- ══ KPIs ═══════════════════════════════════════════════ -->
+  <div class="kpis" id="kpis"></div>
+
+  <!-- ══ Por producto ═══════════════════════════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico">💧</div>
+        <div>
+          <div class="sec-eyebrow">Línea de piscinas</div>
+          <h2>Qué envasar</h2>
+        </div>
+      </div>
+      <div class="sec-tools">
+        <span class="chip" id="chip-horiz">—</span>
+      </div>
+    </div>
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="l">Producto</th>
+            <th class="l">Materia prima</th>
+            <th>Ventas temp.</th>
+            <th>Envasado</th>
+            <th>Stock hoy</th>
+            <th>Prev. próx. sem.</th>
+            <th>Demanda horiz.</th>
+            <th class="out">A envasar</th>
+            <th class="out">kg de MP</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ Por materia prima ══════════════════════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico or">🧪</div>
+        <div>
+          <div class="sec-eyebrow">Compra</div>
+          <h2>Materia prima a comprar</h2>
+        </div>
+      </div>
+    </div>
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="l">Materia prima</th>
+            <th class="l">Productos</th>
+            <th class="out">kg del horizonte</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-mp"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script src="cloro-calc.js?v=2026-09-08.1349"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
+//
+//  La línea es estacional y corta: se vende de agosto a marzo. El cloro
+//  se importa, así que comprar se decide meses antes de la venta que lo
+//  justifica. Este módulo junta las ventas históricas, lo que se envasa
+//  semana a semana, y sale de ahí con dos números: cuánto envasar y
+//  cuántos kg de materia prima comprar.
+//
+//  EL CÁLCULO NO ESTÁ ACÁ. Vive en cloro-calc.js, con sus tests en
+//  test/cloro-calc.test.js. Esta pantalla junta los datos, se los pasa
+//  y dibuja lo que vuelve.
+//
+//  La semana es PROPIA DE LA TEMPORADA, no ISO: ver el comentario de
+//  cloro-calc.js.
+// ══════════════════════════════════════════════════════════════
+var TEMPS=[], PROD=[], MAT=[], VENTAS={}, ENVASADO=[], STOCK0={}, PAR=null;
+var CUR_TEMP=null, NSEM=0, SEM_ACTUAL=0, CREC={pct:0,modo:'sin-datos'};
+
+function esc(s){ return String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function n0(v){ return Math.round(parseFloat(v)||0).toLocaleString('es-UY'); }
+function n1(v){ return (parseFloat(v)||0).toLocaleString('es-UY',{minimumFractionDigits:1,maximumFractionDigits:1}); }
+function num(v){ var x=parseFloat(v); return isNaN(x)?0:x; }
+
+function toast(msg,tipo){
+  var h=document.getElementById('toasts');
+  var d=document.createElement('div');
+  d.className='toast '+(tipo||'info'); d.textContent=msg;
+  h.appendChild(d);
+  setTimeout(function(){ d.style.opacity='0'; d.style.transition='opacity .35s';
+    setTimeout(function(){ if(d.parentNode) d.remove(); },380); }, tipo==='err'?5200:3000);
+}
+function abrir(id){ document.getElementById(id).classList.add('open'); }
+function cerrar(id){ document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape') document.querySelectorAll('.ovl.open').forEach(function(o){ o.classList.remove('open'); });
+});
+
+// ══ HELPERS DE TEMPORADA ══════════════════════════════════════
+function temporadaActual(){ return TEMPS.filter(function(t){ return t.id===CUR_TEMP; })[0]; }
+
+// La inmediata anterior por fecha de arranque. No se asume que estén
+// ordenadas ni que sean años consecutivos: si falta una temporada del
+// medio, la "anterior" es la que de verdad existe.
+function temporadaPrevia(t){
+  if(!t) return null;
+  var prev=null;
+  TEMPS.forEach(function(x){
+    if(x.fecha_ini < t.fecha_ini && (!prev || x.fecha_ini > prev.fecha_ini)) prev=x;
+  });
+  return prev;
+}
+function dIni(t){ return new Date(t.fecha_ini+'T00:00:00Z'); }
+function dFin(t){ return new Date(t.fecha_fin+'T00:00:00Z'); }
+
+// Serie semanal de ventas de un producto, indexada 0 = semana 1.
+function serieVentas(tempId, prodId){
+  return ((VENTAS[tempId]||{})[prodId]) || [];
+}
+
+// Las órdenes de envasado se guardan por FECHA (una fila por orden) y el
+// cálculo las quiere por semana: acá es donde se pasa de una cosa a la otra.
+function envasadoPorSemana(t, prodId){
+  var ini = dIni(t);
+  var out = new Array(NSEM), i;
+  for(i=0;i<NSEM;i++) out[i]=0;
+  ENVASADO.forEach(function(e){
+    if(e.temporada_id!==t.id || e.producto_id!==prodId) return;
+    var w = Cloro.semanaDe(new Date(e.fecha+'T00:00:00Z'), ini);
+    if(w>=1 && w<=NSEM) out[w-1] += num(e.cantidad);
+  });
+  return out;
+}
+
+// En qué semana de la temporada estamos. Si la temporada ya terminó
+// devuelve la última: el módulo pasa a ser una foto de lo que pasó, no
+// una previsión de lo que viene, y la pantalla lo avisa.
+function semanaHoy(t){
+  var w = Cloro.semanaDe(new Date(), dIni(t));
+  return Math.min(Math.max(w,1), NSEM);
+}
+function temporadaTerminada(t){
+  return Cloro.semanaDe(new Date(), dIni(t)) > NSEM;
+}
+function temporadaNoArranco(t){
+  return Cloro.semanaDe(new Date(), dIni(t)) < 1;
+}
+
+// ══ CARGA ═════════════════════════════════════════════════════
+SubatirApp.ready.then(function(p){ if(p) cargar(); });
+
+function falta(e){
+  var m=(e&&e.message)||'';
+  document.getElementById('tbody').innerHTML='<tr><td colspan="9" class="empty">'
+    +'No se pudieron leer los datos de Previsión Cloro.<br>'
+    +(/relation|does not exist|schema cache/i.test(m)
+      ? 'Falta correr <b>migracion/cloro_schema.sql</b> y <b>migracion/cloro_seed.sql</b> en Supabase.'
+      : esc(m))
+    +'</td></tr>';
+  document.getElementById('kpis').innerHTML='';
+  document.getElementById('tbody-mp').innerHTML='';
+}
+
+function cargar(){
+  return Promise.all([
+    SB.from('cl_temporadas').select('*').order('fecha_ini',{ascending:false}),
+    SB.from('cl_materias').select('*').order('nombre'),
+    SB.from('cl_productos').select('*').order('orden')
+  ]).then(function(r){
+    var e=r.find(function(x){ return x.error; });
+    if(e){ falta(e.error); return; }
+    TEMPS=r[0].data||[]; MAT=r[1].data||[]; PROD=r[2].data||[];
+    if(!TEMPS.length){ falta({message:'No hay ninguna temporada cargada.'}); return; }
+    var st=document.getElementById('f-temp');
+    st.innerHTML=TEMPS.map(function(t){
+      return '<option value="'+t.id+'">'+esc(t.nombre)+(t.activa?' · activa':'')+'</option>'; }).join('');
+    // La activa manda; si no hay ninguna, la más reciente.
+    var act=TEMPS.filter(function(t){ return t.activa; })[0];
+    CUR_TEMP = (CUR_TEMP && TEMPS.some(function(t){return t.id===CUR_TEMP;}))
+             ? CUR_TEMP : (act ? act.id : TEMPS[0].id);
+    st.value=CUR_TEMP;
+    return cargarTemporada();
+  }, falta);
+}
+
+function cargarTemporada(){
+  var t=temporadaActual(); if(!t) return Promise.resolve();
+  NSEM = Cloro.semanasDeTemporada(dIni(t), dFin(t));
+  // Se leen las ventas de ESTA temporada y de las dos anteriores: una
+  // para prever y la otra para dibujar el contexto y, si hace falta,
+  // heredar el crecimiento.
+  var prev = temporadaPrevia(t), prev2 = prev ? temporadaPrevia(prev) : null;
+  var ids = [t.id]; if(prev) ids.push(prev.id); if(prev2) ids.push(prev2.id);
+  return Promise.all([
+    SB.from('cl_ventas').select('temporada_id,producto_id,semana,unidades').in('temporada_id', ids),
+    SB.from('cl_envasado').select('*').eq('temporada_id', t.id),
+    SB.from('cl_stock_inicial').select('*').eq('temporada_id', t.id),
+    SB.from('cl_parametros').select('*').eq('temporada_id', t.id).limit(1)
+  ]).then(function(r){
+    var e=r.find(function(x){ return x.error; });
+    if(e){ falta(e.error); return; }
+    // Las series se dimensionan con la semana más alta que de verdad
+    // exista, no con NSEM: una temporada de 36 semanas cargada mientras
+    // se mira una de 35 no debe perder su última semana.
+    VENTAS={};
+    var maxW=NSEM;
+    (r[0].data||[]).forEach(function(v){ if(v.semana>maxW) maxW=v.semana; });
+    (r[0].data||[]).forEach(function(v){
+      var pt=VENTAS[v.temporada_id]||(VENTAS[v.temporada_id]={});
+      var s=pt[v.producto_id];
+      if(!s){ s=pt[v.producto_id]=new Array(maxW); for(var i=0;i<maxW;i++) s[i]=0; }
+      if(v.semana>=1 && v.semana<=maxW) s[v.semana-1]=num(v.unidades);
+    });
+    ENVASADO=r[1].data||[];
+    STOCK0={}; (r[2].data||[]).forEach(function(x){ STOCK0[x.producto_id]=num(x.cantidad); });
+    PAR=(r[3].data||[])[0]||null;
+    if(!PAR){ falta({message:'La temporada no tiene parámetros cargados (cl_parametros).'}); return; }
+
+    SEM_ACTUAL = semanaHoy(t);
+    calcularCrecimiento(t, prev, prev2);
+    pintarTodo();
+    document.getElementById('ts').textContent='Actualizado: '
+      +new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+  }, falta);
+}
+
+function cambioTemporada(){
+  CUR_TEMP=parseInt(document.getElementById('f-temp').value,10);
+  cargarTemporada();
+}
+
+// El crecimiento se mide sobre el TOTAL de la línea, no producto por
+// producto: un producto solo tiene semanas en cero y el cociente se
+// vuelve ruido. Es un factor de año, y el año es uno para todos.
+function calcularCrecimiento(t, prev, prev2){
+  if(PAR.crecimiento_pct!=null){
+    CREC={pct:num(PAR.crecimiento_pct)/100, modo:'manual'};
+    return;
+  }
+  var cerradas = Math.max(0, SEM_ACTUAL-1);   // la semana en curso está incompleta
+  function total(tempId){
+    var out=[], i;
+    for(i=0;i<NSEM;i++) out[i]=0;
+    PROD.forEach(function(p){
+      var s=serieVentas(tempId,p.id);
+      for(i=0;i<NSEM;i++) out[i]+=num(s[i]);
+    });
+    return out;
+  }
+  CREC = Cloro.crecimiento({
+    actual:   total(t.id),
+    anterior: prev  ? total(prev.id)  : [],
+    previa:   prev2 ? total(prev2.id) : null,
+    semanasCerradas: cerradas
+  });
+}
+
+// ══ LAS FILAS ═════════════════════════════════════════════════
+function filas(){
+  var t=temporadaActual(); if(!t || !PAR) return [];
+  var prev=temporadaPrevia(t), prev2=prev?temporadaPrevia(prev):null;
+  var cerradas=Math.max(0, SEM_ACTUAL-1);
+  return PROD.filter(function(p){ return p.activo!==false; })
+    .sort(function(a,b){ return (a.orden||0)-(b.orden||0); })
+    .map(function(p){
+      var vAct  = serieVentas(t.id, p.id);
+      var vPrev = prev  ? serieVentas(prev.id,  p.id) : [];
+      var vPre2 = prev2 ? serieVentas(prev2.id, p.id) : [];
+      // Sin temporada anterior no hay de dónde prever. Se devuelve null y
+      // la pantalla muestra "—"; un cero se leería como "no hay que
+      // envasar nada", que es la conclusión opuesta a la correcta.
+      var prevision = prev
+        ? Cloro.prever({anterior:vPrev, ventana:PAR.suavizado_semanas,
+                        crecimientoPct:CREC.pct, semanas:NSEM})
+        : null;
+      var env = envasadoPorSemana(t, p.id);
+      var stock = prevision
+        ? Cloro.proyectarStock({stockInicial:(STOCK0[p.id]||0), ventas:vAct,
+                                envasado:env, prevision:prevision, semanasCerradas:cerradas})
+        : null;
+      var stockHoy = stock ? num(stock[SEM_ACTUAL-1]) : 0;
+      var sug = prevision
+        ? Cloro.sugerido({prevision:prevision, desdeSemana:SEM_ACTUAL,
+                          horizonte:PAR.horizonte_semanas,
+                          semanasSeguridad:PAR.semanas_seguridad,
+                          stockHoy:stockHoy, lote:p.lote_unidades})
+        : 0;
+      var demH=0, i;
+      if(prevision) for(i=SEM_ACTUAL-1;i<SEM_ACTUAL-1+num(PAR.horizonte_semanas);i++) demH+=num(prevision[i]);
+      return {prod:p, vAct:vAct, vPrev:vPrev, vPre2:vPre2,
+              prevision:prevision, stock:stock, stockHoy:stockHoy,
+              demandaH:demH, sugerido:sug,
+              ventasTemp: vAct.reduce(function(s,x){ return s+num(x); },0),
+              ventasPrev: vPrev.reduce(function(s,x){ return s+num(x); },0),
+              envasadoTemp: env.reduce(function(s,x){ return s+num(x); },0),
+              bajaRot: prev ? Cloro.bajaRotacion(vPrev, PAR.umbral_baja_rotacion) : false};
+    });
+}
+
+function pintarTodo(){ pintarContexto(); pintarAvisos(); pintarKPIs(); pintarTabla(); pintarMP(); }
+
+function pintarContexto(){
+  var t=temporadaActual();
+  var el=document.getElementById('sem-actual');
+  el.textContent = 'semana '+SEM_ACTUAL+' de '+NSEM;
+  el.className = 'chip' + (temporadaTerminada(t)||temporadaNoArranco(t) ? ' warn' : '');
+  var c=document.getElementById('crec');
+  var txt={'auto':'automático','temporada-completa':'heredado','manual':'a mano','sin-datos':'sin datos'};
+  c.textContent = (CREC.modo==='sin-datos' ? '—' : (CREC.pct>=0?'+':'')+n1(CREC.pct*100)+'%')
+                + ' · ' + (txt[CREC.modo]||CREC.modo);
+  c.className = 'chip' + (CREC.modo==='auto' ? '' : ' warn');
+  document.getElementById('chip-horiz').textContent =
+    'horizonte: '+n0(PAR.horizonte_semanas)+' semanas · colchón '+n1(PAR.semanas_seguridad)+' · suavizado ±'
+    +Math.floor(num(PAR.suavizado_semanas)/2);
+}
+
+function pintarAvisos(){
+  var t=temporadaActual(), a=[], fs=filas();
+
+  if(!temporadaPrevia(t)){
+    a.push({t:'urg', txt:'<b>No hay temporada anterior cargada.</b> Sin ella no se puede prever: '
+      +'la previsión sale del histórico de la temporada pasada. Importá sus ventas y volvé.'});
+  }
+  if(temporadaTerminada(t)){
+    a.push({t:'temp', txt:'<b>Esta temporada terminó</b> el '+fechaCorta(t.fecha_fin)
+      +'. Lo que ves es la foto de lo que pasó, no una previsión. '
+      +'Para la temporada nueva, creála desde <b>⚙ Configuración</b>.'});
+  } else if(temporadaNoArranco(t)){
+    a.push({t:'info', txt:'<b>Esta temporada todavía no arrancó</b> (empieza el '+fechaCorta(t.fecha_ini)
+      +'). La previsión se muestra desde la semana 1.'});
+  }
+  var sinMP = PROD.filter(function(p){ return p.activo!==false && (p.materia_id==null || num(p.kg_mp_por_unidad)<=0); });
+  if(sinMP.length){
+    a.push({t:'urg', txt:'<b>'+sinMP.length+' producto'+(sinMP.length===1?'':'s')
+      +' sin materia prima o sin kg por unidad.</b> No suman kg en la compra. '
+      +'Asignalos en <b>⚙ Configuración</b>: '
+      +sinMP.slice(0,3).map(function(p){ return esc(p.nombre); }).join(' · ')
+      +(sinMP.length>3?' y '+(sinMP.length-3)+' más':'')});
+  }
+  if(CREC.modo==='temporada-completa'){
+    a.push({t:'info', txt:'Todavía hay menos de 4 semanas cerradas en esta temporada, así que el '
+      +'crecimiento no se puede medir contra el mismo tramo del año pasado. Se está usando el '
+      +'<b>crecimiento de temporada completa de la anterior ('+(CREC.pct>=0?'+':'')+n1(CREC.pct*100)
+      +'%)</b>. Se puede fijar a mano en Configuración.'});
+  } else if(CREC.modo==='sin-datos'){
+    a.push({t:'temp', txt:'<b>No hay con qué medir el crecimiento</b>, así que se está usando 0 %. '
+      +'La previsión es el histórico suavizado tal cual.'});
+  }
+  var rot = fs.filter(function(f){ return f.bajaRot; });
+  if(rot.length){
+    a.push({t:'info', txt:'<b>'+rot.length+' producto'+(rot.length===1?'':'s')+' de baja rotación</b> '
+      +'(menos de '+n0(PAR.umbral_baja_rotacion)+' unidades por semana). Su previsión semanal es ruido: '
+      +'convienen mirados por mes. '
+      +rot.slice(0,4).map(function(f){ return esc(f.prod.nombre); }).join(' · ')});
+  }
+  document.getElementById('avisos').innerHTML = a.map(function(x){
+    return '<div class="aviso '+x.t+'">'+x.txt+'</div>'; }).join('');
+}
+
+function fechaCorta(iso){
+  if(!iso) return '—';
+  var p=String(iso).split('-');
+  return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+}
+
+function pintarKPIs(){
+  var fs=filas();
+  var vTemp = fs.reduce(function(s,f){ return s+f.ventasTemp; },0);
+  var cerradas = Math.max(0, SEM_ACTUAL-1);
+  // La comparación contra el año pasado va sobre el MISMO TRAMO: contra
+  // la temporada anterior entera diría que caímos 60% todos los agostos.
+  var vPrevTramo = fs.reduce(function(s,f){
+    return s + f.vPrev.slice(0,cerradas).reduce(function(a,x){ return a+num(x); },0); },0);
+  var envTemp = fs.reduce(function(s,f){ return s+f.envasadoTemp; },0);
+  var stkHoy  = fs.reduce(function(s,f){ return s+f.stockHoy; },0);
+  var demH    = fs.reduce(function(s,f){ return s+f.demandaH; },0);
+  var sug={}; fs.forEach(function(f){ sug[f.prod.id]=f.sugerido; });
+  var mp = Cloro.kgMateria(PROD.filter(function(p){ return p.activo!==false; }), sug);
+  var kgTot = Object.keys(mp.porMateria).reduce(function(s,k){ return s+mp.porMateria[k]; },0);
+
+  var vTempTramo = fs.reduce(function(s,f){
+    return s + f.vAct.slice(0,cerradas).reduce(function(a,x){ return a+num(x); },0); },0);
+  var dif = vPrevTramo>0 ? (vTempTramo/vPrevTramo-1)*100 : null;
+
+  document.getElementById('kpis').innerHTML =
+     kpi('a','Ventas de la temporada', n0(vTemp)+' u', 'c-ag',
+         dif==null ? 'sin comparación' : 'contra el mismo tramo del año pasado: '
+           +'<span class="dif '+(dif>=0?'up':'dn')+'">'+(dif>=0?'+':'')+n1(dif)+'%</span>')
+   + kpi('b','Envasado', n0(envTemp)+' u', 'c-te', 'órdenes cargadas en la temporada')
+   + kpi('c','Stock hoy', n0(stkHoy)+' u', 'c-pu', 'inicial + envasado − ventas')
+   + kpi('d','Demanda '+n0(PAR.horizonte_semanas)+' semanas', n0(demH)+' u', 'c-gr',
+         'de la semana '+SEM_ACTUAL+' a la '+Math.min(NSEM, SEM_ACTUAL+num(PAR.horizonte_semanas)-1))
+   + kpi('e','Materia prima a comprar', n0(kgTot)+' kg', 'c-or',
+         mp.sinAsignar.length ? '<span class="c-rd">'+mp.sinAsignar.length+' producto'
+           +(mp.sinAsignar.length===1?'':'s')+' sin asignar, afuera de esta cuenta</span>'
+         : 'todos los productos asignados');
+}
+function kpi(clase, label, valor, color, sub){
+  return '<div class="card kpi kpi-'+clase+'"><div class="kpi-l">'+esc(label)+'</div>'
+        +'<div class="kpi-v '+color+'">'+valor+'</div><div class="kpi-s">'+sub+'</div></div>';
+}
+
+function pintarTabla(){
+  var fs=filas(), h='';
+  if(!fs.length){
+    document.getElementById('tbody').innerHTML='<tr><td colspan="9" class="empty">'
+      +'No hay productos cargados en esta temporada.</td></tr>';
+    return;
+  }
+  var matNom={}; MAT.forEach(function(m){ matNom[m.id]=m.nombre; });
+  var tot={v:0,e:0,s:0,d:0,g:0,kg:0};
+  fs.forEach(function(f){
+    var p=f.prod;
+    var sinMP = p.materia_id==null || num(p.kg_mp_por_unidad)<=0;
+    var kg = sinMP ? null : f.sugerido*num(p.kg_mp_por_unidad)*(1+num(p.merma_pct)/100);
+    var proxSem = f.prevision ? num(f.prevision[SEM_ACTUAL-1]) : null;
+    // Cobertura: cuántas semanas aguanta el stock al ritmo previsto.
+    var ritmo = f.demandaH>0 ? f.demandaH/num(PAR.horizonte_semanas) : 0;
+    var cob = ritmo>0 ? f.stockHoy/ritmo : null;
+    var cls = (f.stockHoy<0 ? 'falta ' : '') + (sinMP ? 'sinmp' : '');
+
+    h+='<tr class="'+cls+'">'
+      +'<td class="l"><div class="art">'+esc(p.nombre)
+         +(f.bajaRot?'<span class="tag rot">baja rotación</span>':'')+'</div>'
+         +'<span class="cod">'+esc(p.codigo)+'</span></td>'
+      +'<td class="l mp">'+(sinMP
+          ? (p.materia_id==null ? 'sin asignar' : 'sin kg/unidad')+'<span class="tag nomp">no suma</span>'
+          : esc(matNom[p.materia_id]||'?')+' · '+n1(p.kg_mp_por_unidad)+' kg/u'
+            +(num(p.merma_pct)>0?' +'+n1(p.merma_pct)+'%':''))+'</td>'
+      +'<td>'+n0(f.ventasTemp)+'</td>'
+      +'<td class="calc">'+n0(f.envasadoTemp)+'</td>'
+      +'<td>'+n0(f.stockHoy)
+         +(cob==null?'' :'<span class="cob '+(cob<2?'bajo':(cob<4?'medio':''))+'">'
+             +(f.stockHoy<0?'FALTA ENVASAR':n1(cob)+' sem')+'</span>')+'</td>'
+      +'<td class="calc">'+(proxSem==null?'—':n0(proxSem))+'</td>'
+      +'<td class="calc">'+(f.prevision?n0(f.demandaH):'—')+'</td>'
+      +'<td class="sug">'+(f.prevision?n0(f.sugerido):'—')+'</td>'
+      +'<td class="kgmp">'+(kg==null?'—':n0(kg))+'</td>'
+      +'</tr>';
+    tot.v+=f.ventasTemp; tot.e+=f.envasadoTemp; tot.s+=f.stockHoy;
+    tot.d+=f.demandaH; tot.g+=f.sugerido; tot.kg+=(kg||0);
+  });
+  h+='<tr class="tot"><td class="l">TOTAL</td><td class="l"></td>'
+    +'<td>'+n0(tot.v)+'</td><td>'+n0(tot.e)+'</td><td>'+n0(tot.s)+'</td>'
+    +'<td></td><td>'+n0(tot.d)+'</td><td>'+n0(tot.g)+'</td><td>'+n0(tot.kg)+'</td></tr>';
+  document.getElementById('tbody').innerHTML=h;
+}
+
+function pintarMP(){
+  var fs=filas();
+  var sug={}; fs.forEach(function(f){ sug[f.prod.id]=f.sugerido; });
+  var activos = PROD.filter(function(p){ return p.activo!==false; });
+  var r = Cloro.kgMateria(activos, sug);
+  var h='', tot=0;
+  MAT.filter(function(m){ return m.activo!==false; }).forEach(function(m){
+    var kg = r.porMateria[m.id]||0;
+    var prods = activos.filter(function(p){ return p.materia_id===m.id && num(p.kg_mp_por_unidad)>0; });
+    if(!prods.length && !kg) return;
+    tot+=kg;
+    h+='<tr><td class="l" style="font-weight:600">'+esc(m.nombre)+'</td>'
+      +'<td class="l calc" style="font-family:\'DM Sans\',sans-serif">'
+        +(prods.length? prods.map(function(p){ return esc(p.nombre); }).join(' · ') : '—')+'</td>'
+      +'<td class="kgmp">'+n0(kg)+'</td></tr>';
+  });
+  if(r.sinAsignar.length){
+    var nn = r.sinAsignar.map(function(id){
+      var p=PROD.filter(function(x){ return x.id===id; })[0];
+      return p?esc(p.nombre):('#'+id); });
+    h+='<tr class="sinmp"><td class="l mp">Sin asignar</td>'
+      +'<td class="l mp" style="font-family:\'DM Sans\',sans-serif">'+nn.join(' · ')+'</td>'
+      +'<td class="mp">no suma</td></tr>';
+  }
+  if(!h) h='<tr><td colspan="3" class="empty">Todavía no hay materias primas con productos asignados.</td></tr>';
+  else h+='<tr class="tot"><td class="l">TOTAL</td><td></td><td>'+n0(tot)+' kg</td></tr>';
+  document.getElementById('tbody-mp').innerHTML=h;
+}
+
+// ══ Todavía en obra (tasks 7, 8, 9 y 11 del plan) ═════════════
+function openConfig(){ toast('Configuración: en la próxima etapa','info'); }
+function openImportar(){ toast('Importar ventas: en la próxima etapa','info'); }
+function openEnvasado(){ toast('Órdenes de envasado: en la próxima etapa','info'); }
+function exportCSV(){ toast('CSV: en la próxima etapa','info'); }
+</script>
+</body>
+</html>

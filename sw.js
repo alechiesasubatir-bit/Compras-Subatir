@@ -24,6 +24,7 @@ var CACHE = 'compras-' + self.APP_VER;
 // Lo mínimo para que la app abra sin señal.
 var SHELL = ['./', './index.html', './pedidos.html', './recepcion.html', './stock.html',
              './precios.html', './proveedores.html', './varios.html', './mp-importacion.html',
+             './cloro.html',
              './login.html', './subatir-app.js', './supabase-config.js',
              './nav.js', './nav.css',
              './logo.jpg', './icon-192.png', './icon-512.png'];

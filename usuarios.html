@@ -207,8 +207,8 @@ window.APP_VER='2026-09-08.1349';
 // clave vieja en profiles.modules no rompe nada —la lista de abajo la
 // muestra tal cual y ya no habilita ninguna pantalla—, pero conviene
 // sacarla de la base con migracion/baja_contingencia.sql.
-var MODULES = ['recepcion','precios','proveedores','pedidos','varios','stock','mp_importacion','importacion','solicitante','recorrido','recepcion_deposito'];
-var MODLABEL = {recepcion:'Recepción (operario)',precios:'Precios',proveedores:'Proveedores',pedidos:'Pedidos',varios:'Pedidos Varios',stock:'Stock',mp_importacion:'MP Importación',importacion:'Importación',solicitante:'Solicitar mercadería',recorrido:'Recorrido (atender pedidos)',recepcion_deposito:'Recepción en destino (op. logístico)'};
+var MODULES = ['recepcion','precios','proveedores','pedidos','varios','stock','mp_importacion','cloro','importacion','solicitante','recorrido','recepcion_deposito'];
+var MODLABEL = {recepcion:'Recepción (operario)',precios:'Precios',proveedores:'Proveedores',pedidos:'Pedidos',varios:'Pedidos Varios',stock:'Stock',mp_importacion:'MP Importación',cloro:'Previsión Cloro',importacion:'Importación',solicitante:'Solicitar mercadería',recorrido:'Recorrido (atender pedidos)',recepcion_deposito:'Recepción en destino (op. logístico)'};
 var USERS = [], CUR = null;
 
 function toast(t,type){ var e=document.createElement('div'); e.className='toast '+(type||'ok'); e.textContent=t;

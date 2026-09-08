@@ -156,6 +156,69 @@ tr.sinmp td.mp{color:#fca5a5}
   padding:3px 8px;border-radius:7px}
 .x:hover{color:#fff;background:rgba(255,255,255,.08)}
 .hint{font-size:11.5px;color:var(--muted-l);line-height:1.6;margin-top:7px}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--muted-l);margin-bottom:6px}
+.fg .inp{width:100%}
+
+/* ── Configuración ────────────────────────────────────────── */
+.modal.ancho{max-width:820px}
+.cf{padding:16px 0;border-bottom:1px solid var(--border)}
+.cf:first-child{padding-top:0}
+.cf:last-child{border-bottom:none;padding-bottom:0}
+.cf-h{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.cf-h h4{font-family:var(--display);font-size:14px;font-weight:800}
+.cf-n{width:21px;height:21px;border-radius:6px;flex:none;display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-size:11px;font-weight:600;
+  background:rgba(56,189,248,.14);color:var(--agua);border:1px solid rgba(56,189,248,.28)}
+.cf-p{font-size:12px;color:var(--muted-l);line-height:1.6;margin-bottom:11px}
+.pars{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:11px}
+.par{padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid var(--border)}
+.par label{display:block;font-size:11px;color:var(--muted-l);margin-bottom:6px;line-height:1.35}
+.par .row{display:flex;align-items:center;gap:7px}
+.par input{width:100%;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.3);
+  border-radius:8px;color:var(--agua);font-family:var(--mono);font-size:15px;font-weight:600;
+  padding:7px 10px;min-height:38px;text-align:right}
+.par input:focus{outline:2px solid rgba(56,189,248,.6);outline-offset:1px}
+.par input:disabled{opacity:.4}
+.par .u{font-family:var(--mono);font-size:11px;color:var(--muted);flex:none}
+/* Interruptor: se ve prendido o apagado sin leer */
+.sw{display:inline-flex;align-items:center;gap:9px;cursor:pointer;font-size:12.5px;user-select:none}
+.sw input{position:absolute;opacity:0;width:0;height:0}
+.sw-t{width:40px;height:22px;border-radius:20px;background:rgba(255,255,255,.10);
+  border:1px solid var(--border-b);position:relative;transition:background .18s;flex:none}
+.sw-t::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+  background:var(--muted-l);transition:transform .18s,background .18s}
+.sw input:checked + .sw-t{background:rgba(56,189,248,.35);border-color:rgba(56,189,248,.5)}
+.sw input:checked + .sw-t::after{transform:translateX(18px);background:var(--agua)}
+.sw input:focus-visible + .sw-t{outline:2px solid rgba(56,189,248,.7);outline-offset:2px}
+/* Lista genérica de filas (temporadas, materias) */
+.cf-rows{display:grid;gap:6px;margin-bottom:11px}
+.cf-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;
+  padding:7px 10px;border-radius:9px;background:rgba(255,255,255,.025);border:1px solid var(--border)}
+.cf-row-n{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cf-row-n small{display:block;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+.cf-add{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end}
+.cf-add .fg{margin-bottom:0}
+/* Grilla de productos */
+.cf-prods{display:grid;gap:6px;max-height:330px;overflow:auto;padding-right:5px}
+.cf-ph,.cf-pr{display:grid;grid-template-columns:minmax(0,1fr) 175px 84px 74px 84px;gap:8px;align-items:center}
+.cf-ph{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.7px;
+  text-transform:uppercase;color:var(--muted);padding:0 10px 2px;position:sticky;top:0;
+  background:linear-gradient(180deg,#0e1621,#0e1621 70%,transparent)}
+.cf-ph span:not(:first-child),.cf-pr input{text-align:right}
+.cf-pr{padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.025);border:1px solid var(--border)}
+.cf-pr.falta{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.3)}
+.cf-pr select,.cf-pr input{background:rgba(255,255,255,.04);border:1px solid var(--border-b);
+  border-radius:7px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 7px;
+  min-height:32px;width:100%}
+.cf-pr select{font-family:'DM Sans',sans-serif}
+.cf-pr select.vacio{border-color:rgba(239,68,68,.45);color:#fca5a5}
+.cf-pr input:focus,.cf-pr select:focus{outline:2px solid rgba(56,189,248,.6);outline-offset:1px}
+@media (max-width:720px){
+  .cf-ph{display:none}
+  .cf-pr{grid-template-columns:1fr 1fr;gap:6px}
+}
 .toasts{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px}
 .toast{padding:11px 15px;border-radius:10px;font-size:12.5px;font-weight:600;max-width:420px;
   box-shadow:0 8px 24px rgba(0,0,0,.45)}
@@ -297,6 +360,77 @@ window.APP_VER='2026-09-08.1801';
   </div>
 
 </main>
+
+<!-- ══ MODAL: Configuración ═══════════════════════════════ -->
+<div class="ovl" id="ovl-conf">
+  <div class="modal ancho">
+    <div class="modal-h"><span>⚙ Configuración</span>
+      <button class="x" onclick="cerrar('ovl-conf')" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+
+      <div class="cf">
+        <div class="cf-h"><span class="cf-n">1</span><h4>Temporadas</h4></div>
+        <p class="cf-p">La temporada <b>activa</b> es la que se abre al entrar. Cada una arranca
+          el 1 de agosto y termina el 31 de marzo, y su semana 1 es el lunes de la semana que
+          contiene el arranque.</p>
+        <div class="cf-rows" id="cf-temps"></div>
+        <div class="cf-add">
+          <div class="fg"><label>Nombre</label><input class="inp" id="nt-nom" maxlength="40"/></div>
+          <div class="fg"><label>Desde</label><input class="inp" id="nt-ini" type="date"/></div>
+          <div class="fg"><label>Hasta</label><input class="inp" id="nt-fin" type="date"/></div>
+          <div class="fg"><button class="btn btn-pri" style="width:100%" id="btn-nt"
+                onclick="crearTemporada()">➕ Crear temporada</button></div>
+        </div>
+        <div class="hint">Arranca vacía: hay que importarle las ventas a medida que pasan las
+          semanas. El histórico para prever sale de la temporada anterior, que ya está cargada.</div>
+      </div>
+
+      <div class="cf">
+        <div class="cf-h"><span class="cf-n">2</span><h4>Parámetros de <span id="cf-tnom">—</span></h4></div>
+        <p class="cf-p">Son de esta temporada: cambiarlos acá no toca las anteriores.</p>
+        <div class="pars">
+          <div class="par"><label>Suavizado del histórico<br><small>ventana centrada, en semanas (impar)</small></label>
+            <div class="row"><input id="cf-suav" type="number" min="1" max="15" step="2"/><span class="u">sem</span></div></div>
+          <div class="par"><label>Horizonte<br><small>cuántas semanas cubre lo que se envasa</small></label>
+            <div class="row"><input id="cf-horiz" type="number" min="1" max="40" step="1"/><span class="u">sem</span></div></div>
+          <div class="par"><label>Colchón de seguridad<br><small>semanas extra de demanda</small></label>
+            <div class="row"><input id="cf-seg" type="number" min="0" max="20" step="0.5"/><span class="u">sem</span></div></div>
+          <div class="par"><label>Umbral de baja rotación<br><small>debajo de esto se muestra por mes</small></label>
+            <div class="row"><input id="cf-umb" type="number" min="0" max="500" step="1"/><span class="u">u/sem</span></div></div>
+          <div class="par"><label>Crecimiento<br><small id="cf-crec-h">&nbsp;</small></label>
+            <div class="row" style="margin-bottom:7px">
+              <label class="sw"><input type="checkbox" id="cf-crec-auto" onchange="pintarCrecInput()"/>
+                <span class="sw-t"></span> automático</label></div>
+            <div class="row"><input id="cf-crec" type="number" step="0.1"/><span class="u">%</span></div></div>
+        </div>
+      </div>
+
+      <div class="cf">
+        <div class="cf-h"><span class="cf-n">3</span><h4>Materias primas</h4></div>
+        <div class="cf-rows" id="cf-mats"></div>
+        <div class="cf-add">
+          <div class="fg" style="grid-column:span 2"><label>Nueva materia prima</label>
+            <input class="inp" id="nm-nom" maxlength="60" placeholder="Ej: Tricloro granulado"/></div>
+          <div class="fg"><button class="btn" style="width:100%" onclick="crearMateria()">➕ Agregar</button></div>
+        </div>
+      </div>
+
+      <div class="cf">
+        <div class="cf-h"><span class="cf-n">4</span><h4>Productos</h4></div>
+        <p class="cf-p">Los <b>kg de MP por unidad</b> son los kilos de materia prima que se van en
+          envasar una unidad de venta. Un producto sin materia prima o con 0 kg/u
+          <b>no suma en la compra</b> y sale marcado en rojo — no se estima nada por él.</p>
+        <div id="cf-aviso"></div>
+        <div class="cf-prods" id="cf-prods"></div>
+      </div>
+
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrar('ovl-conf')">Cancelar</button>
+      <button class="btn btn-pri" id="btn-cf" onclick="guardarConfig()">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
@@ -746,8 +880,246 @@ function pintarMP(){
   document.getElementById('tbody-mp').innerHTML=h;
 }
 
-// ══ Todavía en obra (tasks 7, 8, 9 y 11 del plan) ═════════════
-function openConfig(){ toast('Configuración: en la próxima etapa','info'); }
+// ══ CONFIGURACIÓN ═════════════════════════════════════════════
+//  Tres cosas distintas viven en el mismo modal porque se tocan juntas
+//  la primera vez que se abre el módulo: crear la temporada, decir de
+//  qué está hecho cada producto, y afinar los parámetros.
+//
+//  Crear una temporada y agregar una materia prima escriben en el acto:
+//  cambian el conjunto de cosas que se están editando abajo, y dejarlas
+//  para el "Guardar" del final obligaría a adivinar el orden.
+function openConfig(){ pintarConfig(); abrir('ovl-conf'); }
+
+function pintarConfig(){
+  var t=temporadaActual();
+  document.getElementById('cf-tnom').textContent = t ? t.nombre : '—';
+
+  // ── Temporadas
+  document.getElementById('cf-temps').innerHTML = TEMPS.map(function(x){
+    return '<div class="cf-row"><div class="cf-row-n">'+esc(x.nombre)
+      +'<small>'+fechaCorta(x.fecha_ini)+' — '+fechaCorta(x.fecha_fin)+'</small></div>'
+      +'<label class="sw" title="Temporada que se abre al entrar">'
+      +'<input type="radio" name="cf-activa" value="'+x.id+'"'+(x.activa?' checked':'')+'/>'
+      +'<span class="sw-t"></span> activa</label></div>';
+  }).join('') || '<div class="hint">No hay temporadas.</div>';
+  var s=sugerirTemporada();
+  document.getElementById('nt-nom').value=s.nombre;
+  document.getElementById('nt-ini').value=s.ini;
+  document.getElementById('nt-fin').value=s.fin;
+
+  // ── Parámetros
+  if(PAR){
+    document.getElementById('cf-suav').value  = PAR.suavizado_semanas;
+    document.getElementById('cf-horiz').value = PAR.horizonte_semanas;
+    document.getElementById('cf-seg').value   = PAR.semanas_seguridad;
+    document.getElementById('cf-umb').value   = PAR.umbral_baja_rotacion;
+    document.getElementById('cf-crec-auto').checked = (PAR.crecimiento_pct==null);
+    document.getElementById('cf-crec').value  = PAR.crecimiento_pct!=null
+      ? PAR.crecimiento_pct : Math.round(CREC.pct*1000)/10;
+    pintarCrecInput();
+  }
+
+  // ── Materias primas
+  document.getElementById('cf-mats').innerHTML = MAT.map(function(m){
+    var n=PROD.filter(function(p){ return p.materia_id===m.id; }).length;
+    return '<div class="cf-row"><div class="cf-row-n">'+esc(m.nombre)
+      +'<small>'+(n? n+' producto'+(n===1?'':'s') : 'sin productos')+'</small></div>'
+      +'<span class="chip">'+n+'</span></div>';
+  }).join('') || '<div class="hint">No hay materias primas.</div>';
+  document.getElementById('nm-nom').value='';
+
+  // ── Productos
+  var opts = MAT.filter(function(m){ return m.activo!==false; })
+    .map(function(m){ return '<option value="'+m.id+'">'+esc(m.nombre)+'</option>'; }).join('');
+  var h='<div class="cf-ph"><span>Producto</span><span>Materia prima</span>'
+       +'<span>kg MP/u</span><span>Merma %</span><span>Lote</span></div>';
+  PROD.filter(function(p){ return p.activo!==false; })
+      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); })
+      .forEach(function(p){
+    var falta = p.materia_id==null || num(p.kg_mp_por_unidad)<=0;
+    h+='<div class="cf-pr'+(falta?' falta':'')+'" data-id="'+p.id+'">'
+      +'<div class="cf-row-n" style="text-align:left">'+esc(p.nombre)
+        +'<small>'+esc(p.codigo)+'</small></div>'
+      +'<select class="cf-mat'+(p.materia_id==null?' vacio':'')+'">'
+        +'<option value="">— sin asignar —</option>'+opts+'</select>'
+      +'<input class="cf-kg"    type="number" min="0" step="0.001" value="'+num(p.kg_mp_por_unidad)+'"/>'
+      +'<input class="cf-merma" type="number" min="0" step="0.1"   value="'+num(p.merma_pct)+'"/>'
+      +'<input class="cf-lote"  type="number" min="1" step="1"     value="'+(num(p.lote_unidades)||1)+'"/>'
+      +'</div>';
+  });
+  document.getElementById('cf-prods').innerHTML=h;
+  // El value del select se pone después de insertarlo: escribirlo en el
+  // HTML obliga a marcar el <option> a mano y se rompe con el "sin asignar".
+  document.querySelectorAll('#cf-prods .cf-pr').forEach(function(row){
+    var p=PROD.filter(function(x){ return String(x.id)===row.getAttribute('data-id'); })[0];
+    row.querySelector('.cf-mat').value = p && p.materia_id!=null ? String(p.materia_id) : '';
+  });
+  pintarCfAviso();
+}
+// Se engancha UNA vez, no dentro de pintarConfig: el contenedor sobrevive
+// a los repintados, así que ahí se acumularía un listener por cada vez que
+// se abre el modal.
+(function(){
+  var host=document.getElementById('cf-prods');
+  host.addEventListener('change', pintarCfAviso);
+  host.addEventListener('input',  pintarCfAviso);
+})();
+
+function pintarCfAviso(){
+  var falt=0;
+  document.querySelectorAll('#cf-prods .cf-pr').forEach(function(row){
+    var sel=row.querySelector('.cf-mat'), kg=num(row.querySelector('.cf-kg').value);
+    var mal = !sel.value || kg<=0;
+    row.classList.toggle('falta', mal);
+    sel.classList.toggle('vacio', !sel.value);
+    if(mal) falt++;
+  });
+  document.getElementById('cf-aviso').innerHTML = falt
+    ? '<div class="aviso urg" style="margin-bottom:10px"><b>'+falt+' producto'+(falt===1?'':'s')
+      +' sin materia prima o con 0 kg/u.</b> No van a sumar en la compra.</div>'
+    : '<div class="aviso info" style="margin-bottom:10px">Todos los productos tienen materia prima '
+      +'y kg por unidad.</div>';
+}
+function pintarCrecInput(){
+  var auto=document.getElementById('cf-crec-auto').checked;
+  document.getElementById('cf-crec').disabled=auto;
+  document.getElementById('cf-crec-h').textContent = auto
+    ? 'lo calcula solo contra el año pasado'
+    : 'fijado a mano para toda la temporada';
+}
+
+// Sugerencia para la temporada nueva. Después de marzo la que viene
+// arranca este mismo año; antes, el año pasado. Si ya existe, se salta
+// a la siguiente en vez de proponer un nombre repetido.
+function sugerirTemporada(){
+  var hoy=new Date();
+  var a = (hoy.getUTCMonth()+1) >= 4 ? hoy.getUTCFullYear() : hoy.getUTCFullYear()-1;
+  var i=0;
+  while(i<20 && TEMPS.some(function(t){ return t.nombre===(a+'-'+(a+1)); })){ a++; i++; }
+  return {nombre:a+'-'+(a+1), ini:a+'-08-01', fin:(a+1)+'-03-31'};
+}
+
+function crearTemporada(){
+  var nom=(document.getElementById('nt-nom').value||'').trim();
+  var ini=document.getElementById('nt-ini').value;
+  var fin=document.getElementById('nt-fin').value;
+  if(!nom){ toast('Poné un nombre para la temporada','err'); return; }
+  if(!ini || !fin){ toast('Faltan las fechas de la temporada','err'); return; }
+  if(fin<=ini){ toast('La fecha de fin tiene que ser posterior a la de inicio','err'); return; }
+  if(TEMPS.some(function(t){ return t.nombre.toLowerCase()===nom.toLowerCase(); })){
+    toast('Ya existe una temporada con ese nombre','err'); return; }
+  var b=document.getElementById('btn-nt'); b.disabled=true;
+  SB.from('cl_temporadas').insert({nombre:nom, fecha_ini:ini, fecha_fin:fin, activa:false})
+    .select().then(function(r){
+      if(r.error) throw r.error;
+      if(!r.data || !r.data.length) throw new Error('la base no devolvió la fila (¿permiso del módulo?)');
+      // Los parámetros se copian de la temporada que se está viendo: son
+      // decisiones del negocio, no del año, y volver a tipearlas en cada
+      // temporada es la forma de que terminen distintos sin querer.
+      var base = PAR || {};
+      return SB.from('cl_parametros').insert({
+        temporada_id: r.data[0].id,
+        suavizado_semanas: base.suavizado_semanas!=null ? base.suavizado_semanas : 5,
+        horizonte_semanas: base.horizonte_semanas!=null ? base.horizonte_semanas : 8,
+        semanas_seguridad: base.semanas_seguridad!=null ? base.semanas_seguridad : 2,
+        umbral_baja_rotacion: base.umbral_baja_rotacion!=null ? base.umbral_baja_rotacion : 10
+      }).select().then(function(r2){
+        if(r2.error) throw r2.error;
+        if(!r2.data || !r2.data.length) throw new Error('no se pudieron crear los parámetros');
+        return r.data[0];
+      });
+    }).then(function(t){
+      toast('Temporada '+t.nombre+' creada','ok');
+      CUR_TEMP=t.id;
+      return cargar().then(pintarConfig);
+    }).catch(function(e){
+      toast('No se pudo crear la temporada: '+((e&&e.message)||e),'err');
+    }).then(function(){ b.disabled=false; });
+}
+
+function crearMateria(){
+  var nom=(document.getElementById('nm-nom').value||'').trim();
+  if(!nom){ toast('Poné un nombre','err'); return; }
+  if(MAT.some(function(m){ return m.nombre.toLowerCase()===nom.toLowerCase(); })){
+    toast('Ya existe una materia prima con ese nombre','err'); return; }
+  SB.from('cl_materias').insert({nombre:nom}).select().then(function(r){
+    if(r.error) throw r.error;
+    if(!r.data || !r.data.length) throw new Error('la base no devolvió la fila (¿permiso del módulo?)');
+    MAT.push(r.data[0]);
+    MAT.sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
+    toast('Materia prima agregada','ok');
+    pintarConfig();
+  }).catch(function(e){
+    toast('No se pudo agregar: '+((e&&e.message)||e),'err');
+  });
+}
+
+function guardarConfig(){
+  var t=temporadaActual(); if(!t) return;
+  var b=document.getElementById('btn-cf'); b.disabled=true;
+
+  // La ventana del suavizado tiene que ser impar para poder centrarse.
+  // Un 4 se redondea a 5 y se avisa, en vez de aceptarlo y descentrar
+  // la ventana en silencio.
+  var suav=Math.max(1, Math.round(num(document.getElementById('cf-suav').value)||1));
+  if(suav%2===0){ suav++; toast('El suavizado tiene que ser impar para poder centrarse: quedó en '+suav,'info'); }
+  var auto=document.getElementById('cf-crec-auto').checked;
+
+  var ops=[];
+  ops.push(SB.from('cl_parametros').update({
+    suavizado_semanas: suav,
+    horizonte_semanas: Math.max(1, Math.round(num(document.getElementById('cf-horiz').value)||1)),
+    semanas_seguridad: Math.max(0, num(document.getElementById('cf-seg').value)),
+    umbral_baja_rotacion: Math.max(0, num(document.getElementById('cf-umb').value)),
+    crecimiento_pct: auto ? null : num(document.getElementById('cf-crec').value),
+    updated_at: new Date().toISOString()
+  }).eq('temporada_id', t.id).select());
+
+  // Sólo se escriben los productos que de verdad cambiaron: 13 updates
+  // por abrir y cerrar el modal ensucian el historial y tardan de gusto.
+  document.querySelectorAll('#cf-prods .cf-pr').forEach(function(row){
+    var id=parseInt(row.getAttribute('data-id'),10);
+    var p=PROD.filter(function(x){ return x.id===id; })[0]; if(!p) return;
+    var sel=row.querySelector('.cf-mat').value;
+    var nuevo={
+      materia_id: sel ? parseInt(sel,10) : null,
+      kg_mp_por_unidad: Math.max(0, num(row.querySelector('.cf-kg').value)),
+      merma_pct: Math.max(0, num(row.querySelector('.cf-merma').value)),
+      lote_unidades: Math.max(1, num(row.querySelector('.cf-lote').value)||1)
+    };
+    if(nuevo.materia_id===(p.materia_id==null?null:p.materia_id)
+       && nuevo.kg_mp_por_unidad===num(p.kg_mp_por_unidad)
+       && nuevo.merma_pct===num(p.merma_pct)
+       && nuevo.lote_unidades===(num(p.lote_unidades)||1)) return;
+    ops.push(SB.from('cl_productos').update(nuevo).eq('id', id).select());
+  });
+
+  // La temporada activa: la marcada queda en true y todas las demás en
+  // false. Dos activas dejarían la pantalla abriendo una distinta cada vez.
+  var sel=document.querySelector('input[name="cf-activa"]:checked');
+  var actId = sel ? parseInt(sel.value,10) : null;
+  TEMPS.forEach(function(x){
+    var deb = (x.id===actId);
+    if(!!x.activa !== deb) ops.push(SB.from('cl_temporadas').update({activa:deb}).eq('id',x.id).select());
+  });
+
+  Promise.all(ops).then(function(rs){
+    // Un update bloqueado por la RLS vuelve con CERO filas y SIN error:
+    // sin este chequeo la pantalla diría "guardado" sin haber guardado.
+    var mal=rs.filter(function(r){ return r.error || !r.data || !r.data.length; });
+    if(mal.length){
+      var m=(mal[0].error && mal[0].error.message) || 'la base no devolvió las filas';
+      toast('No se guardó ('+mal.length+' de '+rs.length+' escrituras fallaron): '+m,'err');
+      return;
+    }
+    toast('Configuración guardada ('+rs.length+' cambio'+(rs.length===1?'':'s')+')','ok');
+    cerrar('ovl-conf');
+    return cargar();
+  }).catch(function(e){
+    toast('No se pudo guardar: '+((e&&e.message)||e),'err');
+  }).then(function(){ b.disabled=false; });
+}
+
 function openImportar(){ toast('Importar ventas: en la próxima etapa','info'); }
 function openEnvasado(){ toast('Órdenes de envasado: en la próxima etapa','info'); }
 function exportCSV(){ toast('CSV: en la próxima etapa','info'); }

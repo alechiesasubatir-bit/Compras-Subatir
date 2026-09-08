@@ -354,13 +354,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-04.1146"/>
-<script src="supabase-config.js?v=2026-09-04.1146"></script>
-<script src="subatir-app.js?v=2026-09-04.1146"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-08.1349"/>
+<script src="supabase-config.js?v=2026-09-08.1349"></script>
+<script src="subatir-app.js?v=2026-09-08.1349"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-04.1146';
+window.APP_VER='2026-09-08.1349';
 </script>
 </head>
 <body>
@@ -372,7 +372,7 @@ window.APP_VER='2026-09-04.1146';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-04.1146"></script>
+  <script src="nav.js?v=2026-09-08.1349"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -399,6 +399,7 @@ window.APP_VER='2026-09-04.1146';
     <div class="sec-tools">
       <button class="btn btn-sm" onclick="openConfig()" title="Próxima revisión, categorías y temporada alta">⚙ Configuración</button>
       <button class="btn btn-sm" id="btn-cerrar" onclick="toggleCerrada()"></button>
+      <button class="btn btn-sm" id="btn-oc" onclick="generarOC()">📄 Generar OC</button>
       <button class="btn btn-sm btn-teal" onclick="openPegar()" title="Subir el Excel del sistema o pegar una columna de números">📋 Cargar datos</button>
       <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
@@ -730,6 +731,12 @@ window.APP_VER='2026-09-04.1146';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
+<!-- El papel de la Orden de Compra. Se carga acá abajo, después de la
+     pantalla, porque sólo hace falta al apretar el botón. -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="mp-oc-pdf.js?v=2026-09-08.1349"></script>
+
 <script>
 // ══════════════════════════════════════════════════════════════
 //  MP IMPORTACIÓN — previsión y control de compra de materia prima
@@ -990,7 +997,9 @@ function corridaActual(){ return CORR.filter(function(c){ return c.id===CUR_CORR
 function pintarEstadoCorrida(){
   var c=corridaActual(), el=document.getElementById('corr-estado');
   var b=document.getElementById('btn-cerrar');
-  if(!c){ el.textContent='—'; el.className='chip'; if(b) b.style.display='none'; return; }
+  var o=document.getElementById('btn-oc');
+  if(!c){ el.textContent='—'; el.className='chip';
+    if(b) b.style.display='none'; if(o) o.style.display='none'; return; }
   var sucias=Object.keys(PEND).length;
   if(sucias){ el.textContent=sucias+' sin guardar'; el.className='chip warn'; }
   else if(c.cerrada){ el.textContent='🔒 cerrada'; el.className='chip'; }
@@ -1001,6 +1010,21 @@ function pintarEstadoCorrida(){
     b.title = c.cerrada
       ? 'Volver a permitir cambios en esta corrida'
       : 'Dar la corrida por terminada: queda de sólo lectura para que no se pise sin querer';
+  }
+  // La OC sale de una corrida cerrada y nada más: emitirla de una que
+  // todavía se está tocando es mandarle al proveedor un pedido que
+  // mañana va a ser otro.
+  if(o){
+    o.style.display='';
+    var listo = !!c.cerrada && !sucias;
+    o.disabled = !listo;
+    o.textContent = c.oc_numero ? '📄 OC '+c.oc_numero : '📄 Generar OC';
+    o.title = listo
+      ? (c.oc_numero
+          ? 'Volver a bajar el PDF de la orden '+c.oc_numero
+          : 'Emitir la orden de compra con lo que quedó confirmado en esta corrida')
+      : (sucias ? 'Guardá los cambios antes de emitir la orden'
+                : 'La orden se emite con la corrida cerrada: cerrala primero');
   }
 }
 // Cerrar es lo que separa "el pedido que estoy armando" de "el pedido
@@ -2155,6 +2179,89 @@ function aplicarExcel(){
     if(f) xlElegido(f);
   });
 })();
+
+// ══ ORDEN DE COMPRA ═══════════════════════════════════════════
+//  El dibujo del papel está en mp-oc-pdf.js. Acá sólo se arma QUÉ va
+//  en él y se resuelve el número de orden.
+//
+//  Va lo que quedó con COMPRA CONFIRMADA > 0, sin pasar por los
+//  filtros de la pantalla: la orden es el pedido entero, no lo que en
+//  ese momento se estaba mirando. Buscar por "lavanda" y emitir media
+//  orden sin darse cuenta sería un error caro y silencioso.
+function lineasOC(){
+  var out=[], idx={};
+  filas().forEach(function(f){
+    var kg=num(f.d.compra_confirmada);
+    if(!(kg>0)) return;
+    var g=f.art.grupo||'Artículos';
+    if(idx[g]===undefined){ idx[g]=out.length; out.push({titulo:g, lines:[]}); }
+    out[idx[g]].lines.push({desc:f.art.nombre, cod:f.art.codigo||'', cant:kg});
+  });
+  return out;
+}
+function nombreProv(){
+  var p=PROV.filter(function(x){ return x.id===CUR_PROV; })[0];
+  return p ? p.nombre : '—';
+}
+// OC-MEROAR-001: el nombre del proveedor reducido a letras y números.
+// Se quedan sólo los caracteres ASCII a propósito —una eñe o un acento
+// dentro del número de orden es pedirle problemas al mail, al nombre
+// del archivo y al sistema del proveedor.
+function prefijoOC(){
+  return 'OC-' + nombreProv().toUpperCase().replace(/[^A-Z0-9]/g,'') + '-';
+}
+// El número se calcula UNA vez y queda guardado en la corrida. Si se
+// recalculara en cada clic, volver a bajar el PDF de un pedido ya
+// mandado le cambiaría el número y del otro lado quedarían dos órdenes
+// donde hay una.
+function numeroOC(c){
+  if(c.oc_numero) return Promise.resolve(c.oc_numero);
+  var pre=prefijoOC(), max=0;
+  CORR.forEach(function(x){
+    var s=String(x.oc_numero||'');
+    if(s.indexOf(pre)!==0) return;
+    var m=/(\d+)$/.exec(s);
+    if(m) max=Math.max(max, parseInt(m[1],10));
+  });
+  var n=String(max+1); while(n.length<3) n='0'+n;
+  var num=pre+n;
+  return SB.from('mp_corridas').update({oc_numero:num}).eq('id',c.id).select().then(function(r){
+    if(r.error) throw r.error;
+    // Un UPDATE que la RLS bloquea vuelve con CERO filas y sin error: si
+    // no se chequea, el PDF sale con un número que no quedó guardado en
+    // ningún lado y el próximo pedido lo repite.
+    if(!r.data || !r.data.length) throw new Error('la base no devolvió la fila (¿permisos del módulo?)');
+    c.oc_numero=r.data[0].oc_numero;
+    return c.oc_numero;
+  });
+}
+function generarOC(){
+  var c=corridaActual();
+  if(!c){ toast('No hay ninguna corrida seleccionada','err'); return; }
+  if(Object.keys(PEND).length){ toast('Guardá los cambios antes de emitir la orden','err'); return; }
+  if(!c.cerrada){ toast('La orden se emite con la corrida cerrada: cerrala primero','err'); return; }
+  if(!window.MPOCPdf || !MPOCPdf.disponible()){
+    toast('No se pudo cargar el generador de PDF (revisá tu conexión)','err'); return; }
+  var grupos=lineasOC();
+  if(!grupos.length){ toast('Esta corrida no tiene ningún artículo con compra confirmada','err'); return; }
+
+  var b=document.getElementById('btn-oc'); if(b) b.disabled=true;
+  numeroOC(c).then(function(numero){
+    MPOCPdf.build({
+      numero:numero, fecha:c.fecha, proveedor:nombreProv(),
+      condicion:'CIF Montevideo — importación', corrida:c.nombre, grupos:grupos
+    });
+    var kg=grupos.reduce(function(t,g){ return t+g.lines.reduce(function(s,l){ return s+l.cant; },0); },0);
+    toast('Orden '+numero+' generada · '+n0(kg)+' kg','ok');
+    pintarEstadoCorrida();
+  }).catch(function(e){
+    var m=(e&&e.message)||String(e);
+    toast(/oc_numero|column|schema cache/i.test(m)
+      ? 'Falta correr migracion/mp_oc_numero.sql en Supabase'
+      : 'No se pudo emitir la orden: '+m, 'err');
+    pintarEstadoCorrida();
+  });
+}
 
 // ══ EXPORTAR ══════════════════════════════════════════════════
 function exportCSV(){

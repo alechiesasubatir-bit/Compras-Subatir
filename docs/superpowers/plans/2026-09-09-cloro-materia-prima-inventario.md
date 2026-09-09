@@ -1221,3 +1221,30 @@ Agregar al final de este archivo una sección "Desvíos al ejecutar" con lo que 
 git add docs/superpowers/plans/2026-09-09-cloro-materia-prima-inventario.md
 git commit -m "Plan: anotar los desvios y las verificaciones de la materia prima vinculada"
 ```
+
+---
+
+## Desvíos al ejecutar
+
+1. **La Task 1 no estaba en el plan original.** Apareció cuando el usuario avisó que el conteo de stock era al 08/09. Todas las tasks se corrieron un número.
+
+2. **La cobertura medía la cosa equivocada, y se publicó así** (Task 5). El plan decía calcularla sobre `planEnvasado` con el horizonte y el colchón de los parámetros. Eso es una **orden de compra** —"envasá ahora las próximas 8 semanas más 2 de colchón"—, así que concentra diez semanas de demanda en la primera y el acumulado se pasa del stock en el paso uno: **las seis materias daban "0 semanas", con 3.300 kg de Cloro Shock en el depósito**. Lo que hay que medir es el ritmo justo a tiempo, y no hizo falta fórmula nueva: es el mismo `sugerido` con `horizonte: 1` y `semanasSeguridad: 0`. `planPorProducto` pasó a llamarse `planConsumo` y dos tests nuevos fijan la diferencia con la misma entrada.
+
+3. **Las clases `.cf-prods`, `.cf-ph` y `.cf-pr` NO se borraron** (Task 6). El plan decía sacarlas con la sección Productos, pero las usan también el stock inicial y la lista de órdenes de envasado, las dos con su propio `grid-template-columns` inline. Sí quedó muerto el `grid-template-columns` por defecto de `.cf-ph,.cf-pr` y se sacó.
+
+4. **`stockHoy` puede venir en `null`** (Task 5). No estaba previsto: son las semanas anteriores al conteo. `Cloro.sugerido` habría tratado ese null como cero —"no hay nada"— y mandado a envasar de más, así que sin `stockHoy` no hay sugerido.
+
+5. **`pintarCfAviso` y su listener se fueron con la sección Productos** (Task 6). Sólo servían para pintar en rojo los productos sin materia prima dentro de ese bloque.
+
+6. Un test extra en la Task 2 (`planEnvasado` arrancando del conteo cuando la semana anterior viene en `null`): es la costura entre las tasks 1 y 2 y no había otra forma de fijarla.
+
+## Verificaciones hechas
+
+- **88 tests** de `node --test` en verde, 22 más que al empezar.
+- Contra la base, después de correr el SQL: **6 materias activas**, las 6 vinculadas y en Kg (`334101→48`, `21550000→49`, `218851→107`, `220156→110`, `220043→42`, `220111→100`); 3 desactivadas; **13 productos con materia y kg**, ninguno sin asignar; **13 filas de stock inicial con fecha 2026-09-08**, ninguna sin fecha.
+- **El bug del conteo, medido antes y después** en la pantalla publicada: Pastilla Triple Acción 1 kg pasó de **−272 a 215** sobre 500 contadas; Cloro Shock 240 g de **−73 a 69** sobre 120; Cloro Shock 3,5 Kg de −121 a −15; Cloro Granulado 4 Kg de −11 a 5. Los sugeridos bajaron en consecuencia (4.147 → 3.660 en la Pastilla).
+- **La cobertura, verificada a mano contra el módulo** acumulando la curva del Cloro Shock semana a semana: 6 y 6.
+- Las seis coberturas se separan y ordenan como corresponde: Ceniza de soda 1 semana, Pastilla Triple Acción 3, Metabisulfito 4, Cloro Shock 6, Cloro Granulado 9, Pastilla Jacuzzi 14.
+- El `pendiente_entrega` se muestra sin sumarse: Cloro Granulado dice "500 kg · +500 en camino" y su cobertura de 9 semanas sale de los 500, no de 1.000.
+- Configuración: 4 secciones, sin lista de productos, 74 artículos ofrecidos en el select (79 MP − 6 ya vinculadas + el placeholder), fecha del conteo precargada en 2026-09-08.
+- Las 5 columnas de la tabla de materia prima cierran en todas las filas, sin desborde horizontal, sin `NaN` ni `undefined`, consola sin mensajes.

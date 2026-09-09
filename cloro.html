@@ -352,13 +352,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-08.2233"/>
-<script src="supabase-config.js?v=2026-09-08.2233"></script>
-<script src="subatir-app.js?v=2026-09-08.2233"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-08.2322"/>
+<script src="supabase-config.js?v=2026-09-08.2322"></script>
+<script src="subatir-app.js?v=2026-09-08.2322"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-08.2233';
+window.APP_VER='2026-09-08.2322';
 </script>
 </head>
 <body>
@@ -370,7 +370,7 @@ window.APP_VER='2026-09-08.2233';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-08.2233"></script>
+  <script src="nav.js?v=2026-09-08.2322"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -661,7 +661,7 @@ window.APP_VER='2026-09-08.2233';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="cloro-calc.js?v=2026-09-08.2233"></script>
+<script src="cloro-calc.js?v=2026-09-08.2322"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
@@ -876,6 +876,10 @@ function calcularCrecimiento(t, prev, prev2){
     actual:   total(t.id),
     anterior: prev  ? total(prev.id)  : [],
     previa:   prev2 ? total(prev2.id) : null,
+    // Si la temporada tiene filas de venta, no si suman algo: una temporada
+    // arrancada y sin importar mediría -100% de crecimiento y anularía la
+    // previsión. Ver el comentario de Cloro.crecimiento.
+    hayActual: !!VENTAS[t.id],
     semanasCerradas: cerradas
   });
 }
@@ -1336,7 +1340,19 @@ function pintarAvisos(){
       +sinMP.slice(0,3).map(function(p){ return esc(p.nombre); }).join(' · ')
       +(sinMP.length>3?' y '+(sinMP.length-3)+' más':'')});
   }
-  if(CREC.modo==='temporada-completa'){
+  // La temporada ya arrancó pero no tiene una sola venta cargada. Es el
+  // aviso más importante de todos: sin ventas no hay nada que medir, y
+  // hasta que se importen todo lo que se ve sale del año pasado.
+  if(CREC.sinVentas && !temporadaNoArranco(t) && temporadaPrevia(t)){
+    a.push({t:'urg', txt:'<b>Esta temporada no tiene ninguna venta importada</b> y ya va por la '
+      +'semana '+SEM_ACTUAL+' de '+NSEM+'. El crecimiento no se mide contra un año sin datos '
+      +'(daría −100 % y dejaría toda la previsión en cero), así que se está usando '
+      +(CREC.modo==='temporada-completa'
+        ? 'el <b>crecimiento de la temporada anterior ('+(CREC.pct>=0?'+':'')+n1(CREC.pct*100)+' %)</b>'
+        : '<b>0 %</b>')
+      +' y la previsión es el histórico del año pasado. '
+      +'Importá las ventas desde <b>📥 Importar ventas</b> para que la previsión siga a esta temporada.'});
+  } else if(CREC.modo==='temporada-completa'){
     a.push({t:'info', txt:'Todavía hay menos de 4 semanas cerradas en esta temporada, así que el '
       +'crecimiento no se puede medir contra el mismo tramo del año pasado. Se está usando el '
       +'<b>crecimiento de temporada completa de la anterior ('+(CREC.pct>=0?'+':'')+n1(CREC.pct*100)
@@ -1344,6 +1360,14 @@ function pintarAvisos(){
   } else if(CREC.modo==='sin-datos'){
     a.push({t:'temp', txt:'<b>No hay con qué medir el crecimiento</b>, así que se está usando 0 %. '
       +'La previsión es el histórico suavizado tal cual.'});
+  }
+  // Un crecimiento de −100 % no encoge la previsión: la anula. Como el
+  // resultado es "no envases nada", sin este aviso la pantalla queda
+  // coherente y muda mientras está diciendo cualquier cosa.
+  if(CREC.modo==='manual' && CREC.pct<=-1){
+    a.push({t:'urg', txt:'<b>El crecimiento está fijado a mano en '+n1(CREC.pct*100)+' %</b>, así que '
+      +'toda la previsión queda en cero y no se sugiere envasar nada. Si no fue a propósito, '
+      +'volvé a tildar <b>automático</b> en <b>⚙ Configuración → Parámetros</b>.'});
   }
   var rot = fs.filter(function(f){ return f.bajaRot; });
   if(rot.length){
@@ -1520,8 +1544,12 @@ function pintarConfig(){
     document.getElementById('cf-seg').value   = PAR.semanas_seguridad;
     document.getElementById('cf-umb').value   = PAR.umbral_baja_rotacion;
     document.getElementById('cf-crec-auto').checked = (PAR.crecimiento_pct==null);
-    document.getElementById('cf-crec').value  = PAR.crecimiento_pct!=null
-      ? PAR.crecimiento_pct : Math.round(CREC.pct*1000)/10;
+    // Con "automático" tildado el campo es sólo la referencia de lo que está
+    // midiendo el módulo, pero queda escrito y se guarda apenas se destilda:
+    // un número inservible acá se vuelve solo un parámetro inservible en la
+    // base. Por eso nunca se precarga un −100 % (ni peor).
+    var ref = (CREC.modo!=='sin-datos' && CREC.pct>-1) ? Math.round(CREC.pct*1000)/10 : 0;
+    document.getElementById('cf-crec').value = PAR.crecimiento_pct!=null ? PAR.crecimiento_pct : ref;
     pintarCrecInput();
   }
 
@@ -1686,13 +1714,23 @@ function guardarConfig(){
   if(suav%2===0){ suav++; toast('El suavizado tiene que ser impar para poder centrarse: quedó en '+suav,'info'); }
   var auto=document.getElementById('cf-crec-auto').checked;
 
+  // −100 % o menos no encoge la previsión: la multiplica por cero y el
+  // módulo pasa a decir "no envases nada". Nunca es lo que se quiso pedir,
+  // y ya entró una vez por venir precargado en el campo.
+  var crec = num(document.getElementById('cf-crec').value);
+  if(!auto && crec<=-100){
+    toast('Un crecimiento de −100 % o menos deja toda la previsión en cero. '
+      +'Corregilo o tildá «automático».','err');
+    b.disabled=false; return;
+  }
+
   var ops=[];
   ops.push(SB.from('cl_parametros').update({
     suavizado_semanas: suav,
     horizonte_semanas: Math.max(1, Math.round(num(document.getElementById('cf-horiz').value)||1)),
     semanas_seguridad: Math.max(0, num(document.getElementById('cf-seg').value)),
     umbral_baja_rotacion: Math.max(0, num(document.getElementById('cf-umb').value)),
-    crecimiento_pct: auto ? null : num(document.getElementById('cf-crec').value),
+    crecimiento_pct: auto ? null : crec,
     updated_at: new Date().toISOString()
   }).eq('temporada_id', t.id).select());
 

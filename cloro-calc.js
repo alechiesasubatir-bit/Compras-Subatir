@@ -81,18 +81,31 @@
   // Se mide comparando el MISMO TRAMO de las dos temporadas. Comparar lo
   // que va de esta contra la anterior entera diria que las ventas se
   // derrumbaron todos los agostos.
+  //
+  // `hayActual` dice si la temporada en curso tiene ventas CARGADAS, no si
+  // suman algo. Son cosas distintas y confundirlas anula el modulo entero:
+  // una temporada que ya arranco pero cuyas ventas todavia no se importaron
+  // da 0 contra un ano pasado que si vendio, o sea -100% de crecimiento, y
+  // ese -100% multiplica TODA la prevision por cero. El modulo terminaria
+  // diciendo "no envases nada" justo en el arranque de la temporada. Vale el
+  // mismo criterio que en el stock inicial: se mira si el dato existe, no
+  // cuanto vale. Un cero cargado es una afirmacion y si mide -100%.
   function crecimiento(o) {
     var min = o.minSemanas == null ? 4 : o.minSemanas;
     var cerradas = o.semanasCerradas || 0;
-    if (cerradas >= min) {
+    var hayActual = o.hayActual == null ? true : !!o.hayActual;
+    if (hayActual && cerradas >= min) {
       var den = suma(o.anterior, cerradas);
-      if (den > 0) return { pct: suma(o.actual, cerradas) / den - 1, modo: 'auto' };
+      if (den > 0) return { pct: suma(o.actual, cerradas) / den - 1, modo: 'auto', sinVentas: false };
     }
-    // Temporada recien arrancada: todavia no hay tramo que comparar, asi
-    // que se hereda el crecimiento que hubo entre las dos anteriores.
+    // Temporada recien arrancada (o sin ventas importadas): todavia no hay
+    // tramo que comparar, asi que se hereda el crecimiento que hubo entre
+    // las dos anteriores.
     var denPrevia = suma(o.previa);
-    if (denPrevia > 0) return { pct: suma(o.anterior) / denPrevia - 1, modo: 'temporada-completa' };
-    return { pct: 0, modo: 'sin-datos' };
+    if (denPrevia > 0) {
+      return { pct: suma(o.anterior) / denPrevia - 1, modo: 'temporada-completa', sinVentas: !hayActual };
+    }
+    return { pct: 0, modo: 'sin-datos', sinVentas: !hayActual };
   }
 
   // ─── La prevision ──────────────────────────────────────────────────

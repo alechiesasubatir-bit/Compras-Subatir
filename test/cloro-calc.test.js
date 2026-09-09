@@ -101,6 +101,55 @@ test('un producto que el anio pasado no existia no divide por cero', () => {
   assert.strictEqual(r.pct, 0);
 });
 
+// El caso real que rompio la temporada 2026-27: arrancada, 6 semanas
+// cerradas y las ventas todavia sin importar. El cociente daba -100% y
+// multiplicaba TODA la prevision por cero.
+test('una temporada arrancada y sin ventas importadas no da -100%', () => {
+  const r = Cloro.crecimiento({
+    actual:   [0, 0, 0, 0, 0, 0],
+    anterior: [80, 80, 80, 80, 80, 80, 80, 80],
+    previa:   [80, 80, 80, 80, 80, 80, 80, 80],
+    hayActual: false,
+    semanasCerradas: 6
+  });
+  assert.notStrictEqual(r.modo, 'auto');
+  assert.strictEqual(r.sinVentas, true);
+  assert.ok(r.pct > -1);
+});
+
+test('sin ventas importadas y sin nada que heredar el crecimiento es cero', () => {
+  const r = Cloro.crecimiento({
+    actual:   [0, 0, 0, 0, 0, 0],
+    anterior: [80, 80, 80, 80, 80, 80],
+    previa:   null,
+    hayActual: false,
+    semanasCerradas: 6
+  });
+  assert.strictEqual(r.modo, 'sin-datos');
+  assert.strictEqual(r.pct, 0);
+});
+
+// La otra cara: un cero CARGADO es una afirmacion, no una ausencia. Mismo
+// criterio que el stock inicial, donde se mira si la fila existe.
+test('con ventas cargadas en cero el -100% si es un dato', () => {
+  const r = Cloro.crecimiento({
+    actual:   [0, 0, 0, 0],
+    anterior: [80, 80, 80, 80],
+    previa:   null,
+    hayActual: true,
+    semanasCerradas: 4
+  });
+  assert.strictEqual(r.modo, 'auto');
+  assert.strictEqual(r.pct, -1);
+});
+
+test('un crecimiento de -100% deja la prevision entera en cero', () => {
+  // por que el -100% no puede entrar por descuido: no encoge la prevision,
+  // la anula.
+  const r = Cloro.prever({ anterior: [50, 60, 70], ventana: 1, crecimientoPct: -1, semanas: 3 });
+  assert.deepStrictEqual(r, [0, 0, 0]);
+});
+
 // ─── Prevision, stock, sugerido y materia prima ──────────────────────
 
 test('prever aplica el crecimiento sobre el historico suavizado', () => {

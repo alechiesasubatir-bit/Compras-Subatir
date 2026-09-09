@@ -202,7 +202,7 @@ tr.sinmp td.mp{color:#fca5a5}
 .cf-add .fg{margin-bottom:0}
 /* Grilla de productos */
 .cf-prods{display:grid;gap:6px;max-height:330px;overflow:auto;padding-right:5px}
-.cf-ph,.cf-pr{display:grid;grid-template-columns:minmax(0,1fr) 175px 84px 74px 84px;gap:8px;align-items:center}
+.cf-ph,.cf-pr{display:grid;grid-template-columns:minmax(0,1fr) 175px 84px 84px;gap:8px;align-items:center}
 .cf-ph{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.7px;
   text-transform:uppercase;color:var(--muted);padding:0 10px 2px;position:sticky;top:0;
   background:linear-gradient(180deg,#0e1621,#0e1621 70%,transparent)}
@@ -884,6 +884,17 @@ function calcularCrecimiento(t, prev, prev2){
   });
 }
 
+// Los kg de materia prima de `u` unidades de `p`. Existe para que la
+// cuenta esté UNA sola vez: la tabla, el gráfico y el CSV la repetían y
+// Cloro.kgMateria la hacía por su cuenta, así que cualquier cambio había
+// que acertarlo cuatro veces o la pantalla se contradecía sola.
+// Devuelve null si el producto no tiene con qué calcular: un cero se
+// leería como "no lleva materia prima".
+function kgDe(p, u){
+  if(p.materia_id==null || num(p.kg_mp_por_unidad)<=0 || u==null) return null;
+  return num(u)*num(p.kg_mp_por_unidad);
+}
+
 // ══ LAS FILAS ═════════════════════════════════════════════════
 function filas(){
   var t=temporadaActual(); if(!t || !PAR) return [];
@@ -1179,9 +1190,8 @@ function dibujarMPSemanal(){
     var p=f.prod;
     if(p.materia_id==null || num(p.kg_mp_por_unidad)<=0 || !f.prevision) return;
     var k=mapa[p.materia_id]; if(k===undefined || !datos[k]) return;
-    var fac=num(p.kg_mp_por_unidad)*(1+num(p.merma_pct)/100);
     semanas.forEach(function(w,i){
-      var kg=num(f.prevision[w-1])*fac;
+      var kg=kgDe(p, f.prevision[w-1]);
       datos[k][i]+=kg; totMat[k]+=kg;
     });
   });
@@ -1444,8 +1454,7 @@ function pintarTabla(){
   fs.forEach(function(f){
     var p=f.prod;
     var sinMP = p.materia_id==null || num(p.kg_mp_por_unidad)<=0;
-    var kg = (sinMP || f.sugerido==null) ? null
-           : f.sugerido*num(p.kg_mp_por_unidad)*(1+num(p.merma_pct)/100);
+    var kg = kgDe(p, f.sugerido);
     var proxSem = f.prevision ? num(f.prevision[SEM_ACTUAL-1]) : null;
     // Cobertura: cuántas semanas aguanta el stock al ritmo previsto.
     var ritmo = f.demandaH>0 ? f.demandaH/num(PAR.horizonte_semanas) : 0;
@@ -1458,8 +1467,7 @@ function pintarTabla(){
          +'<span class="cod">'+esc(p.codigo)+'</span></td>'
       +'<td class="l mp">'+(sinMP
           ? (p.materia_id==null ? 'sin asignar' : 'sin kg/unidad')+'<span class="tag nomp">no suma</span>'
-          : esc(matNom[p.materia_id]||'?')+' · '+n1(p.kg_mp_por_unidad)+' kg/u'
-            +(num(p.merma_pct)>0?' +'+n1(p.merma_pct)+'%':''))+'</td>'
+          : esc(matNom[p.materia_id]||'?')+' · '+n1(p.kg_mp_por_unidad)+' kg/u')+'</td>'
       +'<td>'+n0(f.ventasTemp)+'</td>'
       +'<td class="calc">'+n0(f.envasadoTemp)+'</td>'
       +'<td>'+(f.stockHoy==null?'<span class="calc">—</span>':n0(f.stockHoy))
@@ -1566,7 +1574,7 @@ function pintarConfig(){
   var opts = MAT.filter(function(m){ return m.activo!==false; })
     .map(function(m){ return '<option value="'+m.id+'">'+esc(m.nombre)+'</option>'; }).join('');
   var h='<div class="cf-ph"><span>Producto</span><span>Materia prima</span>'
-       +'<span>kg MP/u</span><span>Merma %</span><span>Lote</span></div>';
+       +'<span>kg MP/u</span><span>Lote</span></div>';
   PROD.filter(function(p){ return p.activo!==false; })
       .sort(function(a,b){ return (a.orden||0)-(b.orden||0); })
       .forEach(function(p){
@@ -1576,9 +1584,8 @@ function pintarConfig(){
         +'<small>'+esc(p.codigo)+'</small></div>'
       +'<select class="cf-mat'+(p.materia_id==null?' vacio':'')+'">'
         +'<option value="">— sin asignar —</option>'+opts+'</select>'
-      +'<input class="cf-kg"    type="number" min="0" step="0.001" value="'+num(p.kg_mp_por_unidad)+'"/>'
-      +'<input class="cf-merma" type="number" min="0" step="0.1"   value="'+num(p.merma_pct)+'"/>'
-      +'<input class="cf-lote"  type="number" min="1" step="1"     value="'+(num(p.lote_unidades)||1)+'"/>'
+      +'<input class="cf-kg"   type="number" min="0" step="0.001" value="'+num(p.kg_mp_por_unidad)+'"/>'
+      +'<input class="cf-lote" type="number" min="1" step="1"     value="'+(num(p.lote_unidades)||1)+'"/>'
       +'</div>';
   });
   document.getElementById('cf-prods').innerHTML=h;
@@ -1743,12 +1750,10 @@ function guardarConfig(){
     var nuevo={
       materia_id: sel ? parseInt(sel,10) : null,
       kg_mp_por_unidad: Math.max(0, num(row.querySelector('.cf-kg').value)),
-      merma_pct: Math.max(0, num(row.querySelector('.cf-merma').value)),
       lote_unidades: Math.max(1, num(row.querySelector('.cf-lote').value)||1)
     };
     if(nuevo.materia_id===(p.materia_id==null?null:p.materia_id)
        && nuevo.kg_mp_por_unidad===num(p.kg_mp_por_unidad)
-       && nuevo.merma_pct===num(p.merma_pct)
        && nuevo.lote_unidades===(num(p.lote_unidades)||1)) return;
     ops.push(SB.from('cl_productos').update(nuevo).eq('id', id).select());
   });
@@ -2140,7 +2145,7 @@ function exportCSV(){
   var matNom={}; MAT.forEach(function(m){ matNom[m.id]=m.nombre; });
   var cerradas=Math.max(0, SEM_ACTUAL-1);
   var cab=['Temporada','Semana actual','Producto','Código','Materia prima','kg MP por unidad',
-           'Merma %','Lote','Ventas temporada','Ventas mismo tramo año anterior','Envasado',
+           'Lote','Ventas temporada','Ventas mismo tramo año anterior','Envasado',
            'Stock hoy','Previsión próxima semana','Demanda horizonte ('+n0(PAR.horizonte_semanas)
            +' sem)','A envasar','kg de MP','Baja rotación'];
   var q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };
@@ -2150,13 +2155,11 @@ function exportCSV(){
   var out=[cab.map(q).join(';')];
   fs.forEach(function(f){
     var p=f.prod;
-    var sinMP = p.materia_id==null || num(p.kg_mp_por_unidad)<=0;
-    var kg = (sinMP || f.sugerido==null) ? null
-           : f.sugerido*num(p.kg_mp_por_unidad)*(1+num(p.merma_pct)/100);
+    var kg = kgDe(p, f.sugerido);
     out.push([
       q(t.nombre), SEM_ACTUAL, q(p.nombre), q(p.codigo),
       q(p.materia_id==null?'SIN ASIGNAR':(matNom[p.materia_id]||'?')),
-      d1(p.kg_mp_por_unidad), d1(p.merma_pct), d1(p.lote_unidades),
+      d1(p.kg_mp_por_unidad), d1(p.lote_unidades),
       d1(f.ventasTemp),
       d1(f.vPrev.slice(0,cerradas).reduce(function(a,x){ return a+num(x); },0)),
       d1(f.envasadoTemp),

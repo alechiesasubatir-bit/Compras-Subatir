@@ -225,23 +225,30 @@ test('bajaRotacion marca los cuatro productos que no admiten prevision semanal',
   assert.strictEqual(Cloro.bajaRotacion(new Array(35).fill(32), 10), false);
 });
 
-test('kgMateria suma por materia prima y aplica la merma', () => {
+test('kgMateria suma por materia prima', () => {
   const productos = [
-    { id: 1, materia_id: 7, kg_mp_por_unidad: 1,   merma_pct: 0 },
-    { id: 2, materia_id: 7, kg_mp_por_unidad: 0.9, merma_pct: 10 },
-    { id: 3, materia_id: 8, kg_mp_por_unidad: 2,   merma_pct: 0 }
+    { id: 1, materia_id: 7, kg_mp_por_unidad: 1 },
+    { id: 2, materia_id: 7, kg_mp_por_unidad: 0.9 },
+    { id: 3, materia_id: 8, kg_mp_por_unidad: 2 }
   ];
   const r = Cloro.kgMateria(productos, { 1: 100, 2: 100, 3: 50 });
-  // materia 7: 100*1 + 100*0.9*1.1 = 100 + 99 = 199 ; materia 8: 50*2 = 100
-  assert.ok(Math.abs(r.porMateria[7] - 199) < 1e-9);
+  // materia 7: 100*1 + 100*0.9 = 100 + 90 = 190 ; materia 8: 50*2 = 100
+  assert.ok(Math.abs(r.porMateria[7] - 190) < 1e-9);
   assert.ok(Math.abs(r.porMateria[8] - 100) < 1e-9);
   assert.deepStrictEqual(r.sinAsignar, []);
 });
 
+test('los kg son el teorico puro, sin ningun recargo', () => {
+  // Hubo un merma_pct que multiplicaba este numero. Se saco de la base y
+  // del calculo; si alguna fila vieja lo trae igual, se ignora.
+  const r = Cloro.kgMateria([{ id: 1, materia_id: 7, kg_mp_por_unidad: 2, merma_pct: 50 }], { 1: 10 });
+  assert.strictEqual(r.porMateria[7], 20);
+});
+
 test('un producto sin materia prima no suma en ningun lado y se lista', () => {
   const productos = [
-    { id: 1, materia_id: null, kg_mp_por_unidad: 1, merma_pct: 0 },
-    { id: 2, materia_id: 7,    kg_mp_por_unidad: 1, merma_pct: 0 }
+    { id: 1, materia_id: null, kg_mp_por_unidad: 1 },
+    { id: 2, materia_id: 7,    kg_mp_por_unidad: 1 }
   ];
   const r = Cloro.kgMateria(productos, { 1: 500, 2: 10 });
   assert.deepStrictEqual(r.sinAsignar, [1]);
@@ -250,6 +257,6 @@ test('un producto sin materia prima no suma en ningun lado y se lista', () => {
 });
 
 test('un producto sin kg por unidad cuenta como sin asignar', () => {
-  const r = Cloro.kgMateria([{ id: 1, materia_id: 7, kg_mp_por_unidad: 0, merma_pct: 0 }], { 1: 500 });
+  const r = Cloro.kgMateria([{ id: 1, materia_id: 7, kg_mp_por_unidad: 0 }], { 1: 500 });
   assert.deepStrictEqual(r.sinAsignar, [1]);
 });

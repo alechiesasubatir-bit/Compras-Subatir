@@ -168,14 +168,18 @@
   // unidad NO se reparte a ningun lado ni se estima: se devuelve en
   // `sinAsignar` para que la pantalla lo cante. Adivinar aca termina en
   // una compra de toneladas equivocada.
+  //
+  // Los kg son el teorico puro: unidades x kg por unidad. Hubo un
+  // `merma_pct` por producto que recargaba este numero y se saco porque
+  // nadie lo iba a cargar, y un porcentaje que queda siempre en cero es
+  // una perilla que hay que explicar cada vez sin que cambie nada.
   function kgMateria(productos, sugeridos) {
     var porMateria = {}, sinAsignar = [];
     (productos || []).forEach(function (p) {
       var u = parseFloat((sugeridos || {})[p.id]) || 0;
       var kgu = parseFloat(p.kg_mp_por_unidad) || 0;
       if (p.materia_id == null || kgu <= 0) { sinAsignar.push(p.id); return; }
-      var kg = u * kgu * (1 + (parseFloat(p.merma_pct) || 0) / 100);
-      porMateria[p.materia_id] = (porMateria[p.materia_id] || 0) + kg;
+      porMateria[p.materia_id] = (porMateria[p.materia_id] || 0) + u * kgu;
     });
     return { porMateria: porMateria, sinAsignar: sinAsignar };
   }

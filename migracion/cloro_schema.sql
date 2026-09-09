@@ -53,7 +53,6 @@ create table if not exists public.cl_productos (
   nombre           text not null,
   materia_id       bigint references public.cl_materias(id) on delete set null,
   kg_mp_por_unidad numeric not null default 0,
-  merma_pct        numeric not null default 0,
   lote_unidades    numeric not null default 1,
   orden            int not null default 0,
   activo           boolean not null default true

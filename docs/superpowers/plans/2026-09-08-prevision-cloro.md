@@ -1363,6 +1363,8 @@ Lo que cambió respecto del plan, y por qué. Todo verificado en el navegador co
 
 7. **`node --test test/` no funciona en Node 24** (Task 11): interpreta `test` como archivo. Va `node --test` sin argumentos.
 
+8. **Se sacó la merma** (Tasks 3, 4 y 7), a pedido del usuario: no la van a usar. `cl_productos.merma_pct` recargaba los kg de MP sobre el teórico (`× (1 + m/100)`) y quedaba siempre en cero, o sea una perilla más que explicar en Configuración sin que moviera un número. Los kg pasan a ser unidades × kg por unidad y nada más. Sale de la base con `migracion/cloro_quitar_merma.sql`, que **va después de publicar**: al revés, la pantalla vieja sigue mandando `merma_pct` en el update de Configuración y guardar rompería. De paso apareció que el factor de kg estaba escrito **cuatro veces** —`Cloro.kgMateria`, la fila de la tabla, el gráfico de MP y el CSV—; ahora los tres sitios de la pantalla pasan por `kgDe(p, u)`.
+
 ## Verificaciones hechas
 
 - Los totales de venta de los 13 productos coinciden con los `.xls` en las 26 combinaciones producto-temporada, tanto en la semilla como leyendo la base desde el navegador.

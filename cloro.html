@@ -219,6 +219,32 @@ tr.sinmp td.mp{color:#fca5a5}
   .cf-ph{display:none}
   .cf-pr{grid-template-columns:1fr 1fr;gap:6px}
 }
+/* ── Importar ─────────────────────────────────────────────── */
+.drop{border:1.5px dashed var(--border-b);border-radius:12px;padding:24px 18px;text-align:center;
+  background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .16s,background .16s}
+.drop:hover,.drop.hot{border-color:rgba(56,189,248,.5);background:rgba(56,189,248,.06)}
+.drop-i{font-size:26px;line-height:1;margin-bottom:8px}
+.drop-t{font-family:var(--display);font-size:13px;font-weight:700}
+.drop-s{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.55}
+.imp-sec{margin-top:14px}
+.imp-sec h4{font-family:var(--display);font-size:11px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--muted-l);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.imp-sec h4 .n{font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:99px;
+  background:rgba(255,255,255,.08);color:var(--text)}
+.imp-sec h4.go .n{background:rgba(56,189,248,.20);color:var(--agua)}
+.imp-sec h4.rd .n{background:rgba(239,68,68,.18);color:#fca5a5}
+.imp-lista{max-height:250px;overflow:auto;border:1px solid var(--border);border-radius:9px}
+.imp-lista table{width:100%;border-collapse:collapse}
+.imp-lista td{padding:5px 9px;font-size:11.5px;text-align:left;
+  border-bottom:1px solid rgba(255,255,255,.04)}
+.imp-lista tr:last-child td{border-bottom:none}
+.imp-lista .v{font-family:var(--mono);font-size:11.5px;text-align:right;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.imp-lista .vieja{color:var(--muted)}
+.imp-lista .nueva{color:var(--agua);font-weight:600}
+.imp-lista .dif{font-family:var(--mono);font-size:10.5px}
+.imp-err{padding:11px 13px;border-radius:10px;background:rgba(239,68,68,.10);
+  border:1px solid rgba(239,68,68,.28);color:#fca5a5;font-size:12px;line-height:1.6}
 .toasts{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px}
 .toast{padding:11px 15px;border-radius:10px;font-size:12.5px;font-weight:600;max-width:420px;
   box-shadow:0 8px 24px rgba(0,0,0,.45)}
@@ -473,6 +499,33 @@ window.APP_VER='2026-09-08.2057';
     </div>
     <div class="modal-f">
       <button class="btn" onclick="cerrar('ovl-env')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Importar ventas ═════════════════════════════ -->
+<div class="ovl" id="ovl-imp">
+  <div class="modal ancho">
+    <div class="modal-h"><span>📥 Importar ventas</span>
+      <button class="x" onclick="cerrar('ovl-imp')" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <p class="cf-p">Los listados de ventas por producto que exporta el sistema, tal cual salen.
+        Podés soltar los 13 de una vez. El producto se reconoce por el <b>Cod. Art.</b> y la
+        temporada por las fechas.</p>
+      <div class="drop" id="imp-drop" tabindex="0" role="button"
+           onclick="document.getElementById('imp-file').click()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('imp-file').click();}">
+        <div class="drop-i">📄</div>
+        <div class="drop-t">Soltá acá los archivos, o hacé clic para elegirlos</div>
+        <div class="drop-s">.xls o .xlsx · varios a la vez</div>
+      </div>
+      <input type="file" id="imp-file" multiple accept=".xls,.xlsx"
+             style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none"/>
+      <div id="imp-prev"></div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrar('ovl-imp')">Cancelar</button>
+      <button class="btn btn-pri" id="btn-imp" onclick="aplicarImport()" disabled>Aplicar</button>
     </div>
   </div>
 </div>
@@ -1215,7 +1268,248 @@ function guardarConfig(){
   }).then(function(){ b.disabled=false; });
 }
 
-function openImportar(){ toast('Importar ventas: en la próxima etapa','info'); }
+// ══ IMPORTAR VENTAS ═══════════════════════════════════════════
+//  Los .xls del sistema son binarios de Excel 97, no los .xlsx (que son
+//  un ZIP de XML y se pueden leer a mano, como hace MP Importación).
+//  Ese formato binario se lee con SheetJS: escribir el lector acá es
+//  justo donde un número mal leído se cuela sin avisar, y todas las
+//  cuentas del módulo cuelgan de estas ventas.
+var IMPORT=null;   // resultado de la previsualización
+
+// SheetJS pesa ~900 KB y sólo hace falta para importar. En el <head> le
+// costaría esa descarga a todo el que entra a mirar un número.
+var SHEETJS=null;
+function cargarSheetJS(){
+  if(SHEETJS) return SHEETJS;
+  SHEETJS = new Promise(function(ok, mal){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=function(){ ok(window.XLSX); };
+    s.onerror=function(){ SHEETJS=null;
+      mal(new Error('No se pudo cargar el lector de Excel (revisá tu conexión)')); };
+    document.head.appendChild(s);
+  });
+  return SHEETJS;
+}
+
+function openImportar(){
+  IMPORT=null;
+  document.getElementById('imp-prev').innerHTML='';
+  document.getElementById('imp-file').value='';
+  document.getElementById('btn-imp').disabled=true;
+  abrir('ovl-imp');
+}
+
+// La fecha viene como número de serie de Excel. Se convierte igual que
+// en el generador de la semilla —origen 1899-12-30— y NO con las fechas
+// de SheetJS: esas se arman en hora local y un huso distinto puede
+// correr la venta del lunes a la semana anterior.
+function fechaDeSerial(n){
+  return new Date(Date.UTC(1899,11,30) + Math.round(n)*86400000);
+}
+function isoDe(d){
+  function p(x){ return (x<10?'0':'')+x; }
+  return d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate());
+}
+function temporadaDeFecha(iso){
+  return TEMPS.filter(function(t){ return iso>=t.fecha_ini && iso<=t.fecha_fin; })[0] || null;
+}
+
+function leerArchivo(XLSX, file){
+  return file.arrayBuffer().then(function(buf){
+    var wb = XLSX.read(new Uint8Array(buf), {type:'array'});
+    var sh = wb.Sheets[wb.SheetNames[0]];
+    // header:1 devuelve cada fila como array: el encabezado del sistema
+    // ocupa 5 filas y no sirve como nombres de columna.
+    var rows = XLSX.utils.sheet_to_json(sh, {header:1, raw:true});
+    var out=[], i, r;
+    for(i=0;i<rows.length;i++){
+      r=rows[i];
+      if(!r || r.length<5) continue;
+      // Las filas de datos son las que tienen un serial de fecha en A.
+      // El encabezado y la fila de TOTAL del final no lo tienen, así que
+      // se van solas sin hardcodear en qué renglón empieza la tabla.
+      if(typeof r[0]!=='number' || r[0]<1000) continue;
+      out.push({ iso: isoDe(fechaDeSerial(r[0])),
+                 cod: String(r[2]==null?'':r[2]).trim(),
+                 desc: String(r[3]==null?'':r[3]).trim(),
+                 cant: parseFloat(r[4])||0 });
+    }
+    return {nombre:file.name, filas:out};
+  });
+}
+
+function archivosElegidos(files){
+  if(!files || !files.length) return;
+  var host=document.getElementById('imp-prev');
+  host.innerHTML='<div class="hint">Leyendo '+files.length+' archivo'
+    +(files.length===1?'':'s')+'…</div>';
+  cargarSheetJS().then(function(XLSX){
+    return Promise.all(Array.prototype.map.call(files, function(f){ return leerArchivo(XLSX,f); }));
+  }).then(function(leidos){
+    IMPORT = analizar(leidos);
+    pintarImport();
+  }).catch(function(e){
+    host.innerHTML='<div class="imp-err">'+esc((e&&e.message)||e)+'</div>';
+    document.getElementById('btn-imp').disabled=true;
+  });
+}
+
+function analizar(leidos){
+  var porCodigo={}; PROD.forEach(function(p){ porCodigo[String(p.codigo).trim()]=p; });
+  var grupos={}, desconocidos={}, fueraTemp=0, vacios=[];
+  leidos.forEach(function(arch){
+    if(!arch.filas.length){ vacios.push(arch.nombre); return; }
+    arch.filas.forEach(function(f){
+      var p=porCodigo[f.cod];
+      if(!p){ (desconocidos[f.cod]=desconocidos[f.cod]||{n:0,desc:f.desc,arch:arch.nombre}).n++; return; }
+      var t=temporadaDeFecha(f.iso);
+      // Una fila fuera de toda temporada caería en una semana que no
+      // existe. Se descarta y se cuenta, no se fuerza a la más cercana.
+      if(!t){ fueraTemp++; return; }
+      var w=Cloro.semanaDe(new Date(f.iso+'T00:00:00Z'), dIni(t));
+      var k=t.id+'|'+p.id;
+      var g=grupos[k] || (grupos[k]={temp:t, prod:p, sem:{}, wMin:w, wMax:w,
+                                     total:0, archivos:{}});
+      g.sem[w]=(g.sem[w]||0)+f.cant;
+      g.total+=f.cant;
+      if(w<g.wMin) g.wMin=w; if(w>g.wMax) g.wMax=w;
+      g.archivos[arch.nombre]=1;
+    });
+  });
+  // Total que ya hay cargado, para poder mostrar la diferencia antes de pisar.
+  Object.keys(grupos).forEach(function(k){
+    var g=grupos[k];
+    var s=serieVentas(g.temp.id, g.prod.id);
+    var ant=0;
+    for(var w=g.wMin; w<=g.wMax; w++) ant += num(s[w-1]);
+    g.anterior=ant;
+    g.tieneDatos = s.some(function(x){ return num(x)!==0; });
+  });
+  return {grupos:grupos, desconocidos:desconocidos, fueraTemp:fueraTemp, vacios:vacios};
+}
+
+function pintarImport(){
+  var host=document.getElementById('imp-prev'), h='';
+  var ks=Object.keys(IMPORT.grupos);
+  var dk=Object.keys(IMPORT.desconocidos);
+
+  if(ks.length){
+    h+='<div class="imp-sec"><h4 class="go">Se va a cargar <span class="n">'+ks.length+'</span></h4>'
+      +'<div class="imp-lista"><table><tbody>';
+    ks.sort(function(a,b){
+      var A=IMPORT.grupos[a], B=IMPORT.grupos[b];
+      return A.temp.nombre===B.temp.nombre ? (A.prod.orden||0)-(B.prod.orden||0)
+                                           : (A.temp.nombre<B.temp.nombre?-1:1);
+    }).forEach(function(k){
+      var g=IMPORT.grupos[k];
+      var dif=g.total-g.anterior;
+      h+='<tr><td><b>'+esc(g.prod.nombre)+'</b><br>'
+        +'<span class="cod">'+esc(g.temp.nombre)+' · semanas '+g.wMin+'–'+g.wMax
+        +' · '+Object.keys(g.archivos).map(esc).join(', ')+'</span></td>'
+        +'<td class="v vieja">'+(g.tieneDatos?n0(g.anterior)+' u':'—')+'</td>'
+        +'<td class="v nueva">'+n0(g.total)+' u</td>'
+        +'<td class="v"><span class="dif '+(dif>=0?'up':'dn')+'">'
+        +(g.tieneDatos?((dif>=0?'+':'')+n0(dif)):'nuevo')+'</span></td></tr>';
+    });
+    h+='</tbody></table></div>'
+      +'<div class="hint">Para cada producto <b>el archivo es la verdad</b>: se reemplazan todas '
+      +'sus semanas dentro del rango que cubre, <b>incluidas las de venta cero</b>. Una semana sin '
+      +'ventas no aparece en el listado del sistema, y saltearla dejaría el número de la '
+      +'importación anterior mezclado con datos nuevos.</div></div>';
+  }
+
+  if(dk.length){
+    h+='<div class="imp-sec"><h4 class="rd">Códigos que no están registrados '
+      +'<span class="n">'+dk.length+'</span></h4><div class="imp-lista"><table><tbody>';
+    dk.forEach(function(c){
+      var d=IMPORT.desconocidos[c];
+      h+='<tr><td><b>'+esc(c)+'</b> — '+esc(d.desc)+'<br><span class="cod">'+esc(d.arch)
+        +'</span></td><td class="v">'+d.n+' filas</td></tr>';
+    });
+    h+='</tbody></table></div><div class="hint">Se ignoran. Darlos de alta solos, sin materia '
+      +'prima ni kg por unidad, metería un producto mudo en todas las cuentas.</div></div>';
+  }
+
+  if(IMPORT.fueraTemp){
+    h+='<div class="imp-sec"><div class="imp-err"><b>'+IMPORT.fueraTemp+' fila'
+      +(IMPORT.fueraTemp===1?'':'s')+' con fecha fuera de toda temporada cargada.</b> '
+      +'Se descartan: caerían en una semana que no existe. Si el archivo es de una temporada '
+      +'nueva, creála primero desde ⚙ Configuración.</div></div>';
+  }
+  if(IMPORT.vacios.length){
+    h+='<div class="imp-sec"><div class="imp-err">Sin filas de datos: '
+      +IMPORT.vacios.map(esc).join(', ')+'</div></div>';
+  }
+  if(!ks.length && !dk.length){
+    h='<div class="imp-err">No se encontró ninguna fila de ventas en esos archivos. '
+      +'Tienen que ser los listados por producto del sistema, con las columnas '
+      +'Fecha · Documento · Cod. Art. · Descripción · Cantidad.</div>';
+  }
+  host.innerHTML=h;
+  document.getElementById('btn-imp').disabled = !ks.length;
+}
+
+function aplicarImport(){
+  if(!IMPORT) return;
+  var ks=Object.keys(IMPORT.grupos); if(!ks.length) return;
+  var b=document.getElementById('btn-imp'); b.disabled=true;
+  b.textContent='Aplicando…';
+
+  // De a un producto por vez, y en serie: primero se borra su rango y
+  // después se inserta. En paralelo, un borrado tardío podría llevarse
+  // por delante lo que otro grupo acaba de escribir.
+  var i=0, escritas=0;
+  function paso(){
+    if(i>=ks.length){
+      toast('Listo: '+escritas+' semanas cargadas en '+ks.length+' producto'
+            +(ks.length===1?'':'s'),'ok');
+      cerrar('ovl-imp');
+      return cargar();
+    }
+    var g=IMPORT.grupos[ks[i++]];
+    var filas=[], w;
+    for(w=g.wMin; w<=g.wMax; w++){
+      filas.push({temporada_id:g.temp.id, producto_id:g.prod.id, semana:w,
+                  unidades: g.sem[w]!==undefined ? g.sem[w] : 0,
+                  origen: Object.keys(g.archivos).join(', ')});
+    }
+    return SB.from('cl_ventas').delete()
+      .eq('temporada_id',g.temp.id).eq('producto_id',g.prod.id)
+      .gte('semana',g.wMin).lte('semana',g.wMax)
+      .then(function(r){
+        if(r.error) throw r.error;
+        return SB.from('cl_ventas').insert(filas).select();
+      }).then(function(r){
+        if(r.error) throw r.error;
+        if(!r.data || r.data.length!==filas.length){
+          throw new Error('se mandaron '+filas.length+' semanas de '+g.prod.nombre
+            +' y la base devolvió '+((r.data&&r.data.length)||0)+' (¿permiso del módulo?)');
+        }
+        escritas+=r.data.length;
+        return paso();
+      });
+  }
+  paso().catch(function(e){
+    toast('Se cortó la importación: '+((e&&e.message)||e),'err');
+    cargar();
+  }).then(function(){ b.disabled=false; b.textContent='Aplicar'; });
+}
+
+// Elegir archivos y arrastrarlos van al mismo lado.
+(function(){
+  var inp=document.getElementById('imp-file'), z=document.getElementById('imp-drop');
+  inp.addEventListener('change', function(){ archivosElegidos(inp.files); });
+  ['dragenter','dragover'].forEach(function(ev){
+    z.addEventListener(ev, function(e){ e.preventDefault(); z.classList.add('hot'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    z.addEventListener(ev, function(e){ e.preventDefault(); z.classList.remove('hot'); });
+  });
+  z.addEventListener('drop', function(e){
+    if(e.dataTransfer && e.dataTransfer.files) archivosElegidos(e.dataTransfer.files);
+  });
+})();
 // ══ ÓRDENES DE ENVASADO ═══════════════════════════════════════
 function openEnvasado(){
   var t=temporadaActual(); if(!t){ toast('No hay temporada seleccionada','err'); return; }

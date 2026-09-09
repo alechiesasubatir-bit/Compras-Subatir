@@ -167,6 +167,54 @@
     return Math.ceil(bruto / lote) * lote;
   }
 
+  // ─── El plan de envasado, semana a semana ──────────────────────────
+  // `sugerido` contesta "cuanto envasar AHORA". Para saber hasta que
+  // semana alcanza la materia prima hace falta esa misma respuesta para
+  // cada semana de lo que queda de temporada.
+  //
+  // La regla de decision de cada semana es `sugerido`, parada en esa
+  // semana con el stock proyectado de esa semana. La respuesta a "cuanto
+  // envasar" sigue estando escrita UNA sola vez: es la misma formula
+  // aplicada 36 veces. Escribir aca una regla nueva dejaria al modulo con
+  // dos respuestas para la misma pregunta, y tarde o temprano se
+  // contradicen en la pantalla.
+  //
+  // El resultado es despareja a proposito: se envasa en multiplos de lote
+  // cuando hace falta, no un poquito por semana.
+  function planEnvasado(o) {
+    var semanas = Math.max(0, parseFloat(o.semanas) || 0);
+    var desde = Math.max(1, o.desdeSemana || 1);
+    var prevision = o.prevision || [];
+    var envasado = o.envasado || [];
+    var out = [], i, disponible, env;
+    for (i = 0; i < semanas; i++) out.push(0);
+
+    // Stock al empezar la semana `desde`: lo que proyecta el modulo con lo
+    // que YA se envaso. Nada de envasado futuro inventado todavia.
+    var base = proyectarStock({
+      stockInicial: o.stockInicial, ventas: o.ventas, envasado: envasado,
+      prevision: prevision, semanasCerradas: o.semanasCerradas,
+      semanaBase: o.semanaBase
+    });
+    // base[desde-2] puede venir en null si el conteo del stock es de esa
+    // misma semana o posterior: ahi el punto de partida ES el conteo.
+    var previo = desde >= 2 ? base[desde - 2] : null;
+    var stock = (previo == null) ? (parseFloat(o.stockInicial) || 0) : previo;
+
+    for (i = desde; i <= semanas; i++) {
+      // Lo que ya hay mas lo que YA esta programado envasar esa semana:
+      // sin sumarlo, el plan volveria a pedir una orden que ya existe.
+      disponible = stock + (parseFloat(envasado[i - 1]) || 0);
+      env = sugerido({
+        prevision: prevision, desdeSemana: i, horizonte: o.horizonte,
+        semanasSeguridad: o.semanasSeguridad, stockHoy: disponible, lote: o.lote
+      });
+      out[i - 1] = env;
+      stock = disponible + env - (parseFloat(prevision[i - 1]) || 0);
+    }
+    return out;
+  }
+
   // Un producto que vende menos que `umbral` por semana no admite
   // prevision semanal: el ruido es mas grande que la senal. Medido en los
   // datos reales, cuatro productos promedian entre 0,9 y 4,8 u/semana y
@@ -207,6 +255,7 @@
     prever: prever,
     proyectarStock: proyectarStock,
     sugerido: sugerido,
+    planEnvasado: planEnvasado,
     bajaRotacion: bajaRotacion,
     kgMateria: kgMateria
   };

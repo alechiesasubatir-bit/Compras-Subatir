@@ -307,3 +307,87 @@ test('proyectarStock: una semanaBase de 1 es lo mismo que no ponerla', () => {
   assert.deepStrictEqual(Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 1 })),
                          Cloro.proyectarStock(args));
 });
+
+// ─── El plan de envasado semana a semana ─────────────────────────────
+
+test('planEnvasado: la primera semana del plan ES el sugerido parado ahi', () => {
+  // Es la garantia de que no hay una segunda respuesta a "cuanto envasar".
+  const prevision = new Array(20).fill(100);
+  const plan = Cloro.planEnvasado({
+    prevision, stockInicial: 0, ventas: [], envasado: [],
+    semanasCerradas: 0, desdeSemana: 1, semanas: 20,
+    horizonte: 8, semanasSeguridad: 2, lote: 1
+  });
+  const solo = Cloro.sugerido({ prevision, desdeSemana: 1, horizonte: 8,
+                                semanasSeguridad: 2, stockHoy: 0, lote: 1 });
+  assert.strictEqual(plan[0], solo);
+});
+
+test('planEnvasado: envasa el horizonte y despues solo repone', () => {
+  // sem 1: demanda 8x100=800 + colchon 2x100=200 - stock 0 = 1000
+  // sem 2: ya hay 900 en stock -> 1000 - 900 = 100, y se estabiliza ahi
+  const plan = Cloro.planEnvasado({
+    prevision: new Array(20).fill(100), stockInicial: 0, ventas: [], envasado: [],
+    semanasCerradas: 0, desdeSemana: 1, semanas: 20,
+    horizonte: 8, semanasSeguridad: 2, lote: 1
+  });
+  assert.strictEqual(plan[0], 1000);
+  assert.strictEqual(plan[1], 100);
+  assert.strictEqual(plan[2], 100);
+});
+
+test('planEnvasado: las semanas ya pasadas van en cero', () => {
+  const plan = Cloro.planEnvasado({
+    prevision: new Array(10).fill(100), stockInicial: 0, ventas: [], envasado: [],
+    semanasCerradas: 2, desdeSemana: 3, semanas: 10,
+    horizonte: 4, semanasSeguridad: 0, lote: 1
+  });
+  assert.strictEqual(plan[0], 0);
+  assert.strictEqual(plan[1], 0);
+  assert.ok(plan[2] > 0);
+});
+
+test('planEnvasado: redondea al lote y por eso la semana siguiente no pide nada', () => {
+  // sem 1: bruto 1000, lote 300 -> 1200. Queda stock 1100, mas que los
+  // 1000 que pide la semana 2, asi que no hay que envasar.
+  const plan = Cloro.planEnvasado({
+    prevision: new Array(20).fill(100), stockInicial: 0, ventas: [], envasado: [],
+    semanasCerradas: 0, desdeSemana: 1, semanas: 20,
+    horizonte: 8, semanasSeguridad: 2, lote: 300
+  });
+  assert.strictEqual(plan[0], 1200);
+  assert.strictEqual(plan[1], 0);
+});
+
+test('planEnvasado: una orden de envasado ya cargada evita pedirla de nuevo', () => {
+  // La orden real de 1000 en la semana 1 cubre exactamente lo que haria falta.
+  const envasado = new Array(20).fill(0); envasado[0] = 1000;
+  const plan = Cloro.planEnvasado({
+    prevision: new Array(20).fill(100), stockInicial: 0, ventas: [], envasado,
+    semanasCerradas: 0, desdeSemana: 1, semanas: 20,
+    horizonte: 8, semanasSeguridad: 2, lote: 1
+  });
+  assert.strictEqual(plan[0], 0);
+});
+
+test('planEnvasado: sin nada que vender no hay nada que envasar', () => {
+  const plan = Cloro.planEnvasado({
+    prevision: new Array(10).fill(0), stockInicial: 0, ventas: [], envasado: [],
+    semanasCerradas: 0, desdeSemana: 1, semanas: 10,
+    horizonte: 8, semanasSeguridad: 2, lote: 1
+  });
+  assert.deepStrictEqual(plan, new Array(10).fill(0));
+});
+
+test('planEnvasado: arranca del conteo cuando el stock es de esa misma semana', () => {
+  // semanaBase 3 = el conteo es de la semana 3, asi que el plan que
+  // arranca en la 3 parte de esas 500 unidades y no de un null.
+  const plan = Cloro.planEnvasado({
+    prevision: new Array(10).fill(100), stockInicial: 500,
+    ventas: new Array(10).fill(100), envasado: [],
+    semanasCerradas: 2, semanaBase: 3, desdeSemana: 3, semanas: 10,
+    horizonte: 4, semanasSeguridad: 0, lote: 1
+  });
+  // demanda de las semanas 3..6 = 400, stock 500 -> no hay que envasar
+  assert.strictEqual(plan[2], 0);
+});

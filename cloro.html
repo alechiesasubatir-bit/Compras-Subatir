@@ -251,9 +251,74 @@ tr.sinmp td.mp{color:#fca5a5}
 .toast.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#86efac}
 .toast.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5}
 .toast.info{background:rgba(56,189,248,.13);border:1px solid rgba(56,189,248,.35);color:var(--agua)}
+/* ── Gráficos ─────────────────────────────────────────────── */
+/* Paleta categórica validada con el script de la skill dataviz contra el
+   fondo #0c1119: banda de luminosidad, piso de croma, separación para
+   daltonismo, piso de visión normal y contraste. Las cinco en verde. */
+.graf{position:relative}
+.graf svg{display:block;width:100%;height:auto;overflow:visible}
+.gr-grid{stroke:rgba(255,255,255,.06);stroke-width:1}
+.gr-eje{fill:var(--muted);font-family:var(--mono);font-size:9.5px}
+.gr-hoy{stroke:var(--agua);stroke-width:1;stroke-dasharray:3 3;opacity:.7}
+.gr-hoy-t{fill:var(--agua);font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.6px}
+.gr-linea{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.gr-linea.act{stroke-width:2.6}
+.gr-prev{fill:none;stroke-width:2.4;stroke-dasharray:5 4;stroke-linecap:round}
+.gr-banda{opacity:.14}
+.gr-cross{stroke:rgba(255,255,255,.35);stroke-width:1}
+.gr-pt{stroke:#0c1119;stroke-width:2}
+.gr-vacio{padding:26px 18px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.6}
+.gr-tip{position:absolute;pointer-events:none;z-index:5;min-width:150px;padding:9px 11px;
+  border-radius:10px;background:rgba(8,12,19,.96);border:1px solid var(--border-b);
+  box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:11.5px;opacity:0;transition:opacity .12s}
+.gr-tip.on{opacity:1}
+.gr-tip .t{font-family:var(--display);font-size:10px;font-weight:800;letter-spacing:.6px;
+  text-transform:uppercase;color:var(--muted-l);margin-bottom:5px}
+.gr-tip .r{display:flex;align-items:center;gap:7px;margin-top:3px}
+.gr-tip .d{width:9px;height:9px;border-radius:2.5px;flex:none}
+.gr-tip .n{flex:1;color:var(--muted-l)}
+.gr-tip .v{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums}
+.leg{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.leg-i{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;background:none;
+  border:1px solid var(--border);color:var(--text);cursor:pointer;padding:4px 10px;border-radius:20px;
+  font-family:'DM Sans',sans-serif}
+.leg-i:hover{background:rgba(255,255,255,.05)}
+.leg-i.off{opacity:.38}
+.leg-d{width:11px;height:11px;border-radius:3px;flex:none}
+.leg-v{font-family:var(--mono);font-size:11px;color:var(--muted-l);font-variant-numeric:tabular-nums}
+/* Fichas por producto */
+.fichas{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:10px}
+.ficha{padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.025);
+  border:1px solid var(--border)}
+.ficha h5{font-family:var(--display);font-size:12px;font-weight:700;margin-bottom:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ficha .sub{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-bottom:7px}
+.ficha svg{height:38px}
+.ficha .pie{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:6px}
+.ficha .num{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--agua)}
+.ficha .num small{font-size:9.5px;color:var(--muted);font-weight:400}
+
+/* El draw-on entra desde stroke-dashoffset:1 con pathLength="1", así que
+   no hace falta medir el largo de cada trazo. */
+@keyframes gr-draw{ to { stroke-dashoffset:0 } }
+@keyframes gr-fade{ from { opacity:0 } }
+@keyframes gr-crece{ from { transform:scaleY(0) } }
+.anim .gr-linea,.anim .gr-prev{stroke-dasharray:1;stroke-dashoffset:1;
+  animation:gr-draw 1.05s cubic-bezier(.33,.9,.42,1) forwards}
+.anim .gr-banda,.anim .gr-area{animation:gr-fade .8s ease .35s both}
+.anim .gr-barra{transform-origin:bottom;animation:gr-crece .55s cubic-bezier(.2,.85,.35,1) both}
+
 html{color-scheme:dark}
 select option{background:#0c1119;color:#e2e8f0}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* Reduced motion: se saca el movimiento, NO el gráfico. La regla global de
+   abajo apaga las animaciones, y sin esto los trazos quedarían con
+   stroke-dashoffset:1 — o sea, invisibles. El estado final se fuerza. */
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+  .anim .gr-linea,.anim .gr-prev{stroke-dasharray:none!important;stroke-dashoffset:0!important}
+  .anim .gr-prev{stroke-dasharray:5 4!important}
+  .anim .gr-banda,.anim .gr-area,.anim .gr-barra{opacity:1!important;transform:none!important}
+}
 @media print{
   header,.ctx,.sec-tools,.toasts,.btn{display:none!important}
   body::before{display:none}
@@ -325,6 +390,51 @@ window.APP_VER='2026-09-08.2109';
 
   <!-- ══ KPIs ═══════════════════════════════════════════════ -->
   <div class="kpis" id="kpis"></div>
+
+  <!-- ══ Gráfico: la temporada ══════════════════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico">📈</div>
+        <div>
+          <div class="sec-eyebrow">Ventas por semana de temporada</div>
+          <h2>La temporada</h2>
+        </div>
+      </div>
+      <div class="sec-tools"><span class="chip" id="g-temp-chip">—</span></div>
+    </div>
+    <div class="graf" id="g-temp"></div>
+    <div class="leg" id="g-temp-leg"></div>
+  </div>
+
+  <!-- ══ Gráfico: materia prima por semana ══════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico or">🧪</div>
+        <div>
+          <div class="sec-eyebrow">Consumo previsto en el horizonte</div>
+          <h2>Materia prima por semana</h2>
+        </div>
+      </div>
+    </div>
+    <div class="graf" id="g-mp"></div>
+    <div class="leg" id="g-mp-leg"></div>
+  </div>
+
+  <!-- ══ Fichas por producto ════════════════════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico">🗂</div>
+        <div>
+          <div class="sec-eyebrow">Una por producto</div>
+          <h2>Fichas</h2>
+        </div>
+      </div>
+    </div>
+    <div class="fichas" id="fichas"></div>
+  </div>
 
   <!-- ══ Por producto ═══════════════════════════════════════ -->
   <div class="card sec">
@@ -794,7 +904,367 @@ function filas(){
     });
 }
 
-function pintarTodo(){ pintarContexto(); pintarAvisos(); pintarKPIs(); pintarTabla(); pintarMP(); }
+function pintarTodo(){
+  pintarContexto(); pintarAvisos(); pintarKPIs(); pintarTabla(); pintarMP();
+  dibujarTemporada(); dibujarMPSemanal(); dibujarFichas();
+}
+
+// ══ GRÁFICOS ══════════════════════════════════════════════════
+//  Se dibujan a mano en SVG, como el resto del proyecto: no hay ninguna
+//  librería de gráficos y sumar una por dos gráficos sería 300 KB de CDN
+//  para lo que entra en 200 líneas.
+//
+//  La paleta salió del validador de la skill dataviz contra este fondo,
+//  no de mi ojo: la primera que elegí a ojo fallaba tres de las cinco
+//  pruebas (croma, separación para daltonismo y piso de visión normal).
+var COL_TEMP = ['#0891b2','#ea580c','#a855f7'];        // actual, anterior, previa
+var COL_MAT  = ['#0891b2','#a16207','#a855f7','#16a34a','#ea580c'];
+var OCULTAS  = {};   // series apagadas desde la leyenda
+
+function svgEsc(s){ return esc(s); }
+function ptos(xs,ys){ var d='',i;
+  for(i=0;i<xs.length;i++) d+=(i?'L':'M')+xs[i].toFixed(1)+' '+ys[i].toFixed(1);
+  return d; }
+
+// Total semanal de toda la línea, para una temporada.
+function totalSemanal(tempId){
+  var out=[], i;
+  for(i=0;i<NSEM;i++) out[i]=0;
+  PROD.filter(function(p){ return p.activo!==false; }).forEach(function(p){
+    var s=serieVentas(tempId,p.id);
+    for(i=0;i<NSEM;i++) out[i]+=num(s[i]);
+  });
+  return out;
+}
+// El mes en el que cae cada semana, para poder rotular con algo que una
+// persona entienda. "Semana 23" no le dice nada a nadie; "ene" sí.
+function mesDeSemana(t,w){
+  var d=new Date(Cloro.lunesInicio(dIni(t)).getTime()+(w-1)*7*86400000);
+  return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getUTCMonth()];
+}
+
+function dibujarTemporada(){
+  var host=document.getElementById('g-temp'), leg=document.getElementById('g-temp-leg');
+  var t=temporadaActual();
+  if(!t || !NSEM){ host.innerHTML=''; leg.innerHTML=''; return; }
+  var prev=temporadaPrevia(t), prev2=prev?temporadaPrevia(prev):null;
+
+  var series=[{t:t, nom:t.nombre, col:COL_TEMP[0], act:true, v:totalSemanal(t.id)}];
+  if(prev)  series.push({t:prev,  nom:prev.nombre,  col:COL_TEMP[1], v:totalSemanal(prev.id)});
+  if(prev2) series.push({t:prev2, nom:prev2.nombre, col:COL_TEMP[2], v:totalSemanal(prev2.id)});
+
+  // Previsión total: la suma de la de cada producto que tenga.
+  var fs=filas(), prevision=null, banda=null;
+  if(prev){
+    prevision=[]; banda=[];
+    for(var w=0;w<NSEM;w++){
+      var s=0, sd=0;
+      fs.forEach(function(f){ if(f.prevision) s+=num(f.prevision[w]); });
+      // El ancho de la banda es el desvío de la ventana de suavizado del
+      // total: dice "esto es una estimación", que es la verdad.
+      var win=[], k=Math.floor(num(PAR.suavizado_semanas)/2), j;
+      var base=series.length>1?series[1].v:[];
+      for(j=Math.max(0,w-k); j<=Math.min(NSEM-1,w+k); j++) win.push(num(base[j]));
+      var m=win.reduce(function(a,x){return a+x;},0)/(win.length||1);
+      var va=win.reduce(function(a,x){return a+(x-m)*(x-m);},0)/(win.length||1);
+      sd=Math.sqrt(va)*(1+CREC.pct);
+      prevision.push(s); banda.push(sd);
+    }
+  }
+
+  var vis=series.filter(function(s){ return !OCULTAS['t'+s.t.id]; });
+  var W=Math.max(320, host.clientWidth||900), H=290;
+  var ML=52, MR=14, MT=12, MB=34;
+  var maxY=1;
+  vis.forEach(function(s){ s.v.forEach(function(x){ if(x>maxY) maxY=x; }); });
+  if(prevision && !OCULTAS.prev) for(var i=SEM_ACTUAL-1;i<NSEM;i++)
+    if(prevision[i]+banda[i]>maxY) maxY=prevision[i]+banda[i];
+  maxY=Math.ceil(maxY/500)*500 || 500;
+
+  function X(w){ return ML + (w-1)/Math.max(1,NSEM-1) * (W-ML-MR); }
+  function Y(v){ return H-MB - (v/maxY) * (H-MT-MB); }
+
+  var g='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" '
+       +'aria-label="Ventas por semana de temporada, comparando '+vis.length+' temporadas">';
+  // Grilla y eje Y
+  var pasos=4, i2;
+  for(i2=0;i2<=pasos;i2++){
+    var v=maxY*i2/pasos, y=Y(v);
+    g+='<line class="gr-grid" x1="'+ML+'" y1="'+y.toFixed(1)+'" x2="'+(W-MR)+'" y2="'+y.toFixed(1)+'"/>'
+      +'<text class="gr-eje" x="'+(ML-8)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end">'+n0(v)+'</text>';
+  }
+  // Eje X: número de semana y el mes, cada 4
+  for(var w2=1; w2<=NSEM; w2+=4){
+    g+='<text class="gr-eje" x="'+X(w2).toFixed(1)+'" y="'+(H-MB+14)+'" text-anchor="middle">'+w2+'</text>'
+      +'<text class="gr-eje" x="'+X(w2).toFixed(1)+'" y="'+(H-MB+25)+'" text-anchor="middle" '
+      +'style="opacity:.65">'+mesDeSemana(t,w2)+'</text>';
+  }
+  // Banda de incertidumbre + previsión
+  if(prevision && !OCULTAS.prev && SEM_ACTUAL<=NSEM){
+    var xs=[], y1=[], y2=[], xs2=[], ys=[];
+    for(var w3=SEM_ACTUAL; w3<=NSEM; w3++){
+      xs.push(X(w3)); y1.push(Y(Math.max(0,prevision[w3-1]-banda[w3-1])));
+      y2.push(Y(prevision[w3-1]+banda[w3-1]));
+      xs2.push(X(w3)); ys.push(Y(prevision[w3-1]));
+    }
+    if(xs.length>1){
+      var dA=ptos(xs,y2);
+      for(var q=xs.length-1;q>=0;q--) dA+='L'+xs[q].toFixed(1)+' '+y1[q].toFixed(1);
+      g+='<path class="gr-banda" d="'+dA+'Z" fill="'+COL_TEMP[0]+'"/>'
+        +'<path class="gr-prev" pathLength="1" d="'+ptos(xs2,ys)+'" stroke="'+COL_TEMP[0]+'" '
+        +'style="animation-delay:.5s"/>';
+    }
+  }
+  // Las líneas: la actual sólo hasta la semana en curso — dibujarla hasta
+  // el final la mostraría cayendo a cero en semanas que todavía no pasaron.
+  vis.forEach(function(s,idx){
+    var hasta = s.act ? Math.min(SEM_ACTUAL, NSEM) : NSEM;
+    var xs=[], ys=[];
+    for(var w=1; w<=hasta; w++){ xs.push(X(w)); ys.push(Y(num(s.v[w-1]))); }
+    if(xs.length<2) return;
+    g+='<path class="gr-linea'+(s.act?' act':'')+'" pathLength="1" d="'+ptos(xs,ys)+'" '
+      +'stroke="'+s.col+'" style="animation-delay:'+(idx*0.12)+'s"/>';
+  });
+  // "Hoy"
+  if(SEM_ACTUAL>=1 && SEM_ACTUAL<=NSEM && !temporadaTerminada(t)){
+    g+='<line class="gr-hoy" x1="'+X(SEM_ACTUAL).toFixed(1)+'" y1="'+MT+'" x2="'
+      +X(SEM_ACTUAL).toFixed(1)+'" y2="'+(H-MB)+'"/>'
+      +'<text class="gr-hoy-t" x="'+(X(SEM_ACTUAL)+5).toFixed(1)+'" y="'+(MT+9)+'">HOY</text>';
+  }
+  g+='<g id="gt-cross"></g>'
+    +'<rect x="'+ML+'" y="'+MT+'" width="'+(W-ML-MR)+'" height="'+(H-MT-MB)
+    +'" fill="transparent" id="gt-hit"/></svg>';
+  host.className='graf anim';
+  host.innerHTML=g+'<div class="gr-tip" id="gt-tip"></div>';
+
+  document.getElementById('g-temp-chip').textContent = vis.length+' temporada'
+    +(vis.length===1?'':'s')+' · '+NSEM+' semanas';
+
+  // Leyenda: siempre presente con dos o más series, y con toggle. El color
+  // sigue a la temporada, no a su posición: apagar una no repinta las otras.
+  var lh=series.map(function(s){
+    var tot=s.v.reduce(function(a,x){ return a+num(x); },0);
+    return '<button type="button" class="leg-i'+(OCULTAS['t'+s.t.id]?' off':'')
+      +'" onclick="toggleSerie(\'t'+s.t.id+'\')" aria-pressed="'+(!OCULTAS['t'+s.t.id])+'">'
+      +'<span class="leg-d" style="background:'+s.col+'"></span>'+esc(s.nom)
+      +'<span class="leg-v">'+n0(tot)+' u</span></button>';
+  }).join('');
+  if(prevision) lh+='<button type="button" class="leg-i'+(OCULTAS.prev?' off':'')
+      +'" onclick="toggleSerie(\'prev\')" aria-pressed="'+(!OCULTAS.prev)+'">'
+      +'<span class="leg-d" style="background:'+COL_TEMP[0]+';opacity:.5"></span>previsión'
+      +'<span class="leg-v">± desvío</span></button>';
+  leg.innerHTML=lh;
+
+  engancharHover(host, vis, prevision, X, Y, ML, MR, W, t);
+}
+function toggleSerie(k){ OCULTAS[k]=!OCULTAS[k]; dibujarTemporada(); }
+function toggleMateria(id){ OCULTAS['m'+id]=!OCULTAS['m'+id]; dibujarMPSemanal(); }
+
+// Crosshair y tooltip. Un gráfico HTML es interactivo por definición: sin
+// esto, leer "cuánto vendimos la semana 14" obliga a estimar contra el eje.
+function engancharHover(host, vis, prevision, X, Y, ML, MR, W, t){
+  var hit=host.querySelector('#gt-hit'), cross=host.querySelector('#gt-cross');
+  var tip=host.querySelector('#gt-tip');
+  if(!hit) return;
+  function fuera(){ cross.innerHTML=''; tip.classList.remove('on'); }
+  hit.addEventListener('mouseleave', fuera);
+  hit.addEventListener('mousemove', function(e){
+    var r=host.querySelector('svg').getBoundingClientRect();
+    // El SVG se dibuja a su ancho real, pero el CSS lo escala: hay que
+    // pasar de píxeles de pantalla a coordenadas del viewBox.
+    var px=(e.clientX-r.left)*(W/r.width);
+    var w=Math.round((px-ML)/((W-ML-MR)/Math.max(1,NSEM-1)))+1;
+    w=Math.min(NSEM, Math.max(1, w));
+    var x=X(w);
+    var c='<line class="gr-cross" x1="'+x.toFixed(1)+'" y1="12" x2="'+x.toFixed(1)+'" y2="256"/>';
+    var filas2='';
+    vis.forEach(function(s){
+      var hasta=s.act?Math.min(SEM_ACTUAL,NSEM):NSEM;
+      if(w>hasta) return;
+      var v=num(s.v[w-1]);
+      c+='<circle class="gr-pt" cx="'+x.toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="4" fill="'+s.col+'"/>';
+      filas2+='<div class="r"><span class="d" style="background:'+s.col+'"></span>'
+        +'<span class="n">'+esc(s.nom)+'</span><span class="v">'+n0(v)+'</span></div>';
+    });
+    if(prevision && !OCULTAS.prev && w>=SEM_ACTUAL){
+      c+='<circle class="gr-pt" cx="'+x.toFixed(1)+'" cy="'+Y(prevision[w-1]).toFixed(1)
+        +'" r="4" fill="'+COL_TEMP[0]+'" opacity=".65"/>';
+      filas2+='<div class="r"><span class="d" style="background:'+COL_TEMP[0]+';opacity:.55"></span>'
+        +'<span class="n">previsión</span><span class="v">'+n0(prevision[w-1])+'</span></div>';
+    }
+    cross.innerHTML=c;
+    tip.innerHTML='<div class="t">Semana '+w+' · '+mesDeSemana(t,w)+'</div>'+filas2;
+    tip.classList.add('on');
+    var left=(x/W)*r.width + 14;
+    if(left > r.width-175) left = (x/W)*r.width - 175;
+    tip.style.left=Math.max(0,left)+'px';
+    tip.style.top='18px';
+  });
+}
+
+// ── Materia prima por semana ──────────────────────────────────
+//  Es el CONSUMO previsto semana a semana, no la compra: la compra es un
+//  solo número por el horizonte y ya está en el KPI. Se aclara en el
+//  título para que nadie sume las barras esperando el total de la orden.
+function dibujarMPSemanal(){
+  var host=document.getElementById('g-mp'), leg=document.getElementById('g-mp-leg');
+  var t=temporadaActual();
+  if(!t || !PAR){ host.innerHTML=''; leg.innerHTML=''; return; }
+  var fs=filas();
+  var mats=MAT.filter(function(m){ return m.activo!==false; });
+  var usadas=mats.filter(function(m){
+    return PROD.some(function(p){ return p.materia_id===m.id && num(p.kg_mp_por_unidad)>0; }); });
+  if(!usadas.length){
+    host.className='graf';
+    host.innerHTML='<div class="gr-vacio">Ningún producto tiene materia prima y kg por unidad '
+      +'asignados todavía.<br>Se cargan en <b>⚙ Configuración → Productos</b>.</div>';
+    leg.innerHTML=''; return;
+  }
+  // Asignación de color: por ORDEN DE ID, no por tamaño. Si el color
+  // siguiera al ranking, una semana en la que una materia pasa a otra
+  // repintaría el gráfico entero y nadie podría comparar dos capturas.
+  //
+  // Y no se ciclan hues: la paleta tiene 5 y son 5. Si algún día hay más
+  // materias, las que sobran se pliegan en "Otras" con el quinto color,
+  // porque un sexto color repetido haría pasar dos materias distintas por
+  // la misma en un gráfico que decide compras.
+  usadas.sort(function(a,b){ return a.id-b.id; });
+  var pliega = usadas.length > COL_MAT.length;
+  var corte  = pliega ? COL_MAT.length-1 : usadas.length;
+  var mapa={};                       // materia_id -> clave de serie
+  var series=[];
+  usadas.forEach(function(m,i){
+    if(i<corte){ mapa[m.id]=m.id; series.push({id:m.id, nombre:m.nombre, col:COL_MAT[i]}); }
+    else mapa[m.id]='otras';
+  });
+  if(pliega) series.push({id:'otras', nombre:'Otras ('+(usadas.length-corte)+')',
+                          col:COL_MAT[COL_MAT.length-1]});
+
+  var H0=Math.max(1, Math.round(num(PAR.horizonte_semanas)));
+  var desde=SEM_ACTUAL, hasta=Math.min(NSEM, SEM_ACTUAL+H0-1);
+  var semanas=[], w;
+  for(w=desde; w<=hasta; w++) semanas.push(w);
+  if(!semanas.length){
+    host.className='graf';
+    host.innerHTML='<div class="gr-vacio">La temporada ya terminó: no quedan semanas en el horizonte.</div>';
+    leg.innerHTML=''; return;
+  }
+  // kg por semana y serie
+  var datos={}, totMat={};
+  series.forEach(function(s){ datos[s.id]=semanas.map(function(){ return 0; }); totMat[s.id]=0; });
+  fs.forEach(function(f){
+    var p=f.prod;
+    if(p.materia_id==null || num(p.kg_mp_por_unidad)<=0 || !f.prevision) return;
+    var k=mapa[p.materia_id]; if(k===undefined || !datos[k]) return;
+    var fac=num(p.kg_mp_por_unidad)*(1+num(p.merma_pct)/100);
+    semanas.forEach(function(w,i){
+      var kg=num(f.prevision[w-1])*fac;
+      datos[k][i]+=kg; totMat[k]+=kg;
+    });
+  });
+  var vis=series.filter(function(s){ return !OCULTAS['m'+s.id]; });
+  var W=Math.max(320, host.clientWidth||900), H=250, ML=56, MR=14, MT=12, MB=32;
+  var maxY=1;
+  semanas.forEach(function(w,i){
+    var s=0; vis.forEach(function(m){ s+=datos[m.id][i]; });
+    if(s>maxY) maxY=s;
+  });
+  maxY=Math.ceil(maxY/50)*50 || 50;
+  var bw=(W-ML-MR)/semanas.length;
+  var ancho=Math.min(38, bw*0.62);
+
+  var g='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" '
+       +'aria-label="Kilos de materia prima previstos por semana">';
+  for(var i2=0;i2<=4;i2++){
+    var v=maxY*i2/4, y=H-MB-(v/maxY)*(H-MT-MB);
+    g+='<line class="gr-grid" x1="'+ML+'" y1="'+y.toFixed(1)+'" x2="'+(W-MR)+'" y2="'+y.toFixed(1)+'"/>'
+      +'<text class="gr-eje" x="'+(ML-8)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end">'+n0(v)+'</text>';
+  }
+  semanas.forEach(function(w,i){
+    var cx=ML+bw*i+bw/2, base=H-MB, acum=0;
+    g+='<text class="gr-eje" x="'+cx.toFixed(1)+'" y="'+(H-MB+14)+'" text-anchor="middle">'+w+'</text>'
+      +'<text class="gr-eje" x="'+cx.toFixed(1)+'" y="'+(H-MB+25)+'" text-anchor="middle" '
+      +'style="opacity:.65">'+mesDeSemana(t,w)+'</text>';
+    vis.forEach(function(m,mi){
+      var kg=datos[m.id][i]; if(kg<=0) return;
+      var h=(kg/maxY)*(H-MT-MB);
+      // 2 px de separación entre segmentos apilados: sin eso dos colores
+      // pegados se leen como uno solo.
+      var y=base-acum-h+ (acum>0?1:0);
+      var hh=Math.max(1,h-(acum>0?2:0));
+      g+='<rect class="gr-barra" x="'+(cx-ancho/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'
+        +ancho.toFixed(1)+'" height="'+hh.toFixed(1)+'" rx="3" fill="'+m.col+'" '
+        +'style="animation-delay:'+(i*0.035+mi*0.05).toFixed(2)+'s"><title>'
+        +svgEsc(m.nombre)+' · semana '+w+': '+n0(kg)+' kg</title></rect>';
+      acum+=h;
+    });
+  });
+  g+='</svg>';
+  host.className='graf anim';
+  host.innerHTML=g;
+
+  leg.innerHTML=series.map(function(m){
+    return '<button type="button" class="leg-i'+(OCULTAS['m'+m.id]?' off':'')
+      +'" onclick="toggleMateria(\''+m.id+'\')" aria-pressed="'+(!OCULTAS['m'+m.id])+'">'
+      +'<span class="leg-d" style="background:'+m.col+'"></span>'+esc(m.nombre)
+      +'<span class="leg-v">'+n0(totMat[m.id])+' kg</span></button>';
+  }).join('');
+}
+
+// ── Fichas por producto ───────────────────────────────────────
+function dibujarFichas(){
+  var host=document.getElementById('fichas'), t=temporadaActual();
+  if(!t){ host.innerHTML=''; return; }
+  var fs=filas();
+  host.innerHTML = fs.map(function(f){
+    var W=210, H=38, ML=0;
+    var todo=[].concat(f.vPrev, f.vAct, f.prevision||[]);
+    var maxY=1; todo.forEach(function(x){ if(num(x)>maxY) maxY=num(x); });
+    function X(w){ return (w-1)/Math.max(1,NSEM-1)*W; }
+    function Y(v){ return H-2-(num(v)/maxY)*(H-6); }
+    function linea(serie, hasta, col, cls, extra){
+      var xs=[], ys=[], w;
+      for(w=1; w<=hasta; w++){ xs.push(X(w)); ys.push(Y(serie[w-1])); }
+      if(xs.length<2) return '';
+      return '<path class="'+cls+'" pathLength="1" d="'+ptos(xs,ys)+'" stroke="'+col+'" '
+        +'stroke-width="1.5" fill="none"'+(extra||'')+'/>';
+    }
+    var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" aria-hidden="true">';
+    if(f.vPrev.length) s+=linea(f.vPrev, NSEM, COL_TEMP[1], 'gr-linea', ' opacity=".55"');
+    s+=linea(f.vAct, Math.min(SEM_ACTUAL,NSEM), COL_TEMP[0], 'gr-linea');
+    if(f.prevision){
+      var xs=[], ys=[], w;
+      for(w=SEM_ACTUAL; w<=NSEM; w++){ xs.push(X(w)); ys.push(Y(f.prevision[w-1])); }
+      if(xs.length>1) s+='<path class="gr-prev" pathLength="1" d="'+ptos(xs,ys)+'" stroke="'
+        +COL_TEMP[0]+'" stroke-width="1.5" opacity=".7"/>';
+    }
+    s+='</svg>';
+    var prox = f.prevision ? num(f.prevision[SEM_ACTUAL-1]) : null;
+    var ritmo = f.demandaH>0 ? f.demandaH/num(PAR.horizonte_semanas) : 0;
+    var cob = (f.stockHoy!=null && ritmo>0) ? f.stockHoy/ritmo : null;
+    return '<div class="ficha anim"><h5>'+esc(f.prod.nombre)+'</h5>'
+      +'<div class="sub">'+esc(f.prod.codigo)
+      +(f.bajaRot?' · <span style="color:var(--purple)">baja rotación</span>':'')+'</div>'
+      +s
+      +'<div class="pie"><span class="num">'
+        +(prox==null?'—':(f.bajaRot ? n0(prox*4.333)+' <small>u/mes prev.</small>'
+                                    : n0(prox)+' <small>u/sem prev.</small>'))
+      +'</span><span class="leg-v">'
+        +(cob==null?'' : (f.stockHoy<0?'<span class="c-rd">falta envasar</span>'
+                                      :n1(cob)+' sem de stock'))+'</span></div></div>';
+  }).join('');
+}
+
+// El ancho de los gráficos sale del contenedor, así que hay que
+// redibujarlos cuando cambia. Con un respiro: el resize dispara decenas
+// de eventos por segundo y cada redibujo rehace el SVG entero.
+(function(){
+  var tmr=null;
+  window.addEventListener('resize', function(){
+    clearTimeout(tmr);
+    tmr=setTimeout(function(){ if(PAR){ dibujarTemporada(); dibujarMPSemanal(); } }, 180);
+  });
+})();
 
 function pintarContexto(){
   var t=temporadaActual();

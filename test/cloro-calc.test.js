@@ -472,3 +472,31 @@ test('cobertura: arranca en desdeSemana y no en la semana 1', () => {
   assert.strictEqual(r.alcanza, true);
   assert.strictEqual(r.semanas, 2);
 });
+
+test('planEnvasado con horizonte 1 y sin colchon es el plan justo a tiempo', () => {
+  // Es la forma de medir el CONSUMO de materia prima, distinta de la
+  // orden de compra. Con el horizonte y el colchon puestos, la primera
+  // semana concentra diez semanas de demanda y cualquier cobertura
+  // calculada sobre eso da cero: paso, y quedo publicado.
+  const plan = Cloro.planEnvasado({
+    prevision: new Array(10).fill(100), stockInicial: 250, ventas: [], envasado: [],
+    semanasCerradas: 0, desdeSemana: 1, semanas: 10,
+    horizonte: 1, semanasSeguridad: 0, lote: 1
+  });
+  // Con 250 en stock las dos primeras semanas salen de ahi; la tercera
+  // repone lo justo y de ahi en mas se envasa la demanda de cada semana.
+  assert.deepStrictEqual(plan.slice(0, 5), [0, 0, 50, 100, 100]);
+  // Y ninguna semana pide mas que la demanda de esa semana.
+  plan.forEach((x) => assert.ok(x <= 100));
+});
+
+test('el mismo caso con horizonte y colchon SI concentra la demanda', () => {
+  // El contraste explicito: misma entrada, otra pregunta, otro numero.
+  const plan = Cloro.planEnvasado({
+    prevision: new Array(10).fill(100), stockInicial: 250, ventas: [], envasado: [],
+    semanasCerradas: 0, desdeSemana: 1, semanas: 10,
+    horizonte: 8, semanasSeguridad: 2, lote: 1
+  });
+  assert.strictEqual(plan[0], 750);   // 800 + 200 - 250
+  assert.ok(plan[0] > 100);           // por eso no sirve para medir cobertura
+});

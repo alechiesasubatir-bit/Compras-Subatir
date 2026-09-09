@@ -943,9 +943,21 @@ function matNombre(m){
   return (i && i.descripcion) ? i.descripcion : (m?m.nombre:'?');
 }
 
-// El plan de envasado de cada producto, de la semana actual al final de
-// la temporada. Devuelve {} si no hay con qué calcularlo.
-function planPorProducto(){
+// El RITMO con que se consume la materia prima: cuánto se envasa cada
+// semana para que no falte producto terminado esa semana. Es el plan
+// justo a tiempo, y es lo que hay que medir para contestar "¿hasta qué
+// semana me alcanza el cloro?".
+//
+// Ojo con la diferencia, que costó una versión publicada: el SUGERIDO no
+// sirve para esto. El sugerido es una orden de compra —"envasá ahora las
+// próximas 8 semanas más 2 de colchón"—, así que concentra diez semanas
+// de demanda en una sola y la cobertura daba 0 semanas en las seis
+// materias, con 3.300 kg de Cloro Shock en el depósito.
+//
+// No hace falta una fórmula nueva: el plan justo a tiempo ES el mismo
+// `sugerido` con horizonte 1 y sin colchón. El horizonte y el colchón se
+// quedan donde corresponden, en la decisión de compra.
+function planConsumo(){
   var t=temporadaActual(); if(!t || !PAR) return {};
   var out={};
   filas().forEach(function(f){
@@ -958,8 +970,7 @@ function planPorProducto(){
       semanasCerradas: Math.max(0, SEM_ACTUAL-1),
       semanaBase: semanaDelConteo(f.prod.id),
       desdeSemana: SEM_ACTUAL, semanas: NSEM,
-      horizonte: num(PAR.horizonte_semanas),
-      semanasSeguridad: num(PAR.semanas_seguridad),
+      horizonte: 1, semanasSeguridad: 0,
       lote: num(f.prod.lote_unidades)||1
     });
   });
@@ -968,7 +979,7 @@ function planPorProducto(){
 
 // La cobertura de cada materia: {materiaId: resultado de Cloro.cobertura}.
 function coberturaPorMateria(){
-  var planes=planPorProducto();
+  var planes=planConsumo();
   if(!Object.keys(planes).length) return {};
   var activos=PROD.filter(function(p){ return p.activo!==false; });
   var kgs=Cloro.kgSemanal(activos, planes).porMateria;

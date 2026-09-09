@@ -1191,7 +1191,9 @@ function dibujarMPSemanal(){
     if(p.materia_id==null || num(p.kg_mp_por_unidad)<=0 || !f.prevision) return;
     var k=mapa[p.materia_id]; if(k===undefined || !datos[k]) return;
     semanas.forEach(function(w,i){
-      var kg=kgDe(p, f.prevision[w-1]);
+      // Acá el null de kgDe sí es un cero: la semana existe y no aporta
+      // kg. Los productos sin materia prima ya quedaron afuera arriba.
+      var kg=kgDe(p, f.prevision[w-1])||0;
       datos[k][i]+=kg; totMat[k]+=kg;
     });
   });

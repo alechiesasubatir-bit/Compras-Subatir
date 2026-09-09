@@ -977,7 +977,16 @@ function planConsumo(){
   return out;
 }
 
-// La cobertura de cada materia: {materiaId: resultado de Cloro.cobertura}.
+// La cobertura de cada materia, en dos versiones:
+//   `base`    — con lo que hay en el depósito. Es la que manda.
+//   `conPend` — sumándole lo que está pedido y todavía no llegó, o null
+//               si no hay nada pedido.
+//
+// La segunda es un TECHO, no un pronóstico: `inventario` guarda la
+// cantidad pendiente pero no una fecha de llegada, así que la cuenta la
+// trata como si ya estuviera en el depósito. Sirve para saber si la
+// compra que ya se hizo alcanza; no para dormir tranquilo. Por eso la
+// que se muestra grande es `base`.
 function coberturaPorMateria(){
   var planes=planConsumo();
   if(!Object.keys(planes).length) return {};
@@ -986,9 +995,14 @@ function coberturaPorMateria(){
   var out={};
   MAT.forEach(function(m){
     var inv=matInv(m); if(!inv) return;          // sin vínculo no hay stock
-    out[m.id]=Cloro.cobertura({
-      kgSemana: kgs[m.id]||[], stock: num(inv.inventario), desdeSemana: SEM_ACTUAL
-    });
+    var serie=kgs[m.id]||[], stock=num(inv.inventario), pend=num(inv.pendiente_entrega);
+    out[m.id]={
+      pend: pend,
+      base: Cloro.cobertura({kgSemana:serie, stock:stock, desdeSemana:SEM_ACTUAL}),
+      conPend: pend>0
+        ? Cloro.cobertura({kgSemana:serie, stock:stock+pend, desdeSemana:SEM_ACTUAL})
+        : null
+    };
   });
   return out;
 }
@@ -1628,17 +1642,19 @@ function pintarMP(){
     var prods = activos.filter(function(p){ return p.materia_id===m.id && num(p.kg_mp_por_unidad)>0; });
     if(!prods.length && !kg) return;
     tot+=kg;
-    var inv=matInv(m), cob=COB[m.id];
+    var inv=matInv(m), c=COB[m.id];
+    var cob = c ? c.base : null;
     // `updated_at` es un timestamptz completo y fechaCorta parte por
     // guiones: sin el slice devolvería "07T16:54:07.317+00:00/09/2026".
     var pend = inv ? num(inv.pendiente_entrega) : 0;
     var stTxt = inv
       ? n0(inv.inventario)+' kg'
         +'<span class="upd">al '+fechaCorta(String(inv.updated_at).slice(0,10))
-        // El pendiente NO suma a la cobertura -es una promesa de un
-        // proveedor, no stock- pero se muestra para que no parezca olvidado.
         +(pend>0 ? ' · +'+n0(pend)+' en camino' : '')+'</span>'
       : '<span class="calc">sin vincular</span>';
+    // El número grande es siempre el del depósito. Lo pedido va debajo y
+    // se anuncia como "si llega": no hay fecha de entrega en ningún lado,
+    // así que esa cuenta lo trata como si ya hubiera entrado.
     var cbTxt;
     if(!inv)             cbTxt='<span class="calc">sin vincular</span>';
     else if(!cob)        cbTxt='<span class="calc">—</span>';
@@ -1646,6 +1662,14 @@ function pintarMP(){
     else cbTxt = n0(cob.semanas)+' sem'
         +'<span class="cob'+(cob.semanas<horiz?' bajo':'')+'">'
         +(cob.semanas===0 ? 'no alcanza' : 'hasta la semana '+cob.hastaSemana)+'</span>';
+    // Sólo si el pedido de verdad mueve la aguja: repetir el mismo número
+    // dos veces -o aclarar que lo que ya cubre la temporada la cubre aún
+    // más- es ruido en una tabla que se lee para decidir una compra.
+    if(inv && cob && !cob.alcanza && c.conPend && c.conPend.semanas>cob.semanas){
+      cbTxt += '<span class="upd">si llega lo pedido: '
+        +(c.conPend.alcanza ? 'cubre la temporada'
+          : n0(c.conPend.semanas)+' sem, hasta la '+c.conPend.hastaSemana)+'</span>';
+    }
     h+='<tr><td class="l" style="font-weight:600">'+esc(matNombre(m))
       +(inv?'<span class="cod">'+esc(inv.codigo)+'</span>':'')+'</td>'
       +'<td class="l calc" style="font-family:\'DM Sans\',sans-serif">'

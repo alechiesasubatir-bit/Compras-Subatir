@@ -1140,7 +1140,9 @@ Validaciones que el modal hace y por qué:
 
 - [ ] **Step 2: Stock inicial**
 
-Un modal aparte con una fila por producto y un solo `upsert` a `cl_stock_inicial` (`onConflict: 'temporada_id,producto_id'`). Aviso arriba: *"Es el stock al abrir la temporada. De ahí en adelante el módulo lo lleva solo: envasado menos ventas."*
+*(Cambiado al ejecutar: NO va en un modal aparte, va como sección 5 de Configuración.)* Es una carga de una vez por temporada, con el mismo ciclo de vida que los parámetros; un sexto botón en la barra para algo que se toca una vez al año está mal puesto. Una fila por producto y un `upsert` a `cl_stock_inicial` (`onConflict: 'temporada_id,producto_id'`).
+
+**Un renglón vacío no es un cero.** Vacío significa "todavía no lo sé" y cero significa "arrancó en cero"; el módulo se comporta distinto con cada uno, así que el guardado **saltea los vacíos** en vez de escribirlos. Si se escribieran como cero, abrir y cerrar Configuración sin tocar nada habilitaría el cálculo de stock de los 13 productos con datos que nadie afirmó.
 
 - [ ] **Step 3: Verificar la sintaxis inline y commit**
 
@@ -1340,3 +1342,34 @@ Con la temporada 2025-2026 seleccionada, comprobar:
 git add cloro.html && git commit -m "Cloro: CSV, impresion y verificacion final"
 powershell -NoProfile -ExecutionPolicy Bypass -File bump-version.ps1 && git add -A && git commit -m "Version" && git push origin main
 ```
+
+---
+
+## Desvíos al ejecutar
+
+Lo que cambió respecto del plan, y por qué. Todo verificado en el navegador contra la base.
+
+1. **Crear temporadas** (Task 7). No estaba. Sin eso las temporadas sólo se creaban por SQL y la 2026-2027 —la única que hay que planificar— no existía. Los parámetros de la nueva se copian de la que se estaba viendo.
+
+2. **La base de stock es por producto, no por temporada** (Tasks 6 y 8). Primero se arregló globalmente: mientras no hubiera stock inicial ni envasado, `stock` y `sugerido` iban en `—`. Pero alcanzaba con cargar el stock inicial de un solo producto para que los otros doce volvieran a mostrar el stock fantasma. Ahora la base se evalúa por producto.
+
+3. **Stock inicial dentro de Configuración**, no en un modal propio (Task 8). Se toca una vez por temporada, igual que los parámetros.
+
+4. **La paleta la eligió el validador, no el ojo** (Task 10). La primera, armada a mano con los tokens del proyecto, falló tres de las cinco pruebas contra este fondo: croma (un gris), separación para daltonismo (ΔE 5,2) y piso de visión normal (ΔE 14,5). La que quedó —`#0891b2 #a16207 #a855f7 #16a34a #ea580c`— pasa las cinco.
+
+5. **La regla global de `prefers-reduced-motion` borraba los gráficos** (Task 10). `*{animation:none!important}` dejaba los trazos en `stroke-dashoffset:1`, o sea invisibles. Comprobado en el navegador: sin el arreglo, `dashoffset:1px`; con él, `0px` y `dasharray:none`. Quien tenga "reducir movimiento" prendido habría visto un gráfico vacío.
+
+6. **Los colores de materia prima siguen al ID, no al ranking**, y a partir de la sexta materia se pliegan en "Otras" (Task 10). Si siguieran al tamaño, una semana en la que una materia pasa a otra repintaría el gráfico y dos capturas dejarían de ser comparables; y un hue ciclado haría pasar dos materias distintas por la misma en un gráfico que decide compras.
+
+7. **`node --test test/` no funciona en Node 24** (Task 11): interpreta `test` como archivo. Va `node --test` sin argumentos.
+
+## Verificaciones hechas
+
+- Los totales de venta de los 13 productos coinciden con los `.xls` en las 26 combinaciones producto-temporada, tanto en la semilla como leyendo la base desde el navegador.
+- **11 semanas con venta neta negativa** (devoluciones que superan a las ventas). No es un error de carga: la primera verificación las daba como diferencia y el error estaba en el chequeo. Se dejan porque el neto es la demanda real.
+- El importador SheetJS reproduce exactamente lo mismo que el `xlrd` de la semilla: 13 de 13, cero códigos desconocidos, cero filas fuera de temporada.
+- Aplicar la importación sobre datos ya cargados es idempotente: 457 filas antes, 457 después, total 69.454 sin cambios.
+- Con el crecimiento forzado a 0 %, la previsión de la semana W es exactamente el promedio de W−2..W+2 de la temporada anterior (comprobado en las semanas 5, 15, 23 y 30).
+- Los 4 productos de baja rotación que se midieron en el spec son los 4 que la pantalla marca, y son los 4 que la ficha muestra por mes.
+- Alta y borrado de una orden de envasado, y guardado de configuración: round-trip contra la base, revertido.
+- 61 tests de `node --test` en verde.

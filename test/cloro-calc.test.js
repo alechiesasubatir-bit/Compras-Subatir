@@ -391,3 +391,84 @@ test('planEnvasado: arranca del conteo cuando el stock es de esa misma semana', 
   // demanda de las semanas 3..6 = 400, stock 500 -> no hay que envasar
   assert.strictEqual(plan[2], 0);
 });
+
+// ─── kg de materia prima por semana y cobertura ──────────────────────
+
+test('kgSemanal suma por materia, semana a semana', () => {
+  const productos = [
+    { id: 1, materia_id: 7, kg_mp_por_unidad: 2 },
+    { id: 2, materia_id: 7, kg_mp_por_unidad: 0.5 },
+    { id: 3, materia_id: 8, kg_mp_por_unidad: 1 }
+  ];
+  const r = Cloro.kgSemanal(productos, { 1: [10, 20], 2: [100, 0], 3: [5, 5] });
+  // materia 7 -> sem1: 10*2 + 100*0.5 = 70 ; sem2: 20*2 + 0 = 40
+  assert.deepStrictEqual(r.porMateria[7], [70, 40]);
+  assert.deepStrictEqual(r.porMateria[8], [5, 5]);
+  assert.deepStrictEqual(r.sinAsignar, []);
+});
+
+test('kgSemanal aplica la misma regla que kgMateria para lo que no se puede calcular', () => {
+  const productos = [
+    { id: 1, materia_id: null, kg_mp_por_unidad: 3 },
+    { id: 2, materia_id: 7,    kg_mp_por_unidad: 0 },
+    { id: 3, materia_id: 7,    kg_mp_por_unidad: 1 }
+  ];
+  const r = Cloro.kgSemanal(productos, { 1: [10], 2: [10], 3: [10] });
+  assert.deepStrictEqual(r.sinAsignar, [1, 2]);
+  assert.deepStrictEqual(r.porMateria[7], [10]);
+});
+
+test('kgSemanal y kgMateria dan el mismo total', () => {
+  // La serie semanal sumada tiene que dar lo mismo que la cuenta de una
+  // sola vez sobre el total de unidades. Si se separan, la tabla y el
+  // grafico empiezan a decir cosas distintas.
+  const productos = [{ id: 1, materia_id: 7, kg_mp_por_unidad: 2 }];
+  const serie = Cloro.kgSemanal(productos, { 1: [3, 4, 5] }).porMateria[7];
+  const total = serie.reduce((a, x) => a + x, 0);
+  assert.strictEqual(total, Cloro.kgMateria(productos, { 1: 12 }).porMateria[7]);
+});
+
+test('cobertura: el stock que alcanza para toda la temporada lo dice', () => {
+  const r = Cloro.cobertura({ kgSemana: [10, 10, 10], stock: 1000, desdeSemana: 1 });
+  assert.strictEqual(r.alcanza, true);
+  assert.strictEqual(r.semanas, 3);
+  assert.strictEqual(r.hastaSemana, 3);
+});
+
+test('cobertura: se corta en la semana en que el acumulado pasa el stock', () => {
+  // 100 + 100 = 200 entra en 250 ; +100 = 300 no entra
+  const r = Cloro.cobertura({ kgSemana: [100, 100, 100, 100], stock: 250, desdeSemana: 1 });
+  assert.strictEqual(r.alcanza, false);
+  assert.strictEqual(r.semanas, 2);
+  assert.strictEqual(r.hastaSemana, 2);
+  assert.strictEqual(r.kgTotal, 200);
+});
+
+test('cobertura: una semana que no se cubre entera no cuenta', () => {
+  // Con 100 kg y una semana que pide 150 la respuesta es CERO semanas.
+  // Media semana de cloro no envasa nada.
+  const r = Cloro.cobertura({ kgSemana: [150], stock: 100, desdeSemana: 1 });
+  assert.strictEqual(r.semanas, 0);
+  assert.strictEqual(r.hastaSemana, null);
+  assert.strictEqual(r.alcanza, false);
+});
+
+test('cobertura: sin stock no hay cobertura', () => {
+  const r = Cloro.cobertura({ kgSemana: [1, 1], stock: 0, desdeSemana: 1 });
+  assert.strictEqual(r.semanas, 0);
+  assert.strictEqual(r.alcanza, false);
+});
+
+test('cobertura: sin consumo, el stock cero alcanza igual', () => {
+  // No es un caso de laboratorio: es una materia cuyos productos no se
+  // envasan en lo que queda de temporada.
+  const r = Cloro.cobertura({ kgSemana: [0, 0], stock: 0, desdeSemana: 1 });
+  assert.strictEqual(r.alcanza, true);
+  assert.strictEqual(r.semanas, 2);
+});
+
+test('cobertura: arranca en desdeSemana y no en la semana 1', () => {
+  const r = Cloro.cobertura({ kgSemana: [9999, 100, 100], stock: 250, desdeSemana: 2 });
+  assert.strictEqual(r.alcanza, true);
+  assert.strictEqual(r.semanas, 2);
+});

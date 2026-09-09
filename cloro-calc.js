@@ -246,6 +246,56 @@
     return { porMateria: porMateria, sinAsignar: sinAsignar };
   }
 
+  // kg de materia prima semana a semana. Es `kgMateria` aplicado a una
+  // serie en vez de a un total, y con la MISMA regla: un producto sin
+  // materia o sin kg por unidad no se reparte a ningun lado y se lista.
+  function kgSemanal(productos, planes) {
+    var porMateria = {}, sinAsignar = [], semanas = 0, i;
+    (productos || []).forEach(function (p) {
+      var plan = (planes || {})[p.id] || [];
+      if (plan.length > semanas) semanas = plan.length;
+    });
+    (productos || []).forEach(function (p) {
+      var kgu = parseFloat(p.kg_mp_por_unidad) || 0;
+      if (p.materia_id == null || kgu <= 0) { sinAsignar.push(p.id); return; }
+      var plan = (planes || {})[p.id] || [];
+      var acc = porMateria[p.materia_id];
+      if (!acc) {
+        acc = []; for (i = 0; i < semanas; i++) acc.push(0);
+        porMateria[p.materia_id] = acc;
+      }
+      for (i = 0; i < semanas; i++) acc[i] += (parseFloat(plan[i]) || 0) * kgu;
+    });
+    return { porMateria: porMateria, sinAsignar: sinAsignar };
+  }
+
+  // Hasta que semana alcanza el stock de una materia prima.
+  //
+  // Cuenta hasta CERO, no hasta el stock minimo: el minimo es la senal de
+  // reposicion y ya vive en el modulo Stock. Traerlo aca serian dos
+  // umbrales para lo mismo, en dos pantallas, que se pueden mover de un
+  // lado y no del otro.
+  //
+  // Una semana que no se cubre ENTERA no cuenta. Con 100 kg y una semana
+  // que pide 150, la respuesta es cero semanas y no media: media semana
+  // de cloro no envasa nada.
+  function cobertura(o) {
+    var kg = o.kgSemana || [];
+    var desde = Math.max(1, o.desdeSemana || 1);
+    var stock = parseFloat(o.stock) || 0;
+    var acum = 0, semanas = 0, i, w;
+    for (i = desde; i <= kg.length; i++) {
+      w = parseFloat(kg[i - 1]) || 0;
+      if (acum + w > stock) {
+        return { semanas: semanas, hastaSemana: semanas ? i - 1 : null,
+                 kgTotal: acum, alcanza: false };
+      }
+      acum += w; semanas++;
+    }
+    return { semanas: semanas, hastaSemana: semanas ? kg.length : null,
+             kgTotal: acum, alcanza: true };
+  }
+
   return {
     lunesInicio: lunesInicio,
     semanaDe: semanaDe,
@@ -257,6 +307,8 @@
     sugerido: sugerido,
     planEnvasado: planEnvasado,
     bajaRotacion: bajaRotacion,
-    kgMateria: kgMateria
+    kgMateria: kgMateria,
+    kgSemanal: kgSemanal,
+    cobertura: cobertura
   };
 });

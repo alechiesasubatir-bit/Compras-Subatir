@@ -203,7 +203,10 @@ tr.sinmp td.mp{color:#fca5a5}
 .cf-add .fg{margin-bottom:0}
 /* Grilla de productos */
 .cf-prods{display:grid;gap:6px;max-height:330px;overflow:auto;padding-right:5px}
-.cf-ph,.cf-pr{display:grid;grid-template-columns:minmax(0,1fr) 175px 84px 84px;gap:8px;align-items:center}
+/* Las columnas las pone cada uso: hoy son tres y ninguno comparte grilla
+   (stock inicial, órdenes de envasado). Un default acá seria una cuarta
+   forma que nadie usa y que aparece sola si alguien agrega un .cf-pr. */
+.cf-ph,.cf-pr{display:grid;gap:8px;align-items:center}
 .cf-ph{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.7px;
   text-transform:uppercase;color:var(--muted);padding:0 10px 2px;position:sticky;top:0;
   background:linear-gradient(180deg,#0e1621,#0e1621 70%,transparent)}
@@ -565,30 +568,30 @@ window.APP_VER='2026-09-09.1032';
 
       <div class="cf">
         <div class="cf-h"><span class="cf-n">3</span><h4>Materias primas</h4></div>
+        <p class="cf-p">El stock real no se carga acá: sale del módulo <b>Stock</b>, de los
+          artículos marcados como materia prima. Cada materia se cuelga de uno y de ahí toma
+          su stock y su nombre, así el número es siempre el mismo en las dos pantallas.</p>
         <div class="cf-rows" id="cf-mats"></div>
         <div class="cf-add">
-          <div class="fg" style="grid-column:span 2"><label>Nueva materia prima</label>
-            <input class="inp" id="nm-nom" maxlength="60" placeholder="Ej: Tricloro granulado"/></div>
+          <div class="fg" style="grid-column:span 2"><label>Vincular un artículo del inventario</label>
+            <select class="inp" id="nm-inv"></select></div>
           <div class="fg"><button class="btn" style="width:100%" onclick="crearMateria()">➕ Agregar</button></div>
         </div>
       </div>
 
       <div class="cf">
-        <div class="cf-h"><span class="cf-n">4</span><h4>Productos</h4></div>
-        <p class="cf-p">Los <b>kg de MP por unidad</b> son los kilos de materia prima que se van en
-          envasar una unidad de venta. Un producto sin materia prima o con 0 kg/u
-          <b>no suma en la compra</b> y sale marcado en rojo — no se estima nada por él.</p>
-        <div id="cf-aviso"></div>
-        <div class="cf-prods" id="cf-prods"></div>
-      </div>
-
-      <div class="cf">
-        <div class="cf-h"><span class="cf-n">5</span><h4>Stock inicial de <span id="cf-tnom2">—</span></h4></div>
-        <p class="cf-p">Lo que había de cada producto al abrir la temporada. Se carga una sola vez:
-          de ahí en adelante el stock lo lleva el módulo solo, sumando el envasado y restando las
-          ventas. <b>Un renglón vacío no es un cero</b> — mientras esté vacío, ese producto no
-          muestra stock ni sugerido en vez de mostrar un número inventado. Si de verdad arrancó
-          en cero, escribí 0.</p>
+        <div class="cf-h"><span class="cf-n">4</span><h4>Stock inicial de <span id="cf-tnom2">—</span></h4></div>
+        <p class="cf-p">Lo que hay de cada producto <b>al día del conteo</b>. De ahí en adelante el
+          stock lo lleva el módulo solo, sumando el envasado y restando las ventas.
+          <b>La fecha importa</b>: un conteo de septiembre no es el stock de agosto, y sin ella el
+          módulo volvería a restar ventas que el conteo ya tiene descontadas.
+          <b>Un renglón vacío no es un cero</b> — mientras esté vacío, ese producto no muestra
+          stock ni sugerido en vez de mostrar un número inventado. Si de verdad estaba en cero,
+          escribí 0.</p>
+        <div class="fg" style="max-width:230px;margin-bottom:10px">
+          <label>Estos números son al</label>
+          <input class="inp" id="cf-s0-fecha" type="date"/>
+        </div>
         <div class="cf-prods" id="cf-stock"></div>
       </div>
 
@@ -1500,6 +1503,11 @@ function fechaCorta(iso){
   var p=String(iso).split('-');
   return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
 }
+function hoyISO(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
+        +'-'+String(d.getDate()).padStart(2,'0');
+}
 
 function pintarKPIs(){
   var fs=filas();
@@ -1693,41 +1701,37 @@ function pintarConfig(){
   }
 
   // ── Materias primas
-  document.getElementById('cf-mats').innerHTML = MAT.map(function(m){
-    var n=PROD.filter(function(p){ return p.materia_id===m.id; }).length;
-    return '<div class="cf-row"><div class="cf-row-n">'+esc(m.nombre)
-      +'<small>'+(n? n+' producto'+(n===1?'':'s') : 'sin productos')+'</small></div>'
-      +'<span class="chip">'+n+'</span></div>';
-  }).join('') || '<div class="hint">No hay materias primas.</div>';
-  document.getElementById('nm-nom').value='';
+  document.getElementById('cf-mats').innerHTML =
+    MAT.filter(function(m){ return m.activo!==false; }).map(function(m){
+      var n=PROD.filter(function(p){ return p.materia_id===m.id; }).length;
+      var inv=matInv(m);
+      return '<div class="cf-row"><div class="cf-row-n">'+esc(matNombre(m))
+        +'<small>'+(n? n+' producto'+(n===1?'':'s') : 'sin productos')
+          +(inv ? ' · '+esc(inv.codigo)+' · '+n0(inv.inventario)+' kg'
+                : ' · <b>sin vincular</b>')+'</small></div>'
+        +'<span class="chip">'+n+'</span></div>';
+    }).join('') || '<div class="hint">No hay materias primas.</div>';
 
-  // ── Productos
-  var opts = MAT.filter(function(m){ return m.activo!==false; })
-    .map(function(m){ return '<option value="'+m.id+'">'+esc(m.nombre)+'</option>'; }).join('');
-  var h='<div class="cf-ph"><span>Producto</span><span>Materia prima</span>'
-       +'<span>kg MP/u</span><span>Lote</span></div>';
-  PROD.filter(function(p){ return p.activo!==false; })
-      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); })
-      .forEach(function(p){
-    var falta = p.materia_id==null || num(p.kg_mp_por_unidad)<=0;
-    h+='<div class="cf-pr'+(falta?' falta':'')+'" data-id="'+p.id+'">'
-      +'<div class="cf-row-n" style="text-align:left">'+esc(p.nombre)
-        +'<small>'+esc(p.codigo)+'</small></div>'
-      +'<select class="cf-mat'+(p.materia_id==null?' vacio':'')+'">'
-        +'<option value="">— sin asignar —</option>'+opts+'</select>'
-      +'<input class="cf-kg"   type="number" min="0" step="0.001" value="'+num(p.kg_mp_por_unidad)+'"/>'
-      +'<input class="cf-lote" type="number" min="1" step="1"     value="'+(num(p.lote_unidades)||1)+'"/>'
-      +'</div>';
-  });
-  document.getElementById('cf-prods').innerHTML=h;
-  // El value del select se pone después de insertarlo: escribirlo en el
-  // HTML obliga a marcar el <option> a mano y se rompe con el "sin asignar".
-  document.querySelectorAll('#cf-prods .cf-pr').forEach(function(row){
-    var p=PROD.filter(function(x){ return String(x.id)===row.getAttribute('data-id'); })[0];
-    row.querySelector('.cf-mat').value = p && p.materia_id!=null ? String(p.materia_id) : '';
-  });
+  // Sólo los artículos de materia prima que no están colgados de ninguna
+  // materia: ofrecer uno ya vinculado crearía el duplicado que el índice
+  // único rechaza, con un error feo en vez de una opción que no aparece.
+  var usados={}; MAT.forEach(function(m){ if(m.inventario_id!=null) usados[m.inventario_id]=1; });
+  document.getElementById('nm-inv').innerHTML =
+    '<option value="">— elegí un artículo —</option>'
+    + INV.filter(function(i){ return !usados[i.id]; })
+         .sort(function(a,b){ return String(a.descripcion||'').localeCompare(String(b.descripcion||'')); })
+         .map(function(i){ return '<option value="'+i.id+'">'+esc(i.descripcion)
+              +' · '+esc(i.codigo)+'</option>'; }).join('');
+
   // ── Stock inicial
   document.getElementById('cf-tnom2').textContent = t ? t.nombre : '—';
+  // Se toma la fecha más vieja de las cargadas: hoy son todas la misma
+  // porque se escriben juntas. Si mañana hay un reconteo de un solo
+  // producto, esto muestra la más vieja y el guardado las vuelve a
+  // igualar, que es exactamente lo que hace un conteo nuevo.
+  var f0=null;
+  PROD.forEach(function(p){ var f=STOCK0F[p.id]; if(f && (!f0 || f<f0)) f0=f; });
+  document.getElementById('cf-s0-fecha').value = f0 || hoyISO();
   var hs='<div class="cf-ph" style="grid-template-columns:minmax(0,1fr) 130px">'
         +'<span>Producto</span><span>Stock inicial</span></div>';
   PROD.filter(function(p){ return p.activo!==false; })
@@ -1740,33 +1744,8 @@ function pintarConfig(){
       +'<input class="cf-s0" type="number" step="1" value="'+v+'" placeholder="sin cargar"/></div>';
   });
   document.getElementById('cf-stock').innerHTML=hs;
-
-  pintarCfAviso();
 }
-// Se engancha UNA vez, no dentro de pintarConfig: el contenedor sobrevive
-// a los repintados, así que ahí se acumularía un listener por cada vez que
-// se abre el modal.
-(function(){
-  var host=document.getElementById('cf-prods');
-  host.addEventListener('change', pintarCfAviso);
-  host.addEventListener('input',  pintarCfAviso);
-})();
 
-function pintarCfAviso(){
-  var falt=0;
-  document.querySelectorAll('#cf-prods .cf-pr').forEach(function(row){
-    var sel=row.querySelector('.cf-mat'), kg=num(row.querySelector('.cf-kg').value);
-    var mal = !sel.value || kg<=0;
-    row.classList.toggle('falta', mal);
-    sel.classList.toggle('vacio', !sel.value);
-    if(mal) falt++;
-  });
-  document.getElementById('cf-aviso').innerHTML = falt
-    ? '<div class="aviso urg" style="margin-bottom:10px"><b>'+falt+' producto'+(falt===1?'':'s')
-      +' sin materia prima o con 0 kg/u.</b> No van a sumar en la compra.</div>'
-    : '<div class="aviso info" style="margin-bottom:10px">Todos los productos tienen materia prima '
-      +'y kg por unidad.</div>';
-}
 function pintarCrecInput(){
   var auto=document.getElementById('cf-crec-auto').checked;
   document.getElementById('cf-crec').disabled=auto;
@@ -1824,20 +1803,23 @@ function crearTemporada(){
     }).then(function(){ b.disabled=false; });
 }
 
+// Una materia prima ya no se inventa escribiendo un nombre: se cuelga de
+// un artículo del inventario. Un nombre suelto nacería sin stock y sin
+// cobertura, o sea una fila que sólo puede decir "no sé".
 function crearMateria(){
-  var nom=(document.getElementById('nm-nom').value||'').trim();
-  if(!nom){ toast('Poné un nombre','err'); return; }
-  if(MAT.some(function(m){ return m.nombre.toLowerCase()===nom.toLowerCase(); })){
-    toast('Ya existe una materia prima con ese nombre','err'); return; }
-  SB.from('cl_materias').insert({nombre:nom}).select().then(function(r){
+  var id=parseInt(document.getElementById('nm-inv').value,10);
+  if(!id){ toast('Elegí un artículo del inventario','err'); return; }
+  var inv=INV.filter(function(x){ return x.id===id; })[0];
+  if(!inv){ toast('Ese artículo ya no está en el inventario','err'); return; }
+  SB.from('cl_materias').insert({nombre:inv.descripcion, inventario_id:id}).select().then(function(r){
     if(r.error) throw r.error;
     if(!r.data || !r.data.length) throw new Error('la base no devolvió la fila (¿permiso del módulo?)');
     MAT.push(r.data[0]);
-    MAT.sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
-    toast('Materia prima agregada','ok');
-    pintarConfig();
+    MAT.sort(function(a,b){ return String(a.nombre).localeCompare(String(b.nombre)); });
+    toast('Materia prima vinculada','ok');
+    pintarConfig(); pintarTodo();
   }).catch(function(e){
-    toast('No se pudo agregar: '+((e&&e.message)||e),'err');
+    toast('No se pudo vincular: '+((e&&e.message)||e),'err');
   });
 }
 
@@ -1872,36 +1854,36 @@ function guardarConfig(){
     updated_at: new Date().toISOString()
   }).eq('temporada_id', t.id).select());
 
-  // Sólo se escriben los productos que de verdad cambiaron: 13 updates
-  // por abrir y cerrar el modal ensucian el historial y tardan de gusto.
-  document.querySelectorAll('#cf-prods .cf-pr').forEach(function(row){
-    var id=parseInt(row.getAttribute('data-id'),10);
-    var p=PROD.filter(function(x){ return x.id===id; })[0]; if(!p) return;
-    var sel=row.querySelector('.cf-mat').value;
-    var nuevo={
-      materia_id: sel ? parseInt(sel,10) : null,
-      kg_mp_por_unidad: Math.max(0, num(row.querySelector('.cf-kg').value)),
-      lote_unidades: Math.max(1, num(row.querySelector('.cf-lote').value)||1)
-    };
-    if(nuevo.materia_id===(p.materia_id==null?null:p.materia_id)
-       && nuevo.kg_mp_por_unidad===num(p.kg_mp_por_unidad)
-       && nuevo.lote_unidades===(num(p.lote_unidades)||1)) return;
-    ops.push(SB.from('cl_productos').update(nuevo).eq('id', id).select());
-  });
+  // De qué está hecho cada producto —materia prima, kg por unidad, lote—
+  // ya no se edita acá: son hechos de la fórmula y de la presentación, no
+  // parámetros de planificación. Se cargan por SQL desde la planilla. La
+  // pantalla lee ese maestro y no lo escribe nunca.
 
   // Stock inicial: sólo los renglones con algo escrito. Un renglón vacío
   // se DEJA como está —no se borra ni se guarda como cero— porque vacío
-  // significa "todavía no lo sé", y un cero significa "arrancó en cero".
+  // significa "todavía no lo sé", y un cero significa "estaba en cero".
   // Son cosas distintas y el módulo se comporta distinto con cada una.
+  var fCont=document.getElementById('cf-s0-fecha').value;
   var s0=[];
   document.querySelectorAll('#cf-stock .cf-pr').forEach(function(row){
     var v=row.querySelector('.cf-s0').value;
     if(String(v).trim()==='') return;
     var id=parseInt(row.getAttribute('data-id'),10);
     var cant=num(v);
-    if(STOCK0[id]!==undefined && num(STOCK0[id])===cant) return;   // sin cambios
-    s0.push({temporada_id:t.id, producto_id:id, cantidad:cant});
+    // Con la fecha nueva hay que reescribir aunque la cantidad no cambie:
+    // el mismo número contado otro día significa otra cosa.
+    if(STOCK0[id]!==undefined && num(STOCK0[id])===cant
+       && STOCK0F[id]===fCont) return;
+    s0.push({temporada_id:t.id, producto_id:id, cantidad:cant, fecha:fCont});
   });
+  // Una fecha fuera de la temporada mandaría el arranque del cálculo a una
+  // semana que la pantalla no dibuja, y el stock desaparecería entero sin
+  // decir por qué.
+  if(s0.length && (!fCont || fCont < t.fecha_ini || fCont > t.fecha_fin)){
+    toast('La fecha del conteo tiene que caer dentro de la temporada ('
+      +fechaCorta(t.fecha_ini)+' a '+fechaCorta(t.fecha_fin)+')','err');
+    b.disabled=false; return;
+  }
   if(s0.length) ops.push(SB.from('cl_stock_inicial')
     .upsert(s0,{onConflict:'temporada_id,producto_id'}).select());
 

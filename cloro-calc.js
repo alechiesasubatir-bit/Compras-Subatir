@@ -123,13 +123,27 @@
   // Stock de producto terminado semana a semana. En las semanas ya
   // cerradas manda la venta REAL; en las que vienen, la prevista.
   //
+  // `semanaBase` es la semana a la que corresponde el conteo del stock
+  // inicial, tomado como saldo de APERTURA de esa semana. Por defecto 1
+  // -el arranque de la temporada-, pero un conteo hecho en septiembre NO
+  // es el stock de agosto: tratarlo como tal vuelve a restar ventas que
+  // el conteo ya tiene descontadas. Paso de verdad, con el conteo del
+  // 8/9/2026: la pantalla mostraba -272 unidades de Pastilla Triple
+  // Accion donde se habian contado 500, y el sugerido mandaba a envasar
+  // de nuevo lo que ya se habia vendido.
+  //
+  // Antes de esa semana devuelve NULL y no cero. Cero significaria
+  // "estaba vacio", que es una afirmacion; null es "no lo sabemos".
+  //
   // Puede quedar negativo y NO se recorta: un stock negativo es la senal
   // de que falta envasar, y taparlo en cero esconderia justamente lo que
   // el modulo viene a avisar.
   function proyectarStock(o) {
     var n = Math.max((o.ventas || []).length, (o.envasado || []).length, (o.prevision || []).length);
+    var base = Math.max(1, parseFloat(o.semanaBase) || 1);
     var s = parseFloat(o.stockInicial) || 0, out = [], i, salida;
     for (i = 0; i < n; i++) {
+      if (i < base - 1) { out.push(null); continue; }
       salida = (i < o.semanasCerradas)
         ? (parseFloat((o.ventas || [])[i]) || 0)
         : (parseFloat((o.prevision || [])[i]) || 0);

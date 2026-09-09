@@ -260,3 +260,50 @@ test('un producto sin kg por unidad cuenta como sin asignar', () => {
   const r = Cloro.kgMateria([{ id: 1, materia_id: 7, kg_mp_por_unidad: 0 }], { 1: 500 });
   assert.deepStrictEqual(r.sinAsignar, [1]);
 });
+
+// ─── La semana a la que corresponde el conteo del stock ──────────────
+
+test('proyectarStock sin semanaBase se comporta igual que siempre', () => {
+  // La compatibilidad no es un detalle: la tabla, el grafico y las fichas
+  // llaman a esto sin el parametro nuevo.
+  const r = Cloro.proyectarStock({
+    stockInicial: 100, ventas: [30, 30, 0, 0], envasado: [0, 50, 0, 0],
+    prevision: [99, 99, 20, 20], semanasCerradas: 2
+  });
+  assert.deepStrictEqual(r, [70, 90, 70, 50]);
+});
+
+test('proyectarStock: antes de la semana del conteo no inventa un stock', () => {
+  // Si contamos en septiembre, que habia en agosto no lo sabemos. Un cero
+  // ahi se leeria como "estaba vacio", que es una afirmacion que nadie hizo.
+  const r = Cloro.proyectarStock({
+    stockInicial: 100, ventas: [10, 10, 10, 10], envasado: [0, 0, 0, 0],
+    prevision: [5, 5, 5, 5], semanasCerradas: 4, semanaBase: 3
+  });
+  assert.strictEqual(r[0], null);
+  assert.strictEqual(r[1], null);
+  assert.strictEqual(r[2], 90);   // 100 - 10
+  assert.strictEqual(r[3], 80);   // 90 - 10
+});
+
+test('proyectarStock: el conteo del 8/9 no vuelve a restar lo vendido en agosto', () => {
+  // El caso real que motivo esto. Cloro Granulado x 4 Kg: se contaron 11
+  // unidades en la semana 7, con 16 vendidas en las semanas 1 a 6.
+  const ventas    = [0, 3, 4, 2, 3, 4, 0];
+  const prevision = [0, 0, 0, 0, 0, 0, 5];
+  const args = { stockInicial: 11, ventas, envasado: [0, 0, 0, 0, 0, 0, 0],
+                 prevision, semanasCerradas: 6 };
+  // Sin la semana del conteo: 11 - 16 - 5 = -10, y el modulo grita
+  // "FALTA ENVASAR" sobre un stock que en realidad esta bien.
+  assert.strictEqual(Cloro.proyectarStock(args)[6], -10);
+  // Con ella: el conteo es el saldo de apertura de la semana 7.
+  const conBase = Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 7 }));
+  assert.strictEqual(conBase[6], 6);   // 11 - 5
+  assert.strictEqual(conBase[5], null);
+});
+
+test('proyectarStock: una semanaBase de 1 es lo mismo que no ponerla', () => {
+  const args = { stockInicial: 50, ventas: [10], envasado: [0], prevision: [0], semanasCerradas: 1 };
+  assert.deepStrictEqual(Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 1 })),
+                         Cloro.proyectarStock(args));
+});

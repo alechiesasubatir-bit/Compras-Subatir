@@ -112,12 +112,41 @@ reimporte el inventario.
 
 ## 4 · El cálculo
 
+### 4.0 · Antes que nada: el conteo del stock tiene fecha
+
+Apareció al revisar los datos reales y hay que arreglarlo primero, porque todo lo demás se
+apoya en él.
+
+`cl_stock_inicial` se guardaba sin fecha y el módulo lo trataba como **el saldo de la
+semana 1**. El conteo real de 2026-2027 se hizo el **08/09/2026, que es la semana 7**, con
+**1.458 unidades ya vendidas** en las semanas 1 a 6 e importadas del ERP. Restar esas
+ventas de un conteo que ya las tiene descontadas las cuenta dos veces: la pantalla mostraba
+**−272** unidades de Pastilla Triple Acción 1 kg donde se habían contado **500**, y el
+sugerido mandaba a envasar de nuevo lo ya vendido.
+
+`cl_stock_inicial` gana una columna `fecha` y `Cloro.proyectarStock` un `semanaBase`
+opcional: la semana a la que corresponde el conteo, tomada como **saldo de apertura de esa
+semana**. Antes de esa semana la serie devuelve **`null`, no cero** — si contamos en
+septiembre, qué había en agosto no lo sabemos, y un cero ahí se leería como "estaba vacío",
+que es una afirmación que nadie hizo.
+
+La fecha va **por fila**, no por temporada: un reconteo de un solo producto tiene que poder
+representarse sin mentir sobre los otros doce. La pantalla las escribe todas juntas desde un
+único campo, que es como se hace un inventario.
+
+**Una imprecisión asumida:** el conteo del 8/9 cae dentro de la semana 7, no en su borde, y
+tratarlo como saldo de apertura descuenta igual lo que se vendió el lunes y el martes de esa
+semana. Subestima el stock en un par de días de venta. De los dos errores posibles, el que
+deja sin cloro en enero es el otro.
+
+### 4.1 · Las funciones nuevas
+
 Dos funciones nuevas en `cloro-calc.js`, puras, sin fechas implícitas y con tests, más un
 ayudante que las une: `kgSemanal(productos, planes) -> {porMateria: {id: number[]}, sinAsignar}`,
 que es `kgMateria` aplicado semana a semana y con la misma regla —un producto sin materia o
 sin kg por unidad no se reparte a ningún lado y se lista.
 
-### 4.1 · `planEnvasado` — la curva semanal de envasado
+### 4.2 · `planEnvasado` — la curva semanal de envasado
 
 El módulo hoy contesta "cuánto envasar ahora" con un solo número: `Cloro.sugerido`, que
 mira el horizonte y el colchón. Para contar semanas de cobertura hace falta esa respuesta
@@ -139,7 +168,7 @@ Devuelve un array de largo `semanas`; las semanas anteriores a `desdeSemana` van
 —ya pasaron—. El resultado es lumpy a propósito: se envasa en múltiplos de lote cuando
 hace falta, no un poquito por semana.
 
-### 4.2 · `cobertura` — hasta qué semana alcanza
+### 4.3 · `cobertura` — hasta qué semana alcanza
 
 ```
 cobertura({kgSemana: number[], stock: number, desdeSemana: number})
@@ -157,7 +186,7 @@ pantalla, que se puede mover de un lado y no del otro.
 **Una semana que no se cubre entera no se cuenta.** Con 100 kg y una semana que pide 150,
 la respuesta es cero semanas, no media: media semana de cloro no envasa nada.
 
-### 4.3 · Lo que deliberadamente NO entra
+### 4.4 · Lo que deliberadamente NO entra
 
 - **`pendiente_entrega`** —materia prima ya pedida y en camino— **no suma al stock.** Se
   muestra al lado como dato, pero contarlo convertiría una promesa de un proveedor en
@@ -210,11 +239,12 @@ leer ese maestro y no escribirlo.
 
 | Archivo | Qué cambia |
 |---|---|
+| `migracion/cloro_stock_fecha.sql` | Columna `fecha` en `cl_stock_inicial` y la del conteo del 08/09. |
 | `migracion/cloro_materia_inventario.sql` | Columna `inventario_id`, único, y el vínculo de las 6 materias. |
 | `migracion/cloro_carga_planilla.sql` | `materia_id` y `kg_mp_por_unidad` de los 13 productos. |
 | `migracion/inventario_220156_unidad.sql` | `unidad` de `'g'` a `'Kg'` en la fila 110. |
 | `migracion/cloro_materia_inventario_rollback.sql` | Vuelta atrás de los tres. |
-| `cloro-calc.js` | `planEnvasado`, `cobertura`, `kgSemanal`. |
+| `cloro-calc.js` | `semanaBase` en `proyectarStock`; `planEnvasado`, `cobertura`, `kgSemanal`. |
 | `test/cloro-calc.test.js` | Sus tests. |
 | `cloro.html` | Carga de `inventario`, columnas nuevas, avisos, y fuera la sección Productos. |
 

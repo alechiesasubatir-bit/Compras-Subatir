@@ -4,7 +4,7 @@
 
 **Goal:** Que Previsión Cloro deje de tener su propia lista de materias primas sin stock y se cuelgue del inventario real del módulo Stock, para poder contestar "con lo que hay en el depósito, ¿hasta qué semana de la temporada llegamos?".
 
-**Architecture:** `cl_materias` gana un `inventario_id` que apunta a la fila de `inventario` (por id, nunca por código: el código `218851` está duplicado). El cálculo nuevo vive en `cloro-calc.js`, puro y testeable: `planEnvasado` aplica la regla que ya existe —`Cloro.sugerido`— semana a semana en vez de una sola vez, `kgSemanal` la pasa a kg por materia y `cobertura` cuenta hasta dónde alcanza el stock. La pantalla sólo dibuja.
+**Architecture:** `cl_materias` gana un `inventario_id` que apunta a la fila de `inventario` (por id, nunca por código: el código `218851` está duplicado). El cálculo nuevo vive en `cloro-calc.js`, puro y testeable: `planEnvasado` aplica la regla que ya existe —`Cloro.sugerido`— semana a semana en vez de una sola vez, `kgSemanal` la pasa a kg por materia y `cobertura` cuenta hasta dónde alcanza el stock. Antes de todo eso, `proyectarStock` aprende de qué semana es el conteo del stock inicial, porque el de esta temporada se hizo en la semana 7 y el módulo lo estaba tratando como si fuera de la semana 1. La pantalla sólo dibuja.
 
 **Tech Stack:** HTML/CSS/JS sin framework (ES5 en el navegador), Supabase JS v2, `node --test` para los tests del cálculo.
 
@@ -28,8 +28,9 @@
 
 | Archivo | Responsabilidad |
 |---|---|
-| `cloro-calc.js` (modificar) | Agrega `planEnvasado`, `kgSemanal` y `cobertura`. |
+| `cloro-calc.js` (modificar) | `proyectarStock` acepta la semana del conteo; agrega `planEnvasado`, `kgSemanal` y `cobertura`. |
 | `test/cloro-calc.test.js` (modificar) | Sus tests. |
+| `migracion/cloro_stock_fecha.sql` (nuevo) | Columna `fecha` en `cl_stock_inicial` y la del conteo del 08/09. |
 | `migracion/cloro_materia_inventario.sql` (nuevo) | Columna `inventario_id`, único, y el vínculo de las 6 materias. |
 | `migracion/cloro_carga_planilla.sql` (nuevo) | `materia_id` y `kg_mp_por_unidad` de los 13 productos. |
 | `migracion/inventario_220156_unidad.sql` (nuevo) | `unidad` de `'g'` a `'Kg'` en la fila del Jacuzzi. |
@@ -38,17 +39,139 @@
 
 ---
 
-### Task 1: `planEnvasado` — la curva semanal de envasado
+### Task 1: La semana del conteo
+
+El stock inicial se guardaba sin fecha y el módulo lo trataba como el saldo de la **semana 1**. El conteo real de la temporada 2026-2027 se hizo el **08/09/2026, que es la semana 7**, con 1.458 unidades ya vendidas en las semanas 1 a 6 e importadas desde los `.xls`. El módulo restaba esas ventas de un número que ya las tenía descontadas: mostraba −272 unidades de Pastilla Triple Acción 1 kg donde se habían contado 500, y el sugerido mandaba a envasar de nuevo lo ya vendido.
+
+**Files:**
+- Modify: `cloro-calc.js` — `proyectarStock`
+- Test: `test/cloro-calc.test.js`
+
+**Interfaces:**
+- Consumes: nada.
+- Produces:
+  - `Cloro.proyectarStock(opts)` acepta un `semanaBase` nuevo y **opcional** (default 1): la semana a la que corresponde el conteo, como saldo de apertura de esa semana. Las posiciones anteriores devuelven **`null`**, no cero.
+  - El tipo de retorno pasa de `number[]` a `(number|null)[]`. Con `semanaBase` ausente o 1 no hay ningún null, así que todo lo que ya existe sigue funcionando igual.
+
+- [ ] **Step 1: Escribir los tests que fallan**
+
+Agregar a `test/cloro-calc.test.js`:
+
+```js
+test('proyectarStock sin semanaBase se comporta igual que siempre', () => {
+  // La compatibilidad no es un detalle: la tabla, el grafico y las fichas
+  // llaman a esto sin el parametro nuevo.
+  const r = Cloro.proyectarStock({
+    stockInicial: 100, ventas: [30, 30, 0, 0], envasado: [0, 50, 0, 0],
+    prevision: [99, 99, 20, 20], semanasCerradas: 2
+  });
+  assert.deepStrictEqual(r, [70, 90, 70, 50]);
+});
+
+test('proyectarStock: antes de la semana del conteo no inventa un stock', () => {
+  // Si contamos en septiembre, que habia en agosto no lo sabemos. Un cero
+  // ahi se leeria como "estaba vacio", que es una afirmacion que nadie hizo.
+  const r = Cloro.proyectarStock({
+    stockInicial: 100, ventas: [10, 10, 10, 10], envasado: [0, 0, 0, 0],
+    prevision: [5, 5, 5, 5], semanasCerradas: 4, semanaBase: 3
+  });
+  assert.strictEqual(r[0], null);
+  assert.strictEqual(r[1], null);
+  assert.strictEqual(r[2], 90);   // 100 - 10
+  assert.strictEqual(r[3], 80);   // 90 - 10
+});
+
+test('proyectarStock: el conteo del 8/9 no vuelve a restar lo vendido en agosto', () => {
+  // El caso real que motivo esto. Cloro Granulado x 4 Kg: se contaron 11
+  // unidades en la semana 7, con 16 vendidas en las semanas 1 a 6.
+  const ventas    = [0, 3, 4, 2, 3, 4, 0];
+  const prevision = [0, 0, 0, 0, 0, 0, 5];
+  const args = { stockInicial: 11, ventas, envasado: [0,0,0,0,0,0,0],
+                 prevision, semanasCerradas: 6 };
+  // Sin la semana del conteo: 11 - 16 - 5 = -10, y el modulo grita
+  // "FALTA ENVASAR" sobre un stock que en realidad esta bien.
+  assert.strictEqual(Cloro.proyectarStock(args)[6], -10);
+  // Con ella: el conteo es el saldo de apertura de la semana 7.
+  const conBase = Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 7 }));
+  assert.strictEqual(conBase[6], 6);   // 11 - 5
+  assert.strictEqual(conBase[5], null);
+});
+
+test('proyectarStock: una semanaBase de 1 es lo mismo que no ponerla', () => {
+  const args = { stockInicial: 50, ventas: [10], envasado: [0], prevision: [0], semanasCerradas: 1 };
+  assert.deepStrictEqual(Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 1 })),
+                         Cloro.proyectarStock(args));
+});
+```
+
+- [ ] **Step 2: Correr los tests y verificar que fallan**
+
+Run: `node --test`
+Expected: FAIL en los dos tests de `semanaBase` — devuelven número donde se espera `null`.
+
+- [ ] **Step 3: Implementación**
+
+Reemplazar `proyectarStock` en `cloro-calc.js` por:
+
+```js
+  // Stock de producto terminado semana a semana. En las semanas ya
+  // cerradas manda la venta REAL; en las que vienen, la prevista.
+  //
+  // `semanaBase` es la semana a la que corresponde el conteo del stock
+  // inicial, como saldo de apertura. Por defecto 1 -el arranque de la
+  // temporada-, pero un conteo hecho en septiembre NO es el stock de
+  // agosto: tratarlo como tal vuelve a restar ventas que el conteo ya
+  // tiene descontadas, y el modulo termina mostrando stock negativo y
+  // mandando a envasar de nuevo lo que ya se vendio.
+  //
+  // Antes de esa semana devuelve NULL y no cero. Cero significaria
+  // "estaba vacio", que es una afirmacion; null es "no lo sabemos", que
+  // es la verdad.
+  //
+  // Puede quedar negativo y NO se recorta: un stock negativo es la senal
+  // de que falta envasar, y taparlo en cero esconderia justamente lo que
+  // el modulo viene a avisar.
+  function proyectarStock(o) {
+    var n = Math.max((o.ventas || []).length, (o.envasado || []).length, (o.prevision || []).length);
+    var base = Math.max(1, parseFloat(o.semanaBase) || 1);
+    var s = parseFloat(o.stockInicial) || 0, out = [], i, salida;
+    for (i = 0; i < n; i++) {
+      if (i < base - 1) { out.push(null); continue; }
+      salida = (i < o.semanasCerradas)
+        ? (parseFloat((o.ventas || [])[i]) || 0)
+        : (parseFloat((o.prevision || [])[i]) || 0);
+      s = s + (parseFloat((o.envasado || [])[i]) || 0) - salida;
+      out.push(s);
+    }
+    return out;
+  }
+```
+
+- [ ] **Step 4: Correr los tests y verificar que pasan**
+
+Run: `node --test`
+Expected: PASS, los 4 nuevos en verde y **ninguno de los 66 anteriores roto** — ese es el punto del primer test.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add cloro-calc.js test/cloro-calc.test.js
+git commit -m "Cloro: el stock inicial sabe de que semana es"
+```
+
+---
+
+### Task 2: `planEnvasado` — la curva semanal de envasado
 
 **Files:**
 - Modify: `cloro-calc.js` (antes del `return` final, después de `sugerido`)
 - Test: `test/cloro-calc.test.js`
 
 **Interfaces:**
-- Consumes: `sugerido` y `proyectarStock`, que ya existen en el mismo archivo.
+- Consumes: `sugerido` y `proyectarStock` **con el `semanaBase` de la Task 1**.
 - Produces:
   - `Cloro.planEnvasado(opts) -> number[]` con
-    `opts = {prevision: number[], stockInicial: number, ventas: number[], envasado: number[], semanasCerradas: number, desdeSemana: number, semanas: number, horizonte: number, semanasSeguridad: number, lote: number}`.
+    `opts = {prevision: number[], stockInicial: number, ventas: number[], envasado: number[], semanasCerradas: number, semanaBase: number, desdeSemana: number, semanas: number, horizonte: number, semanasSeguridad: number, lote: number}`.
     Array de largo `semanas`; las posiciones anteriores a `desdeSemana` van en 0.
 
 - [ ] **Step 1: Escribir los tests que fallan**
@@ -161,11 +284,13 @@ En `cloro-calc.js`, justo después de la función `sugerido`:
     // que YA se envaso. Nada de envasado futuro inventado todavia.
     var base = proyectarStock({
       stockInicial: o.stockInicial, ventas: o.ventas, envasado: envasado,
-      prevision: prevision, semanasCerradas: o.semanasCerradas
+      prevision: prevision, semanasCerradas: o.semanasCerradas,
+      semanaBase: o.semanaBase
     });
-    var stock = desde >= 2
-      ? (parseFloat(base[desde - 2]) || 0)
-      : (parseFloat(o.stockInicial) || 0);
+    // base[desde-2] puede venir en null si el conteo del stock es de esa
+    // misma semana o posterior: ahi el punto de partida ES el conteo.
+    var previo = desde >= 2 ? base[desde - 2] : null;
+    var stock = (previo == null) ? (parseFloat(o.stockInicial) || 0) : previo;
 
     for (i = desde; i <= semanas; i++) {
       // Lo que ya hay mas lo que YA esta programado envasar esa semana:
@@ -198,14 +323,14 @@ git commit -m "Cloro: plan de envasado semana a semana, con la regla del sugerid
 
 ---
 
-### Task 2: `kgSemanal` y `cobertura`
+### Task 3: `kgSemanal` y `cobertura`
 
 **Files:**
 - Modify: `cloro-calc.js`
 - Test: `test/cloro-calc.test.js`
 
 **Interfaces:**
-- Consumes: nada de la Task 1 en tiempo de ejecución (se combinan en la pantalla).
+- Consumes: nada de la Task 2 en tiempo de ejecución (se combinan en la pantalla).
 - Produces:
   - `Cloro.kgSemanal(productos, planes) -> {porMateria: {materiaId: number[]}, sinAsignar: number[]}` con
     `productos = [{id, materia_id, kg_mp_por_unidad}]` y `planes = {productoId: number[]}`.
@@ -374,17 +499,59 @@ git commit -m "Cloro: kg de materia prima por semana y cobertura en semanas"
 
 ---
 
-### Task 3: El SQL
+### Task 4: El SQL
 
 **Files:**
+- Create: `migracion/cloro_stock_fecha.sql`
 - Create: `migracion/cloro_materia_inventario.sql`
 - Create: `migracion/cloro_carga_planilla.sql`
 - Create: `migracion/inventario_220156_unidad.sql`
 - Create: `migracion/cloro_materia_inventario_rollback.sql`
 
 **Interfaces:**
-- Consumes: las tablas `cl_materias`, `cl_productos` e `inventario`, que ya existen.
-- Produces: `cl_materias.inventario_id`; las 6 materias vinculadas; los 13 productos con `materia_id` y `kg_mp_por_unidad`.
+- Consumes: las tablas `cl_materias`, `cl_productos`, `cl_stock_inicial` e `inventario`, que ya existen.
+- Produces: `cl_stock_inicial.fecha`; `cl_materias.inventario_id`; las 6 materias vinculadas; los 13 productos con `materia_id` y `kg_mp_por_unidad`.
+
+- [ ] **Step 0: La fecha del conteo**
+
+Crear `migracion/cloro_stock_fecha.sql`:
+
+```sql
+-- ============================================================
+--  PREVISION CLORO  ·  el stock inicial pasa a saber de que dia es
+--
+--  `cl_stock_inicial` se guardaba sin fecha y el modulo lo trataba como
+--  el saldo de la semana 1 de la temporada. El conteo real de 2026-2027
+--  se hizo el 08/09/2026 -semana 7-, con 1.458 unidades ya vendidas en
+--  las semanas 1 a 6 e importadas del ERP.
+--
+--  Restar esas ventas de un conteo que YA las tiene descontadas las
+--  cuenta dos veces: la pantalla mostraba -272 unidades de Pastilla
+--  Triple Accion x 1 kg donde se habian contado 500, y el sugerido
+--  mandaba a envasar de nuevo lo que ya se habia vendido.
+--
+--  La fecha va por fila y no por temporada: un reconteo de un solo
+--  producto tiene que poder representarse sin mentir sobre los otros
+--  doce. La pantalla las escribe todas juntas desde un unico campo.
+-- ============================================================
+
+alter table public.cl_stock_inicial
+  add column if not exists fecha date;
+
+-- El conteo que ya esta cargado, de la temporada activa.
+update public.cl_stock_inicial
+   set fecha = date '2026-09-08'
+ where fecha is null
+   and temporada_id = (select id from public.cl_temporadas where nombre = '2026-2027');
+
+-- Control: no tiene que quedar ninguna fila de esa temporada sin fecha.
+-- Una fila sin fecha vuelve al comportamiento viejo -se asume semana 1- y
+-- ese es exactamente el error que esto viene a sacar.
+select t.nombre, count(*) as filas, count(s.fecha) as con_fecha, min(s.fecha) as fecha
+  from public.cl_stock_inicial s
+  join public.cl_temporadas t on t.id = s.temporada_id
+ group by t.nombre order by t.nombre;
+```
 
 - [ ] **Step 1: El vínculo**
 
@@ -590,6 +757,11 @@ alter table public.cl_materias drop column if exists inventario_id;
 
 update public.inventario set unidad = 'g' where codigo = '220156' and unidad = 'Kg';
 
+-- La fecha del conteo se va con la columna. Ojo: sin ella el modulo
+-- vuelve a suponer que el stock es de la semana 1, que es el bug que
+-- motivo todo esto.
+alter table public.cl_stock_inicial drop column if exists fecha;
+
 select m.id, m.nombre, m.activo from public.cl_materias m order by m.id;
 ```
 
@@ -607,17 +779,17 @@ git commit -m "Cloro: SQL para colgar las materias primas del inventario y carga
 
 - [ ] **Step 7: Pedirle al usuario que los corra**
 
-Decirle que corra, **en este orden**: `cloro_materia_inventario.sql`, `cloro_carga_planilla.sql`, `inventario_220156_unidad.sql`. Esperar confirmación y **verificar leyendo la base desde el navegador** que las 6 materias resuelven a las filas de inventario esperadas y que los 13 productos quedaron con su materia y sus kg.
+Decirle que corra, **en este orden**: `cloro_stock_fecha.sql`, `cloro_materia_inventario.sql`, `cloro_carga_planilla.sql`, `inventario_220156_unidad.sql`. Esperar confirmación y **verificar leyendo la base desde el navegador** que las 13 filas de stock inicial quedaron con fecha 2026-09-08, que las 6 materias resuelven a las filas de inventario esperadas y que los 13 productos quedaron con su materia y sus kg.
 
 ---
 
-### Task 4: La pantalla lee el inventario y muestra la cobertura
+### Task 5: La pantalla lee el inventario y muestra la cobertura
 
 **Files:**
 - Modify: `cloro.html` — `<thead>` de la tabla de MP en `cloro.html:505-511`, `cargar()` en `cloro.html:789`, `pintarMP()` en `cloro.html:1494`, `pintarAvisos()` en `cloro.html:1319`
 
 **Interfaces:**
-- Consumes: `Cloro.planEnvasado` (Task 1), `Cloro.kgSemanal` y `Cloro.cobertura` (Task 2), y las columnas de la Task 3.
+- Consumes: `Cloro.planEnvasado` (Task 2), `Cloro.kgSemanal` y `Cloro.cobertura` (Task 3), y las columnas de la Task 4.
 - Produces: las variables globales `INV` y las funciones `matInv(m)`, `matNombre(m)`, `planPorProducto()`, `coberturaPorMateria()`.
 
 - [ ] **Step 1: Leer el inventario en la carga**
@@ -634,7 +806,50 @@ y en el `then`, `INV=r[3].data||[];`.
 
 Nota: la materia prima se lee **entera y siempre**, no sólo las 6 vinculadas. Son 79 filas y así la sección de Configuración puede ofrecer las que todavía no están colgadas de ninguna materia.
 
-- [ ] **Step 2: Los ayudantes**
+- [ ] **Step 2: La fecha del conteo llega hasta el cálculo**
+
+Hasta acá el arreglo de la Task 1 no se ve en la pantalla: `filas()` sigue llamando a `proyectarStock` sin `semanaBase`. **Éste es el step que apaga el bug.**
+
+En `cloro.html:682`, agregar `STOCK0F={}` a las globales — la cantidad y la fecha se guardan aparte para no tocar los cuatro lugares que ya leen `STOCK0` como un número.
+
+En `cargarTemporada()`, `cloro.html:840`, junto al armado de `STOCK0`:
+
+```js
+    STOCK0={}; STOCK0F={};
+    (r[2].data||[]).forEach(function(x){
+      STOCK0[x.producto_id]=num(x.cantidad);
+      if(x.fecha) STOCK0F[x.producto_id]=x.fecha;
+    });
+```
+
+Agregar el ayudante, cerca de `hayBaseDe`:
+
+```js
+// La semana de temporada a la que corresponde el conteo de stock de un
+// producto. Sin fecha cae en 1, que es como se comportaba el modulo
+// antes: un conteo viejo sin fecha no se puede reinterpretar solo.
+// Se acota a la temporada porque una fecha de otra temporada -o un dedo
+// en el campo- mandaria el arranque fuera del rango dibujado y el stock
+// desapareceria entero de la pantalla.
+function semanaDelConteo(prodId){
+  var t=temporadaActual(), f=STOCK0F[prodId];
+  if(!t || !f) return 1;
+  return Math.min(Math.max(Cloro.semanaDe(new Date(f+'T00:00:00Z'), dIni(t)), 1), NSEM);
+}
+```
+
+Y en `filas()`, `cloro.html:919`, pasarle la semana a `proyectarStock`:
+
+```js
+        ? Cloro.proyectarStock({stockInicial:(STOCK0[p.id]||0), ventas:vAct,
+                                envasado:env, prevision:prevision,
+                                semanasCerradas:cerradas,
+                                semanaBase:semanaDelConteo(p.id)})
+```
+
+`proyectarStock` ahora puede devolver `null` en las semanas anteriores al conteo. Verificar que todo lo que consume esa serie lo tolere: `f.stockHoy` ya se compara con `!=null` en la tabla y en las fichas, y `tot.s+=num(f.stockHoy)` convierte null en 0. El gráfico de temporada, si dibuja la serie de stock, tiene que **cortar la línea** en los null y no dibujarlos como cero.
+
+- [ ] **Step 3: Los ayudantes de materia prima**
 
 Agregar cerca de `kgDe`, antes de `// ══ LAS FILAS ══`:
 
@@ -665,6 +880,7 @@ function planPorProducto(){
       ventas: f.vAct,
       envasado: envasadoPorSemana(t, f.prod.id),
       semanasCerradas: Math.max(0, SEM_ACTUAL-1),
+      semanaBase: semanaDelConteo(f.prod.id),
       desdeSemana: SEM_ACTUAL, semanas: NSEM,
       horizonte: num(PAR.horizonte_semanas),
       semanasSeguridad: num(PAR.semanas_seguridad),
@@ -690,7 +906,7 @@ function coberturaPorMateria(){
 }
 ```
 
-- [ ] **Step 3: Las columnas nuevas**
+- [ ] **Step 4: Las columnas nuevas**
 
 En `cloro.html:505-511`, reemplazar el `<thead>` de la tabla de materia prima por:
 
@@ -756,7 +972,7 @@ Agregar una sola regla CSS junto a `.cod` (`cloro.html:117`):
 .upd{display:block;font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:2px}
 ```
 
-- [ ] **Step 4: El aviso de por qué no hay cobertura**
+- [ ] **Step 5: El aviso de por qué no hay cobertura**
 
 En `pintarAvisos()`, después del aviso de `sinBase`, agregar:
 
@@ -773,7 +989,7 @@ En `pintarAvisos()`, después del aviso de `sinBase`, agregar:
 
 El aviso de stock inicial que ya existe (`sinBase`) es el que explica por qué la cobertura va en `—`; agregarle al final del texto: `' Sin eso tampoco hay cobertura de materia prima.'`
 
-- [ ] **Step 5: Verificar que los `<script>` inline parsean**
+- [ ] **Step 6: Verificar que los `<script>` inline parsean**
 
 ```bash
 node -e "
@@ -787,7 +1003,7 @@ console.log('bloques:',n);
 ```
 Expected: `bloques: 2` e `inline OK`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add cloro.html && git commit -m "Cloro: stock real y cobertura en semanas por materia prima"
@@ -795,13 +1011,13 @@ git add cloro.html && git commit -m "Cloro: stock real y cobertura en semanas po
 
 ---
 
-### Task 5: Configuración pierde la sección Productos
+### Task 6: Configuración pierde la sección Productos
 
 **Files:**
 - Modify: `cloro.html` — HTML de la sección 4 en `cloro.html:573-580`, la sección 3 en `cloro.html:563-571`, `pintarConfig()` en `cloro.html:1533`, `guardarConfig()` en `cloro.html:1715`, `crearMateria()` en `cloro.html:1698`, y el CSS de `.cf-prods`/`.cf-ph`/`.cf-pr` en `cloro.html:204-221`
 
 **Interfaces:**
-- Consumes: `matInv`, `matNombre` (Task 4).
+- Consumes: `matInv`, `matNombre` (Task 5).
 - Produces: nada nuevo. **Elimina** `crearMateria()` en su forma actual y las clases `.cf-prods`, `.cf-ph`, `.cf-pr`.
 
 - [ ] **Step 1: Sacar el HTML de la sección Productos**
@@ -874,16 +1090,67 @@ En `guardarConfig()`, borrar el bloque que recorre `#cf-prods .cf-pr` y arma los
 
 Borrar también el bloque de `pintarConfig()` que arma `#cf-prods` y `#cf-aviso`, y las reglas CSS `.cf-prods`, `.cf-ph`, `.cf-pr` y sus derivadas de `cloro.html:204-221`.
 
-- [ ] **Step 5: Verificar que no quedaron referencias colgadas**
+- [ ] **Step 5: La fecha del conteo, en la sección de Stock inicial**
+
+Sin esto la columna `fecha` sólo se puede escribir por SQL y el próximo conteo repite el bug.
+
+En el HTML de la sección de Stock inicial, arriba de la lista de productos:
+
+```html
+        <div class="fg" style="max-width:230px;margin-bottom:10px">
+          <label>Estos números son al</label>
+          <input class="inp" id="cf-s0-fecha" type="date"/>
+        </div>
+```
+
+En `pintarConfig()`, precargarlo con la fecha que ya tienen las filas, o con hoy si no hay ninguna:
+
+```js
+  // Se toma la primera fecha cargada: hoy son todas la misma porque se
+  // escriben juntas. Si mañana hay un reconteo de un solo producto, esto
+  // muestra la mas vieja y el guardado las vuelve a igualar, que es
+  // exactamente lo que hace un conteo nuevo.
+  var f0=null;
+  PROD.forEach(function(p){ var f=STOCK0F[p.id]; if(f && (!f0 || f<f0)) f0=f; });
+  document.getElementById('cf-s0-fecha').value = f0 || hoyISO();
+```
+
+Si no existe `hoyISO()`, agregarlo junto a `fechaCorta`:
+
+```js
+function hoyISO(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
+        +'-'+String(d.getDate()).padStart(2,'0');
+}
+```
+
+En `guardarConfig()`, en el `upsert` de `cl_stock_inicial`, agregar `fecha` a cada fila. Validar **antes de guardar** y no guardar si falla:
+
+```js
+  var fCont=document.getElementById('cf-s0-fecha').value;
+  // Una fecha fuera de la temporada mandaria el arranque del calculo a
+  // una semana que la pantalla no dibuja, y el stock desapareceria
+  // entero sin decir por que.
+  if(s0.length && (!fCont || fCont < t.fecha_ini || fCont > t.fecha_fin)){
+    toast('La fecha del conteo tiene que caer dentro de la temporada','err'); return;
+  }
+```
+
+y en cada fila del upsert: `fecha: fCont`.
+
+**El `fecha` se escribe sólo en las filas que se están guardando.** Un renglón vacío se sigue salteando, igual que hoy: vacío es "no lo sé" y cero es "arrancó en cero", y esa distinción no la cambia esta fecha.
+
+- [ ] **Step 6: Verificar que no quedaron referencias colgadas**
 
 ```bash
 grep -n "cf-prods\|cf-merma\|cf-kg\|cf-mat\b\|cf-lote\|nm-nom\|cf-aviso" cloro.html
 ```
 Expected: **sin resultados**. Cualquier línea que aparezca es un `querySelector` que va a devolver null en tiempo de ejecución.
 
-Y la verificación de sintaxis inline de la Task 4, Step 5. Expected: `inline OK`.
+Y la verificación de sintaxis inline de la Task 5, Step 5. Expected: `inline OK`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add cloro.html
@@ -892,7 +1159,7 @@ git commit -m "Cloro: la materia prima de cada producto deja de ser configuracio
 
 ---
 
-### Task 6: Verificación contra la base y publicación
+### Task 7: Verificación contra la base y publicación
 
 **Files:**
 - Modify: ninguno salvo que aparezca un error.
@@ -904,7 +1171,7 @@ git commit -m "Cloro: la materia prima de cada producto deja de ser configuracio
 - [ ] **Step 1: Todos los tests**
 
 Run: `node --test`
-Expected: PASS, 81 tests — los 66 de antes más los 6 de `planEnvasado` y los 9 de `kgSemanal`/`cobertura`.
+Expected: PASS, 85 tests — los 66 de antes más los 4 de `semanaBase`, los 6 de `planEnvasado` y los 9 de `kgSemanal`/`cobertura`.
 
 - [ ] **Step 2: Publicar**
 

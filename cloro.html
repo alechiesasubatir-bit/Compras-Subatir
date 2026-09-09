@@ -691,6 +691,9 @@ var TEMPS=[], PROD=[], MAT=[], VENTAS={}, ENVASADO=[], STOCK0={}, PAR=null;
 // Stock. Se leen enteras -no sólo las 6 vinculadas- para que
 // Configuración pueda ofrecer las que todavía no está usando nadie.
 var INV=[];
+// Lo que está pedido y no llegó, calculado por SubatirApp.transito a
+// partir de las OC abiertas. null si no se pudo leer.
+var TRANSITO=null;
 // La FECHA de cada conteo de stock inicial, aparte de la cantidad, para
 // no tocar los cuatro lugares que ya leen STOCK0 como un número.
 var STOCK0F={};
@@ -813,18 +816,41 @@ function falta(e){
   document.getElementById('tbody-mp').innerHTML='';
 }
 
+// El tránsito por artículo, con la función compartida. Si algo falla se
+// devuelve null y la pantalla se comporta como si no hubiera nada pedido:
+// el módulo se lee para decidir compras y es preferible que no muestre lo
+// que viene en camino a que muestre un número que no pudo verificar.
+function cargarTransito(){
+  return Promise.all([SubatirApp.getData(), SubatirApp.getEntregas()])
+    .then(function(x){ return SubatirApp.transito(x[0].inventario, x[0].pedidos, x[1]); })
+    .catch(function(e){ console.warn('[Cloro] sin tránsito:', e); return null; });
+}
+
 function cargar(){
   return Promise.all([
     SB.from('cl_temporadas').select('*').order('fecha_ini',{ascending:false}),
     SB.from('cl_materias').select('*').order('nombre'),
     SB.from('cl_productos').select('*').order('orden'),
     SB.from('inventario')
-      .select('id,codigo,descripcion,unidad,inventario,pendiente_entrega,updated_at')
-      .eq('ext_id','MP')
+      .select('id,codigo,descripcion,unidad,inventario,updated_at')
+      .eq('ext_id','MP'),
+    // Lo que está pedido y no llegó NO sale de inventario.pendiente_entrega:
+    // esa columna es herencia del Sheet viejo, no la escribe nadie y está
+    // vacía en 145 de 158 artículos. Peor: los 13 valores que tiene son
+    // viejos y mienten. Decía "500 kg de Cloro Granulado en camino" —de una
+    // OC recibida el 3/8— y no decía nada de los 500 de Ceniza de soda que
+    // sí están viajando. Justo al revés.
+    //
+    // El tránsito real sale de las OC sin recepción, descontando las
+    // entregas parciales, y se calcula con la MISMA función que usan Stock
+    // y el Panel. Una segunda regla acá haría que la mercadería se le sume
+    // a una ficha y se la espere en otra.
+    cargarTransito()
   ]).then(function(r){
-    var e=r.find(function(x){ return x.error; });
+    var e=r.slice(0,4).find(function(x){ return x.error; });
     if(e){ falta(e.error); return; }
     TEMPS=r[0].data||[]; MAT=r[1].data||[]; PROD=r[2].data||[]; INV=r[3].data||[];
+    TRANSITO=r[4];
     if(!TEMPS.length){ falta({message:'No hay ninguna temporada cargada.'}); return; }
     var st=document.getElementById('f-temp');
     st.innerHTML=TEMPS.map(function(t){
@@ -977,6 +1003,16 @@ function planConsumo(){
   return out;
 }
 
+// Lo que está pedido de un artículo y todavía no llegó: kg, y de qué OC
+// vienen. Sin `TRANSITO` devuelve cero, no "no sé": la pantalla dibuja la
+// segunda cobertura sólo cuando hay kg, así que cero la hace desaparecer,
+// que es lo prudente.
+function pedidoDe(inv){
+  if(!TRANSITO || !inv) return {kg:0, orden:'', prov:''};
+  var t=TRANSITO.de(inv.id) || {};
+  return {kg:num(t.pendiente), orden:t.ultimaOrden||'', prov:t.ultimoProv||''};
+}
+
 // La cobertura de cada materia, en dos versiones:
 //   `base`    — con lo que hay en el depósito. Es la que manda.
 //   `conPend` — sumándole lo que está pedido y todavía no llegó, o null
@@ -995,7 +1031,7 @@ function coberturaPorMateria(){
   var out={};
   MAT.forEach(function(m){
     var inv=matInv(m); if(!inv) return;          // sin vínculo no hay stock
-    var serie=kgs[m.id]||[], stock=num(inv.inventario), pend=num(inv.pendiente_entrega);
+    var serie=kgs[m.id]||[], stock=num(inv.inventario), pend=pedidoDe(inv).kg;
     out[m.id]={
       pend: pend,
       base: Cloro.cobertura({kgSemana:serie, stock:stock, desdeSemana:SEM_ACTUAL}),
@@ -1646,11 +1682,11 @@ function pintarMP(){
     var cob = c ? c.base : null;
     // `updated_at` es un timestamptz completo y fechaCorta parte por
     // guiones: sin el slice devolvería "07T16:54:07.317+00:00/09/2026".
-    var pend = inv ? num(inv.pendiente_entrega) : 0;
+    var ped = pedidoDe(inv);
     var stTxt = inv
       ? n0(inv.inventario)+' kg'
         +'<span class="upd">al '+fechaCorta(String(inv.updated_at).slice(0,10))
-        +(pend>0 ? ' · +'+n0(pend)+' en camino' : '')+'</span>'
+        +(ped.kg>0 ? ' · +'+n0(ped.kg)+' en camino' : '')+'</span>'
       : '<span class="calc">sin vincular</span>';
     // El número grande es siempre el del depósito. Lo pedido va debajo y
     // se anuncia como "si llega": no hay fecha de entrega en ningún lado,
@@ -1666,7 +1702,7 @@ function pintarMP(){
     // dos veces -o aclarar que lo que ya cubre la temporada la cubre aún
     // más- es ruido en una tabla que se lee para decidir una compra.
     if(inv && cob && !cob.alcanza && c.conPend && c.conPend.semanas>cob.semanas){
-      cbTxt += '<span class="upd">si llega lo pedido: '
+      cbTxt += '<span class="upd">si llega'+(ped.orden?' la OC '+esc(ped.orden):' lo pedido')+': '
         +(c.conPend.alcanza ? 'cubre la temporada'
           : n0(c.conPend.semanas)+' sem, hasta la '+c.conPend.hastaSemana)+'</span>';
     }

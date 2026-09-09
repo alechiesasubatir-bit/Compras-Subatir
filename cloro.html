@@ -320,12 +320,31 @@ select option{background:#0c1119;color:#e2e8f0}
   .anim .gr-banda,.anim .gr-area,.anim .gr-barra{opacity:1!important;transform:none!important}
 }
 @media print{
-  header,.ctx,.sec-tools,.toasts,.btn{display:none!important}
+  header,.ctx,.sec-tools,.toasts,.btn,.ovl{display:none!important}
   body::before{display:none}
   body{background:#fff;color:#000}
-  .card{border-color:#ccc;box-shadow:none;background:#fff}
+  .card{border-color:#ccc;box-shadow:none;background:#fff;break-inside:avoid}
   thead th{background:#eee;color:#000}
   .twrap{max-height:none;overflow:visible}
+  /* Los gráficos se imprimen: son el argumento de la compra. El fondo
+     pasa a blanco, así que la grilla y los ejes tienen que oscurecerse
+     o desaparecen en el papel. */
+  .gr-grid{stroke:#ddd}
+  .gr-eje{fill:#555}
+  .gr-tip{display:none!important}
+  .leg-i{border-color:#ccc;color:#000}
+  .leg-v,.ficha .sub,.kpi-s{color:#555}
+  .kpi-l,.sec-eyebrow{color:#333}
+  .ficha{border-color:#ddd;background:#fff}
+  .graf{break-inside:avoid}
+  .fichas{grid-template-columns:repeat(3,1fr)}
+  /* La animación no tiene sentido en papel y puede imprimir un trazo a
+     medio dibujar si el navegador captura antes de que termine. */
+  .anim .gr-linea,.anim .gr-prev{animation:none!important;stroke-dasharray:none!important;
+    stroke-dashoffset:0!important}
+  .anim .gr-prev{stroke-dasharray:5 4!important}
+  .anim .gr-banda,.anim .gr-area,.anim .gr-barra{animation:none!important;opacity:1!important;
+    transform:none!important}
 }
 @media (max-width:760px){
   main{padding:14px 12px 30px}
@@ -2075,7 +2094,51 @@ function borrarEnvasado(id){
     toast('No se pudo borrar: '+((err&&err.message)||err),'err');
   });
 }
-function exportCSV(){ toast('CSV: en la próxima etapa','info'); }
+// ══ EXPORTAR ══════════════════════════════════════════════════
+function exportCSV(){
+  var t=temporadaActual(); if(!t) return;
+  var fs=filas();
+  if(!fs.length){ toast('No hay filas para exportar','err'); return; }
+  var matNom={}; MAT.forEach(function(m){ matNom[m.id]=m.nombre; });
+  var cerradas=Math.max(0, SEM_ACTUAL-1);
+  var cab=['Temporada','Semana actual','Producto','Código','Materia prima','kg MP por unidad',
+           'Merma %','Lote','Ventas temporada','Ventas mismo tramo año anterior','Envasado',
+           'Stock hoy','Previsión próxima semana','Demanda horizonte ('+n0(PAR.horizonte_semanas)
+           +' sem)','A envasar','kg de MP','Baja rotación'];
+  var q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };
+  // Decimales con coma: es lo que espera el Excel en español, y sin esto
+  // las columnas numéricas entran como texto.
+  var d1=function(v){ return v==null?'':String(Math.round(num(v)*10)/10).replace('.',','); };
+  var out=[cab.map(q).join(';')];
+  fs.forEach(function(f){
+    var p=f.prod;
+    var sinMP = p.materia_id==null || num(p.kg_mp_por_unidad)<=0;
+    var kg = (sinMP || f.sugerido==null) ? null
+           : f.sugerido*num(p.kg_mp_por_unidad)*(1+num(p.merma_pct)/100);
+    out.push([
+      q(t.nombre), SEM_ACTUAL, q(p.nombre), q(p.codigo),
+      q(p.materia_id==null?'SIN ASIGNAR':(matNom[p.materia_id]||'?')),
+      d1(p.kg_mp_por_unidad), d1(p.merma_pct), d1(p.lote_unidades),
+      d1(f.ventasTemp),
+      d1(f.vPrev.slice(0,cerradas).reduce(function(a,x){ return a+num(x); },0)),
+      d1(f.envasadoTemp),
+      f.stockHoy==null?'':d1(f.stockHoy),
+      f.prevision?d1(f.prevision[SEM_ACTUAL-1]):'',
+      f.prevision?d1(f.demandaH):'',
+      f.sugerido==null?'':d1(f.sugerido),
+      kg==null?'':d1(kg),
+      q(f.bajaRot?'SÍ':'')
+    ].join(';'));
+  });
+  // BOM al principio: sin él, Excel abre el archivo en la codificación
+  // del sistema y los acentos salen rotos.
+  var blob=new Blob(['﻿'+out.join('\n')],{type:'text/csv;charset=utf-8;'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Cloro_'+t.nombre.replace(/[^\w\-]/g,'_')+'_sem'+SEM_ACTUAL+'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('CSV descargado ('+fs.length+' productos)','ok');
+}
 </script>
 </body>
 </html>

@@ -115,6 +115,7 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .tot td{background:rgba(255,255,255,.05);font-weight:700;border-top:1px solid var(--border-b)}
 .art{max-width:270px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .cod{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.upd{display:block;font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:2px}
 .calc{color:var(--muted-l)}
 .sug{font-weight:700;font-size:13px;color:var(--gold)}
 .kgmp{font-weight:600;color:var(--orange-l)}
@@ -507,6 +508,8 @@ window.APP_VER='2026-09-09.1032';
             <th class="l">Materia prima</th>
             <th class="l">Productos</th>
             <th class="out">kg del horizonte</th>
+            <th>Stock</th>
+            <th>Cobertura</th>
           </tr>
         </thead>
         <tbody id="tbody-mp"></tbody>
@@ -680,6 +683,14 @@ window.APP_VER='2026-09-09.1032';
 //  cloro-calc.js.
 // ══════════════════════════════════════════════════════════════
 var TEMPS=[], PROD=[], MAT=[], VENTAS={}, ENVASADO=[], STOCK0={}, PAR=null;
+// El stock real de materia prima no vive acá: son las filas de
+// `inventario` marcadas como MP, las mismas que mantiene el módulo
+// Stock. Se leen enteras -no sólo las 6 vinculadas- para que
+// Configuración pueda ofrecer las que todavía no está usando nadie.
+var INV=[];
+// La FECHA de cada conteo de stock inicial, aparte de la cantidad, para
+// no tocar los cuatro lugares que ya leen STOCK0 como un número.
+var STOCK0F={};
 var CUR_TEMP=null, NSEM=0, SEM_ACTUAL=0, CREC={pct:0,modo:'sin-datos'};
 
 function esc(s){ return String(s==null?'':s)
@@ -767,6 +778,19 @@ function hayBaseDe(prodId){
 function productosSinBase(){
   return PROD.filter(function(p){ return p.activo!==false && !hayBaseDe(p.id); });
 }
+
+// La semana de temporada a la que corresponde el conteo de stock de un
+// producto. Sin fecha cae en 1, que es como se comportaba el módulo
+// antes: un conteo viejo sin fecha no se puede reinterpretar solo.
+//
+// Se acota a la temporada porque una fecha de otra temporada —o un dedo
+// en el campo— mandaría el arranque fuera del rango dibujado y el stock
+// desaparecería entero de la pantalla sin decir por qué.
+function semanaDelConteo(prodId){
+  var t=temporadaActual(), f=STOCK0F[prodId];
+  if(!t || !f) return 1;
+  return Math.min(Math.max(Cloro.semanaDe(new Date(f+'T00:00:00Z'), dIni(t)), 1), NSEM);
+}
 function temporadaNoArranco(t){
   return Cloro.semanaDe(new Date(), dIni(t)) < 1;
 }
@@ -790,11 +814,14 @@ function cargar(){
   return Promise.all([
     SB.from('cl_temporadas').select('*').order('fecha_ini',{ascending:false}),
     SB.from('cl_materias').select('*').order('nombre'),
-    SB.from('cl_productos').select('*').order('orden')
+    SB.from('cl_productos').select('*').order('orden'),
+    SB.from('inventario')
+      .select('id,codigo,descripcion,unidad,inventario,pendiente_entrega,updated_at')
+      .eq('ext_id','MP')
   ]).then(function(r){
     var e=r.find(function(x){ return x.error; });
     if(e){ falta(e.error); return; }
-    TEMPS=r[0].data||[]; MAT=r[1].data||[]; PROD=r[2].data||[];
+    TEMPS=r[0].data||[]; MAT=r[1].data||[]; PROD=r[2].data||[]; INV=r[3].data||[];
     if(!TEMPS.length){ falta({message:'No hay ninguna temporada cargada.'}); return; }
     var st=document.getElementById('f-temp');
     st.innerHTML=TEMPS.map(function(t){
@@ -837,7 +864,11 @@ function cargarTemporada(){
       if(v.semana>=1 && v.semana<=maxW) s[v.semana-1]=num(v.unidades);
     });
     ENVASADO=r[1].data||[];
-    STOCK0={}; (r[2].data||[]).forEach(function(x){ STOCK0[x.producto_id]=num(x.cantidad); });
+    STOCK0={}; STOCK0F={};
+    (r[2].data||[]).forEach(function(x){
+      STOCK0[x.producto_id]=num(x.cantidad);
+      if(x.fecha) STOCK0F[x.producto_id]=x.fecha;
+    });
     PAR=(r[3].data||[])[0]||null;
     if(!PAR){ falta({message:'La temporada no tiene parámetros cargados (cl_parametros).'}); return; }
 
@@ -895,6 +926,59 @@ function kgDe(p, u){
   return num(u)*num(p.kg_mp_por_unidad);
 }
 
+// La fila de inventario a la que está colgada una materia, o null.
+function matInv(m){
+  if(!m || m.inventario_id==null) return null;
+  return INV.filter(function(x){ return x.id===m.inventario_id; })[0] || null;
+}
+// El nombre de una materia es SIEMPRE el del inventario cuando hay
+// vínculo. El `nombre` guardado es sólo el respaldo de una materia
+// todavía sin colgar: si se mostrara el guardado, el mismo artículo
+// tendría dos nombres que se van separando solos.
+function matNombre(m){
+  var i=matInv(m);
+  return (i && i.descripcion) ? i.descripcion : (m?m.nombre:'?');
+}
+
+// El plan de envasado de cada producto, de la semana actual al final de
+// la temporada. Devuelve {} si no hay con qué calcularlo.
+function planPorProducto(){
+  var t=temporadaActual(); if(!t || !PAR) return {};
+  var out={};
+  filas().forEach(function(f){
+    if(!f.prevision || !hayBaseDe(f.prod.id) || f.stockHoy==null) return;
+    out[f.prod.id] = Cloro.planEnvasado({
+      prevision: f.prevision,
+      stockInicial: (STOCK0[f.prod.id]||0),
+      ventas: f.vAct,
+      envasado: envasadoPorSemana(t, f.prod.id),
+      semanasCerradas: Math.max(0, SEM_ACTUAL-1),
+      semanaBase: semanaDelConteo(f.prod.id),
+      desdeSemana: SEM_ACTUAL, semanas: NSEM,
+      horizonte: num(PAR.horizonte_semanas),
+      semanasSeguridad: num(PAR.semanas_seguridad),
+      lote: num(f.prod.lote_unidades)||1
+    });
+  });
+  return out;
+}
+
+// La cobertura de cada materia: {materiaId: resultado de Cloro.cobertura}.
+function coberturaPorMateria(){
+  var planes=planPorProducto();
+  if(!Object.keys(planes).length) return {};
+  var activos=PROD.filter(function(p){ return p.activo!==false; });
+  var kgs=Cloro.kgSemanal(activos, planes).porMateria;
+  var out={};
+  MAT.forEach(function(m){
+    var inv=matInv(m); if(!inv) return;          // sin vínculo no hay stock
+    out[m.id]=Cloro.cobertura({
+      kgSemana: kgs[m.id]||[], stock: num(inv.inventario), desdeSemana: SEM_ACTUAL
+    });
+  });
+  return out;
+}
+
 // ══ LAS FILAS ═════════════════════════════════════════════════
 function filas(){
   var t=temporadaActual(); if(!t || !PAR) return [];
@@ -915,12 +999,20 @@ function filas(){
         : null;
       var env = envasadoPorSemana(t, p.id);
       var conStock = hayBaseDe(p.id) && prevision;
+      // La semana del conteo importa: el de esta temporada es del 8/9, o
+      // sea la semana 7. Sin pasarla, el módulo vuelve a restar las
+      // ventas de agosto de un número que ya las tiene descontadas.
+      var semBase = semanaDelConteo(p.id);
       var stock = conStock
         ? Cloro.proyectarStock({stockInicial:(STOCK0[p.id]||0), ventas:vAct,
-                                envasado:env, prevision:prevision, semanasCerradas:cerradas})
+                                envasado:env, prevision:prevision,
+                                semanasCerradas:cerradas, semanaBase:semBase})
         : null;
-      var stockHoy = stock ? num(stock[SEM_ACTUAL-1]) : null;
-      var sug = conStock
+      // Antes del conteo la serie viene en null: no sabemos qué había.
+      var stockHoy = (stock && stock[SEM_ACTUAL-1]!=null) ? num(stock[SEM_ACTUAL-1]) : null;
+      // Sin stockHoy no hay sugerido: `sugerido` trataría el null como
+      // cero, o sea "no hay nada", y mandaría a envasar de más.
+      var sug = (conStock && stockHoy!=null)
         ? Cloro.sugerido({prevision:prevision, desdeSemana:SEM_ACTUAL,
                           horizonte:PAR.horizonte_semanas,
                           semanasSeguridad:PAR.semanas_seguridad,
@@ -1340,6 +1432,7 @@ function pintarAvisos(){
       +'no se calculan: sin ese punto de partida, «envasado menos ventas» daría menos toda la '
       +'temporada y el módulo te diría que envases de nuevo lo que ya vendiste. '
       +'Cargalos en <b>⚙ Configuración → Stock inicial</b>. '
+      +'Sin eso tampoco hay cobertura de materia prima. '
       +'Las ventas y la previsión sí son buenas.'
       +(todos?'':' Faltan: '+sinBase.slice(0,3).map(function(p){ return esc(p.nombre); }).join(' · ')
         +(sinBase.length>3?' y '+(sinBase.length-3)+' más':''))});
@@ -1351,6 +1444,16 @@ function pintarAvisos(){
       +'Asignalos en <b>⚙ Configuración</b>: '
       +sinMP.slice(0,3).map(function(p){ return esc(p.nombre); }).join(' · ')
       +(sinMP.length>3?' y '+(sinMP.length-3)+' más':'')});
+  }
+  // Una materia sin vínculo al inventario no tiene stock del que colgarse,
+  // así que su cobertura no se puede calcular: hay que decir cuál es.
+  var sinVinc = MAT.filter(function(m){ return m.activo!==false && m.inventario_id==null; });
+  if(sinVinc.length){
+    a.push({t:'temp', txt:'<b>'+sinVinc.length+' materia'+(sinVinc.length===1?'':'s')
+      +' prima'+(sinVinc.length===1?'':'s')+' sin vincular al inventario</b>: '
+      +sinVinc.map(function(m){ return esc(m.nombre); }).join(' · ')
+      +'. Su stock y su cobertura no se pueden calcular — el stock real vive en el módulo '
+      +'Stock y hay que decirle a cuál artículo corresponde cada una.'});
   }
   // La temporada ya arrancó pero no tiene una sola venta cargada. Es el
   // aviso más importante de todos: sin ventas no hay nada que medir, y
@@ -1496,16 +1599,41 @@ function pintarMP(){
   var sug={}; fs.forEach(function(f){ sug[f.prod.id]=num(f.sugerido); });
   var activos = PROD.filter(function(p){ return p.activo!==false; });
   var r = Cloro.kgMateria(activos, sug);
+  var COB = coberturaPorMateria();
+  // Sin horizonte no hay con qué decidir si una cobertura es corta, y 0
+  // nunca marca nada en rojo.
+  var horiz = PAR ? num(PAR.horizonte_semanas) : 0;
   var h='', tot=0;
   MAT.filter(function(m){ return m.activo!==false; }).forEach(function(m){
     var kg = r.porMateria[m.id]||0;
     var prods = activos.filter(function(p){ return p.materia_id===m.id && num(p.kg_mp_por_unidad)>0; });
     if(!prods.length && !kg) return;
     tot+=kg;
-    h+='<tr><td class="l" style="font-weight:600">'+esc(m.nombre)+'</td>'
+    var inv=matInv(m), cob=COB[m.id];
+    // `updated_at` es un timestamptz completo y fechaCorta parte por
+    // guiones: sin el slice devolvería "07T16:54:07.317+00:00/09/2026".
+    var pend = inv ? num(inv.pendiente_entrega) : 0;
+    var stTxt = inv
+      ? n0(inv.inventario)+' kg'
+        +'<span class="upd">al '+fechaCorta(String(inv.updated_at).slice(0,10))
+        // El pendiente NO suma a la cobertura -es una promesa de un
+        // proveedor, no stock- pero se muestra para que no parezca olvidado.
+        +(pend>0 ? ' · +'+n0(pend)+' en camino' : '')+'</span>'
+      : '<span class="calc">sin vincular</span>';
+    var cbTxt;
+    if(!inv)             cbTxt='<span class="calc">sin vincular</span>';
+    else if(!cob)        cbTxt='<span class="calc">—</span>';
+    else if(cob.alcanza) cbTxt='cubre la temporada';
+    else cbTxt = n0(cob.semanas)+' sem'
+        +'<span class="cob'+(cob.semanas<horiz?' bajo':'')+'">'
+        +(cob.semanas===0 ? 'no alcanza' : 'hasta la semana '+cob.hastaSemana)+'</span>';
+    h+='<tr><td class="l" style="font-weight:600">'+esc(matNombre(m))
+      +(inv?'<span class="cod">'+esc(inv.codigo)+'</span>':'')+'</td>'
       +'<td class="l calc" style="font-family:\'DM Sans\',sans-serif">'
         +(prods.length? prods.map(function(p){ return esc(p.nombre); }).join(' · ') : '—')+'</td>'
-      +'<td class="kgmp">'+n0(kg)+'</td></tr>';
+      +'<td class="kgmp">'+n0(kg)+'</td>'
+      +'<td>'+stTxt+'</td>'
+      +'<td>'+cbTxt+'</td></tr>';
   });
   if(r.sinAsignar.length){
     var nn = r.sinAsignar.map(function(id){
@@ -1513,10 +1641,11 @@ function pintarMP(){
       return p?esc(p.nombre):('#'+id); });
     h+='<tr class="sinmp"><td class="l mp">Sin asignar</td>'
       +'<td class="l mp" style="font-family:\'DM Sans\',sans-serif">'+nn.join(' · ')+'</td>'
-      +'<td class="mp">no suma</td></tr>';
+      +'<td class="mp">no suma</td><td></td><td></td></tr>';
   }
-  if(!h) h='<tr><td colspan="3" class="empty">Todavía no hay materias primas con productos asignados.</td></tr>';
-  else h+='<tr class="tot"><td class="l">TOTAL</td><td></td><td>'+n0(tot)+' kg</td></tr>';
+  if(!h) h='<tr><td colspan="5" class="empty">Todavía no hay materias primas con productos asignados.</td></tr>';
+  else h+='<tr class="tot"><td class="l">TOTAL</td><td></td><td>'+n0(tot)+' kg</td>'
+        +'<td></td><td></td></tr>';
   document.getElementById('tbody-mp').innerHTML=h;
 }
 

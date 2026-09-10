@@ -2531,6 +2531,43 @@ function temporadaDeFecha(iso){
   return TEMPS.filter(function(t){ return iso>=t.fecha_ini && iso<=t.fecha_fin; })[0] || null;
 }
 
+// ─── Las facturas de contado ─────────────────────────────────────────
+//  El sistema emite documentos "Contado *DDMMAA…" que se acumulan y se
+//  facturan en un lote, casi siempre al cierre del mes. La fecha del
+//  documento es la de la EMISIÓN, no la de la venta: verificado sobre los
+//  26 archivos, el número que sigue al asterisco es la misma fecha de la
+//  fila —396 de 417 casos— más un dígito de secuencia, así que no trae
+//  información nueva.
+//
+//  REGLA ADMINISTRATIVA, decidida por el usuario: la cantidad se reparte
+//  pareja del 1 al 15 del mes de la factura, y la fila original se
+//  descarta para no contarla dos veces.
+//
+//  ADVERTENCIA que se planteó y el usuario confirmó igual: la mayoría de
+//  estas facturas son de fin de mes (26 al 31), así que la regla mueve
+//  esas unidades hasta tres semanas hacia atrás y deja la segunda
+//  quincena sin ventas de contado. Son el 8,8% de las unidades del
+//  histórico. Si algún día los números semanales no cierran con la
+//  realidad, empezar por acá.
+//
+//  El total NO cambia: sólo cambia en qué semana cae. Y como los 15 días
+//  caen siempre en el mismo mes que la factura, tampoco cambia de
+//  temporada.
+function esContadoDiferido(doc){
+  return /^\s*contado\b[^*]*\*/i.test(String(doc||''));
+}
+// Devuelve las 15 filas del reparto, o null si la fila no es de contado.
+function repartirContado(f){
+  if(!esContadoDiferido(f.doc)) return null;
+  var y=+f.iso.slice(0,4), m=+f.iso.slice(5,7);
+  var cada=f.cant/15, out=[], d;
+  for(d=1; d<=15; d++){
+    out.push({ iso: y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'),
+               doc: f.doc, cod: f.cod, desc: f.desc, cant: cada, repartida:true });
+  }
+  return out;
+}
+
 function leerArchivo(XLSX, file){
   return file.arrayBuffer().then(function(buf){
     var wb = XLSX.read(new Uint8Array(buf), {type:'array'});
@@ -2547,6 +2584,7 @@ function leerArchivo(XLSX, file){
       // se van solas sin hardcodear en qué renglón empieza la tabla.
       if(typeof r[0]!=='number' || r[0]<1000) continue;
       out.push({ iso: isoDe(fechaDeSerial(r[0])),
+                 doc: String(r[1]==null?'':r[1]).trim(),
                  cod: String(r[2]==null?'':r[2]).trim(),
                  desc: String(r[3]==null?'':r[3]).trim(),
                  cant: parseFloat(r[4])||0 });
@@ -2574,9 +2612,18 @@ function archivosElegidos(files){
 function analizar(leidos){
   var porCodigo={}; PROD.forEach(function(p){ porCodigo[String(p.codigo).trim()]=p; });
   var grupos={}, desconocidos={}, fueraTemp=0, vacios=[], hasta={};
+  var contado={filas:0, unidades:0};
   leidos.forEach(function(arch){
     if(!arch.filas.length){ vacios.push(arch.nombre); return; }
+    // Las de contado se reemplazan por sus 15 renglones ANTES de agrupar:
+    // de ahí en más son filas comunes y el resto del análisis no se entera.
+    var filas=[];
     arch.filas.forEach(function(f){
+      var rep=repartirContado(f);
+      if(rep){ contado.filas++; contado.unidades+=f.cant; filas.push.apply(filas, rep); }
+      else filas.push(f);
+    });
+    filas.forEach(function(f){
       var p=porCodigo[f.cod];
       if(!p){ (desconocidos[f.cod]=desconocidos[f.cod]||{n:0,desc:f.desc,arch:arch.nombre}).n++; return; }
       var t=temporadaDeFecha(f.iso);
@@ -2608,7 +2655,8 @@ function analizar(leidos){
     g.anterior=ant;
     g.tieneDatos = s.some(function(x){ return num(x)!==0; });
   });
-  return {grupos:grupos, desconocidos:desconocidos, fueraTemp:fueraTemp, vacios:vacios, hasta:hasta};
+  return {grupos:grupos, desconocidos:desconocidos, fueraTemp:fueraTemp, vacios:vacios,
+          hasta:hasta, contado:contado};
 }
 
 function pintarImport(){
@@ -2653,6 +2701,18 @@ function pintarImport(){
       +'prima ni kg por unidad, metería un producto mudo en todas las cuentas.</div></div>';
   }
 
+  // Que se vea qué se les hizo a esas filas. Es una regla administrativa
+  // que mueve el 9% de las unidades de semana: si no se dice, el día que
+  // alguien compare contra el listado del sistema no va a entender por qué
+  // los números no coinciden semana a semana.
+  if(IMPORT.contado && IMPORT.contado.filas){
+    h+='<div class="imp-sec"><div class="aviso info"><b>'+IMPORT.contado.filas
+      +' factura'+(IMPORT.contado.filas===1?'':'s')+' de contado ('+n0(IMPORT.contado.unidades)
+      +' u) repartida'+(IMPORT.contado.filas===1?'':'s')+' del 1 al 15 de su mes.</b> '
+      +'Son las <span class="cod">Contado *…</span>, que se emiten en lote al cierre. '
+      +'La fila original no se carga, así que el total no cambia: sólo cambia en qué semana cae.'
+      +'</div></div>';
+  }
   if(IMPORT.fueraTemp){
     h+='<div class="imp-sec"><div class="imp-err"><b>'+IMPORT.fueraTemp+' fila'
       +(IMPORT.fueraTemp===1?'':'s')+' con fecha fuera de toda temporada cargada.</b> '

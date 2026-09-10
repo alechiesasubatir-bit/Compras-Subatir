@@ -223,6 +223,14 @@ tr.sinmp td.mp{color:#fca5a5}
 .cf-add .fg{margin-bottom:0}
 /* Grilla de productos */
 .cf-prods{display:grid;gap:6px;max-height:330px;overflow:auto;padding-right:5px}
+/* El alta manual, plegada. Es la salida de emergencia del modal, no la
+   puerta principal: se abre sola sólo si alguien la busca. */
+.cf-sum{cursor:pointer;font-family:var(--display);font-size:11px;font-weight:800;
+  letter-spacing:.3px;color:var(--muted);padding:4px 0;list-style:none;user-select:none}
+.cf-sum::-webkit-details-marker{display:none}
+.cf-sum::before{content:'▸ ';color:var(--teal-l)}
+details[open] > .cf-sum::before{content:'▾ '}
+.cf-sum:hover{color:var(--text)}
 /* Las columnas las pone cada uso: hoy son tres y ninguno comparte grilla
    (stock inicial, órdenes de envasado). Un default acá seria una cuarta
    forma que nadie usa y que aparece sola si alguien agrega un .cf-pr. */
@@ -435,10 +443,8 @@ window.APP_VER='2026-09-10.0027';
                   title="Cargar lo que hay de cada producto envasado, con su fecha">📋 Conteo de stock</button>
         </div>
       </div>
-      <button class="btn btn-sm" onclick="openEnvasado()"
-              title="Ver y corregir las órdenes de cualquier semana">📄 Órdenes</button>
       <button class="btn btn-sm btn-pri" onclick="openGenerar()"
-              title="Emitir la orden con lo cargado en «A envasar»">🧾 Generar orden</button>
+              title="Emitir la orden de la semana, ver las anteriores y reimprimir">🧾 Órdenes de envasado</button>
       <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
     </div>
@@ -659,65 +665,70 @@ window.APP_VER='2026-09-10.0027';
       envasar» son borradores sin número; acá se emiten. -->
 <div class="ovl" id="ovl-gen">
   <div class="modal ancho">
-    <div class="modal-h"><span>🧾 Generar orden de envasado</span>
+    <div class="modal-h"><span>🧾 Órdenes de envasado</span>
       <button class="x" onclick="cerrar('ovl-gen')" aria-label="Cerrar">✕</button></div>
     <div class="modal-b">
-      <p class="cf-p">Estos son los productos con cantidad cargada en <b>A envasar</b> que
-        todavía no tienen número de orden. Emitirlos <b>cierra la semana</b>: las celdas quedan
-        bloqueadas y de ahí en más se corrigen desde <b>📄 Órdenes</b>.</p>
-      <div class="cf-add" style="grid-template-columns:150px 150px minmax(0,1fr)">
-        <div class="fg"><label>Fecha</label>
-          <input class="inp" id="gn-fecha" type="date"/></div>
-        <div class="fg"><label>N° de orden</label>
-          <input class="inp" id="gn-orden" maxlength="30"/></div>
-        <div class="fg"><label>Nota (opcional)</label>
-          <input class="inp" id="gn-nota" maxlength="200" placeholder="para toda la orden"/></div>
-      </div>
-      <div class="row" style="margin:4px 0 10px">
-        <label class="sw"><input type="checkbox" id="gn-agrupada" checked onchange="pintarGenerar()"/>
-          <span class="sw-t"></span> una sola orden para todos</label>
-      </div>
-      <div class="hint" id="gn-hint">—</div>
-      <div class="cf-prods" id="gn-lista"></div>
-    </div>
-    <div class="modal-f">
-      <button class="btn" onclick="cerrar('ovl-gen')">Cancelar</button>
-      <button class="btn btn-pri" id="btn-gn" onclick="generarOrden()">Emitir orden</button>
-    </div>
-  </div>
-</div>
 
-<!-- ══ MODAL: Órdenes de envasado ═════════════════════════ -->
-<div class="ovl" id="ovl-env">
-  <div class="modal ancho">
-    <div class="modal-h"><span>➕ Órdenes de envasado</span>
-      <button class="x" onclick="cerrar('ovl-env')" aria-label="Cerrar">✕</button></div>
-    <div class="modal-b">
-      <p class="cf-p">Cada orden es una tanda envasada. Se guardan por fecha y el módulo las
-        agrupa por semana de temporada; si en una semana se envasa dos veces, son dos órdenes.</p>
-      <div class="cf-add" style="grid-template-columns:minmax(0,2fr) 130px 110px 110px auto">
-        <div class="fg"><label>Producto</label>
-          <select class="inp" id="ev-prod"></select></div>
-        <div class="fg"><label>Fecha</label>
-          <input class="inp" id="ev-fecha" type="date" onchange="pintarEvSemana()"/></div>
-        <div class="fg"><label>Cantidad (u)</label>
-          <input class="inp" id="ev-cant" type="number" min="1" step="1"/></div>
-        <div class="fg"><label>N° de orden</label>
-          <input class="inp" id="ev-orden" maxlength="30" placeholder="opcional"/></div>
-        <div class="fg"><button class="btn btn-pri" style="width:100%" id="btn-ev"
-              onclick="guardarEnvasado()">Agregar</button></div>
+      <!-- 1 · Emitir la de esta semana -->
+      <div class="cf">
+        <div class="cf-h"><span class="cf-n">1</span><h4>Emitir la de esta semana</h4></div>
+        <p class="cf-p">Los productos con cantidad cargada en <b>A envasar</b> que todavía no
+          tienen número. Emitirlos <b>cierra la semana</b>: las celdas quedan bloqueadas, sale
+          el PDF para la planta, y de ahí en más se corrigen desde la lista de abajo.</p>
+        <div class="cf-add" style="grid-template-columns:150px 150px minmax(0,1fr)">
+          <div class="fg"><label>Fecha</label>
+            <input class="inp" id="gn-fecha" type="date"/></div>
+          <div class="fg"><label>N° de orden</label>
+            <input class="inp" id="gn-orden" maxlength="30"/></div>
+          <div class="fg"><label>Nota (opcional)</label>
+            <input class="inp" id="gn-nota" maxlength="200" placeholder="para toda la orden"/></div>
+        </div>
+        <div class="row" style="margin:4px 0 10px">
+          <label class="sw"><input type="checkbox" id="gn-agrupada" checked onchange="pintarGenerar()"/>
+            <span class="sw-t"></span> una sola orden para todos</label>
+        </div>
+        <div class="hint" id="gn-hint">—</div>
+        <div class="cf-prods" id="gn-lista"></div>
+        <div class="row" style="justify-content:flex-end;margin-top:10px">
+          <button class="btn btn-pri" id="btn-gn" onclick="generarOrden()">🧾 Emitir orden</button>
+        </div>
       </div>
-      <div class="fg"><label>Nota</label>
-        <input class="inp" id="ev-nota" maxlength="200" placeholder="opcional"/></div>
-      <div class="hint" id="ev-semana">—</div>
-      <div class="cf" style="border-bottom:none">
-        <div class="cf-h"><h4>Cargadas en <span id="ev-tnom">—</span></h4>
+
+      <!-- 2 · Las que ya se emitieron -->
+      <div class="cf">
+        <div class="cf-h"><span class="cf-n">2</span><h4>Cargadas en <span id="ev-tnom">—</span></h4>
           <span class="chip" id="ev-cnt" style="margin-left:auto">0</span></div>
         <div class="cf-prods" id="ev-lista"></div>
       </div>
+
+      <!-- 3 · El alta a mano, plegada: quedó para cargar una orden de otra
+              semana que nunca pasó por la tabla. Crear desde acá una de la
+              semana en curso es la tercera forma de escribir la misma fila
+              y la que se desincroniza con la celda. -->
+      <details class="cf" style="border-bottom:none">
+        <summary class="cf-sum">Cargar una orden de otra semana, a mano</summary>
+        <p class="cf-p">Para una tanda vieja que nunca se cargó en la tabla. Si es de la semana
+          en curso, conviene escribirla en la columna <b>A envasar</b> y emitirla arriba.</p>
+        <div class="cf-add" style="grid-template-columns:minmax(0,2fr) 130px 110px 110px auto">
+          <div class="fg"><label>Producto</label>
+            <select class="inp" id="ev-prod"></select></div>
+          <div class="fg"><label>Fecha</label>
+            <input class="inp" id="ev-fecha" type="date" onchange="pintarEvSemana()"/></div>
+          <div class="fg"><label>Cantidad (u)</label>
+            <input class="inp" id="ev-cant" type="number" min="1" step="1"/></div>
+          <div class="fg"><label>N° de orden</label>
+            <input class="inp" id="ev-orden" maxlength="30" placeholder="opcional"/></div>
+          <div class="fg"><button class="btn" style="width:100%" id="btn-ev"
+                onclick="guardarEnvasado()">Agregar</button></div>
+        </div>
+        <div class="fg"><label>Nota</label>
+          <input class="inp" id="ev-nota" maxlength="200" placeholder="opcional"/></div>
+        <div class="hint" id="ev-semana">—</div>
+      </details>
+
     </div>
     <div class="modal-f">
-      <button class="btn" onclick="cerrar('ovl-env')">Cerrar</button>
+      <button class="btn" onclick="cerrar('ovl-gen')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1797,14 +1808,14 @@ function celdaEnvasar(f){
   // hacia la planta; cambiar el número atrás sin dejar rastro es la forma
   // de que el papel y la pantalla dejen de coincidir.
   if(f.ordenEmitida){
-    return '<span class="env-multi" title="Emitida — corregí desde 📄 Órdenes">'
+    return '<span class="env-multi" title="Emitida — corregí desde 🧾 Órdenes de envasado">'
       +n0(f.envSem)+'<span class="cob ok">'+esc(f.ordenEmitida)+'</span></span>';
   }
   // Con dos o más órdenes en la semana, la celda no puede saber cuál
   // pisar. Muestra el total y manda al modal: el modo silencioso de
   // equivocarse acá es borrar una orden que alguien cargó.
   if(f.ordenesSem>1){
-    return '<span class="env-multi" title="Editá desde 📄 Órdenes">'
+    return '<span class="env-multi" title="Editá desde 🧾 Órdenes de envasado">'
       +n0(f.envSem)+'<span class="cob">'+f.ordenesSem+' órdenes</span></span>';
   }
   return '<input class="env-in" type="number" min="0" step="1" data-id="'+f.prod.id+'"'
@@ -1888,11 +1899,12 @@ function proximaOrden(){
 }
 
 function openGenerar(){
-  var t=temporadaActual(); if(!t) return;
+  var t=temporadaActual(); if(!t){ toast('No hay temporada seleccionada','err'); return; }
   document.getElementById('gn-fecha').value=hoyISO();
   document.getElementById('gn-orden').value=proximaOrden();
   document.getElementById('gn-nota').value='';
   pintarGenerar();
+  prepararEnvasado();          // la lista y el alta manual, en el mismo modal
   abrir('ovl-gen');
 }
 
@@ -2736,8 +2748,12 @@ function aplicarImport(){
   });
 })();
 // ══ ÓRDENES DE ENVASADO ═══════════════════════════════════════
-function openEnvasado(){
-  var t=temporadaActual(); if(!t){ toast('No hay temporada seleccionada','err'); return; }
+// Prepara la parte de "cargar a mano" y la lista. Ya no abre nada: vive
+// dentro del modal de órdenes, que es uno solo. Antes eran dos botones
+// —Generar y Órdenes— y sobre todo DOS formas de crear la misma fila:
+// la celda de la tabla y este formulario. Esa era la redundancia.
+function prepararEnvasado(){
+  var t=temporadaActual(); if(!t) return;
   document.getElementById('ev-prod').innerHTML = PROD
     .filter(function(p){ return p.activo!==false; })
     .sort(function(a,b){ return (a.orden||0)-(b.orden||0); })
@@ -2754,7 +2770,6 @@ function openEnvasado(){
   document.getElementById('ev-nota').value='';
   document.getElementById('ev-tnom').textContent=t.nombre;
   pintarEvSemana(); pintarEvLista();
-  abrir('ovl-env');
 }
 function pintarEvSemana(){
   var t=temporadaActual(), f=document.getElementById('ev-fecha').value;
@@ -2817,7 +2832,7 @@ function guardarEnvasado(){
     document.getElementById('ev-cant').value='';
     document.getElementById('ev-orden').value='';
     document.getElementById('ev-nota').value='';
-    pintarEvLista(); pintarTodo();
+    pintarEvLista(); pintarGenerar(); pintarTodo();
   }).catch(function(e){
     toast('No se pudo guardar: '+((e&&e.message)||e),'err');
   }).then(function(){ b.disabled=false; });
@@ -2831,7 +2846,7 @@ function borrarEnvasado(id){
     if(!r.data || !r.data.length) throw new Error('no se borró ninguna fila (¿permiso del módulo?)');
     ENVASADO=ENVASADO.filter(function(x){ return x.id!==id; });
     toast('Orden borrada','ok');
-    pintarEvLista(); pintarTodo();
+    pintarEvLista(); pintarGenerar(); pintarTodo();
   }).catch(function(err){
     toast('No se pudo borrar: '+((err&&err.message)||err),'err');
   });

@@ -119,6 +119,16 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .calc{color:var(--muted-l)}
 .sug{font-weight:700;font-size:13px;color:var(--gold)}
 .kgmp{font-weight:600;color:var(--orange-l)}
+/* La celda que escribe el operador. Se ve que es un campo, no un número
+   calculado: es la única cosa editable de toda la tabla. */
+.env-in{width:82px;text-align:right;font-family:var(--mono);font-size:12.5px;font-weight:700;
+  color:var(--text);background:rgba(255,255,255,.05);border:1px solid var(--border-b);
+  border-radius:7px;padding:4px 7px}
+.env-in::placeholder{color:var(--muted);font-weight:500}
+.env-in:hover{border-color:rgba(56,189,248,.45)}
+.env-in:focus{outline:2px solid rgba(56,189,248,.6);outline-offset:1px;background:rgba(255,255,255,.08)}
+.env-in:disabled{opacity:.5}
+.env-multi{display:inline-block;font-weight:700;cursor:help}
 .dif{font-family:var(--mono);font-size:10.5px}
 .dif.up{color:#4ade80} .dif.dn{color:#fca5a5}
 /* Cobertura del stock, en semanas. Va debajo del propio stock. */
@@ -484,6 +494,7 @@ window.APP_VER='2026-09-09.2238';
             <th>Stock hoy</th>
             <th>Prev. próx. sem.</th>
             <th>Demanda horiz.</th>
+            <th>Sugerido</th>
             <th class="out">A envasar</th>
             <th class="out">kg de MP</th>
           </tr>
@@ -755,6 +766,24 @@ function envasadoPorSemana(t, prodId){
   return out;
 }
 
+// Las órdenes de envasado de un producto en una semana. Son las filas,
+// no el total: la celda editable de la tabla necesita saber CUÁNTAS hay,
+// porque con dos no puede adivinar cuál pisar.
+function ordenesDeSemana(t, prodId, w){
+  var ini=dIni(t);
+  return ENVASADO.filter(function(e){
+    return e.temporada_id===t.id && e.producto_id===prodId
+        && Cloro.semanaDe(new Date(e.fecha+'T00:00:00Z'), ini)===w;
+  });
+}
+// El lunes de una semana de temporada, en ISO. Es la fecha con la que se
+// guarda lo que el operador escribe en la celda semanal: determinista, así
+// escribir dos veces la misma semana corrige en vez de duplicar.
+function lunesDeSemana(t, w){
+  var d=new Date(Cloro.lunesInicio(dIni(t)).getTime()+(w-1)*7*86400000);
+  return d.toISOString().slice(0,10);
+}
+
 // En qué semana de la temporada estamos. Si la temporada ya terminó
 // devuelve la última: el módulo pasa a ser una foto de lo que pasó, no
 // una previsión de lo que viene, y la pantalla lo avisa.
@@ -806,7 +835,7 @@ SubatirApp.ready.then(function(p){ if(p) cargar(); });
 
 function falta(e){
   var m=(e&&e.message)||'';
-  document.getElementById('tbody').innerHTML='<tr><td colspan="9" class="empty">'
+  document.getElementById('tbody').innerHTML='<tr><td colspan="10" class="empty">'
     +'No se pudieron leer los datos de Previsión Cloro.<br>'
     +(/relation|does not exist|schema cache/i.test(m)
       ? 'Falta correr <b>migracion/cloro_schema.sql</b> y <b>migracion/cloro_seed.sql</b> en Supabase.'
@@ -1084,9 +1113,15 @@ function filas(){
         : null;
       var demH=0, i;
       if(prevision) for(i=SEM_ACTUAL-1;i<SEM_ACTUAL-1+num(PAR.horizonte_semanas);i++) demH+=num(prevision[i]);
+      // Lo que el operador dijo que va a envasar ESTA semana. `tieneEnv`
+      // mira si existe la fila, no si suma: un 0 escrito a mano significa
+      // "esta semana no envaso", que no es lo mismo que no haber escrito.
+      var ordSem = ordenesDeSemana(t, p.id, SEM_ACTUAL);
       return {prod:p, vAct:vAct, vPrev:vPrev, vPre2:vPre2,
               prevision:prevision, stock:stock, stockHoy:stockHoy,
               demandaH:demH, sugerido:sug,
+              envSem: num(env[SEM_ACTUAL-1]), ordenesSem: ordSem.length,
+              tieneEnv: ordSem.length>0,
               ventasTemp: vAct.reduce(function(s,x){ return s+num(x); },0),
               ventasPrev: vPrev.reduce(function(s,x){ return s+num(x); },0),
               envasadoTemp: env.reduce(function(s,x){ return s+num(x); },0),
@@ -1632,19 +1667,95 @@ function kpi(clase, label, valor, color, sub){
         +'<div class="kpi-v '+color+'">'+valor+'</div><div class="kpi-s">'+sub+'</div></div>';
 }
 
+// ══ LO QUE EL OPERADOR VA A ENVASAR ═══════════════════════════
+//  El sugerido es una propuesta; la decisión la firma el operador cada
+//  semana, mirando el flujo de la línea. Este número es el que manda:
+//  entra como orden de envasado de la semana en curso y de ahí alimenta
+//  el stock proyectado, el consumo de materia prima y la cobertura.
+//
+//  Se guarda en cl_envasado con fecha del LUNES de la semana, así
+//  escribir dos veces corrige la misma fila en vez de duplicarla. El
+//  modal de órdenes queda para cerrarla con N° de orden y nota, y para
+//  tocar cualquier otra semana.
+function celdaEnvasar(f){
+  var t=temporadaActual();
+  if(!t || temporadaTerminada(t)) return '<span class="calc">—</span>';
+  // Con dos o más órdenes en la semana, la celda no puede saber cuál
+  // pisar. Muestra el total y manda al modal: el modo silencioso de
+  // equivocarse acá es borrar una orden que alguien cargó.
+  if(f.ordenesSem>1){
+    return '<span class="env-multi" title="Editá desde ➕ Orden de envasado">'
+      +n0(f.envSem)+'<span class="cob">'+f.ordenesSem+' órdenes</span></span>';
+  }
+  return '<input class="env-in" type="number" min="0" step="1" data-id="'+f.prod.id+'"'
+    +' value="'+(f.tieneEnv?f.envSem:'')+'" placeholder="—"'
+    +' onchange="guardarEnvSemana(this)" aria-label="Unidades a envasar esta semana"/>';
+}
+
+function guardarEnvSemana(el){
+  var t=temporadaActual(); if(!t) return;
+  var prodId=parseInt(el.getAttribute('data-id'),10);
+  var txt=String(el.value).trim();
+  var prev=ordenesDeSemana(t, prodId, SEM_ACTUAL)[0] || null;
+  el.disabled=true;
+
+  var fin=function(ok,msg){
+    el.disabled=false;
+    if(!ok){ toast(msg,'err'); cargarTemporada(); return; }
+    toast(msg,'ok');
+    cargarTemporada();          // recalcula stock, MP y cobertura
+  };
+  // Vaciar la celda BORRA la orden: vacío es "no lo decidí", que no es
+  // lo mismo que un cero escrito a propósito. Dejarla en 0 diría que el
+  // operador resolvió no envasar, y nadie lo dijo.
+  if(txt===''){
+    if(!prev){ el.disabled=false; return; }
+    SB.from('cl_envasado').delete().eq('id', prev.id).select().then(function(r){
+      if(r.error) return fin(false,'No se pudo borrar: '+r.error.message);
+      if(!r.data || !r.data.length) return fin(false,'No se borró (¿tenés el permiso del módulo?)');
+      fin(true,'Se quitó lo de esta semana');
+    });
+    return;
+  }
+  var cant=Math.max(0, num(txt));
+  if(prev){
+    if(num(prev.cantidad)===cant){ el.disabled=false; return; }
+    SB.from('cl_envasado').update({cantidad:cant}).eq('id', prev.id).select().then(function(r){
+      if(r.error) return fin(false,'No se pudo guardar: '+r.error.message);
+      // Un update bloqueado por RLS vuelve con CERO filas y sin error.
+      if(!r.data || !r.data.length) return fin(false,'No se guardó (¿tenés el permiso del módulo?)');
+      fin(true,'Guardado');
+    });
+  } else {
+    SB.from('cl_envasado').insert({
+      temporada_id:t.id, producto_id:prodId, cantidad:cant,
+      fecha:lunesDeSemana(t, SEM_ACTUAL),
+      nota:'Semana '+SEM_ACTUAL+' — cargado desde la tabla'
+    }).select().then(function(r){
+      if(r.error) return fin(false,'No se pudo guardar: '+r.error.message);
+      if(!r.data || !r.data.length) return fin(false,'No se guardó (¿tenés el permiso del módulo?)');
+      fin(true,'Guardado');
+    });
+  }
+}
+
 function pintarTabla(){
   var fs=filas(), h='';
   if(!fs.length){
-    document.getElementById('tbody').innerHTML='<tr><td colspan="9" class="empty">'
+    document.getElementById('tbody').innerHTML='<tr><td colspan="10" class="empty">'
       +'No hay productos cargados en esta temporada.</td></tr>';
     return;
   }
   var matNom={}; MAT.forEach(function(m){ matNom[m.id]=m.nombre; });
-  var tot={v:0,e:0,s:0,d:0,g:0,kg:0};
+  var tot={v:0,e:0,s:0,d:0,g:0,kg:0,env:0};
   fs.forEach(function(f){
     var p=f.prod;
     var sinMP = p.materia_id==null || num(p.kg_mp_por_unidad)<=0;
-    var kg = kgDe(p, f.sugerido);
+    // Los kg siguen a la decisión del operador cuando la hay, y al
+    // sugerido cuando no. Si siguieran siempre al sugerido, la fila
+    // mostraría "envaso 800" al lado de los kg de 3.660 — dos números
+    // pegados midiendo cosas distintas.
+    var kg = kgDe(p, f.tieneEnv ? f.envSem : f.sugerido);
     var proxSem = f.prevision ? num(f.prevision[SEM_ACTUAL-1]) : null;
     // Cobertura: cuántas semanas aguanta el stock al ritmo previsto.
     var ritmo = f.demandaH>0 ? f.demandaH/num(PAR.horizonte_semanas) : 0;
@@ -1665,16 +1776,19 @@ function pintarTabla(){
              +(f.stockHoy<0?'FALTA ENVASAR':n1(cob)+' sem')+'</span>')+'</td>'
       +'<td class="calc">'+(proxSem==null?'—':n0(proxSem))+'</td>'
       +'<td class="calc">'+(f.prevision?n0(f.demandaH):'—')+'</td>'
-      +'<td class="sug">'+(f.sugerido==null?'<span class="calc">—</span>':n0(f.sugerido))+'</td>'
+      +'<td class="calc">'+(f.sugerido==null?'—':n0(f.sugerido))+'</td>'
+      +'<td class="sug">'+celdaEnvasar(f)+'</td>'
       +'<td class="kgmp">'+(kg==null?'<span class="calc">—</span>':n0(kg))+'</td>'
       +'</tr>';
     tot.v+=f.ventasTemp; tot.e+=f.envasadoTemp; tot.s+=num(f.stockHoy);
     tot.d+=f.demandaH; tot.g+=num(f.sugerido); tot.kg+=(kg||0);
+    tot.env+=(f.tieneEnv?f.envSem:0);
   });
   var base = productosSinBase().length < fs.length;
   h+='<tr class="tot"><td class="l">TOTAL</td><td class="l"></td>'
     +'<td>'+n0(tot.v)+'</td><td>'+n0(tot.e)+'</td><td>'+(base?n0(tot.s):'—')+'</td>'
     +'<td></td><td>'+n0(tot.d)+'</td><td>'+(base?n0(tot.g):'—')+'</td>'
+    +'<td>'+n0(tot.env)+'</td>'
     +'<td>'+(base?n0(tot.kg):'—')+'</td></tr>';
   document.getElementById('tbody').innerHTML=h;
 }
@@ -2347,7 +2461,7 @@ function exportCSV(){
   var cab=['Temporada','Semana actual','Producto','Código','Materia prima','kg MP por unidad',
            'Lote','Ventas temporada','Ventas mismo tramo año anterior','Envasado',
            'Stock hoy','Previsión próxima semana','Demanda horizonte ('+n0(PAR.horizonte_semanas)
-           +' sem)','A envasar','kg de MP','Baja rotación'];
+           +' sem)','Sugerido','A envasar (operador)','kg de MP','Baja rotación'];
   var q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };
   // Decimales con coma: es lo que espera el Excel en español, y sin esto
   // las columnas numéricas entran como texto.
@@ -2355,7 +2469,9 @@ function exportCSV(){
   var out=[cab.map(q).join(';')];
   fs.forEach(function(f){
     var p=f.prod;
-    var kg = kgDe(p, f.sugerido);
+    // Mismo criterio que la tabla: los kg siguen a lo que decidió el
+    // operador cuando lo decidió, y al sugerido cuando no.
+    var kg = kgDe(p, f.tieneEnv ? f.envSem : f.sugerido);
     out.push([
       q(t.nombre), SEM_ACTUAL, q(p.nombre), q(p.codigo),
       q(p.materia_id==null?'SIN ASIGNAR':(matNom[p.materia_id]||'?')),
@@ -2367,6 +2483,7 @@ function exportCSV(){
       f.prevision?d1(f.prevision[SEM_ACTUAL-1]):'',
       f.prevision?d1(f.demandaH):'',
       f.sugerido==null?'':d1(f.sugerido),
+      f.tieneEnv?d1(f.envSem):'',
       kg==null?'':d1(kg),
       q(f.bajaRot?'SÍ':'')
     ].join(';'));

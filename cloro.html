@@ -292,6 +292,26 @@ details[open] > .cf-sum::before{content:'▾ '}
 .gr-grid{stroke:rgba(255,255,255,.06);stroke-width:1}
 .gr-eje{fill:var(--muted);font-family:var(--mono);font-size:9.5px}
 .gr-hoy{stroke:var(--agua);stroke-width:1;stroke-dasharray:3 3;opacity:.7}
+/* La semana fijada: llena y más marcada que la guía de HOY, porque es la
+   que el usuario eligió y la que explica la tabla de abajo. */
+.gr-fija{stroke:var(--gold,#eab308);stroke-width:1.6;opacity:.85}
+.gr-fija-t{fill:var(--gold,#eab308);font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.6px}
+.tip-cta{margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.10);
+  font-size:9.5px;color:var(--muted);font-family:var(--display);letter-spacing:.3px}
+/* La barra de foco: es un estado, así que tiene que verse siempre que
+   esté puesto y ofrecer la salida en el mismo lugar. */
+.foco-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;
+  padding:9px 13px;border-radius:12px;background:rgba(56,189,248,.09);
+  border:1px solid rgba(56,189,248,.30)}
+.foco-t{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.7px;
+  text-transform:uppercase;color:var(--muted)}
+.foco-bar b{font-size:13.5px}
+.foco-n{flex:1;min-width:220px;font-size:10.5px;color:var(--muted);line-height:1.35}
+.ficha[role=button]{cursor:pointer}
+.ficha[role=button]:hover{border-color:rgba(56,189,248,.45)}
+.ficha[role=button]:focus-visible{outline:2px solid rgba(56,189,248,.65);outline-offset:2px}
+.ficha.on{border-color:rgba(56,189,248,.6);background:rgba(56,189,248,.07)}
+.det-sem{margin-top:-4px}
 .gr-hoy-t{fill:var(--agua);font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.6px}
 .gr-linea{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 .gr-linea.act{stroke-width:2.6}
@@ -450,6 +470,7 @@ window.APP_VER='2026-09-10.1112';
     </div>
   </div>
 
+  <div id="foco"></div>
   <div id="avisos"></div>
 
   <!-- ══ KPIs ═══════════════════════════════════════════════ -->
@@ -470,6 +491,9 @@ window.APP_VER='2026-09-10.1112';
     <div class="graf" id="g-temp"></div>
     <div class="leg" id="g-temp-leg"></div>
   </div>
+
+  <!-- Detalle de la semana fijada con un clic en el gráfico -->
+  <div id="g-temp-det"></div>
 
   <!-- ══ Gráfico: materia prima por semana ══════════════════ -->
   <div class="card sec">
@@ -1041,6 +1065,10 @@ function cargarTemporada(){
 
 function cambioTemporada(){
   CUR_TEMP=parseInt(document.getElementById('f-temp').value,10);
+  // La semana fijada era de la temporada anterior: otra temporada puede
+  // tener otro largo, y el detalle quedaría hablando de otra cosa. El
+  // foco de producto sí sobrevive: el producto es el mismo.
+  SEM_FIJA=null;
   cargarTemporada();
 }
 
@@ -1244,8 +1272,9 @@ function filas(){
 }
 
 function pintarTodo(){
+  pintarFoco();
   pintarContexto(); pintarAvisos(); pintarKPIs(); pintarTabla(); pintarMP();
-  dibujarTemporada(); dibujarMPSemanal(); dibujarFichas();
+  dibujarTemporada(); pintarDetalleSemana(); dibujarMPSemanal(); dibujarFichas();
 }
 
 // ══ GRÁFICOS ══════════════════════════════════════════════════
@@ -1268,6 +1297,14 @@ var COL_TEMP = ['#0891b2','#ea580c','#a855f7'];        // actual, anterior, prev
 //  normal contra su vecino naranja.
 var COL_MAT  = ['#0891b2','#a16207','#a855f7','#16a34a','#ea580c','#be185d'];
 var OCULTAS  = {};   // series apagadas desde la leyenda
+// La semana FIJADA con un clic en el gráfico. El hover ya muestra el
+// tooltip; esto es otra cosa: deja la semana quieta para poder leer el
+// detalle producto por producto. Con hover, un panel de 13 renglones que
+// cambia con cada movimiento del mouse no se puede leer.
+var SEM_FIJA = null;
+// El producto enfocado desde su ficha, o null para ver todo junto.
+var FOCO = null;
+function prodFoco(){ return FOCO==null ? null : PROD.filter(function(p){ return p.id===FOCO; })[0]||null; }
 
 function svgEsc(s){ return esc(s); }
 function ptos(xs,ys){ var d='',i;
@@ -1275,14 +1312,47 @@ function ptos(xs,ys){ var d='',i;
   return d; }
 
 // Total semanal de toda la línea, para una temporada.
+// La serie semanal de una temporada: el total de la línea, o la de un
+// solo producto cuando hay foco. Es el mismo gráfico mirando otra cosa,
+// no un gráfico distinto: así las dos vistas se leen igual.
 function totalSemanal(tempId){
   var out=[], i;
   for(i=0;i<NSEM;i++) out[i]=0;
-  PROD.filter(function(p){ return p.activo!==false; }).forEach(function(p){
+  var lista = FOCO!=null
+    ? PROD.filter(function(p){ return p.id===FOCO; })
+    : PROD.filter(function(p){ return p.activo!==false; });
+  lista.forEach(function(p){
     var s=serieVentas(tempId,p.id);
     for(i=0;i<NSEM;i++) out[i]+=num(s[i]);
   });
   return out;
+}
+
+// ══ FOCO EN UN PRODUCTO ═══════════════════════════════════════
+//  Se entra desde la ficha y afecta al gráfico de temporada y a la tabla
+//  de qué envasar. NO afecta a la materia prima: el Cloro Shock lo
+//  comparten cuatro productos, así que su cobertura mirando uno solo
+//  diría que alcanza para muchas más semanas de las que alcanza. Eso
+//  queda global y la pantalla lo aclara.
+function verProducto(id){
+  FOCO = (FOCO===id) ? null : id;
+  SEM_FIJA = null;                 // la semana fijada era de la otra vista
+  pintarTodo();
+  var c=document.getElementById('foco');
+  if(c) c.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function salirFoco(){ FOCO=null; SEM_FIJA=null; pintarTodo(); }
+
+function pintarFoco(){
+  var host=document.getElementById('foco'); if(!host) return;
+  var p=prodFoco();
+  if(!p){ host.innerHTML=''; host.className=''; return; }
+  host.className='foco-bar';
+  host.innerHTML='<span class="foco-t">Viendo sólo</span>'
+    +'<b>'+esc(p.nombre)+'</b><span class="cod">'+esc(p.codigo)+'</span>'
+    +'<span class="foco-n">La materia prima sigue mostrándose completa: '
+      +'se comparte entre productos y filtrarla daría una cobertura falsa.</span>'
+    +'<button class="btn btn-sm" onclick="salirFoco()">✕ Ver todos</button>';
 }
 // El mes en el que cae cada semana, para poder rotular con algo que una
 // persona entienda. "Semana 23" no le dice nada a nadie; "ene" sí.
@@ -1379,6 +1449,12 @@ function dibujarTemporada(){
       +X(SEM_ACTUAL).toFixed(1)+'" y2="'+(H-MB)+'"/>'
       +'<text class="gr-hoy-t" x="'+(X(SEM_ACTUAL)+5).toFixed(1)+'" y="'+(MT+9)+'">HOY</text>';
   }
+  // La semana fijada, para que se vea de qué habla el detalle de abajo.
+  if(SEM_FIJA>=1 && SEM_FIJA<=NSEM){
+    g+='<line class="gr-fija" x1="'+X(SEM_FIJA).toFixed(1)+'" y1="'+MT+'" x2="'
+      +X(SEM_FIJA).toFixed(1)+'" y2="'+(H-MB)+'"/>'
+      +'<text class="gr-fija-t" x="'+(X(SEM_FIJA)+5).toFixed(1)+'" y="'+(H-MB-6)+'">SEM '+SEM_FIJA+'</text>';
+  }
   g+='<g id="gt-cross"></g>'
     +'<rect x="'+ML+'" y="'+MT+'" width="'+(W-ML-MR)+'" height="'+(H-MT-MB)
     +'" fill="transparent" id="gt-hit"/></svg>';
@@ -1405,6 +1481,60 @@ function dibujarTemporada(){
 
   engancharHover(host, vis, prevision, X, Y, ML, MR, W, t);
 }
+// ══ EL DETALLE DE LA SEMANA FIJADA ════════════════════════════
+//  Qué vendió cada producto esa semana, en las tres temporadas, contra
+//  lo previsto. Es la pregunta que el gráfico de totales no puede
+//  contestar: se ve que la semana 23 fue el pico, pero no de qué.
+function fijarSemana(w){
+  SEM_FIJA = (SEM_FIJA===w) ? null : w;
+  dibujarTemporada(); pintarDetalleSemana();
+}
+function pintarDetalleSemana(){
+  var host=document.getElementById('g-temp-det'); if(!host) return;
+  var t=temporadaActual(), w=SEM_FIJA;
+  if(!t || !w){ host.innerHTML=''; host.className=''; return; }
+  var prev=temporadaPrevia(t), prev2=prev?temporadaPrevia(prev):null;
+  var fs=filas().filter(function(f){ return FOCO==null || f.prod.id===FOCO; });
+  var cerrada = w < SEM_ACTUAL;
+
+  var tot={a:0,b:0,c:0,p:0};
+  var cuerpo=fs.map(function(f){
+    var a=num(serieVentas(t.id, f.prod.id)[w-1]);
+    var b=prev  ? num(serieVentas(prev.id,  f.prod.id)[w-1]) : null;
+    var c=prev2 ? num(serieVentas(prev2.id, f.prod.id)[w-1]) : null;
+    var pv=f.prevision ? num(f.prevision[w-1]) : null;
+    tot.a+=a; tot.b+=num(b); tot.c+=num(c); tot.p+=num(pv);
+    // La comparación que importa: contra el año pasado en la MISMA semana.
+    var dif = (b>0) ? (a/b-1)*100 : null;
+    return '<tr><td class="l">'+esc(f.prod.nombre)+'</td>'
+      +'<td>'+(w<=SEM_ACTUAL?n0(a):'<span class="calc">—</span>')+'</td>'
+      +'<td class="calc">'+(b==null?'—':n0(b))+'</td>'
+      +'<td class="calc">'+(c==null?'—':n0(c))+'</td>'
+      +'<td>'+(pv==null?'<span class="calc">—</span>':n0(pv))+'</td>'
+      +'<td>'+(dif==null||w>SEM_ACTUAL ? '<span class="calc">—</span>'
+             : '<span class="dif '+(dif>=0?'up':'dn')+'">'+(dif>=0?'+':'')+n1(dif)+'%</span>')
+      +'</td></tr>';
+  }).join('');
+
+  host.className='card sec det-sem';
+  host.innerHTML='<div class="sec-h"><div class="sec-t"><div class="sec-ico">🔎</div><div>'
+      +'<div class="sec-eyebrow">'+(cerrada?'Semana cerrada':(w===SEM_ACTUAL?'Semana en curso':'Semana futura'))+'</div>'
+      +'<h2>Semana '+w+' · '+mesDeSemana(t,w)+'</h2></div></div>'
+      +'<div class="sec-tools"><button class="btn btn-sm" onclick="fijarSemana('+w+')">✕ Cerrar</button></div></div>'
+    +'<div class="twrap"><table><thead><tr>'
+      +'<th class="l">Producto</th><th>'+esc(t.nombre)+'</th>'
+      +'<th>'+(prev?esc(prev.nombre):'—')+'</th><th>'+(prev2?esc(prev2.nombre):'—')+'</th>'
+      +'<th class="out">Previsto</th><th>vs. año pasado</th></tr></thead>'
+    +'<tbody>'+cuerpo
+      +'<tr class="tot"><td class="l">TOTAL</td>'
+      +'<td>'+(w<=SEM_ACTUAL?n0(tot.a):'—')+'</td><td>'+n0(tot.b)+'</td><td>'+n0(tot.c)+'</td>'
+      +'<td>'+n0(tot.p)+'</td>'
+      +'<td>'+(tot.b>0 && w<=SEM_ACTUAL
+          ? '<span class="dif '+(tot.a>=tot.b?'up':'dn')+'">'+(tot.a>=tot.b?'+':'')
+            +n1((tot.a/tot.b-1)*100)+'%</span>' : '—')+'</td></tr>'
+    +'</tbody></table></div>';
+}
+
 function toggleSerie(k){ OCULTAS[k]=!OCULTAS[k]; dibujarTemporada(); }
 function toggleMateria(id){ OCULTAS['m'+id]=!OCULTAS['m'+id]; dibujarMPSemanal(); }
 
@@ -1416,13 +1546,22 @@ function engancharHover(host, vis, prevision, X, Y, ML, MR, W, t){
   if(!hit) return;
   function fuera(){ cross.innerHTML=''; tip.classList.remove('on'); }
   hit.addEventListener('mouseleave', fuera);
-  hit.addEventListener('mousemove', function(e){
+  // La semana bajo el cursor, en coordenadas del viewBox: el SVG se
+  // dibuja a su ancho real pero el CSS lo escala.
+  function semanaDe_(e){
     var r=host.querySelector('svg').getBoundingClientRect();
-    // El SVG se dibuja a su ancho real, pero el CSS lo escala: hay que
-    // pasar de píxeles de pantalla a coordenadas del viewBox.
     var px=(e.clientX-r.left)*(W/r.width);
     var w=Math.round((px-ML)/((W-ML-MR)/Math.max(1,NSEM-1)))+1;
-    w=Math.min(NSEM, Math.max(1, w));
+    return Math.min(NSEM, Math.max(1, w));
+  }
+  // Un clic FIJA la semana y abre el detalle por producto. El hover sigue
+  // siendo hover: mostrar el detalle al pasar el mouse haría un panel de
+  // 13 renglones parpadeando, que no se puede leer.
+  hit.style.cursor='pointer';
+  hit.addEventListener('click', function(e){ fijarSemana(semanaDe_(e)); });
+  hit.addEventListener('mousemove', function(e){
+    var r=host.querySelector('svg').getBoundingClientRect();
+    var w=semanaDe_(e);
     var x=X(w);
     var c='<line class="gr-cross" x1="'+x.toFixed(1)+'" y1="12" x2="'+x.toFixed(1)+'" y2="256"/>';
     var filas2='';
@@ -1441,7 +1580,8 @@ function engancharHover(host, vis, prevision, X, Y, ML, MR, W, t){
         +'<span class="n">previsión</span><span class="v">'+n0(prevision[w-1])+'</span></div>';
     }
     cross.innerHTML=c;
-    tip.innerHTML='<div class="t">Semana '+w+' · '+mesDeSemana(t,w)+'</div>'+filas2;
+    tip.innerHTML='<div class="t">Semana '+w+' · '+mesDeSemana(t,w)+'</div>'+filas2
+      +'<div class="tip-cta">clic para ver el detalle por producto</div>';
     tip.classList.add('on');
     var left=(x/W)*r.width + 14;
     if(left > r.width-175) left = (x/W)*r.width - 175;
@@ -1598,7 +1738,11 @@ function dibujarFichas(){
     var prox = f.prevision ? num(f.prevision[SEM_ACTUAL-1]) : null;
     var ritmo = f.demandaH>0 ? f.demandaH/num(PAR.horizonte_semanas) : 0;
     var cob = (f.stockHoy!=null && ritmo>0) ? f.stockHoy/ritmo : null;
-    return '<div class="ficha anim"><h5>'+esc(f.prod.nombre)+'</h5>'
+    return '<div class="ficha anim'+(FOCO===f.prod.id?' on':'')+'" tabindex="0" role="button"'
+      +' title="Ver sólo este producto en el gráfico y en la tabla"'
+      +' onclick="verProducto('+f.prod.id+')"'
+      +' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();verProducto('+f.prod.id+');}">'
+      +'<h5>'+esc(f.prod.nombre)+'</h5>'
       +'<div class="sub">'+esc(f.prod.codigo)
       +(f.bajaRot?' · <span style="color:var(--purple)">baja rotación</span>':'')+'</div>'
       +s
@@ -2057,7 +2201,9 @@ function generarOrden(){
 }
 
 function pintarTabla(){
-  var fs=filas(), h='';
+  // Con foco, la tabla muestra sólo ese producto: es la misma pregunta
+  // -qué envasar- mirando uno solo.
+  var fs=filas().filter(function(f){ return FOCO==null || f.prod.id===FOCO; }), h='';
   if(!fs.length){
     document.getElementById('tbody').innerHTML='<tr><td colspan="10" class="empty">'
       +'No hay productos cargados en esta temporada.</td></tr>';

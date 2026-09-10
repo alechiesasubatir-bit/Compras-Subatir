@@ -1017,17 +1017,25 @@ function planConsumo(){
   var out={};
   filas().forEach(function(f){
     if(!f.prevision || !hayBaseDe(f.prod.id) || f.stockHoy==null) return;
-    out[f.prod.id] = Cloro.planEnvasado({
+    var env = envasadoPorSemana(t, f.prod.id);
+    var plan = Cloro.planEnvasado({
       prevision: f.prevision,
       stockInicial: (STOCK0[f.prod.id]||0),
       ventas: f.vAct,
-      envasado: envasadoPorSemana(t, f.prod.id),
+      envasado: env,
       semanasCerradas: Math.max(0, SEM_ACTUAL-1),
       semanaBase: semanaDelConteo(f.prod.id),
       desdeSemana: SEM_ACTUAL, semanas: NSEM,
       horizonte: 1, semanasSeguridad: 0,
       lote: num(f.prod.lote_unidades)||1
     });
+    // `planEnvasado` devuelve lo que FALTA envasar: descuenta lo que ya
+    // está programado para no volver a pedirlo. Pero la materia prima no
+    // distingue quién lo decidió — lo ya programado también se consume.
+    // Sin esta suma, el día que el operador cubre la semana el plan cae a
+    // cero y sus kg desaparecen de la cobertura: escribir "envaso 800"
+    // hacía SUBIR la cobertura de 3 a 4 semanas, cuando envasar consume.
+    out[f.prod.id] = plan.map(function(x,i){ return num(x)+num(env[i]); });
   });
   return out;
 }

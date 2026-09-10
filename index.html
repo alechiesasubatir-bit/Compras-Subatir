@@ -612,6 +612,7 @@ window.APP_VER='2026-09-10.1752';
     <!-- Toca revisar la importación de materia prima (módulo MP Importación).
          Avisa desde el día anterior a la fecha configurada allá. -->
     <div id="mp-revision" style="display:none"></div>
+    <div id="cloro-semana" style="display:none"></div>
 
     <!-- Mercadería en camino desde los depósitos (app Depósitos, misma base) -->
     <div id="camino-card" style="display:none"></div>
@@ -916,6 +917,51 @@ function avisoRevisionMP(){
   });
 }
 
+// ══ Aviso: la semana de Previsión Cloro quedó sin importar ════
+//  El módulo se apoya en las ventas: con una semana cerrada sin
+//  importar, el stock, el sugerido y la cobertura muestran números que
+//  ya no son ciertos, y la pantalla no tiene forma de saberlo sola.
+//  Se avisa acá porque el que abre el Panel a la mañana no
+//  necesariamente entra a Cloro.
+//
+//  La semana es la del módulo -lunes a domingo, arrancando en el lunes
+//  de la semana que contiene el 1/8-, no la semana ISO. Se replica la
+//  cuenta en vez de importar cloro-calc.js para no sumarle un script al
+//  Panel por un aviso; son tres líneas y no cambian nunca.
+function avisoSemanaCloro(){
+  var host=document.getElementById('cloro-semana'); if(!host) return;
+  SubatirApp.ready.then(function(perfil){
+    if(!perfil || !SubatirApp.canAccess('cloro', perfil)) return;
+    return SB.from('cl_temporadas').select('nombre,fecha_ini,fecha_fin,ventas_hasta,activa')
+      .then(function(r){
+        // Sin la migración corrida la consulta falla y el panel sigue igual.
+        if(r.error || !r.data || !r.data.length) return;
+        var hoyISO=new Date().toISOString().slice(0,10);
+        var t=r.data.filter(function(x){ return hoyISO>=x.fecha_ini && hoyISO<=x.fecha_fin; })[0];
+        if(!t) return;                       // fuera de temporada, nada que avisar
+        var ini=new Date(t.fecha_ini+'T00:00:00Z');
+        var lun0=new Date(Date.UTC(ini.getUTCFullYear(), ini.getUTCMonth(),
+                                   ini.getUTCDate()-((ini.getUTCDay()+6)%7)));
+        var hoy=new Date(hoyISO+'T00:00:00Z');
+        var sem=Math.floor((hoy-lun0)/604800000)+1;
+        if(sem<2) return;                    // la primera semana no cerró nada
+        // El domingo de la semana anterior: hasta ahí tendrían que llegar.
+        var debe=new Date(lun0.getTime()+(sem-1)*604800000-86400000).toISOString().slice(0,10);
+        if(t.ventas_hasta && t.ventas_hasta>=debe) return;
+        var d=t.ventas_hasta
+          ? Math.round((new Date(debe+'T00:00:00Z')-new Date(t.ventas_hasta+'T00:00:00Z'))/86400000)
+          : null;
+        function corta(iso){ var p=iso.split('-'); return p[2]+'/'+p[1]; }
+        host.style.display='';
+        host.innerHTML='<a href="cloro.html" class="mp-rev urg"><span class="mp-rev-i">💧</span>'
+          +'<span><b>Previsión Cloro: faltan importar las ventas'
+          +(d?' de los últimos '+d+' días':'')+'</b> — la semana '+(sem-1)+' cerró el '
+          +corta(debe)+'. Hasta que se carguen, el stock y lo que hay que envasar están viejos.</span>'
+          +'<span class="mp-rev-x">Abrir →</span></a>';
+      });
+  });
+}
+
 // ══ Aviso: reposición de artículos con seguimiento ═════════════
 //  Mismo cálculo que Stock y la pantalla de configuración
 //  (Reposicion.calcular, en reposicion-calc.js): un aviso acá con reglas
@@ -1010,7 +1056,7 @@ function cargarReposicion(){
   // Antes de load() a propósito: si la carga de datos falla, el aviso
   // de revisión tiene que salir igual. Es de lo poco que no se puede
   // perder por un error en otra cosa.
-  avisoRevisionMP();
+  avisoRevisionMP(); avisoSemanaCloro();
   load();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','proveedores','art_proveedor'], load);
   // Aviso de lo que viene en camino desde los depósitos

@@ -564,3 +564,49 @@ test('un conteo fechado en la semana 1 tambien descuenta lo ya vendido', () => {
   assert.strictEqual(Cloro.proyectarStock(args)[0], 50);              // 100 - 50
   assert.strictEqual(Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 1 }))[0], 80); // 100 - (50-30)
 });
+
+// ─── Ajustes de stock ────────────────────────────────────────────────
+
+test('proyectarStock suma los ajustes de la semana, con su signo', () => {
+  // -12 son doce unidades que se rompieron; +30 una devolucion.
+  const r = Cloro.proyectarStock({
+    stockInicial: 100, ventas: [10, 10, 10], envasado: [0, 0, 0],
+    ajustes: [0, -12, 30], prevision: [0, 0, 0], semanasCerradas: 3
+  });
+  assert.strictEqual(r[0], 90);    // 100 - 10
+  assert.strictEqual(r[1], 68);    // 90 - 10 - 12
+  assert.strictEqual(r[2], 88);    // 68 - 10 + 30
+});
+
+test('sin ajustes se comporta igual que antes', () => {
+  const args = { stockInicial: 100, ventas: [30, 30, 0, 0], envasado: [0, 50, 0, 0],
+                 prevision: [99, 99, 20, 20], semanasCerradas: 2 };
+  assert.deepStrictEqual(Cloro.proyectarStock(args), [70, 90, 70, 50]);
+  assert.deepStrictEqual(Cloro.proyectarStock(Object.assign({}, args, { ajustes: [] })),
+                         [70, 90, 70, 50]);
+});
+
+test('un recuento deja el stock EXACTAMENTE en lo contado', () => {
+  // Es la propiedad que hace util al recuento: se guarda la diferencia
+  // contra lo que el sistema creia, y el stock aterriza en lo contado.
+  const base = { stockInicial: 100, ventas: [10, 10], envasado: [0, 0],
+                 prevision: [0, 0], semanasCerradas: 2 };
+  const esperado = Cloro.proyectarStock(base)[1];      // 80
+  assert.strictEqual(esperado, 80);
+  const contado = 73;
+  const r = Cloro.proyectarStock(Object.assign({}, base, { ajustes: [0, contado - esperado] }));
+  assert.strictEqual(r[1], contado);
+});
+
+test('los ajustes anteriores a la semana del conteo se ignoran', () => {
+  // Antes del conteo la serie no existe, y un ajuste de esa epoca ya
+  // esta adentro de lo que alguien conto.
+  const r = Cloro.proyectarStock({
+    stockInicial: 50, ventas: [0, 0, 0], envasado: [0, 0, 0],
+    ajustes: [-999, -999, -10], prevision: [0, 0, 0],
+    semanasCerradas: 3, semanaBase: 3
+  });
+  assert.strictEqual(r[0], null);
+  assert.strictEqual(r[1], null);
+  assert.strictEqual(r[2], 40);   // 50 - 10, sin rastro de los -999
+});

@@ -165,7 +165,14 @@
       if (hayBase && i === base - 1) {
         salida = Math.max(0, salida - (parseFloat((o.ventas || [])[i]) || 0));
       }
-      s = s + (parseFloat((o.envasado || [])[i]) || 0) - salida;
+      // Los ajustes entran como una entrada o salida mas, con su signo:
+      // -12 son doce unidades que se rompieron, +30 una devolucion. Un
+      // RECUENTO se guarda como la diferencia contra lo que el sistema
+      // creia, asi que por este mismo camino el stock aterriza en lo
+      // contado. Los anteriores a la semana del conteo no se miran: ya
+      // estan adentro de lo que alguien conto.
+      s = s + (parseFloat((o.envasado || [])[i]) || 0)
+            + (parseFloat((o.ajustes  || [])[i]) || 0) - salida;
       out.push(s);
     }
     return out;
@@ -211,8 +218,8 @@
     // que YA se envaso. Nada de envasado futuro inventado todavia.
     var base = proyectarStock({
       stockInicial: o.stockInicial, ventas: o.ventas, envasado: envasado,
-      prevision: prevision, semanasCerradas: o.semanasCerradas,
-      semanaBase: o.semanaBase
+      ajustes: o.ajustes, prevision: prevision,
+      semanasCerradas: o.semanasCerradas, semanaBase: o.semanaBase
     });
     // base[desde-2] puede venir en null si el conteo del stock es de esa
     // misma semana o posterior: ahi el punto de partida ES el conteo.

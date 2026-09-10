@@ -1108,7 +1108,16 @@ function pintarTodo(){
 //  no de mi ojo: la primera que elegí a ojo fallaba tres de las cinco
 //  pruebas (croma, separación para daltonismo y piso de visión normal).
 var COL_TEMP = ['#0891b2','#ea580c','#a855f7'];        // actual, anterior, previa
-var COL_MAT  = ['#0891b2','#a16207','#a855f7','#16a34a','#ea580c'];
+//  El sexto (#be185d) entró cuando las materias primas pasaron a ser las
+//  reales del inventario y quedaron seis. Con cinco colores, la sexta se
+//  plegaba en "Otras" — y por orden de id la que caía adentro era la
+//  Pastilla Triple Acción, que es la MÁS grande de todas: 10.240 kg del
+//  horizonte escondidos detrás de una etiqueta genérica.
+//  Se eligió con el validador entre ocho candidatos: es el único cuyo
+//  peor par de daltonismo (ΔE 8,7 contra el ámbar) supera el objetivo
+//  de 8 en vez de quedar en la banda de piso, con ΔE 17,5 de visión
+//  normal contra su vecino naranja.
+var COL_MAT  = ['#0891b2','#a16207','#a855f7','#16a34a','#ea580c','#be185d'];
 var OCULTAS  = {};   // series apagadas desde la leyenda
 
 function svgEsc(s){ return esc(s); }
@@ -1314,10 +1323,17 @@ function dibujarMPSemanal(){
   // siguiera al ranking, una semana en la que una materia pasa a otra
   // repintaría el gráfico entero y nadie podría comparar dos capturas.
   //
-  // Y no se ciclan hues: la paleta tiene 5 y son 5. Si algún día hay más
-  // materias, las que sobran se pliegan en "Otras" con el quinto color,
-  // porque un sexto color repetido haría pasar dos materias distintas por
+  // Y no se ciclan hues: hoy la paleta tiene 6 y las materias son 6. Si
+  // algún día hay más, las que sobran se pliegan en "Otras" con el último
+  // color, porque un color repetido haría pasar dos materias distintas por
   // la misma en un gráfico que decide compras.
+  //
+  // Cuando eso pase, ojo con QUIÉN cae en la bolsa: el orden es por id, o
+  // sea por el orden en que alguien las dio de alta, que no tiene nada que
+  // ver con su tamaño. Ya pasó una vez —la materia más grande terminó
+  // adentro de "Otras (2)"— y se arregló agregando el sexto color, no
+  // cambiando el criterio de orden: si el color siguiera al ranking, dos
+  // capturas de semanas distintas dejarían de ser comparables.
   usadas.sort(function(a,b){ return a.id-b.id; });
   var pliega = usadas.length > COL_MAT.length;
   var corte  = pliega ? COL_MAT.length-1 : usadas.length;

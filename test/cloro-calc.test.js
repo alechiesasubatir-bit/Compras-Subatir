@@ -282,8 +282,10 @@ test('proyectarStock: antes de la semana del conteo no inventa un stock', () => 
   });
   assert.strictEqual(r[0], null);
   assert.strictEqual(r[1], null);
-  assert.strictEqual(r[2], 90);   // 100 - 10
-  assert.strictEqual(r[3], 80);   // 90 - 10
+  // La semana 3 es la del conteo: sus 10 unidades vendidas ya estaban
+  // descontadas cuando alguien conto, asi que no se restan de nuevo.
+  assert.strictEqual(r[2], 100);
+  assert.strictEqual(r[3], 90);   // 100 - 10
 });
 
 test('proyectarStock: el conteo del 8/9 no vuelve a restar lo vendido en agosto', () => {
@@ -302,10 +304,15 @@ test('proyectarStock: el conteo del 8/9 no vuelve a restar lo vendido en agosto'
   assert.strictEqual(conBase[5], null);
 });
 
-test('proyectarStock: una semanaBase de 1 es lo mismo que no ponerla', () => {
+test('proyectarStock: una semanaBase de 1 NO es lo mismo que no ponerla', () => {
+  // Parece lo mismo y no lo es. Sin semanaBase el numero es el saldo de
+  // APERTURA de la temporada: lo que habia antes de vender nada, asi que
+  // la venta de la semana 1 se resta entera. Con semanaBase 1 es un
+  // CONTEO hecho durante esa semana, y lo vendido hasta ese dia ya estaba
+  // descontado cuando alguien conto.
   const args = { stockInicial: 50, ventas: [10], envasado: [0], prevision: [0], semanasCerradas: 1 };
-  assert.deepStrictEqual(Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 1 })),
-                         Cloro.proyectarStock(args));
+  assert.deepStrictEqual(Cloro.proyectarStock(args), [40]);
+  assert.deepStrictEqual(Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 1 })), [50]);
 });
 
 // ─── El plan de envasado semana a semana ─────────────────────────────
@@ -499,4 +506,61 @@ test('el mismo caso con horizonte y colchon SI concentra la demanda', () => {
   });
   assert.strictEqual(plan[0], 750);   // 800 + 200 - 250
   assert.ok(plan[0] > 100);           // por eso no sirve para medir cobertura
+});
+
+// ─── El conteo ya tiene descontado lo vendido hasta ese dia ───────────
+
+test('en la semana del conteo no se resta dos veces lo ya vendido', () => {
+  // Caso real: Cloro Shock x 900 g. Se contaron 407 el 8/9 -semana 7- y
+  // esa semana ya tenia 64 unidades vendidas e importadas. El conteo las
+  // tiene descontadas, asi que solo falta vender la diferencia.
+  const ventas    = [0,0,0,0,0,0, 64];
+  const prevision = [0,0,0,0,0,0, 92];
+  const r = Cloro.proyectarStock({
+    stockInicial: 407, ventas, envasado: [0,0,0,0,0,0,0],
+    prevision, semanasCerradas: 6, semanaBase: 7
+  });
+  assert.strictEqual(r[6], 379);   // 407 - (92 - 64)
+});
+
+test('si lo ya vendido supera la prevision de esa semana, no suma stock', () => {
+  // El piso es cero: que la prevision se haya quedado corta no inventa
+  // mercaderia que nadie conto.
+  const r = Cloro.proyectarStock({
+    stockInicial: 100, ventas: [0,0, 80], prevision: [0,0, 30],
+    envasado: [0,0,0], semanasCerradas: 2, semanaBase: 3
+  });
+  assert.strictEqual(r[2], 100);
+});
+
+test('la semana del conteo ya cerrada no descuenta nada mas', () => {
+  // Un conteo del 8/9 mirado en octubre: esa semana esta cerrada y su
+  // venta real ya estaba adentro del conteo.
+  const r = Cloro.proyectarStock({
+    stockInicial: 50, ventas: [0, 20, 10], prevision: [0, 99, 99],
+    envasado: [0,0,0], semanasCerradas: 3, semanaBase: 2
+  });
+  assert.strictEqual(r[1], 50);   // la semana 2 no descuenta
+  assert.strictEqual(r[2], 40);   // la 3 si: 50 - 10
+});
+
+test('la regla vale SOLO para la semana del conteo', () => {
+  // En las siguientes, la prevision se resta entera aunque haya ventas
+  // parciales cargadas: esas ya no estan en el conteo.
+  const r = Cloro.proyectarStock({
+    stockInicial: 100, ventas: [0, 10, 10], prevision: [0, 20, 20],
+    envasado: [0,0,0], semanasCerradas: 1, semanaBase: 2
+  });
+  assert.strictEqual(r[1], 90);   // 100 - (20-10)
+  assert.strictEqual(r[2], 70);   // 90 - 20 entera
+});
+
+test('un conteo fechado en la semana 1 tambien descuenta lo ya vendido', () => {
+  // El discriminador NO es el numero de semana sino si hay fecha de
+  // conteo. Con semanaBase 1 la regla vale; sin semanaBase, no, porque
+  // ahi el numero es el saldo de apertura de la temporada.
+  const args = { stockInicial: 100, ventas: [30], prevision: [50],
+                 envasado: [0], semanasCerradas: 0 };
+  assert.strictEqual(Cloro.proyectarStock(args)[0], 50);              // 100 - 50
+  assert.strictEqual(Cloro.proyectarStock(Object.assign({}, args, { semanaBase: 1 }))[0], 80); // 100 - (50-30)
 });

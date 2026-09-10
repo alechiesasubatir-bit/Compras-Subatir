@@ -140,13 +140,31 @@
   // el modulo viene a avisar.
   function proyectarStock(o) {
     var n = Math.max((o.ventas || []).length, (o.envasado || []).length, (o.prevision || []).length);
-    var base = Math.max(1, parseFloat(o.semanaBase) || 1);
+    // Sin `semanaBase` el numero se trata como el saldo de apertura de la
+    // temporada, que es como se comportaba antes. CON semanaBase es un
+    // conteo hecho un dia concreto, y eso cambia dos cosas: de donde
+    // arranca la serie y que en esa semana ya hay ventas adentro.
+    var hayBase = o.semanaBase != null && (parseFloat(o.semanaBase) || 0) >= 1;
+    var base = hayBase ? Math.max(1, parseFloat(o.semanaBase)) : 1;
     var s = parseFloat(o.stockInicial) || 0, out = [], i, salida;
     for (i = 0; i < n; i++) {
       if (i < base - 1) { out.push(null); continue; }
       salida = (i < o.semanasCerradas)
         ? (parseFloat((o.ventas || [])[i]) || 0)
         : (parseFloat((o.prevision || [])[i]) || 0);
+      // En la SEMANA DEL CONTEO lo que ya se vendio esta descontado del
+      // conteo mismo -se conto lo que quedaba, no lo que habia el lunes-,
+      // asi que restarlo otra vez lo cuenta dos veces. Solo falta vender
+      // la diferencia. Con piso en cero: que la prevision se haya quedado
+      // corta no inventa mercaderia que nadie conto.
+      //
+      // Medido en la temporada 2026-27: 763 unidades de prevision en la
+      // semana del conteo contra 446 ya vendidas e importadas. Sin esto,
+      // hasta 414 unidades restadas dos veces, y siete productos que
+      // decian "FALTA ENVASAR" sin que faltara.
+      if (hayBase && i === base - 1) {
+        salida = Math.max(0, salida - (parseFloat((o.ventas || [])[i]) || 0));
+      }
       s = s + (parseFloat((o.envasado || [])[i]) || 0) - salida;
       out.push(s);
     }

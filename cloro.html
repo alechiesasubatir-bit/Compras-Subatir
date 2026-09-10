@@ -625,6 +625,7 @@ window.APP_VER='2026-09-09.2350';
         <label>Estos números son al</label>
         <input class="inp" id="cf-s0-fecha" type="date"/>
       </div>
+      <div class="hint" id="ct-hint">—</div>
       <div class="cf-prods" id="cf-stock"></div>
     </div>
     <div class="modal-f">
@@ -1886,6 +1887,62 @@ function pintarGenerar(){
   document.getElementById('btn-gn').disabled = !b.length;
 }
 
+// jsPDF + autotable pesan ~400 KB y sólo hacen falta al emitir. Cargarlos
+// en el <head> se los cobraría a todo el que abre la pantalla a mirar un
+// gráfico. Mismo criterio que SheetJS para importar.
+var PDFLIB=null;
+function cargarPDF(){
+  if(window.jspdf && window.jspdf.jsPDF && window.OCPdf) return Promise.resolve();
+  if(PDFLIB) return PDFLIB;
+  function uno(src){
+    return new Promise(function(ok, mal){
+      var s=document.createElement('script'); s.src=src;
+      s.onload=function(){ ok(); };
+      s.onerror=function(){ mal(new Error('No se pudo cargar el generador de PDF (revisá tu conexión)')); };
+      document.head.appendChild(s);
+    });
+  }
+  PDFLIB = uno('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js')
+    .then(function(){ return uno('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'); })
+    // Con la versión de la app pegada: como esta carga es dinámica,
+    // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
+    // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
+    .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js?v='+APP_VER); })
+    .catch(function(e){ PDFLIB=null; throw e; });
+  return PDFLIB;
+}
+
+// El papel de la orden. Se arma con las filas de cl_envasado que llevan
+// ese N°, no con lo que había en pantalla: si algo no se guardó, el PDF
+// no lo tiene que inventar.
+function pdfOrden(nro){
+  var t=temporadaActual(); if(!t) return;
+  var filasOrd=ENVASADO.filter(function(e){
+    return e.temporada_id===t.id && String(e.orden||'').trim()===String(nro).trim(); });
+  if(!filasOrd.length){ toast('Esa orden no tiene renglones','err'); return; }
+  var nom={}, cod={}, mat={};
+  var matNom={}; MAT.forEach(function(m){ matNom[m.id]=matNombre(m); });
+  PROD.forEach(function(p){
+    nom[p.id]=p.nombre; cod[p.id]=p.codigo;
+    mat[p.id]={n: p.materia_id!=null ? (matNom[p.materia_id]||'') : '', kgu: num(p.kg_mp_por_unidad)};
+  });
+  var f0=filasOrd[0];
+  cargarPDF().then(function(){
+    OCPdf.build({
+      orden: nro,
+      fecha: f0.fecha,
+      temporada: t.nombre,
+      semana: Cloro.semanaDe(new Date(f0.fecha+'T00:00:00Z'), dIni(t)),
+      obs: String(f0.nota||'').trim(),
+      lines: filasOrd.map(function(e){
+        var m=mat[e.producto_id]||{};
+        return {cod: cod[e.producto_id]||'', desc: nom[e.producto_id]||('#'+e.producto_id),
+                cant: num(e.cantidad), materia: m.n||'', kg: num(e.cantidad)*(m.kgu||0)};
+      })
+    }, 'envasado');
+  }).catch(function(e){ toast((e&&e.message)||'No se pudo generar el PDF','err'); });
+}
+
 function generarOrden(){
   var t=temporadaActual(); if(!t) return;
   var b=borradoresDeSemana(); if(!b.length) return;
@@ -1921,8 +1978,14 @@ function generarOrden(){
       cargarTemporada(); return;
     }
     toast('Orden '+(agrup?orden:'emitida')+' · '+ops.length+' producto'
-      +(ops.length===1?'':'s'),'ok');
-    cerrar('ovl-gen'); cargarTemporada();
+      +(ops.length===1?'':'s')+'. Ahora toca el conteo.','ok');
+    cerrar('ovl-gen');
+    // El PDF sale solo: la orden existe para que baje a la línea en papel,
+    // y un botón más entre emitir e imprimir es un paso que alguien saltea.
+    cargarTemporada().then(function(){
+      if(agrup) pdfOrden(orden);
+      else rs.forEach(function(r){ pdfOrden(r.data[0].orden); });
+    });
   }).catch(function(e){
     bt.disabled=false; toast('No se pudo emitir: '+((e&&e.message)||e),'err');
   });
@@ -2124,25 +2187,36 @@ function openConteo(){ pintarConteo(); abrir('ovl-conteo'); }
 function pintarConteo(){
   var t=temporadaActual();
   document.getElementById('ct-tnom').textContent = t ? t.nombre : '—';
-  // Se toma la fecha más vieja de las cargadas: hoy son todas la misma
-  // porque se escriben juntas. Si mañana hay un reconteo de un solo
-  // producto, esto muestra la más vieja y el guardado las vuelve a
-  // igualar, que es exactamente lo que hace un conteo nuevo.
-  var f0=null;
-  PROD.forEach(function(p){ var f=STOCK0F[p.id]; if(f && (!f0 || f<f0)) f0=f; });
-  document.getElementById('cf-s0-fecha').value = f0 || hoyISO();
-  var hs='<div class="cf-ph" style="grid-template-columns:minmax(0,1fr) 130px">'
-        +'<span>Producto</span><span>Contado</span></div>';
+  // HOJA LIMPIA: los campos arrancan vacíos y la fecha en hoy. El conteo
+  // anterior se muestra al lado como referencia, no precargado.
+  // Precargarlo invitaba a apretar Guardar sin contar y quedarse con los
+  // números de la semana pasada con fecha de hoy, que es peor que no
+  // tener conteo: un dato viejo con cara de nuevo.
+  document.getElementById('cf-s0-fecha').value = hoyISO();
+  var hs='<div class="cf-ph" style="grid-template-columns:minmax(0,1fr) 150px 130px">'
+        +'<span>Producto</span><span>Último conteo</span><span>Contado ahora</span></div>';
   PROD.filter(function(p){ return p.activo!==false; })
       .sort(function(a,b){ return (a.orden||0)-(b.orden||0); })
       .forEach(function(p){
-    var v = STOCK0[p.id]!==undefined ? STOCK0[p.id] : '';
-    hs+='<div class="cf-pr" style="grid-template-columns:minmax(0,1fr) 130px" data-id="'+p.id+'">'
+    var prev = STOCK0[p.id]!==undefined
+      ? n0(STOCK0[p.id])+'<span class="upd">al '+fechaCorta(STOCK0F[p.id]||'')+'</span>'
+      : '<span class="calc">nunca</span>';
+    hs+='<div class="cf-pr" style="grid-template-columns:minmax(0,1fr) 150px 130px" data-id="'+p.id+'">'
       +'<div class="cf-row-n" style="text-align:left">'+esc(p.nombre)
         +'<small>'+esc(p.codigo)+'</small></div>'
-      +'<input class="cf-s0" type="number" step="1" value="'+v+'" placeholder="sin cargar"/></div>';
+      +'<div style="text-align:right;font-family:var(--mono);font-size:12px;color:var(--muted)">'+prev+'</div>'
+      +'<input class="cf-s0" type="number" step="1" value="" placeholder="—"/></div>';
   });
   document.getElementById('cf-stock').innerHTML=hs;
+  // Los productos que no se cuenten esta vez conservan su conteo anterior
+  // CON SU FECHA: por eso la fecha va por fila y no por temporada. Un
+  // conteo parcial es válido y cada producto sigue anclado a su día.
+  var sinContar=PROD.filter(function(p){ return p.activo!==false && STOCK0[p.id]===undefined; }).length;
+  document.getElementById('ct-hint').innerHTML = sinContar
+    ? '<b>'+sinContar+' producto'+(sinContar===1?' no tiene':'s no tienen')+' ningún conteo todavía.</b> '
+      +'Los que dejes vacíos conservan lo que ya tenían, con su fecha.'
+    : 'Lo que dejes vacío conserva el conteo anterior, con su fecha. '
+      +'Contar sólo algunos productos es válido.';
 }
 
 function guardarConteo(){
@@ -2612,13 +2686,19 @@ function pintarEvLista(){
   document.getElementById('ev-cnt').textContent=ords.length;
   document.getElementById('ev-lista').innerHTML = ords.length ? ords.map(function(e){
     var w=Cloro.semanaDe(new Date(e.fecha+'T00:00:00Z'), dIni(t));
-    return '<div class="cf-pr" style="grid-template-columns:minmax(0,1fr) 92px 78px 92px 42px">'
+    return '<div class="cf-pr" style="grid-template-columns:minmax(0,1fr) 92px 78px 92px 42px 42px">'
       +'<div class="cf-row-n" style="text-align:left">'+esc(nom[e.producto_id]||('#'+e.producto_id))
         +'<small>'+(e.orden?esc(e.orden)+' · ':'')+(e.nota?esc(e.nota):'')+'</small></div>'
       +'<span style="font-family:var(--mono);font-size:11.5px;color:var(--muted-l)">'
         +fechaCorta(e.fecha)+'</span>'
       +'<span class="chip">sem '+w+'</span>'
       +'<span style="font-family:var(--mono);font-weight:600">'+n0(e.cantidad)+' u</span>'
+      // Reimprimir: el papel se pierde, se moja o se lo lleva alguien.
+      // Sólo tiene sentido si la orden llegó a tener número.
+      +(e.orden
+        ? '<button class="x" title="Reimprimir la orden '+esc(e.orden)+'" '
+          +'onclick="pdfOrden(\''+esc(String(e.orden).replace(/'/g,"\\'"))+'\')">🖨</button>'
+        : '<span></span>')
       +'<button class="x" title="Borrar esta orden" onclick="borrarEnvasado('+e.id+')">🗑</button>'
       +'</div>';
   }).join('') : '<div class="hint">Todavía no hay órdenes en esta temporada.</div>';

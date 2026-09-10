@@ -123,9 +123,14 @@ window.OCPdf = (function(){
     doc.text('Fecha:', x+w/2+8, y+62);
   }
 
-  // Construye el PDF. mode: 'compra' (con costos+totales) | 'recepcion' (solo cantidades)
+  // Construye el PDF.
+  //  mode: 'compra'    → con costos y totales
+  //        'recepcion' → sólo cantidades, para firmar al recibir
+  //        'envasado'  → ORDEN DE ENVASADO A PRODUCCIÓN: no hay proveedor
+  //                      ni costos, va para adentro. Ver buildEnvasado.
   function build(oc, mode){
     if(!window.jspdf || !window.jspdf.jsPDF){ throw new Error('No se pudo cargar el generador de PDF (revisá tu conexión).'); }
+    if(mode==='envasado') return buildEnvasado(oc);
     var esRecep = (mode==='recepcion');
     var doc = new window.jspdf.jsPDF({unit:'pt', format:'a4', orientation:'landscape'});
     var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -247,6 +252,101 @@ window.OCPdf = (function(){
     doc.save((esRecep?'Recepcion':'OC')+'-'+oc.orden+'.pdf');
   }
 
+
+  // ── ORDEN DE ENVASADO A PRODUCCIÓN ─────────────────────────
+  //  Este papel va para ADENTRO, no a un proveedor. Por eso no comparte
+  //  la caja de datos de la OC —que es toda proveedor, RUC y dirección—
+  //  ni lleva precios: al operario de la línea el costo no le sirve y le
+  //  agrega ruido a un papel que tiene que leerse de un vistazo.
+  //  Lo que sí comparte es el logo, la tipografía, el naranja, los
+  //  bloques de firma y el guardado: es el mismo documento de la misma
+  //  empresa, y por eso vive acá y no en un archivo aparte.
+  //
+  //    OCPdf.build({
+  //      orden:'E-001', fecha:'2026-09-09',
+  //      temporada:'2026-2027', semana:7, obs:'texto libre',
+  //      lines:[{cod, desc, cant, materia, kg}]
+  //    }, 'envasado');
+  function buildEnvasado(oc){
+    var doc = new window.jspdf.jsPDF({unit:'pt', format:'a4', orientation:'landscape'});
+    var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    var M = 28, OR=[242,101,34], BK=[20,20,20];
+
+    drawDocLogo(doc, M+52, 92, 46);
+
+    var tx = M+120;
+    doc.setFont('helvetica','bold'); doc.setTextColor(BK[0],BK[1],BK[2]); doc.setFontSize(32);
+    doc.text('SUBATIR S.A.', tx, 74);
+    doc.setTextColor(OR[0],OR[1],OR[2]);
+    doc.setFontSize(25); doc.text('ORDEN DE ENVASADO', tx, 110);
+    doc.setFontSize(19); doc.text('A PRODUCCIÓN', tx, 136);
+
+    // Caja de datos: cuatro celdas, sin proveedor.
+    var bx=W-352, by=30, bw=W-M-bx, bh=100, bottom=by+bh;
+    var midX=bx+bw/2, midY=by+bh/2;
+    doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1.1); doc.roundedRect(bx,by,bw,bh,7,7,'S');
+    doc.setLineWidth(0.9);
+    doc.line(midX,by,midX,bottom); doc.line(bx,midY,bx+bw,midY);
+
+    function lbl(t,x,y){ doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(OR[0],OR[1],OR[2]); doc.text(t,x,y); }
+    function val(t,x,y,size){
+      doc.setFont('helvetica','bold'); doc.setTextColor(BK[0],BK[1],BK[2]);
+      doc.setFontSize(size||14); doc.text(String(t==null||t===''?'—':t), x, y);
+    }
+    lbl('N° de orden', bx+12, by+18);   val(oc.orden, bx+12, by+41, 18);
+    lbl('Fecha', midX+12, by+18);       val(fmtDate(oc.fecha||'')||'—', midX+12, by+41, 14);
+    lbl('Temporada', bx+12, midY+18);   val(oc.temporada, bx+12, midY+41, 13);
+    lbl('Semana', midX+12, midY+18);    val(oc.semana!=null?('N° '+oc.semana):'—', midX+12, midY+41, 14);
+
+    // Tabla. La materia prima y los kg van porque el que envasa es el que
+    // va a buscarla al depósito: sin eso el papel obliga a una consulta.
+    var lines = oc.lines||[];
+    var hayMP = lines.some(function(l){ return String(l.materia||'').trim() || (parseFloat(l.kg)||0)>0; });
+    var head = hayMP
+      ? [['ÍTEM','CÓDIGO','PRODUCTO A ENVASAR','CANTIDAD (u)','MATERIA PRIMA','kg']]
+      : [['ÍTEM','CÓDIGO','PRODUCTO A ENVASAR','CANTIDAD (u)']];
+    var body = lines.map(function(l,i){
+      var base=[String(i+1), String(l.cod||'—'), String(l.desc||''), fmtNum(l.cant)];
+      return hayMP ? base.concat([String(l.materia||'—'), (parseFloat(l.kg)||0)>0?fmtNum(l.kg,1):'—']) : base;
+    });
+    var colStyles = hayMP
+      ? {0:{cellWidth:40}, 1:{cellWidth:74}, 2:{halign:'left', fontStyle:'bold'}, 3:{cellWidth:92}, 4:{cellWidth:150, halign:'left'}, 5:{cellWidth:70}}
+      : {0:{cellWidth:46}, 1:{cellWidth:90}, 2:{halign:'left', fontStyle:'bold'}, 3:{cellWidth:130}};
+    var totU = lines.reduce(function(a,l){ return a+(parseFloat(l.cant)||0); }, 0);
+    var totK = lines.reduce(function(a,l){ return a+(parseFloat(l.kg)||0); }, 0);
+    var foot = hayMP
+      ? [['', '', 'TOTAL', fmtNum(totU), '', totK>0?fmtNum(totK,1):'—']]
+      : [['', '', 'TOTAL', fmtNum(totU)]];
+
+    doc.autoTable({
+      startY: Math.max(bottom,168)+16, head:head, body:body, foot:foot,
+      theme:'grid', margin:{left:M,right:M},
+      styles:{fontSize:10.5, cellPadding:9, halign:'center', valign:'middle', lineColor:OR, lineWidth:0.8, textColor:BK},
+      headStyles:{fillColor:OR, textColor:255, fontStyle:'bold', fontSize:11, halign:'center', cellPadding:8},
+      footStyles:{fillColor:[245,245,245], textColor:BK, fontStyle:'bold', fontSize:11, halign:'center'},
+      columnStyles: colStyles
+    });
+    var yy=(doc.lastAutoTable?doc.lastAutoTable.finalY:200)+16;
+
+    var obs = String(oc.obs||'').trim() || '—';
+    var obsLines = doc.splitTextToSize(obs, W-2*M-24);
+    var obsBoxH = 22 + obsLines.length*14;
+    doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1); doc.roundedRect(M, yy, W-2*M, obsBoxH, 6,6,'S');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(OR[0],OR[1],OR[2]);
+    doc.text('OBSERVACIONES:', M+12, yy+16);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(BK[0],BK[1],BK[2]);
+    doc.text(obsLines, M+12, yy+32);
+
+    var sy = yy + obsBoxH + 20; if(sy > H-92) sy = H-92;
+    var half=(W-2*M-20)/2;
+    drawSignBlock(doc, M, sy, half, 'ENVASÓ');
+    drawSignBlock(doc, M+half+20, sy, half, 'CONTROLÓ');
+
+    doc.setFontSize(7.5); doc.setTextColor(160,160,160);
+    doc.text('Generado el '+new Date().toLocaleString('es-UY'), M, H-14);
+
+    doc.save('Envasado-'+oc.orden+'.pdf');
+  }
 
   // Para que la pantalla pueda esconder el boton en vez de dejar que
   // explote reciendo el clic.

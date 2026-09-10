@@ -495,21 +495,6 @@ window.APP_VER='2026-09-10.1205';
   <!-- Detalle de la semana fijada con un clic en el gráfico -->
   <div id="g-temp-det"></div>
 
-  <!-- ══ Gráfico: materia prima por semana ══════════════════ -->
-  <div class="card sec">
-    <div class="sec-h">
-      <div class="sec-t">
-        <div class="sec-ico or">🧪</div>
-        <div>
-          <div class="sec-eyebrow">Consumo previsto en el horizonte</div>
-          <h2>Materia prima por semana</h2>
-        </div>
-      </div>
-    </div>
-    <div class="graf" id="g-mp"></div>
-    <div class="leg" id="g-mp-leg"></div>
-  </div>
-
   <!-- ══ Fichas por producto ════════════════════════════════ -->
   <div class="card sec">
     <div class="sec-h">
@@ -542,21 +527,24 @@ window.APP_VER='2026-09-10.1205';
       <table>
         <thead>
           <tr>
+            <!-- Cada columna dice qué es al pasar el mouse. La tabla se
+                 lee para decidir una producción, y varias de estas
+                 columnas ya se leyeron mal alguna vez. -->
             <th class="l">Producto</th>
-            <th class="l">Materia prima</th>
-            <th>Ventas temp.</th>
+            <th class="l" title="La materia prima que consume y cuántos kg lleva cada unidad envasada. Se carga por SQL desde la planilla de productos.">Materia prima</th>
+            <th title="Unidades vendidas en lo que va de la temporada, netas de devoluciones. Salen de los .xls importados del sistema.">Ventas temp.</th>
             <!-- "Envasado" solo se leia como "lo que hay envasado", que es
                  el Stock hoy. Es lo que SE ENVASO: la suma de las ordenes
                  de la temporada. Puede estar en cero con el deposito
                  lleno, porque el conteo ya trae adentro todo lo que se
                  envaso antes de el. -->
-            <th title="Unidades envasadas en esta temporada, según las órdenes cargadas. No es lo que hay en depósito: eso es «Stock hoy»">Envasado en la temp.</th>
-            <th title="Lo que hay en depósito: el último conteo, ajustado por lo que falta vender de esta semana y por lo que se envase">Stock hoy</th>
-            <th>Prev. próx. sem.</th>
-            <th>Demanda horiz.</th>
-            <th>Sugerido</th>
-            <th class="out">A envasar</th>
-            <th class="out">kg de MP</th>
+            <th title="Unidades envasadas en esta temporada, según las órdenes cargadas. NO es lo que hay en depósito: eso es «Stock hoy». Puede estar en cero con el depósito lleno, porque el conteo ya trae adentro lo envasado antes de él.">Envasado en la temp.</th>
+            <th title="Lo que hay en depósito: el conteo, más lo envasado, menos lo vendido. Debajo, cuántas semanas aguanta al ritmo previsto.">Stock hoy</th>
+            <th title="Cuánto se prevé vender la semana que viene. Sale del histórico del año pasado suavizado, corregido por el crecimiento.">Prev. próx. sem.</th>
+            <th title="Lo que se prevé vender en todo el horizonte de planificación (el chip de arriba dice de cuántas semanas es).">Demanda horiz.</th>
+            <th title="Lo que el módulo propone envasar: la demanda del horizonte más el colchón, menos el stock, redondeado al lote. Es una propuesta, no una orden.">Sugerido</th>
+            <th class="out" title="Lo que vos decidís envasar esta semana. Es el número que manda: de acá salen el stock, el consumo de materia prima y la cobertura.">A envasar</th>
+            <th class="out" title="Kilos de materia prima que consume lo de la columna «A envasar». Si todavía no escribiste nada, muestra los del sugerido.">kg de MP</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -589,6 +577,21 @@ window.APP_VER='2026-09-10.1205';
         <tbody id="tbody-mp"></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- ══ Gráfico: materia prima por semana ══════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico or">🧪</div>
+        <div>
+          <div class="sec-eyebrow">Consumo previsto en el horizonte</div>
+          <h2>Materia prima por semana</h2>
+        </div>
+      </div>
+    </div>
+    <div class="graf" id="g-mp"></div>
+    <div class="leg" id="g-mp-leg"></div>
   </div>
 
 </main>
@@ -1356,9 +1359,25 @@ function pintarFoco(){
 }
 // El mes en el que cae cada semana, para poder rotular con algo que una
 // persona entienda. "Semana 23" no le dice nada a nadie; "ene" sí.
+var MESES_L=['enero','febrero','marzo','abril','mayo','junio','julio',
+             'agosto','septiembre','octubre','noviembre','diciembre'];
+// El LUNES de una semana de temporada. Todas las cuentas de calendario
+// salen de acá: la semana es propia de la temporada, no ISO.
+function lunesDe(t,w){
+  return new Date(Cloro.lunesInicio(dIni(t)).getTime()+(w-1)*7*86400000);
+}
 function mesDeSemana(t,w){
-  var d=new Date(Cloro.lunesInicio(dIni(t)).getTime()+(w-1)*7*86400000);
-  return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getUTCMonth()];
+  return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][lunesDe(t,w).getUTCMonth()];
+}
+// "2ª semana de febrero". La semana del mes se cuenta por el lunes: la
+// semana que arranca el 9 de febrero es la 2ª de febrero aunque termine
+// en marzo. Es como lo dice la gente y evita el caso raro de una semana
+// que "pertenece" a dos meses.
+function semanaDelMes(t,w){
+  var d=lunesDe(t,w);
+  var n=Math.floor((d.getUTCDate()-1)/7)+1;
+  return {n:n, mes:MESES_L[d.getUTCMonth()],
+          txt: n+'ª semana de '+MESES_L[d.getUTCMonth()]};
 }
 
 function dibujarTemporada(){
@@ -1519,7 +1538,7 @@ function pintarDetalleSemana(){
   host.className='card sec det-sem';
   host.innerHTML='<div class="sec-h"><div class="sec-t"><div class="sec-ico">🔎</div><div>'
       +'<div class="sec-eyebrow">'+(cerrada?'Semana cerrada':(w===SEM_ACTUAL?'Semana en curso':'Semana futura'))+'</div>'
-      +'<h2>Semana '+w+' · '+mesDeSemana(t,w)+'</h2></div></div>'
+      +'<h2>Semana '+w+' · '+semanaDelMes(t,w).txt+'</h2></div></div>'
       +'<div class="sec-tools"><button class="btn btn-sm" onclick="fijarSemana('+w+')">✕ Cerrar</button></div></div>'
     +'<div class="twrap"><table><thead><tr>'
       +'<th class="l">Producto</th><th>'+esc(t.nombre)+'</th>'
@@ -1580,7 +1599,7 @@ function engancharHover(host, vis, prevision, X, Y, ML, MR, W, t){
         +'<span class="n">previsión</span><span class="v">'+n0(prevision[w-1])+'</span></div>';
     }
     cross.innerHTML=c;
-    tip.innerHTML='<div class="t">Semana '+w+' · '+mesDeSemana(t,w)+'</div>'+filas2
+    tip.innerHTML='<div class="t">Semana '+w+' · '+semanaDelMes(t,w).txt+'</div>'+filas2
       +'<div class="tip-cta">clic para ver el detalle por producto</div>';
     tip.classList.add('on');
     var left=(x/W)*r.width + 14;
@@ -1879,8 +1898,38 @@ function pintarAvisos(){
       +'convienen mirados por mes. '
       +rot.slice(0,4).map(function(f){ return esc(f.prod.nombre); }).join(' · ')});
   }
+  // Productos sin envasar en la semana en curso. Al principio de la
+  // semana es normal y sólo se informa; sobre el final es una pregunta
+  // que hay que contestar antes de seguir, porque un olvido acá se
+  // arrastra: la semana cierra, el stock baja y nadie se entera hasta
+  // que falta producto.
+  if(!temporadaTerminada(t) && !temporadaNoArranco(t)){
+    var sinEnv = fs.filter(function(f){ return !f.tieneEnv; });
+    var d=diasRestantesSemana(t);
+    if(sinEnv.length && d<=2){
+      a.push({t:'urg', txt:'<b>La semana '+SEM_ACTUAL+' cierra '
+        +(d===0?'hoy':(d===1?'mañana':'en '+d+' días'))+' y '+sinEnv.length+' producto'
+        +(sinEnv.length===1?' no tiene':'s no tienen')+' nada cargado en «A envasar».</b> '
+        +'Si es a propósito, dejalo así; si fue un olvido, todavía estás a tiempo: '
+        +sinEnv.slice(0,5).map(function(f){ return esc(f.prod.nombre); }).join(' · ')
+        +(sinEnv.length>5?' y '+(sinEnv.length-5)+' más':'')});
+    } else if(sinEnv.length && sinEnv.length<fs.length){
+      a.push({t:'info', txt:sinEnv.length+' producto'+(sinEnv.length===1?'':'s')
+        +' sin envasado cargado esta semana. Quedan '+d+' día'+(d===1?'':'s')
+        +' para el cierre.'});
+    }
+  }
   document.getElementById('avisos').innerHTML = a.map(function(x){
     return '<div class="aviso '+x.t+'">'+x.txt+'</div>'; }).join('');
+}
+
+// Cuántos días faltan para que cierre la semana de temporada en curso.
+// La semana arranca lunes y cierra domingo: 0 = cierra hoy.
+function diasRestantesSemana(t){
+  var lun=lunesDe(t, SEM_ACTUAL);
+  var dom=new Date(lun.getTime()+6*86400000);
+  var hoy=new Date(hoyISO()+'T00:00:00Z');
+  return Math.max(0, Math.round((dom-hoy)/86400000));
 }
 
 function fechaCorta(iso){
@@ -1892,6 +1941,21 @@ function hoyISO(){
   var d=new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
         +'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// Debajo del total de la temporada, qué se está envasando ESTA semana.
+// El total es la foto del año; lo que se necesita para trabajar es lo de
+// la semana, y estaba a tres clics de distancia.
+function detalleSemanaEnvasado(fs){
+  var conEnv = fs.filter(function(f){ return f.tieneEnv && f.envSem>0; });
+  if(!conEnv.length) return 'suma de las órdenes cargadas — nada esta semana todavía';
+  var tot = conEnv.reduce(function(s,f){ return s+f.envSem; }, 0);
+  conEnv.sort(function(a,b){ return b.envSem-a.envSem; });
+  return '<b class="c-te">semana '+SEM_ACTUAL+': '+n0(tot)+' u</b> · '
+    + conEnv.slice(0,4).map(function(f){
+        return esc(f.prod.nombre.replace(/\s*\(.*\)\s*$/,'').slice(0,22))+' '+n0(f.envSem);
+      }).join(' · ')
+    + (conEnv.length>4 ? ' · +'+(conEnv.length-4)+' más' : '');
 }
 
 function pintarKPIs(){
@@ -1919,8 +1983,7 @@ function pintarKPIs(){
      kpi('a','Ventas de la temporada', n0(vTemp)+' u', 'c-ag',
          dif==null ? 'sin comparación' : 'contra el mismo tramo del año pasado: '
            +'<span class="dif '+(dif>=0?'up':'dn')+'">'+(dif>=0?'+':'')+n1(dif)+'%</span>')
-   + kpi('b','Envasado en la temporada', n0(envTemp)+' u', 'c-te',
-         'suma de las órdenes cargadas — no es lo que hay en depósito')
+   + kpi('b','Envasado en la temporada', n0(envTemp)+' u', 'c-te', detalleSemanaEnvasado(fs))
    + kpi('c','Stock hoy', base?(n0(stkHoy)+' u'):'—', 'c-pu',
          !base ? 'falta cargar stock inicial y envasado'
          : sinBase ? '<span class="c-rd">'+sinBase+' producto'+(sinBase===1?'':'s')

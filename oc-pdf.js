@@ -309,9 +309,10 @@ window.OCPdf = (function(){
       var base=[String(i+1), String(l.cod||'—'), String(l.desc||''), fmtNum(l.cant)];
       return hayMP ? base.concat([String(l.materia||'—'), (parseFloat(l.kg)||0)>0?fmtNum(l.kg,1):'—']) : base;
     });
+    // ÍTEM necesita ~54pt: con menos, el encabezado se parte en "ÍTE/M".
     var colStyles = hayMP
-      ? {0:{cellWidth:40}, 1:{cellWidth:74}, 2:{halign:'left', fontStyle:'bold'}, 3:{cellWidth:92}, 4:{cellWidth:150, halign:'left'}, 5:{cellWidth:70}}
-      : {0:{cellWidth:46}, 1:{cellWidth:90}, 2:{halign:'left', fontStyle:'bold'}, 3:{cellWidth:130}};
+      ? {0:{cellWidth:54}, 1:{cellWidth:74}, 2:{halign:'left', fontStyle:'bold'}, 3:{cellWidth:92}, 4:{cellWidth:146, halign:'left'}, 5:{cellWidth:66}}
+      : {0:{cellWidth:54}, 1:{cellWidth:90}, 2:{halign:'left', fontStyle:'bold'}, 3:{cellWidth:130}};
     var totU = lines.reduce(function(a,l){ return a+(parseFloat(l.cant)||0); }, 0);
     var totK = lines.reduce(function(a,l){ return a+(parseFloat(l.kg)||0); }, 0);
     var foot = hayMP

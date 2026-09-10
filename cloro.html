@@ -1964,8 +1964,13 @@ function generarOrden(){
   var ops=b.map(function(e,i){
     var nro = agrup ? orden
             : (n0i!=null ? 'E-'+String(n0i+i).padStart(3,'0') : orden+'-'+(i+1));
+    // La nota pasa a ser la que escribió quien emite, aunque sea vacía.
+    // Antes caía a la del renglón, que es la marca interna "Semana N —
+    // cargado desde la tabla": eso terminaba impreso en Observaciones de
+    // un papel que baja a la planta. Ya no hace falta como rastro: la
+    // fila tiene número de orden.
     return SB.from('cl_envasado')
-      .update({orden:nro, fecha:fecha, nota:nota||e.nota})
+      .update({orden:nro, fecha:fecha, nota:nota||null})
       .eq('id', e.id).select();
   });
   Promise.all(ops).then(function(rs){

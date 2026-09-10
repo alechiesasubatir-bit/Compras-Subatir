@@ -521,8 +521,13 @@ window.APP_VER='2026-09-10.0034';
             <th class="l">Producto</th>
             <th class="l">Materia prima</th>
             <th>Ventas temp.</th>
-            <th>Envasado</th>
-            <th>Stock hoy</th>
+            <!-- "Envasado" solo se leia como "lo que hay envasado", que es
+                 el Stock hoy. Es lo que SE ENVASO: la suma de las ordenes
+                 de la temporada. Puede estar en cero con el deposito
+                 lleno, porque el conteo ya trae adentro todo lo que se
+                 envaso antes de el. -->
+            <th title="Unidades envasadas en esta temporada, según las órdenes cargadas. No es lo que hay en depósito: eso es «Stock hoy»">Envasado en la temp.</th>
+            <th title="Lo que hay en depósito: el último conteo, ajustado por lo que falta vender de esta semana y por lo que se envase">Stock hoy</th>
             <th>Prev. próx. sem.</th>
             <th>Demanda horiz.</th>
             <th>Sugerido</th>
@@ -1770,7 +1775,8 @@ function pintarKPIs(){
      kpi('a','Ventas de la temporada', n0(vTemp)+' u', 'c-ag',
          dif==null ? 'sin comparación' : 'contra el mismo tramo del año pasado: '
            +'<span class="dif '+(dif>=0?'up':'dn')+'">'+(dif>=0?'+':'')+n1(dif)+'%</span>')
-   + kpi('b','Envasado', n0(envTemp)+' u', 'c-te', 'órdenes cargadas en la temporada')
+   + kpi('b','Envasado en la temporada', n0(envTemp)+' u', 'c-te',
+         'suma de las órdenes cargadas — no es lo que hay en depósito')
    + kpi('c','Stock hoy', base?(n0(stkHoy)+' u'):'—', 'c-pu',
          !base ? 'falta cargar stock inicial y envasado'
          : sinBase ? '<span class="c-rd">'+sinBase+' producto'+(sinBase===1?'':'s')
@@ -2859,7 +2865,7 @@ function exportCSV(){
   var matNom={}; MAT.forEach(function(m){ matNom[m.id]=m.nombre; });
   var cerradas=Math.max(0, SEM_ACTUAL-1);
   var cab=['Temporada','Semana actual','Producto','Código','Materia prima','kg MP por unidad',
-           'Lote','Ventas temporada','Ventas mismo tramo año anterior','Envasado',
+           'Lote','Ventas temporada','Ventas mismo tramo año anterior','Envasado en la temporada',
            'Stock hoy','Previsión próxima semana','Demanda horizonte ('+n0(PAR.horizonte_semanas)
            +' sem)','Sugerido','A envasar (operador)','kg de MP','Baja rotación'];
   var q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };

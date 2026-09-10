@@ -76,10 +76,20 @@ window.OCPdf = (function(){
   function clipStr(s,n){ s=String(s==null?'':s); return s.length>n ? s.slice(0,n-1)+'…' : s; }
 
   // Precarga el logo (logo.jpg) recortado en círculo como PNG (data URL)
+  //
+  // Es ASINCRONA, y eso importa: en Pedidos este script carga con la
+  // página, así que para cuando alguien pide un PDF la imagen ya está.
+  // En Previsión Cloro se carga on-demand justo antes de construir, y el
+  // primer PDF salía con el matraz dibujado a mano en vez del logo real.
+  // Por eso `listo()`: quien cargue el módulo tarde puede esperarlo.
   var LOGO_CIRC = null;
-  (function preloadLogo(){
+  var LOGO_LISTO = new Promise(function(resolve){
     try{
       var img = new Image();
+      // Resuelve SIEMPRE, con logo o sin él: esto no es para saber si
+      // salió bien, es para no dibujar antes de tiempo. Un logo que no
+      // carga tiene su respaldo; una espera que no termina deja al
+      // usuario apretando un botón que no hace nada.
       img.onload = function(){
         try{
           var D = 320, c = document.createElement('canvas'); c.width = c.height = D;
@@ -91,10 +101,15 @@ window.OCPdf = (function(){
           ctx.restore();
           LOGO_CIRC = c.toDataURL('image/png');
         }catch(e){ /* canvas tainted u otro: se usa el fallback dibujado */ }
+        resolve();
       };
+      img.onerror = function(){ resolve(); };
+      // Red muy lenta o pedido bloqueado: ni onload ni onerror llegan.
+      // Sin este corte, el botón de PDF se queda esperando para siempre.
+      setTimeout(resolve, 3000);
       img.src = 'logo.jpg';
-    }catch(e){}
-  })();
+    }catch(e){ resolve(); }
+  });
 
   // Dibuja el logo circular en el PDF (imagen real si cargó; si no, matraz dibujado)
   function drawDocLogo(doc, cx, cy, r){
@@ -353,5 +368,10 @@ window.OCPdf = (function(){
   // explote reciendo el clic.
   function disponible(){ return !!(window.jspdf && window.jspdf.jsPDF); }
 
-  return { build: build, disponible: disponible };
+  // Resuelve cuando el logo terminó de intentar cargar. Sólo hace falta
+  // si el módulo se carga on-demand: quien lo tiene desde el <head> ya
+  // llega tarde a este problema.
+  function listo(){ return LOGO_LISTO; }
+
+  return { build: build, disponible: disponible, listo: listo };
 })();

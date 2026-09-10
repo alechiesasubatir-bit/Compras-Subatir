@@ -97,6 +97,15 @@ main{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:18px 20p
   text-transform:uppercase;color:var(--muted)}
 .sec-t h2{font-family:var(--display);font-size:15.5px;font-weight:800;letter-spacing:-.2px}
 .sec-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+/* El bloque del cierre semanal: dos botones bajo un rótulo común, para
+   que se lean como un solo gesto y no como dos tareas sueltas. */
+.cierre{display:flex;flex-direction:column;gap:5px;padding:7px 9px 8px;border-radius:12px;
+  background:rgba(14,138,170,.10);border:1px solid rgba(27,200,255,.26)}
+.cierre-h{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.6px;
+  text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.cierre-h b{font-family:var(--mono);letter-spacing:0;color:var(--teal-l);font-size:10.5px}
+.cierre-b{display:flex;gap:7px;flex-wrap:wrap}
+@media(max-width:640px){ .cierre{width:100%} .cierre-b{flex-direction:column} .cierre-b .btn{width:100%} }
 
 /* ── Tabla ────────────────────────────────────────────────── */
 .twrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.16)}
@@ -412,10 +421,20 @@ window.APP_VER='2026-09-10.0019';
     <div class="sec-tools">
       <button class="btn btn-sm" onclick="openConfig()"
               title="Temporadas, materias primas y parámetros">⚙ Configuración</button>
-      <button class="btn btn-sm btn-teal" onclick="openImportar()"
-              title="Subir los .xls de ventas del ERP">📥 Importar ventas</button>
-      <button class="btn btn-sm btn-teal" onclick="openConteo()"
-              title="Cargar lo que hay de cada producto envasado, con su fecha">📋 Conteo de stock</button>
+      <!-- Las dos mitades del cierre semanal van juntas porque se hacen
+           juntas: se exporta el listado con un corte y se cuenta ese
+           mismo día. Separadas, es fácil hacer una y olvidar la otra, y
+           entonces el conteo queda contra ventas de otra fecha. -->
+      <div class="cierre">
+        <div class="cierre-h">Cierre semanal · ventas cargadas hasta
+          <b id="ctx-vhasta">—</b></div>
+        <div class="cierre-b">
+          <button class="btn btn-sm btn-teal" onclick="openImportar()"
+                  title="Subir los .xls de ventas del sistema">📥 Importar ventas</button>
+          <button class="btn btn-sm btn-teal" onclick="openConteo()"
+                  title="Cargar lo que hay de cada producto envasado, con su fecha">📋 Conteo de stock</button>
+        </div>
+      </div>
       <button class="btn btn-sm" onclick="openEnvasado()"
               title="Ver y corregir las órdenes de cualquier semana">📄 Órdenes</button>
       <button class="btn btn-sm btn-pri" onclick="openGenerar()"
@@ -712,6 +731,7 @@ window.APP_VER='2026-09-10.0019';
       <p class="cf-p">Los listados de ventas por producto que exporta el sistema, tal cual salen.
         Podés soltar los 13 de una vez. El producto se reconoce por el <b>Cod. Art.</b> y la
         temporada por las fechas.</p>
+      <div class="aviso info" id="imp-desde" style="margin-bottom:10px">—</div>
       <div class="drop" id="imp-drop" tabindex="0" role="button"
            onclick="document.getElementById('imp-file').click()"
            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('imp-file').click();}">
@@ -1599,6 +1619,21 @@ function pintarContexto(){
   document.getElementById('chip-horiz').textContent =
     'horizonte: '+n0(PAR.horizonte_semanas)+' semanas · colchón '+n1(PAR.semanas_seguridad)+' · suavizado ±'
     +Math.floor(num(PAR.suavizado_semanas)/2);
+  // Hasta qué día están cargadas las ventas: es desde donde hay que pedir
+  // el listado siguiente. Se muestra al lado de los dos botones del
+  // cierre porque es el dato que se necesita justo antes de exportarlo.
+  var vh=document.getElementById('ctx-vhasta');
+  vh.textContent = (t && t.ventas_hasta) ? fechaCorta(t.ventas_hasta) : 'sin importar';
+  vh.title = (t && t.ventas_hasta)
+    ? 'Pedí el listado desde el día siguiente: '+fechaCorta(diaSiguiente(t.ventas_hasta))
+    : 'Todavía no se importó ninguna venta en esta temporada';
+}
+
+// El día después de una fecha ISO, en ISO. En UTC para que no cambie con
+// el huso: acá una fecha es un día del calendario, no un instante.
+function diaSiguiente(iso){
+  var d=new Date(iso+'T00:00:00Z');
+  return new Date(d.getTime()+86400000).toISOString().slice(0,10);
 }
 
 function pintarAvisos(){
@@ -1907,7 +1942,15 @@ function cargarPDF(){
     // Con la versión de la app pegada: como esta carga es dinámica,
     // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
     // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
-    .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js?v=2026-09-10.0019'+APP_VER); })
+    // El literal va PARTIDO a propósito: bump-version.ps1 busca
+    // `oc-pdf.js?v=` y reescribe lo que sigue, y encontró este string
+    // dentro del JS dejándolo en 'oc-pdf.js?v=2026-09-10.0019'+APP_VER.
+    // Partido, el patrón no aparece y la versión la pone APP_VER sola.
+    .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js'+'?v='+APP_VER); })
+    // El logo se precarga solo y es asíncrono. Sin esperarlo, el primer
+    // PDF de la sesión sale con el matraz de respaldo en vez del logo
+    // real: pasó, y sólo se ve mirando el papel.
+    .then(function(){ return (window.OCPdf && OCPdf.listo) ? OCPdf.listo() : null; })
     .catch(function(e){ PDFLIB=null; throw e; });
   return PDFLIB;
 }
@@ -2440,6 +2483,19 @@ function openImportar(){
   document.getElementById('imp-prev').innerHTML='';
   document.getElementById('imp-file').value='';
   document.getElementById('btn-imp').disabled=true;
+  // Desde qué día pedir el listado. Es lo primero que hace falta saber al
+  // abrir esto, y antes había que ir a buscarlo a otro lado o adivinar:
+  // de menos, se duplican ventas; de más, se pierden.
+  var t=temporadaActual();
+  document.getElementById('imp-desde').innerHTML = (t && t.ventas_hasta)
+    ? 'Las ventas de <b>'+esc(t.nombre)+'</b> están cargadas hasta el <b>'
+      +fechaCorta(t.ventas_hasta)+'</b>. Pedí el listado <b>desde el '
+      +fechaCorta(diaSiguiente(t.ventas_hasta))+'</b>. Volver a subir días ya cargados no '
+      +'duplica nada —la semana entera se reescribe— pero pisa lo que había con lo que traiga '
+      +'el archivo nuevo.'
+    : (t ? 'Todavía no se importó ninguna venta de <b>'+esc(t.nombre)+'</b>. Pedí el listado '
+         +'desde el <b>'+fechaCorta(t.fecha_ini)+'</b>, que es el arranque de la temporada.'
+        : '—');
   abrir('ovl-imp');
 }
 
@@ -2500,7 +2556,7 @@ function archivosElegidos(files){
 
 function analizar(leidos){
   var porCodigo={}; PROD.forEach(function(p){ porCodigo[String(p.codigo).trim()]=p; });
-  var grupos={}, desconocidos={}, fueraTemp=0, vacios=[];
+  var grupos={}, desconocidos={}, fueraTemp=0, vacios=[], hasta={};
   leidos.forEach(function(arch){
     if(!arch.filas.length){ vacios.push(arch.nombre); return; }
     arch.filas.forEach(function(f){
@@ -2518,6 +2574,12 @@ function analizar(leidos){
       g.total+=f.cant;
       if(w<g.wMin) g.wMin=w; if(w>g.wMax) g.wMax=w;
       g.archivos[arch.nombre]=1;
+      // La fecha de la última factura del lote, por temporada. Es lo
+      // único de la fecha exacta que sobrevive: cl_ventas agrega por
+      // semana y ahí se pierde si el archivo llegaba hasta el lunes o
+      // hasta el domingo. Sin esto no se sabe desde cuándo pedir el
+      // listado siguiente.
+      if(!hasta[t.id] || f.iso>hasta[t.id]) hasta[t.id]=f.iso;
     });
   });
   // Total que ya hay cargado, para poder mostrar la diferencia antes de pisar.
@@ -2529,7 +2591,7 @@ function analizar(leidos){
     g.anterior=ant;
     g.tieneDatos = s.some(function(x){ return num(x)!==0; });
   });
-  return {grupos:grupos, desconocidos:desconocidos, fueraTemp:fueraTemp, vacios:vacios};
+  return {grupos:grupos, desconocidos:desconocidos, fueraTemp:fueraTemp, vacios:vacios, hasta:hasta};
 }
 
 function pintarImport(){
@@ -2593,6 +2655,27 @@ function pintarImport(){
   document.getElementById('btn-imp').disabled = !ks.length;
 }
 
+// Guarda, por temporada, la fecha de la última factura del lote. Sólo
+// avanza: reimportar un archivo viejo no puede hacer retroceder el corte,
+// porque el dato que interesa es "hasta dónde está cubierto", no "qué
+// archivo fue el último en pasar".
+function guardarVentasHasta(){
+  var h=(IMPORT && IMPORT.hasta) || {};
+  var ops=Object.keys(h).map(function(tid){
+    var t=TEMPS.filter(function(x){ return String(x.id)===String(tid); })[0];
+    if(!t || (t.ventas_hasta && t.ventas_hasta >= h[tid])) return null;
+    return SB.from('cl_temporadas').update({ventas_hasta:h[tid]}).eq('id', t.id).select();
+  }).filter(Boolean);
+  if(!ops.length) return Promise.resolve();
+  return Promise.all(ops).then(function(rs){
+    var mal=rs.filter(function(r){ return r.error || !r.data || !r.data.length; });
+    // No es motivo para cortar la importación —las ventas ya entraron—
+    // pero sí para decirlo: sin este dato hay que adivinar el corte del
+    // próximo listado.
+    if(mal.length) toast('Las ventas se cargaron, pero no se pudo guardar hasta qué día llegan','err');
+  }).catch(function(){ /* idem */ });
+}
+
 function aplicarImport(){
   if(!IMPORT) return;
   var ks=Object.keys(IMPORT.grupos); if(!ks.length) return;
@@ -2608,7 +2691,7 @@ function aplicarImport(){
       toast('Listo: '+escritas+' semanas cargadas en '+ks.length+' producto'
             +(ks.length===1?'':'s'),'ok');
       cerrar('ovl-imp');
-      return cargar();
+      return guardarVentasHasta().then(cargar);
     }
     var g=IMPORT.grupos[ks[i++]];
     var filas=[], w;

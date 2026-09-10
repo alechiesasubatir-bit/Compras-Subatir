@@ -135,6 +135,7 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .cob{display:block;font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.4px;
   color:var(--muted);margin-top:3px;white-space:nowrap}
 .cob.medio{color:var(--orange-l)}
+.cob.ok{color:#6ee7b7;font-family:var(--mono);letter-spacing:0}
 .cob.bajo{color:#fca5a5}
 /* Stock proyectado negativo: falta envasar. Se ve de lejos y ademas lo dice. */
 tr.falta{background:rgba(239,68,68,.07)}
@@ -410,10 +411,15 @@ window.APP_VER='2026-09-09.2313';
     <div class="ctx-sp"></div>
     <div class="sec-tools">
       <button class="btn btn-sm" onclick="openConfig()"
-              title="Materias primas, kg por unidad y parámetros de la temporada">⚙ Configuración</button>
+              title="Temporadas, materias primas y parámetros">⚙ Configuración</button>
       <button class="btn btn-sm btn-teal" onclick="openImportar()"
               title="Subir los .xls de ventas del ERP">📥 Importar ventas</button>
-      <button class="btn btn-sm btn-pri" onclick="openEnvasado()">➕ Orden de envasado</button>
+      <button class="btn btn-sm btn-teal" onclick="openConteo()"
+              title="Cargar lo que hay de cada producto envasado, con su fecha">📋 Conteo de stock</button>
+      <button class="btn btn-sm" onclick="openEnvasado()"
+              title="Ver y corregir las órdenes de cualquier semana">📄 Órdenes</button>
+      <button class="btn btn-sm btn-pri" onclick="openGenerar()"
+              title="Emitir la orden con lo cargado en «A envasar»">🧾 Generar orden</button>
       <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
     </div>
@@ -590,26 +596,73 @@ window.APP_VER='2026-09-09.2313';
         </div>
       </div>
 
-      <div class="cf">
-        <div class="cf-h"><span class="cf-n">4</span><h4>Stock inicial de <span id="cf-tnom2">—</span></h4></div>
-        <p class="cf-p">Lo que hay de cada producto <b>al día del conteo</b>. De ahí en adelante el
-          stock lo lleva el módulo solo, sumando el envasado y restando las ventas.
-          <b>La fecha importa</b>: un conteo de septiembre no es el stock de agosto, y sin ella el
-          módulo volvería a restar ventas que el conteo ya tiene descontadas.
-          <b>Un renglón vacío no es un cero</b> — mientras esté vacío, ese producto no muestra
-          stock ni sugerido en vez de mostrar un número inventado. Si de verdad estaba en cero,
-          escribí 0.</p>
-        <div class="fg" style="max-width:230px;margin-bottom:10px">
-          <label>Estos números son al</label>
-          <input class="inp" id="cf-s0-fecha" type="date"/>
-        </div>
-        <div class="cf-prods" id="cf-stock"></div>
-      </div>
-
     </div>
     <div class="modal-f">
       <button class="btn" onclick="cerrar('ovl-conf')">Cancelar</button>
       <button class="btn btn-pri" id="btn-cf" onclick="guardarConfig()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Conteo de stock ═════════════════════════════ -->
+<!--  Vive afuera de Configuración a propósito: es el gesto semanal del
+      operador, no un parámetro que se toca una vez por temporada. -->
+<div class="ovl" id="ovl-conteo">
+  <div class="modal ancho">
+    <div class="modal-h"><span>📋 Conteo de stock de <span id="ct-tnom">—</span></span>
+      <button class="x" onclick="cerrar('ovl-conteo')" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <p class="cf-p">Lo que hay de cada producto envasado <b>al día del conteo</b>. De ahí en
+        adelante el stock lo lleva el módulo solo, sumando lo que se envasa y restando lo que
+        se vende.
+        <b>La fecha importa</b>: un conteo de septiembre no es el stock de agosto. Y como el
+        conteo ya tiene descontado lo vendido hasta ese día, en esa semana el módulo sólo resta
+        lo que <i>falta</i> vender.
+        <b>Un renglón vacío no es un cero</b> — mientras esté vacío, ese producto no muestra
+        stock ni sugerido en vez de mostrar un número inventado. Si de verdad estaba en cero,
+        escribí 0.</p>
+      <div class="fg" style="max-width:230px;margin-bottom:10px">
+        <label>Estos números son al</label>
+        <input class="inp" id="cf-s0-fecha" type="date"/>
+      </div>
+      <div class="cf-prods" id="cf-stock"></div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrar('ovl-conteo')">Cancelar</button>
+      <button class="btn btn-pri" id="btn-ct" onclick="guardarConteo()">Guardar conteo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Generar orden de envasado ═══════════════════ -->
+<!--  Cierra el ciclo de la semana: lo que el operador escribió en «A
+      envasar» son borradores sin número; acá se emiten. -->
+<div class="ovl" id="ovl-gen">
+  <div class="modal ancho">
+    <div class="modal-h"><span>🧾 Generar orden de envasado</span>
+      <button class="x" onclick="cerrar('ovl-gen')" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <p class="cf-p">Estos son los productos con cantidad cargada en <b>A envasar</b> que
+        todavía no tienen número de orden. Emitirlos <b>cierra la semana</b>: las celdas quedan
+        bloqueadas y de ahí en más se corrigen desde <b>📄 Órdenes</b>.</p>
+      <div class="cf-add" style="grid-template-columns:150px 150px minmax(0,1fr)">
+        <div class="fg"><label>Fecha</label>
+          <input class="inp" id="gn-fecha" type="date"/></div>
+        <div class="fg"><label>N° de orden</label>
+          <input class="inp" id="gn-orden" maxlength="30"/></div>
+        <div class="fg"><label>Nota (opcional)</label>
+          <input class="inp" id="gn-nota" maxlength="200" placeholder="para toda la orden"/></div>
+      </div>
+      <div class="row" style="margin:4px 0 10px">
+        <label class="sw"><input type="checkbox" id="gn-agrupada" checked onchange="pintarGenerar()"/>
+          <span class="sw-t"></span> una sola orden para todos</label>
+      </div>
+      <div class="hint" id="gn-hint">—</div>
+      <div class="cf-prods" id="gn-lista"></div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrar('ovl-gen')">Cancelar</button>
+      <button class="btn btn-pri" id="btn-gn" onclick="generarOrden()">Emitir orden</button>
     </div>
   </div>
 </div>
@@ -831,7 +884,18 @@ function temporadaNoArranco(t){
 }
 
 // ══ CARGA ═════════════════════════════════════════════════════
-SubatirApp.ready.then(function(p){ if(p) cargar(); });
+SubatirApp.ready.then(function(p){
+  if(!p) return;
+  cargar();
+  // El stock de materia prima no lo escribe este módulo: lo escribe el
+  // conteo del módulo Stock. Sin esto, tener la pantalla abierta mientras
+  // otro cuenta significa mirar el número anterior sin enterarse. Es el
+  // mismo `live` que usan Panel, Pedidos, Precios, Proveedores y
+  // Recepción; Previsión Cloro era el único módulo sin él.
+  if(window.SubatirApp && SubatirApp.live){
+    SubatirApp.live(['inventario','cl_ventas','cl_envasado','cl_stock_inicial','cl_parametros'], cargar);
+  }
+});
 
 function falta(e){
   var m=(e&&e.message)||'';
@@ -1125,11 +1189,16 @@ function filas(){
       // mira si existe la fila, no si suma: un 0 escrito a mano significa
       // "esta semana no envaso", que no es lo mismo que no haber escrito.
       var ordSem = ordenesDeSemana(t, p.id, SEM_ACTUAL);
+      // Si alguna de esas órdenes ya tiene número, la semana está EMITIDA
+      // y la celda deja de ser editable: cambiarla en silencio movería una
+      // orden que ya salió impresa hacia la planta.
+      var emitida = ordSem.filter(function(e){ return String(e.orden||'').trim(); })
+                          .map(function(e){ return e.orden; })[0] || null;
       return {prod:p, vAct:vAct, vPrev:vPrev, vPre2:vPre2,
               prevision:prevision, stock:stock, stockHoy:stockHoy,
               demandaH:demH, sugerido:sug,
               envSem: num(env[SEM_ACTUAL-1]), ordenesSem: ordSem.length,
-              tieneEnv: ordSem.length>0,
+              tieneEnv: ordSem.length>0, ordenEmitida: emitida,
               ventasTemp: vAct.reduce(function(s,x){ return s+num(x); },0),
               ventasPrev: vPrev.reduce(function(s,x){ return s+num(x); },0),
               envasadoTemp: env.reduce(function(s,x){ return s+num(x); },0),
@@ -1359,7 +1428,7 @@ function dibujarMPSemanal(){
   if(!usadas.length){
     host.className='graf';
     host.innerHTML='<div class="gr-vacio">Ningún producto tiene materia prima y kg por unidad '
-      +'asignados todavía.<br>Se cargan en <b>⚙ Configuración → Productos</b>.</div>';
+      +'asignados todavía.<br>Se cargan por SQL desde la planilla de productos.</div>';
     leg.innerHTML=''; return;
   }
   // Asignación de color: por ORDEN DE ID, no por tamaño. Si el color
@@ -1554,7 +1623,7 @@ function pintarAvisos(){
       +' stock inicial ni órdenes de envasado</b> en esta temporada, así que su stock y su sugerido '
       +'no se calculan: sin ese punto de partida, «envasado menos ventas» daría menos toda la '
       +'temporada y el módulo te diría que envases de nuevo lo que ya vendiste. '
-      +'Cargalos en <b>⚙ Configuración → Stock inicial</b>. '
+      +'Cargalos en <b>📋 Conteo de stock</b>. '
       +'Sin eso tampoco hay cobertura de materia prima. '
       +'Las ventas y la previsión sí son buenas.'
       +(todos?'':' Faltan: '+sinBase.slice(0,3).map(function(p){ return esc(p.nombre); }).join(' · ')
@@ -1688,11 +1757,18 @@ function kpi(clase, label, valor, color, sub){
 function celdaEnvasar(f){
   var t=temporadaActual();
   if(!t || temporadaTerminada(t)) return '<span class="calc">—</span>';
+  // Ya emitida: se muestra el N° y no se toca. La orden salió impresa
+  // hacia la planta; cambiar el número atrás sin dejar rastro es la forma
+  // de que el papel y la pantalla dejen de coincidir.
+  if(f.ordenEmitida){
+    return '<span class="env-multi" title="Emitida — corregí desde 📄 Órdenes">'
+      +n0(f.envSem)+'<span class="cob ok">'+esc(f.ordenEmitida)+'</span></span>';
+  }
   // Con dos o más órdenes en la semana, la celda no puede saber cuál
   // pisar. Muestra el total y manda al modal: el modo silencioso de
   // equivocarse acá es borrar una orden que alguien cargó.
   if(f.ordenesSem>1){
-    return '<span class="env-multi" title="Editá desde ➕ Orden de envasado">'
+    return '<span class="env-multi" title="Editá desde 📄 Órdenes">'
       +n0(f.envSem)+'<span class="cob">'+f.ordenesSem+' órdenes</span></span>';
   }
   return '<input class="env-in" type="number" min="0" step="1" data-id="'+f.prod.id+'"'
@@ -1745,6 +1821,111 @@ function guardarEnvSemana(el){
       fin(true,'Guardado');
     });
   }
+}
+
+// ══ GENERAR LA ORDEN ══════════════════════════════════════════
+//  Lo que el operador escribe en «A envasar» queda SIN número: es el
+//  borrador de la semana. Emitir la orden le pone número y fecha, y con
+//  eso cierra el ciclo: se envasa contra ese papel, después se cuenta y
+//  se importa, y arranca la semana siguiente.
+function borradoresDeSemana(){
+  var t=temporadaActual(); if(!t) return [];
+  return ENVASADO.filter(function(e){
+    return e.temporada_id===t.id
+        && Cloro.semanaDe(new Date(e.fecha+'T00:00:00Z'), dIni(t))===SEM_ACTUAL
+        && !String(e.orden||'').trim()
+        && num(e.cantidad)>0;
+  });
+}
+// El siguiente de la serie E-001, mirando lo ya emitido en la temporada.
+// No hay serie compartida en el proyecto, así que se calcula acá; el
+// campo queda editable por si la planta usa otra numeración.
+function proximaOrden(){
+  var t=temporadaActual(); if(!t) return 'E-001';
+  var max=0;
+  ENVASADO.forEach(function(e){
+    if(e.temporada_id!==t.id) return;
+    var m=String(e.orden||'').match(/^E-(\d+)$/);
+    if(m && +m[1]>max) max=+m[1];
+  });
+  return 'E-'+String(max+1).padStart(3,'0');
+}
+
+function openGenerar(){
+  var t=temporadaActual(); if(!t) return;
+  document.getElementById('gn-fecha').value=hoyISO();
+  document.getElementById('gn-orden').value=proximaOrden();
+  document.getElementById('gn-nota').value='';
+  pintarGenerar();
+  abrir('ovl-gen');
+}
+
+function pintarGenerar(){
+  var b=borradoresDeSemana();
+  var agrup=document.getElementById('gn-agrupada').checked;
+  var nom={}; PROD.forEach(function(p){ nom[p.id]=p.nombre; });
+  var tot=b.reduce(function(a,e){ return a+num(e.cantidad); },0);
+  document.getElementById('gn-hint').textContent = b.length
+    ? b.length+' producto'+(b.length===1?'':'s')+' · '+n0(tot)+' unidades · semana '+SEM_ACTUAL
+      +(agrup ? ' · un solo N°' : ' · un N° correlativo por producto')
+    : 'No hay nada cargado en «A envasar» sin emitir para la semana '+SEM_ACTUAL+'.';
+  var base=proximaOrden().match(/^E-(\d+)$/);
+  var n0i=base?+base[1]:1;
+  document.getElementById('gn-lista').innerHTML = b.length
+    ? '<div class="cf-ph" style="grid-template-columns:minmax(0,1fr) 110px 110px">'
+      +'<span>Producto</span><span>Unidades</span><span>N°</span></div>'
+      + b.map(function(e,i){
+          return '<div class="cf-pr" style="grid-template-columns:minmax(0,1fr) 110px 110px">'
+            +'<div class="cf-row-n" style="text-align:left">'+esc(nom[e.producto_id]||('#'+e.producto_id))+'</div>'
+            +'<div style="text-align:right;font-family:var(--mono)">'+n0(e.cantidad)+'</div>'
+            +'<div style="text-align:right;font-family:var(--mono);color:var(--muted)">'
+              +esc(agrup ? document.getElementById('gn-orden').value
+                         : 'E-'+String(n0i+i).padStart(3,'0'))+'</div></div>';
+        }).join('')
+    : '<div class="hint">Cargá cantidades en la columna <b>A envasar</b> y volvé.</div>';
+  document.getElementById('btn-gn').disabled = !b.length;
+}
+
+function generarOrden(){
+  var t=temporadaActual(); if(!t) return;
+  var b=borradoresDeSemana(); if(!b.length) return;
+  var fecha=document.getElementById('gn-fecha').value;
+  var orden=String(document.getElementById('gn-orden').value||'').trim();
+  var nota=String(document.getElementById('gn-nota').value||'').trim();
+  var agrup=document.getElementById('gn-agrupada').checked;
+  if(!orden){ toast('Poné un número de orden','err'); return; }
+  // La fecha tiene que caer dentro de la temporada por lo mismo que el
+  // conteo: `envasadoPorSemana` la mapea a una semana y una fecha de
+  // afuera manda la orden a una semana que la pantalla no dibuja.
+  if(!fecha || fecha < t.fecha_ini || fecha > t.fecha_fin){
+    toast('La fecha tiene que caer dentro de la temporada ('
+      +fechaCorta(t.fecha_ini)+' a '+fechaCorta(t.fecha_fin)+')','err'); return;
+  }
+  var bt=document.getElementById('btn-gn'); bt.disabled=true;
+  var base=orden.match(/^E-(\d+)$/), n0i=base?+base[1]:null;
+
+  var ops=b.map(function(e,i){
+    var nro = agrup ? orden
+            : (n0i!=null ? 'E-'+String(n0i+i).padStart(3,'0') : orden+'-'+(i+1));
+    return SB.from('cl_envasado')
+      .update({orden:nro, fecha:fecha, nota:nota||e.nota})
+      .eq('id', e.id).select();
+  });
+  Promise.all(ops).then(function(rs){
+    bt.disabled=false;
+    // Un update bloqueado por RLS vuelve con CERO filas y sin error.
+    var mal=rs.filter(function(r){ return r.error || !r.data || !r.data.length; });
+    if(mal.length){
+      toast('No se emitió completo ('+mal.length+' de '+ops.length
+        +' fallaron). ¿Tenés el permiso del módulo?','err');
+      cargarTemporada(); return;
+    }
+    toast('Orden '+(agrup?orden:'emitida')+' · '+ops.length+' producto'
+      +(ops.length===1?'':'s'),'ok');
+    cerrar('ovl-gen'); cargarTemporada();
+  }).catch(function(e){
+    bt.disabled=false; toast('No se pudo emitir: '+((e&&e.message)||e),'err');
+  });
 }
 
 function pintarTabla(){
@@ -1932,8 +2113,17 @@ function pintarConfig(){
          .map(function(i){ return '<option value="'+i.id+'">'+esc(i.descripcion)
               +' · '+esc(i.codigo)+'</option>'; }).join('');
 
-  // ── Stock inicial
-  document.getElementById('cf-tnom2').textContent = t ? t.nombre : '—';
+}
+
+// ══ CONTEO DE STOCK ═══════════════════════════════════════════
+//  Vive afuera de Configuración porque es lo que se hace TODAS las
+//  semanas, no una vez por temporada. Es el ancla del módulo: sin un
+//  conteo con fecha, el stock proyectado no tiene de dónde partir.
+function openConteo(){ pintarConteo(); abrir('ovl-conteo'); }
+
+function pintarConteo(){
+  var t=temporadaActual();
+  document.getElementById('ct-tnom').textContent = t ? t.nombre : '—';
   // Se toma la fecha más vieja de las cargadas: hoy son todas la misma
   // porque se escriben juntas. Si mañana hay un reconteo de un solo
   // producto, esto muestra la más vieja y el guardado las vuelve a
@@ -1942,7 +2132,7 @@ function pintarConfig(){
   PROD.forEach(function(p){ var f=STOCK0F[p.id]; if(f && (!f0 || f<f0)) f0=f; });
   document.getElementById('cf-s0-fecha').value = f0 || hoyISO();
   var hs='<div class="cf-ph" style="grid-template-columns:minmax(0,1fr) 130px">'
-        +'<span>Producto</span><span>Stock inicial</span></div>';
+        +'<span>Producto</span><span>Contado</span></div>';
   PROD.filter(function(p){ return p.activo!==false; })
       .sort(function(a,b){ return (a.orden||0)-(b.orden||0); })
       .forEach(function(p){
@@ -1953,6 +2143,51 @@ function pintarConfig(){
       +'<input class="cf-s0" type="number" step="1" value="'+v+'" placeholder="sin cargar"/></div>';
   });
   document.getElementById('cf-stock').innerHTML=hs;
+}
+
+function guardarConteo(){
+  var t=temporadaActual(); if(!t) return;
+  var b=document.getElementById('btn-ct'); b.disabled=true;
+  var fCont=document.getElementById('cf-s0-fecha').value;
+
+  // Sólo los renglones con algo escrito. Un renglón vacío se DEJA como
+  // está —no se borra ni se guarda como cero— porque vacío significa
+  // "todavía no lo sé" y un cero significa "estaba en cero". Son cosas
+  // distintas y el módulo se comporta distinto con cada una.
+  var s0=[];
+  document.querySelectorAll('#cf-stock .cf-pr').forEach(function(row){
+    var v=row.querySelector('.cf-s0').value;
+    if(String(v).trim()==='') return;
+    var id=parseInt(row.getAttribute('data-id'),10);
+    var cant=num(v);
+    // Con la fecha nueva hay que reescribir aunque la cantidad no cambie:
+    // el mismo número contado otro día significa otra cosa.
+    if(STOCK0[id]!==undefined && num(STOCK0[id])===cant && STOCK0F[id]===fCont) return;
+    s0.push({temporada_id:t.id, producto_id:id, cantidad:cant, fecha:fCont});
+  });
+  if(!s0.length){ b.disabled=false; cerrar('ovl-conteo'); toast('No había nada para guardar','info'); return; }
+  // Una fecha fuera de la temporada mandaría el arranque del cálculo a
+  // una semana que la pantalla no dibuja, y el stock desaparecería entero
+  // sin decir por qué.
+  if(!fCont || fCont < t.fecha_ini || fCont > t.fecha_fin){
+    toast('La fecha del conteo tiene que caer dentro de la temporada ('
+      +fechaCorta(t.fecha_ini)+' a '+fechaCorta(t.fecha_fin)+')','err');
+    b.disabled=false; return;
+  }
+  SB.from('cl_stock_inicial').upsert(s0,{onConflict:'temporada_id,producto_id'}).select()
+    .then(function(r){
+      b.disabled=false;
+      if(r.error) throw r.error;
+      // Un upsert bloqueado por RLS vuelve con CERO filas y sin error.
+      if(!r.data || r.data.length!==s0.length){
+        toast('No se guardó completo ('+((r.data||[]).length)+' de '+s0.length
+          +'). ¿Tenés el permiso del módulo?','err'); return;
+      }
+      toast('Conteo guardado · '+s0.length+' producto'+(s0.length===1?'':'s'),'ok');
+      cerrar('ovl-conteo'); cargarTemporada();
+    }).catch(function(e){
+      b.disabled=false; toast('No se pudo guardar: '+((e&&e.message)||e),'err');
+    });
 }
 
 function pintarCrecInput(){
@@ -2068,33 +2303,8 @@ function guardarConfig(){
   // parámetros de planificación. Se cargan por SQL desde la planilla. La
   // pantalla lee ese maestro y no lo escribe nunca.
 
-  // Stock inicial: sólo los renglones con algo escrito. Un renglón vacío
-  // se DEJA como está —no se borra ni se guarda como cero— porque vacío
-  // significa "todavía no lo sé", y un cero significa "estaba en cero".
-  // Son cosas distintas y el módulo se comporta distinto con cada una.
-  var fCont=document.getElementById('cf-s0-fecha').value;
-  var s0=[];
-  document.querySelectorAll('#cf-stock .cf-pr').forEach(function(row){
-    var v=row.querySelector('.cf-s0').value;
-    if(String(v).trim()==='') return;
-    var id=parseInt(row.getAttribute('data-id'),10);
-    var cant=num(v);
-    // Con la fecha nueva hay que reescribir aunque la cantidad no cambie:
-    // el mismo número contado otro día significa otra cosa.
-    if(STOCK0[id]!==undefined && num(STOCK0[id])===cant
-       && STOCK0F[id]===fCont) return;
-    s0.push({temporada_id:t.id, producto_id:id, cantidad:cant, fecha:fCont});
-  });
-  // Una fecha fuera de la temporada mandaría el arranque del cálculo a una
-  // semana que la pantalla no dibuja, y el stock desaparecería entero sin
-  // decir por qué.
-  if(s0.length && (!fCont || fCont < t.fecha_ini || fCont > t.fecha_fin)){
-    toast('La fecha del conteo tiene que caer dentro de la temporada ('
-      +fechaCorta(t.fecha_ini)+' a '+fechaCorta(t.fecha_fin)+')','err');
-    b.disabled=false; return;
-  }
-  if(s0.length) ops.push(SB.from('cl_stock_inicial')
-    .upsert(s0,{onConflict:'temporada_id,producto_id'}).select());
+  // El conteo de stock tampoco: se hace todas las semanas y tiene su
+  // propio botón. Ver openConteo().
 
   // La temporada activa: la marcada queda en true y todas las demás en
   // false. Dos activas dejarían la pantalla abriendo una distinta cada vez.

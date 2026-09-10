@@ -404,13 +404,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-10.1112"/>
-<script src="supabase-config.js?v=2026-09-10.1112"></script>
-<script src="subatir-app.js?v=2026-09-10.1112"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-10.1205"/>
+<script src="supabase-config.js?v=2026-09-10.1205"></script>
+<script src="subatir-app.js?v=2026-09-10.1205"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-10.1112';
+window.APP_VER='2026-09-10.1205';
 </script>
 </head>
 <body>
@@ -422,7 +422,7 @@ window.APP_VER='2026-09-10.1112';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-10.1112"></script>
+  <script src="nav.js?v=2026-09-10.1205"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -792,7 +792,7 @@ window.APP_VER='2026-09-10.1112';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="cloro-calc.js?v=2026-09-10.1112"></script>
+<script src="cloro-calc.js?v=2026-09-10.1205"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
@@ -2105,7 +2105,7 @@ function cargarPDF(){
     // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
     // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
     // El literal va PARTIDO a propósito: bump-version.ps1 busca
-    // `oc-pdf.js?v=2026-09-10.1112'oc-pdf.js?v=2026-09-10.1112'+APP_VER.
+    // `oc-pdf.js?v=2026-09-10.1205'oc-pdf.js?v=2026-09-10.1205'+APP_VER.
     // Partido, el patrón no aparece y la versión la pone APP_VER sola.
     .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js'+'?v='+APP_VER); })
     // El logo se precarga solo y es asíncrono. Sin esperarlo, el primer

@@ -104,6 +104,14 @@ main{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:18px 20p
 .cierre-h{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.6px;
   text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .cierre-h b{font-family:var(--mono);letter-spacing:0;color:var(--teal-l);font-size:10.5px}
+/* La fecha del corte se puede corregir a mano, asi que es un boton y no
+   un dato: el importador la saca de la ultima factura del archivo, y un
+   periodo SIN ventas no trae ninguna factura de donde sacarla. */
+.cierre-h .vh{font:inherit;font-family:var(--mono);letter-spacing:0;color:var(--teal-l);
+  font-size:10.5px;font-weight:800;background:none;padding:0 1px;cursor:pointer;
+  border:none;border-bottom:1px dashed rgba(27,200,255,.55);vertical-align:baseline}
+.cierre-h .vh:hover{color:#fff;border-bottom-color:#fff}
+.cierre-h .vh:focus-visible{outline:2px solid var(--teal-l);outline-offset:2px;border-radius:3px}
 .cierre-b{display:flex;gap:7px;flex-wrap:wrap}
 @media(max-width:640px){ .cierre{width:100%} .cierre-b{flex-direction:column} .cierre-b .btn{width:100%} }
 
@@ -409,13 +417,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-10.1859"/>
-<script src="supabase-config.js?v=2026-09-10.1859"></script>
-<script src="subatir-app.js?v=2026-09-10.1859"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-14.1310"/>
+<script src="supabase-config.js?v=2026-09-14.1310"></script>
+<script src="subatir-app.js?v=2026-09-14.1310"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-10.1859';
+window.APP_VER='2026-09-14.1310';
 </script>
 </head>
 <body>
@@ -427,7 +435,7 @@ window.APP_VER='2026-09-10.1859';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-10.1859"></script>
+  <script src="nav.js?v=2026-09-14.1310"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -460,7 +468,7 @@ window.APP_VER='2026-09-10.1859';
            entonces el conteo queda contra ventas de otra fecha. -->
       <div class="cierre">
         <div class="cierre-h">Cierre semanal · ventas cargadas hasta
-          <b id="ctx-vhasta">—</b></div>
+          <button class="vh" id="ctx-vhasta" onclick="openVentasHasta()">—</button></div>
         <div class="cierre-b">
           <button class="btn btn-sm btn-teal" onclick="openImportar()"
                   title="Subir los .xls de ventas del sistema">📥 Importar ventas</button>
@@ -850,9 +858,42 @@ window.APP_VER='2026-09-10.1859';
   </div>
 </div>
 
+<!-- ══ MODAL: Corregir el corte de ventas ═════════════════ -->
+<!--  Existe por los períodos SIN ventas. El importador saca esta fecha
+      de la última factura del archivo, así que un período sin ninguna
+      venta no tiene de dónde moverla: el módulo pide para siempre un
+      listado que ya se pidió y vino vacío. Un aviso que grita en falso
+      es un aviso que se deja de mirar, y el de ventas atrasadas es el
+      que sostiene al stock, al sugerido y a la cobertura. -->
+<div class="ovl" id="ovl-vh">
+  <div class="modal">
+    <div class="modal-h"><span>📅 Ventas cargadas hasta</span>
+      <button class="x" onclick="cerrar('ovl-vh')" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <p class="cf-p">Esta fecha la pone sola la importación: es la de la <b>última factura</b> que
+        traía el archivo. Se corrige a mano para un solo caso — <b>miraste el sistema y en esos
+        días no hubo ninguna venta</b>. Sin ventas no hay factura, y sin factura la importación
+        no tiene de dónde moverla.</p>
+      <p class="cf-p">Lo que estás afirmando es <b>«revisé hasta este día y no hay más ventas»</b>,
+        que no es lo mismo que «las importé». Si el listado todavía no lo bajaste, dejala donde
+        está: el aviso de ventas atrasadas es lo único que avisa que el stock de la pantalla
+        quedó viejo.</p>
+      <div class="fg" style="max-width:230px">
+        <label>Revisado hasta el</label>
+        <input class="inp" id="vh-fecha" type="date" onchange="pintarVhHint()"/>
+      </div>
+      <div class="hint" id="vh-hint">—</div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrar('ovl-vh')">Cancelar</button>
+      <button class="btn btn-pri" id="btn-vh" onclick="guardarVentasHastaManual()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="cloro-calc.js?v=2026-09-10.1859"></script>
+<script src="cloro-calc.js?v=2026-09-14.1310"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
@@ -972,6 +1013,19 @@ function ordenesDeSemana(t, prodId, w){
 function lunesDeSemana(t, w){
   var d=new Date(Cloro.lunesInicio(dIni(t)).getTime()+(w-1)*7*86400000);
   return d.toISOString().slice(0,10);
+}
+
+// El último día que YA cerró: el domingo de la semana pasada. Es el
+// corte contra el que se mide si las ventas cargadas están al día, y lo
+// miran el aviso de ventas atrasadas y el modal que corrige la fecha.
+// Está escrito una sola vez a propósito: con la cuenta en dos lados, el
+// día que se mueva una el aviso y el modal van a hablar de días
+// distintos y la pantalla se contradice sola. Null si no hay ninguna
+// semana cerrada todavía.
+function finUltimaCerrada(t){
+  if(!t || SEM_ACTUAL<2) return null;
+  var lun=new Date(lunesDeSemana(t, SEM_ACTUAL)+'T00:00:00Z');
+  return new Date(lun.getTime()-86400000).toISOString().slice(0,10);
 }
 
 // En qué semana de la temporada estamos. Si la temporada ya terminó
@@ -1884,9 +1938,10 @@ function pintarContexto(){
   // cierre porque es el dato que se necesita justo antes de exportarlo.
   var vh=document.getElementById('ctx-vhasta');
   vh.textContent = (t && t.ventas_hasta) ? fechaCorta(t.ventas_hasta) : 'sin importar';
-  vh.title = (t && t.ventas_hasta)
+  vh.title = ((t && t.ventas_hasta)
     ? 'Pedí el listado desde el día siguiente: '+fechaCorta(diaSiguiente(t.ventas_hasta))
-    : 'Todavía no se importó ninguna venta en esta temporada';
+    : 'Todavía no se importó ninguna venta en esta temporada')
+    + '\nClic para corregirla si revisaste el sistema y esos días no tuvieron ventas.';
 }
 
 // El día después de una fecha ISO, en ISO. En UTC para que no cambie con
@@ -1984,8 +2039,7 @@ function pintarAvisos(){
   // importar, la pantalla sigue mostrando números que ya no son ciertos
   // y no tiene forma de saberlo sola.
   if(!temporadaNoArranco(t) && SEM_ACTUAL>1){
-    var finCerrada = lunesDe(t, SEM_ACTUAL); // domingo anterior = lunes de hoy - 1
-    var debHasta = new Date(finCerrada.getTime()-86400000).toISOString().slice(0,10);
+    var debHasta = finUltimaCerrada(t);
     var vh = t.ventas_hasta || null;
     if(!vh || vh < debHasta){
       var dias = vh ? Math.round((new Date(debHasta+'T00:00:00Z')-new Date(vh+'T00:00:00Z'))/86400000) : null;
@@ -1994,7 +2048,14 @@ function pintarAvisos(){
         +' cerró el '+fechaCorta(debHasta)+' y '
         +(vh ? 'lo cargado llega hasta el '+fechaCorta(vh) : 'no hay ninguna venta cargada')
         +'. El stock, el sugerido y la cobertura se apoyan en eso: hasta que lo importes, '
-        +'lo que ves está viejo. <b>📥 Importar ventas</b>'});
+        +'lo que ves está viejo. <b>📥 Importar ventas</b>'
+        // La otra salida, que si no no se encuentra: un período sin ninguna
+        // venta no trae ninguna factura, así que la importación no puede
+        // mover la fecha del corte y este aviso queda prendido para siempre
+        // aunque el dato esté completo. Un aviso que grita en falso se deja
+        // de mirar, y éste es el que sostiene todo lo de abajo.
+        +'<br>Si ya lo miraste y <b>esos días no tuvieron ventas</b>, no hay nada que importar: '
+        +'corregí la fecha haciendo clic en <b>«ventas cargadas hasta»</b>, arriba.'});
     }
   }
   // Productos sin envasar en la semana en curso. Al principio de la
@@ -2275,7 +2336,7 @@ function cargarPDF(){
     // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
     // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
     // El literal va PARTIDO a propósito: bump-version.ps1 busca
-    // `oc-pdf.js?v=2026-09-10.1859'oc-pdf.js?v=2026-09-10.1859'+APP_VER.
+    // `oc-pdf.js?v=2026-09-14.1310'oc-pdf.js?v=2026-09-14.1310'+APP_VER.
     // Partido, el patrón no aparece y la versión la pone APP_VER sola.
     .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js'+'?v='+APP_VER); })
     // El logo se precarga solo y es asíncrono. Sin esperarlo, el primer
@@ -3197,6 +3258,85 @@ function guardarVentasHasta(){
     // próximo listado.
     if(mal.length) toast('Las ventas se cargaron, pero no se pudo guardar hasta qué día llegan','err');
   }).catch(function(){ /* idem */ });
+}
+
+// ── El mismo corte, corregido a mano ──────────────────────────
+// La importación saca la fecha de la última factura del archivo. Cuando
+// un período no tuvo NINGUNA venta no hay factura de donde sacarla, así
+// que el corte se queda clavado y el módulo pide para siempre un listado
+// que ya se pidió y vino vacío. Acá se afirma a mano "revisé hasta este
+// día y no hay más ventas", que es lo único que la importación no puede
+// deducir sola.
+//
+// A diferencia de `guardarVentasHasta`, esta SÍ puede ir para atrás: es
+// una corrección, y una corrección que sólo avanza no corrige nada.
+//
+// Mover esta fecha no toca ningún número: `ventas_hasta` no entra en el
+// stock, ni en el sugerido, ni en la cobertura. Sólo manda sobre este
+// aviso y sobre desde qué día pedir el próximo listado.
+function openVentasHasta(){
+  var t=temporadaActual(); if(!t) return;
+  var f=document.getElementById('vh-fecha');
+  // El tope es hoy: no se puede afirmar que no hubo ventas en un día que
+  // todavía no pasó. En una temporada vieja el tope es su último día.
+  f.min=t.fecha_ini; f.max=topeVentasHasta(t);
+  f.value=t.ventas_hasta || '';
+  pintarVhHint();
+  abrir('ovl-vh');
+  f.focus();
+}
+function topeVentasHasta(t){
+  var h=hoyISO();
+  return h < t.fecha_fin ? h : t.fecha_fin;
+}
+
+// Qué significa la fecha elegida, dicho ANTES de guardarla: en qué semana
+// cae y si con eso el módulo queda al día. Sin esto hay que guardar y
+// después ir a mirar el aviso para saber si se acertó el día.
+function pintarVhHint(){
+  var t=temporadaActual(), h=document.getElementById('vh-hint');
+  if(!t){ h.innerHTML='—'; return; }
+  var v=document.getElementById('vh-fecha').value;
+  var txt='Ahora dice <b>'+(t.ventas_hasta?fechaCorta(t.ventas_hasta):'sin importar')+'</b>.';
+  if(v){
+    var fin=finUltimaCerrada(t);
+    txt+=' El '+fechaCorta(v)+' cae en la <b>semana '
+        +Cloro.semanaDe(new Date(v+'T00:00:00Z'), dIni(t))+'</b> de la temporada. ';
+    txt+= (fin && v<fin)
+      ? 'La última semana cerrada terminó el <b>'+fechaCorta(fin)+'</b>, así que el aviso de '
+        +'ventas atrasadas va a seguir prendido.'
+      : 'Con esto queda al día: el próximo listado se pide desde el <b>'
+        +fechaCorta(diaSiguiente(v))+'</b>.';
+  }
+  h.innerHTML=txt;
+}
+
+function guardarVentasHastaManual(){
+  var t=temporadaActual(); if(!t) return;
+  var v=document.getElementById('vh-fecha').value;
+  var tope=topeVentasHasta(t);
+  if(!v){ toast('Poné hasta qué día revisaste','err'); return; }
+  if(v < t.fecha_ini || v > tope){
+    toast('La fecha tiene que caer entre el '+fechaCorta(t.fecha_ini)
+      +' y el '+fechaCorta(tope),'err');
+    return;
+  }
+  if(v === t.ventas_hasta){ cerrar('ovl-vh'); return; }
+  var b=document.getElementById('btn-vh'); b.disabled=true;
+  SB.from('cl_temporadas').update({ventas_hasta:v}).eq('id', t.id).select()
+    .then(function(r){
+      b.disabled=false;
+      if(r.error) throw r.error;
+      // Un update bloqueado por RLS vuelve con CERO filas y sin error: sin
+      // este chequeo la pantalla diría "guardado" sin haber guardado nada.
+      if(!r.data || !r.data.length){
+        toast('No se guardó. ¿Tenés el permiso del módulo?','err'); return;
+      }
+      toast('Ventas al día hasta el '+fechaCorta(v),'ok');
+      cerrar('ovl-vh'); cargar();
+    }).catch(function(e){
+      b.disabled=false; toast('No se pudo guardar: '+((e&&e.message)||e),'err');
+    });
 }
 
 function aplicarImport(){

@@ -982,11 +982,11 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-09-14.1310"/>
-<link rel="stylesheet" href="nav.css?v=2026-09-14.1310"/>
-<script src="../supabase-config.js?v=2026-09-14.1310"></script>
-<script src="deposito-app.js?v=2026-09-14.1310"></script>
-<script src="../traslados.js?v=2026-09-14.1310"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-09-15.1450"/>
+<link rel="stylesheet" href="nav.css?v=2026-09-15.1450"/>
+<script src="../supabase-config.js?v=2026-09-15.1450"></script>
+<script src="deposito-app.js?v=2026-09-15.1450"></script>
+<script src="../traslados.js?v=2026-09-15.1450"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -995,7 +995,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-09-14.1310';
+window.APP_VER='2026-09-15.1450';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1017,7 +1017,7 @@ window.APP_VER='2026-09-14.1310';
   </a>
   <!-- El menú lo arma nav.js, que además sigue la sección a la vista -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-14.1310"></script>
+  <script src="nav.js?v=2026-09-15.1450"></script>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-liviano" onclick="toggleLiviano()"
@@ -1460,6 +1460,43 @@ window.APP_VER='2026-09-14.1310';
     <div class="modal-footer">
       <button class="btn btn-primary" id="btn-save-ingreso" onclick="saveIngreso()">📥 Ingresar al stock</button>
       <button class="btn btn-ghost" onclick="closeModal('ingreso-overlay')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════ MODAL: CORREGIR EL STOCK ═══ -->
+<!-- Sólo admin y sólo para lo que NO es Consumo. Se escribe cuánto HAY
+     realmente; la diferencia la calcula la base (imp_ajuste_stock). No se
+     puede bajar por debajo de lo que ya está dentro de pallets. -->
+<div class="overlay" id="ajuste-overlay" role="dialog" aria-modal="true" aria-labelledby="ajuste-title">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title" id="ajuste-title">Corregir el stock</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeModal('ajuste-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="ajuste-info"></div>
+      <div class="form-grid" style="margin-top:14px">
+        <div class="form-group">
+          <label for="aj-dep">Depósito *</label>
+          <select class="form-input" id="aj-dep" onchange="ajDepChange()"></select>
+        </div>
+        <div class="form-group">
+          <label for="aj-unid">Cuánto hay realmente *</label>
+          <input type="number" inputmode="numeric" class="form-input" id="aj-unid"
+                 min="0" step="1" placeholder="0" oninput="ajUpd()"/>
+        </div>
+        <div class="form-group span2">
+          <label for="aj-nota">Motivo de la corrección *</label>
+          <input type="text" class="form-input" id="aj-nota"
+                 placeholder="Conteo físico, venta, rotura, devolución…" oninput="ajUpd()"/>
+          <div id="aj-hint" class="hint-note">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btn-save-ajuste" onclick="saveAjuste()">✏ Corregir el stock</button>
+      <button class="btn btn-ghost" onclick="closeModal('ajuste-overlay')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1919,6 +1956,11 @@ function coordOf(p){ return p.fila&&p.columna ? (letterOf(p.fila, filasDe(p.esta
 function tipoColor(t){ return TIPO_COLORS[t||'']||TIPO_COLORS['']; }
 
 function whoName(){ var p=(window.SubatirApp&&SubatirApp.getProfile)?SubatirApp.getProfile():null; return p?(p.full_name||(p.email||'').split('@')[0]||'Admin'):'Admin'; }
+// Sólo para decidir qué se muestra. El permiso de verdad lo aplican las
+// funciones de Postgres (is_admin), que es lo único que no se puede saltear.
+function esAdminUI(){ var p=(window.SubatirApp&&SubatirApp.getProfile)?SubatirApp.getProfile():null; return !!(p && p.role==='admin'); }
+// Consumo lo mueven los pedidos; su stock no se corrige a mano.
+function sePuedeCorregir(a){ return esAdminUI() && (a.tipo||'Consumo')!=='Consumo'; }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtNum(n){ n=parseFloat(n)||0; return n.toLocaleString('es-UY'); }
 function num(v){ var n=parseFloat(v); return isFinite(n)?n:0; }
@@ -2220,6 +2262,9 @@ function renderArticles(){
       +'<td style="text-align:center;white-space:nowrap">'
         +'<button class="btn btn-ok btn-sm" onclick="openIngreso('+a.id+')" title="Ingresar mercadería que llegó al depósito">📥 Ingresar</button> '
         +'<button class="btn btn-pallet btn-sm" onclick="openPallet({artId:'+a.id+'})" title="Armar pallet con lo que hay suelto">🏷 Armar</button>'
+        +(sePuedeCorregir(a)
+          ? ' <button class="btn btn-ghost btn-sm" onclick="openAjuste('+a.id+')" title="Corregir el stock contra lo que hay realmente">✏ Corregir</button>'
+          : '')
       +'</td>'
     +'</tr>';
   }).join('');
@@ -3065,6 +3110,82 @@ function saveIngreso(){
     if(r.data && r.data.ok===false){ toast(r.data.error||'No se pudo ingresar','err'); return; }
     closeModal('ingreso-overlay');
     toast('📥 '+fmtNum(u)+' u. ingresadas a '+d,'ok');
+    load();
+  });
+}
+
+// ── Corrección de stock ───────────────────────────────────────
+//    Sólo admin y sólo lo que no es Consumo. Se escribe cuánto HAY,
+//    no cuánto sumar: la diferencia la saca imp_ajuste_stock. El piso
+//    es lo que está dentro de pallets, porque el stock del depósito ya
+//    las cuenta (los pallets reservan, no suman) y bajar de ahí
+//    dejaría el disponible en negativo.
+function openAjuste(artId){
+  var a=artById(artId); if(!a) return;
+  if(!sePuedeCorregir(a)){ toast('El stock de Consumo no se corrige a mano','err'); return; }
+  CUR_ART=a;
+  document.getElementById('ajuste-title').textContent='Corregir stock — '+a.descripcion;
+  document.getElementById('ajuste-info').innerHTML = DEPS.map(function(d){
+    var pal=palletizadoOf(a.id,d.nombre);
+    return '<div class="detail-item"><div class="detail-label">'+esc(d.nombre)
+         + (pal>0?' <span class="muted-cell">('+fmtNum(pal)+' en pallets)</span>':'')+'</div>'
+         + '<div class="detail-value" style="font-family:var(--mono)">'+fmtNum(stockOf(a.id,d.nombre))+'</div></div>';
+  }).join('');
+  var alm=DEPS.filter(function(d){ return d.tipo!=='FABRICA'; });
+  document.getElementById('aj-dep').innerHTML=depOptions(alm[0]?alm[0].nombre:(DEPS[0]?DEPS[0].nombre:''));
+  document.getElementById('aj-nota').value='';
+  ajDepChange();
+  openModal('ajuste-overlay');
+}
+// Al cambiar de depósito se propone lo que hay hoy: así el campo arranca
+// mostrando el número a corregir en vez de un cero que asusta.
+function ajDepChange(){
+  if(!CUR_ART) return;
+  document.getElementById('aj-unid').value=stockOf(CUR_ART.id,document.getElementById('aj-dep').value);
+  ajUpd();
+}
+function ajUpd(){
+  if(!CUR_ART) return null;
+  var d=document.getElementById('aj-dep').value;
+  var raw=document.getElementById('aj-unid').value;
+  var nuevo=num(raw);
+  var nota=document.getElementById('aj-nota').value.trim();
+  var hoy=stockOf(CUR_ART.id,d), pal=palletizadoOf(CUR_ART.id,d);
+  var h=document.getElementById('aj-hint'), btn=document.getElementById('btn-save-ajuste');
+  var t, warn=false, ok=true;
+
+  if(raw==='' || nuevo<0){
+    t='Poné cuántas unidades hay realmente en '+d+'. Hoy figuran '+fmtNum(hoy)+'.'; ok=false;
+  } else if(nuevo<pal){
+    t='En '+d+' hay '+fmtNum(pal)+' u. dentro de pallets: no podés dejarlo en menos de '
+     +fmtNum(pal)+'. Si el pallet está mal, corregilo o deshacelo primero.';
+    warn=true; ok=false;
+  } else if(nuevo===hoy){
+    t='Ya figuran '+fmtNum(hoy)+' u. en '+d+': no hay nada que corregir.'; ok=false;
+  } else {
+    var dif=nuevo-hoy;
+    t='En '+d+' figuran '+fmtNum(hoy)+' u. Vas a '+(dif>0?'sumar ':'restar ')+fmtNum(Math.abs(dif))
+     +' → queda en '+fmtNum(nuevo)+' u.';
+    if(!nota){ t+=' Falta el motivo.'; ok=false; }
+  }
+  h.className='hint-note'+(warn?' hint-warn':'');
+  h.textContent=t;
+  btn.disabled=!ok;
+  return ok ? {dep:d, nuevo:nuevo, hoy:hoy, nota:nota} : null;
+}
+function saveAjuste(){
+  if(!CUR_ART) return;
+  var v=ajUpd(); if(!v) return;
+  var btn=document.getElementById('btn-save-ajuste'); btn.disabled=true;
+  toast('Corrigiendo…','info');
+  SB.rpc('imp_ajuste_stock',{p_art:CUR_ART.id,p_dep:v.dep,p_cantidad:v.nuevo,
+                             p_user:whoName(),p_nota:v.nota}).then(function(r){
+    btn.disabled=false;
+    if(r.error){ toast('Error: '+r.error.message,'err'); return; }
+    if(r.data && r.data.ok===false){ toast(r.data.error||'No se pudo corregir','err'); return; }
+    closeModal('ajuste-overlay');
+    var dif=v.nuevo-v.hoy;
+    toast('✏ '+v.dep+': '+(dif>0?'+':'')+fmtNum(dif)+' → '+fmtNum(v.nuevo)+' u.','ok');
     load();
   });
 }
@@ -4491,7 +4612,7 @@ function pdHist(pid){
 // INGRESO y ARMADO son de v5: la mercadería entra suelta y después se palletiza.
 // RECEPCION queda para leer los movimientos viejos, de cuando cerrar sumaba stock.
 var MOV_ICO={INGRESO:'📥',ARMADO:'🏷',REAPERTURA:'✏',RECEPCION:'📥',UBICACION:'📍',SALIDA:'🚚',ENTRADA:'✅',CONSUMO:'🔥',TRANSFER:'🔁',AJUSTE:'✏'};
-var MOV_CLS={INGRESO:'h-ok',ARMADO:'h-loc',REAPERTURA:'h-tr',RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',CONSUMO:'h-use',TRANSFER:'h-tr'};
+var MOV_CLS={INGRESO:'h-ok',ARMADO:'h-loc',REAPERTURA:'h-tr',RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',CONSUMO:'h-use',TRANSFER:'h-tr',AJUSTE:'h-tr'};
 function pdShowQR(){ if(CUR_PAL) showQR(CUR_PAL); }
 // Reabrir para corregir: el QR impreso lleva las cantidades, así que
 // cambiar los números exige cerrarlo de nuevo y reimprimir la etiqueta.

@@ -202,18 +202,43 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
    Los % suman 100. Al ocultar una columna en pantallas chicas, el
    sobrante se reparte solo entre las que quedan. */
 #main-table{table-layout:fixed}
-#main-table th:nth-child(1) {width:4.5%}   /* N° OC        */
-#main-table th:nth-child(2) {width:7%}     /* Fecha        */
-#main-table th:nth-child(3) {width:11%}    /* Proveedor    */
-#main-table th:nth-child(4) {width:6%}     /* Código       */
-#main-table th:nth-child(5) {width:16%}    /* Producto     */
-#main-table th:nth-child(6) {width:6.5%}   /* Pedido       */
-#main-table th:nth-child(7) {width:7%}     /* Recibido     */
-#main-table th:nth-child(8) {width:6.5%}   /* Saldo        */
-#main-table th:nth-child(9) {width:9%}     /* Estado       */
-#main-table th:nth-child(10){width:5.5%}   /* COA          */
-#main-table th:nth-child(11){width:10.5%}  /* Recibido por */
-#main-table th:nth-child(12){width:10.5%}  /* Acción       */
+#main-table th:nth-child(1) {width:4.2%}   /* N° OC        ·  60px */
+#main-table th:nth-child(2) {width:6.5%}   /* Fecha        ·  93px */
+#main-table th:nth-child(3) {width:11%}    /* Proveedor    · 158px */
+#main-table th:nth-child(4) {width:5.4%}   /* Código       ·  78px */
+#main-table th:nth-child(5) {width:17.3%}  /* Producto     · 249px */
+#main-table th:nth-child(6) {width:5.1%}   /* Est. Llegada ·  73px */
+#main-table th:nth-child(7) {width:5.7%}   /* Pedido       ·  82px */
+#main-table th:nth-child(8) {width:6.1%}   /* Recibido     ·  88px */
+#main-table th:nth-child(9) {width:5.3%}   /* Saldo        ·  76px */
+#main-table th:nth-child(10){width:8.1%}   /* Estado       · 116px */
+#main-table th:nth-child(11){width:5.2%}   /* COA          ·  75px */
+#main-table th:nth-child(12){width:10.5%}  /* Recibido por · 151px */
+#main-table th:nth-child(13){width:9.6%}   /* Acción       · 138px */
+/* ── De dónde salieron los 5.1% de Est. Llegada ──────────────
+   Al contrario que en Pedidos, acá había lugar de sobra. Midiendo
+   el ancho natural de cada columna (clon de la tabla con
+   table-layout:auto sobre las 752 filas) sobraban 230px repartidos
+   en las columnas de números y en el botón: Acción usaba 151px para
+   99 de botón, Saldo 93 para 60, Estado 129 para 99, y así.
+
+   Se le recortó el aire a esas — a todas les queda todavía entre 8
+   y 39px de margen, que es lo que hay que dejarle a un número para
+   que no aparezca cortado — y con eso alcanzó para la columna nueva
+   Y ADEMÁS para darle 19px más a Producto (230 → 249px), que es la
+   que se venía cortando de verdad. Proveedor y Recibido por quedan
+   como estaban.
+
+   La celda muestra dd/mm (el año va en el tooltip) para entrar en
+   73px, y el encabezado es la única etiqueta de dos líneas de la
+   tabla porque "EST. LLEGADA" en una sola pide 106px.
+
+   El padding y el interletrado del encabezado van más apretados que
+   en el resto: partida en dos líneas, la columna la marca "LLEGADA",
+   que con los 11px de padding de los demás th pide 58px y se cortaba
+   en las pantallas angostas. Así pide 51. */
+#main-table th:nth-child(6){white-space:normal;line-height:1.2;
+  padding-left:6px;padding-right:6px;letter-spacing:.2px}
 /* El corte con puntos suspensivos. La celda de acción no: ahí hay
    un botón, recortarlo lo dejaría a medias. */
 #main-table tbody td{overflow:hidden;text-overflow:ellipsis}
@@ -228,11 +253,25 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
   #main-table th:nth-child(2), #main-table td:nth-child(2){display:none}   /* Fecha */
 }
 @media (max-width:950px){         /* celular acostado */
-  #main-table th:nth-child(11),#main-table td:nth-child(11){display:none}  /* Recibido por */
+  #main-table th:nth-child(12),#main-table td:nth-child(12){display:none}  /* Recibido por */
   /* A este ancho el badge de Estado (✓ con la fecha) se cortaba.
      Se le da lo suyo y lo cede Producto, que ya venía recortado. */
-  #main-table th:nth-child(9){width:10.5%}
-  #main-table th:nth-child(5){width:19%}
+  #main-table th:nth-child(10){width:10.5%}
+  #main-table th:nth-child(5) {width:18.5%}
+  /* Con 10 columnas el reparto le dejaba 48px a Est. Llegada y el
+     encabezado pide 51: se le da lo suyo y lo cede Producto. */
+  #main-table th:nth-child(6) {width:5.6%}
+}
+@media (max-width:840px){
+  /* Con 10 columnas ya no da: debajo de esto se va Est. Llegada y
+     queda el mismo reparto de siempre. Sin esto el botón Recibir
+     —la única celda con overflow visible— se salía de su columna y
+     devolvía el scroll horizontal que no había antes del cambio.
+     El arribo estimado sigue en el modal de la línea.
+     Acción se sube porque con una columna menos el reparto cambia y
+     con 9.6% el botón quedaba 3px corto. */
+  #main-table th:nth-child(6),#main-table td:nth-child(6){display:none}
+  #main-table th:nth-child(13){width:10.2%}
 }
 
 /* Cells */
@@ -454,13 +493,13 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-15.1450"/>
-<script src="supabase-config.js?v=2026-09-15.1450"></script>
-<script src="subatir-app.js?v=2026-09-15.1450"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-17.1549"/>
+<script src="supabase-config.js?v=2026-09-17.1549"></script>
+<script src="subatir-app.js?v=2026-09-17.1549"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-15.1450';
+window.APP_VER='2026-09-17.1549';
 </script>
 </head>
 <body>
@@ -476,7 +515,7 @@ window.APP_VER='2026-09-15.1450';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-15.1450"></script>
+  <script src="nav.js?v=2026-09-17.1549"></script>
   <div class="header-right">
     <!-- Quién opera, en cuentas compartidas. Lo pinta SubatirApp.operador -->
     <span id="oper-chip"></span>
@@ -596,6 +635,7 @@ window.APP_VER='2026-09-15.1450';
             <th onclick="sortBy('proveedor')">Proveedor</th>
             <th>Código</th>
             <th>Producto</th>
+            <th onclick="sortBy('estimada')" title="Arribo estimado: fecha de la orden + la demora pactada al comprar">Est. Llegada</th>
             <th onclick="sortBy('cantidad')" style="text-align:right">Pedido</th>
             <th style="text-align:right">Recibido</th>
             <th style="text-align:right">Saldo</th>
@@ -606,7 +646,7 @@ window.APP_VER='2026-09-15.1450';
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr class="empty-row"><td colspan="12">Cargando datos…</td></tr>
+          <tr class="empty-row"><td colspan="13">Cargando datos…</td></tr>
         </tbody>
       </table>
     </div>
@@ -811,7 +851,7 @@ window.addEventListener('DOMContentLoaded', function(){
   if (!SCRIPT_URL){
     toast('No hay URL de Apps Script configurada. Volvé al Dashboard para configurarla.','err');
     document.getElementById('tbody').innerHTML =
-      '<tr class="empty-row"><td colspan="12">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
+      '<tr class="empty-row"><td colspan="13">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
   } else {
     load();
   }
@@ -897,7 +937,7 @@ function load(){
       setLoading(false);
       toast('Error al cargar datos: ' + e.message, 'err');
       document.getElementById('tbody').innerHTML =
-        '<tr class="empty-row"><td colspan="12">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
+        '<tr class="empty-row"><td colspan="13">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
     }
   );
 }
@@ -932,7 +972,13 @@ function detectKeys(rows){
   K.conforme  = fk(keys,['Conforme','CONFORME','conforme','Aprobado','APROBADO','Estado Recepcion','ESTADO RECEPCION','Estado Recepción']);
   K.obs       = fk(keys,['Observaciones','OBSERVACIONES','observaciones','Obs.','OBS','Obs','Comentarios','COMENTARIOS','Notas','NOTAS']);
   K.recibido  = fk(keys,['Recibido por','RECIBIDO POR','recibido_por','Recibido','RECIBIDO','Recibe']);
+  // Demora pactada al hacer la OC, en días. La fecha estimada de arribo
+  // se calcula con SubatirApp.llegada: acá no se guarda ninguna fecha.
+  K.demora    = fk(keys,['Demora días','Demora dias','Demora','DEMORA','demora_dias']);
 }
+
+// Fecha estimada de arribo de una línea, 'YYYY-MM-DD' o ''.
+function estLlegadaDe(r){ return SubatirApp.llegada.estimar(r[K.fecha], r[K.demora]); }
 
 function fk(keys, candidates){
   for (var c = 0; c < candidates.length; c++){
@@ -1160,6 +1206,9 @@ function sortFiltered(){
     else if (key === 'cantidad')  { va = pNum(a[K.cantidad]);vb = pNum(b[K.cantidad]); }
     else if (key === 'precio')    { va = pNum(a[K.precio]);   vb = pNum(b[K.precio]); }
     else if (key === 'recepcion') { va = a[K.recepcion]||''; vb = b[K.recepcion]||''; }
+    // Las líneas sin estimación van al final: ordenar por Est. Llegada
+    // es preguntar "qué llega primero", y un renglón sin dato no llega.
+    else if (key === 'estimada')  { va = estLlegadaDe(a)||'9999-99-99'; vb = estLlegadaDe(b)||'9999-99-99'; }
     else { va = ''; vb = ''; }
     if (va < vb) return -1 * dir;
     if (va > vb) return  1 * dir;
@@ -1198,7 +1247,7 @@ function estadoPill(est){
 function renderTable(){
   var html = '';
   if (FILTERED.length === 0){
-    html = '<tr class="empty-row"><td colspan="12">Sin resultados con los filtros actuales.</td></tr>';
+    html = '<tr class="empty-row"><td colspan="13">Sin resultados con los filtros actuales.</td></tr>';
   } else {
     FILTERED.forEach(function(r){
       var orden = r[K.orden] || '—';
@@ -1211,6 +1260,9 @@ function renderTable(){
       var cod = codigoDe(r);
       html += '<td class="cod-cell">'+(cod ? esc(cod) : '<span class="muted-cell">—</span>')+'</td>';
       html += '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="'+esc(String(r[K.desc]||''))+'">'+esc(String(r[K.desc]||'—'))+'</td>';
+      // Est. Llegada: se apaga en cuanto la línea llegó completa — un
+      // atraso ya resuelto no tiene por qué seguir en rojo.
+      html += '<td>'+SubatirApp.llegada.celda(r[K.fecha], r[K.demora], st.estado==='COMPLETA')+'</td>';
       html += '<td class="num-cell">'+fmtNum(st.pedida)+'</td>';
       html += '<td class="num-cell" style="color:'+(st.recibido>0?'var(--ok)':'var(--muted)')+'">'+(st.recibido>0?fmtNum(st.recibido):'—')+'</td>';
       html += '<td class="num-cell" style="color:'+(st.saldo>0?'var(--orange-l)':'var(--muted)')+';font-weight:700">'+(st.saldo>0?fmtNum(st.saldo):'0')+'</td>';
@@ -2068,12 +2120,14 @@ function updateSyncUI(){}
 
 // ── Export CSV ────────────────────────────────────────────────
 function exportCSV(){
-  var cols = [K.orden,K.fecha,K.proveedor,K.desc,K.cantidad,K.recepcion,K.lote,K.coa,K.conforme,K.vto,K.recibido,K.obs];
-  var header = ['Código'].concat(cols).join(',');
+  var cols = [K.orden,K.fecha,K.proveedor,K.desc,K.cantidad,K.demora,K.recepcion,K.lote,K.coa,K.conforme,K.vto,K.recibido,K.obs];
+  var header = ['Código'].concat(cols).concat(['Est. Llegada']).join(',');
   var rows   = FILTERED.map(function(r){
-    // El código va resuelto igual que en pantalla, no crudo del registro
+    // El código y la fecha estimada van resueltos igual que en pantalla,
+    // no crudos del registro (la estimación ni siquiera está guardada)
     return ['"'+codigoDe(r).replace(/"/g,'""')+'"'].concat(
-      cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; })).join(',');
+      cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; }))
+      .concat(['"'+SubatirApp.llegada.fmt(estLlegadaDe(r))+'"']).join(',');
   });
   var csv  = '﻿' + header + '\n' + rows.join('\n'); // BOM para Excel
   var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});

@@ -104,9 +104,10 @@
         codigo: 'Código', inventario_id: 'ID Inventario',
         descripcion: 'Descripción', moneda: '$/U$S', precio_un: 'Precio un', s_iva: 's/iva',
         c_iva: 'c/iva', f_recepcion: 'F.Recepción', f_vto: 'F. Vto', lote: 'Lote',
-        coa: 'COA', conforme: 'Conforme', observaciones: 'Observaciones', recibido_por: 'Recibido por'
+        coa: 'COA', conforme: 'Conforme', observaciones: 'Observaciones', recibido_por: 'Recibido por',
+        demora_dias: 'Demora días'
       },
-      num: ['cantidad', 'precio_un', 's_iva', 'c_iva'], date: ['fecha', 'f_recepcion']
+      num: ['cantidad', 'precio_un', 's_iva', 'c_iva', 'demora_dias'], date: ['fecha', 'f_recepcion']
     },
     inventario: {
       table: 'inventario', payloadKeys: ['inventario'],
@@ -416,13 +417,18 @@
       var fecha = coerce(MAPS.pedidos, 'fecha', params.get('fecha'));
       var prov  = params.get('proveedor') || null;
       var obs   = params.get('obs') || null;
+      //  Demora estimada de arribo: se pacta con el proveedor para la
+      //  orden entera, así que baja igual a todas sus líneas (como obs).
+      //  Si no se cargó queda NULL y la columna Est. Llegada muestra "—".
+      var demora = LLEGADA.dias(params.get('demora')) || null;
       var rows = items.map(function (it) {
         var cant = parseFloat(it.cantidad) || 0, prec = parseFloat(it.precio) || 0;
         var siva = cant * prec, civa = siva * ivaMult(it.descripcion);
         var row = {
           n_orden: orden, fecha: fecha, proveedor: prov, descripcion: it.descripcion || null,
           cantidad: cant, precio_un: prec, moneda: it.moneda || null,
-          s_iva: +siva.toFixed(2), c_iva: +civa.toFixed(2), observaciones: obs
+          s_iva: +siva.toFixed(2), c_iva: +civa.toFixed(2), observaciones: obs,
+          demora_dias: demora
         };
         // La línea queda atada a la ficha, no al nombre: si mañana
         // renombran el artículo, la orden sigue sabiendo cuál es
@@ -2204,6 +2210,76 @@
     } catch (e) {}
   })();
 
+  // ── Est. llegada de una OC ─────────────────────────────────
+  //  Lo que se guarda es la DEMORA EN DÍAS (pedidos.demora_dias): es
+  //  lo que promete el proveedor al cerrar la compra. La fecha sale
+  //  siempre de acá — fecha de la OC + demora — y no se guarda en
+  //  ningún lado: si se corrige la fecha de la orden, la estimación
+  //  acompaña sola en vez de quedar una fecha vieja contradiciéndola.
+  //
+  //  La celda también vive acá, y no copiada en Pedidos y en
+  //  Recepción, porque las dos pantallas muestran el mismo dato y ya
+  //  pasó que dos copias del mismo cálculo terminaran discrepando.
+  var LLEGADA = (function () {
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    function ymd(s) { return /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); }
+
+    //  Días válidos: entero positivo. Cualquier otra cosa es "sin dato".
+    function dias(v) {
+      var n = parseInt(String(v == null ? '' : v).replace(/[^\d-]/g, ''), 10);
+      return isFinite(n) && n > 0 ? n : 0;
+    }
+
+    //  Fecha estimada 'YYYY-MM-DD', o '' si falta la fecha o la demora.
+    //  La suma va en UTC a propósito: new Date('2026-09-17') arma
+    //  medianoche UTC y sumarle días en horario local corre el
+    //  resultado un día para atrás en Uruguay (UTC-3).
+    function estimar(fechaOC, demoraDias) {
+      var d = dias(demoraDias), m = ymd(fechaOC);
+      if (!d || !m) return '';
+      var x = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]) + d * 86400000);
+      return x.getUTCFullYear() + '-' + p2(x.getUTCMonth() + 1) + '-' + p2(x.getUTCDate());
+    }
+
+    //  Días que faltan para la fecha estimada (negativo = ya pasó).
+    //  null cuando no hay estimación.
+    function faltan(est) {
+      var a = ymd(est); if (!a) return null;
+      var h = new Date();
+      return Math.round((Date.UTC(+a[1], +a[2] - 1, +a[3]) -
+                         Date.UTC(h.getFullYear(), h.getMonth(), h.getDate())) / 86400000);
+    }
+
+    function fmt(est) { var m = ymd(est); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; }
+
+    //  Texto largo, para el detalle de la orden.
+    function texto(fechaOC, demoraDias) {
+      var est = estimar(fechaOC, demoraDias);
+      if (!est) return '—';
+      var d = dias(demoraDias);
+      return fmt(est) + ' (' + d + ' día' + (d === 1 ? '' : 's') + ')';
+    }
+
+    //  La celda de las tablas. `llego` = la línea ya se recibió: la
+    //  estimación pasó a ser historia y se muestra apagada, sin
+    //  alarma, porque avisar de un atraso que ya se resolvió sólo
+    //  ensucia la pantalla.
+    function celda(fechaOC, demoraDias, llego) {
+      var est = estimar(fechaOC, demoraDias);
+      if (!est) return '<span style="color:var(--muted)">—</span>';
+      var corta = est.slice(8, 10) + '/' + est.slice(5, 7);
+      if (llego) return '<span class="pill pill-recv" style="opacity:.45" title="Estimado ' + fmt(est) + '">' + corta + '</span>';
+      var f = faltan(est);
+      var cls = f < 0 ? 'pill-late' : (f <= 3 ? 'pill-pend' : 'pill-ok');
+      var tit = f < 0 ? 'Atrasada ' + (-f) + (f === -1 ? ' día' : ' días')
+              : f === 0 ? 'Llega hoy'
+              : 'Faltan ' + f + (f === 1 ? ' día' : ' días');
+      return '<span class="pill ' + cls + '" title="' + tit + ' · estimado ' + fmt(est) + '">' + corta + '</span>';
+    }
+
+    return { dias: dias, estimar: estimar, faltan: faltan, fmt: fmt, texto: texto, celda: celda };
+  })();
+
   // ── Export ─────────────────────────────────────────────────
   window.SubatirApp = {
     ready: _ready,
@@ -2219,7 +2295,7 @@
     PL06: PL06, operador: OPER, stock: STOCK,
     live: live,
     xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH, cat: CAT,
-    transito: transito,
+    transito: transito, llegada: LLEGADA,
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule
   };

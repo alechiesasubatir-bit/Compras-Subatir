@@ -202,32 +202,64 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
    Los % suman 100. Si se oculta una columna en pantallas chicas,
    el sobrante se reparte solo entre las que quedan.
 
-   Los anchos NO son a ojo: se midió el contenido real de las 60
-   primeras filas (td.scrollWidth) y cada columna se llevó lo que
-   necesita para no cortar. Sólo Descripción y Proveedor quedan con
-   puntos suspensivos — ya se cortaban antes de este cambio, y el
-   texto entero está en 👁 Ver. */
+   Los anchos NO son a ojo, pero ojo con cómo se miden: la primera
+   vez se usó td.scrollWidth sobre las 60 primeras filas y quedaron
+   varias columnas subestimadas (scrollWidth no puede pasarse del
+   ancho fijo, así que una columna corta se ve "justa"). Los números
+   de acá abajo son el ancho que le toca a cada una; el ancho que
+   cada una PIDE está más abajo. El dato completo de lo que se
+   recorta sigue estando en el title y en 👁 Ver. */
 #main-table{table-layout:fixed}
-#main-table th:nth-child(1) {width:4%}     /* N° OC       ·  57px */
-#main-table th:nth-child(2) {width:6.1%}   /* Fecha       ·  88px */
-#main-table th:nth-child(3) {width:9%}     /* Proveedor   · 129px */
-#main-table th:nth-child(4) {width:4.5%}   /* Código      ·  65px */
-#main-table th:nth-child(5) {width:15.2%}  /* Descripción · 218px */
-#main-table th:nth-child(6) {width:4.5%}   /* Cant.       ·  65px */
-#main-table th:nth-child(7) {width:6%}     /* P. Unit     ·  86px */
-#main-table th:nth-child(8) {width:6.5%}   /* s/IVA       ·  93px */
-#main-table th:nth-child(9) {width:6.5%}   /* c/IVA       ·  93px */
-#main-table th:nth-child(10){width:7.5%}   /* Recepción   · 108px */
-#main-table th:nth-child(11){width:8.9%}   /* Lote        · 128px */
-#main-table th:nth-child(12){width:7%}     /* COA / Conf. · 101px */
-#main-table th:nth-child(13){width:14.3%}  /* Acciones    · 205px */
+#main-table th:nth-child(1) {width:4%}     /* N° OC        ·  57px */
+#main-table th:nth-child(2) {width:6.1%}   /* Fecha        ·  88px */
+#main-table th:nth-child(3) {width:9%}     /* Proveedor    · 129px */
+#main-table th:nth-child(4) {width:4.5%}   /* Código       ·  65px */
+#main-table th:nth-child(5) {width:12.2%}  /* Descripción  · 175px */
+#main-table th:nth-child(6) {width:4.5%}   /* Cant.        ·  65px */
+#main-table th:nth-child(7) {width:6%}     /* P. Unit      ·  86px */
+#main-table th:nth-child(8) {width:6.5%}   /* s/IVA        ·  93px */
+#main-table th:nth-child(9) {width:6.5%}   /* c/IVA        ·  93px */
+#main-table th:nth-child(10){width:5.1%}   /* Est. Llegada ·  73px */
+#main-table th:nth-child(11){width:7.5%}   /* Recepción    · 108px */
+#main-table th:nth-child(12){width:8.9%}   /* Lote         · 128px */
+#main-table th:nth-child(13){width:7%}     /* COA / Conf.  · 101px */
+#main-table th:nth-child(14){width:12.2%}  /* Acciones     · 175px */
+/* ── De dónde salieron los 5.1% de Est. Llegada ──────────────
+   Acá no había lugar. Se midió el ancho NATURAL de cada columna
+   (clon de la tabla con table-layout:auto, que es lo único que lo
+   dice: td.scrollWidth queda topeado al ancho fijo) sobre las 752
+   filas: entre todas piden 1943px y hay 1437. Sumando, la holgura
+   real de la tabla entera eran 45px.
+
+   De esos 45, 35 estaban en Acciones (14.3% para 171px de botones):
+   se le dejó 12.2% y sigue con 4px de aire. Los 38px que faltaban
+   los puso Descripción (15.2 → 12.2). Es la única que puede: ya
+   pedía 468px contra los 218 que tenía, o sea que se venía cortando
+   igual, y el nombre completo está en el title y en 👁 Ver.
+
+   Ninguna otra columna se tocó. En particular Lote se quedó con sus
+   8.9%: probamos bajarla y a 101px se cortaban 8 lotes de 752 — un
+   número de lote a medias no sirve para nada, y esos 27px no valen
+   eso. Proveedor, Recepción, COA/Conf. y los importes, igual que
+   antes.
+
+   La celda muestra dd/mm (el año va en el tooltip) para entrar en
+   73px, y el encabezado es la única etiqueta de dos líneas de la
+   tabla porque "EST. LLEGADA" en una sola pide 106px.
+
+   El padding y el interletrado del encabezado van más apretados que
+   en el resto: partida en dos líneas, el ancho mínimo lo marca
+   "LLEGADA", que con los 11px de padding de los demás th pide 58px
+   y se cortaba en las pantallas angostas. Así pide 51. */
+#main-table th:nth-child(10){white-space:normal;line-height:1.2;
+  padding-left:6px;padding-right:6px;letter-spacing:.2px}
 /* El corte con puntos suspensivos. La celda de acciones no: ahí
    hay botones, recortarlos los dejaría a medias. */
 #main-table tbody td{overflow:hidden;text-overflow:ellipsis}
 #main-table tbody td:last-child{overflow:visible}
 
 /* Pantallas angostas (notebook chica, tablet, celular acostado):
-   las 13 columnas necesitan 1437px. Debajo de eso, apretarlas todas
+   las 14 columnas necesitan 1437px. Debajo de eso, apretarlas todas
    dejaría los importes cortados — y un importe a medias es peor que
    no mostrarlo. Así que van cayendo por tramos, de la columna menos
    usada a la más.
@@ -243,16 +275,41 @@ tbody td{padding:7px 8px;white-space:nowrap;vertical-align:middle}
   #main-table th:nth-child(7), #main-table td:nth-child(7){display:none}  /* P. Unit */
 }
 @media (max-width:1199px){
-  #main-table th:nth-child(11),#main-table td:nth-child(11),  /* Lote */
-  #main-table th:nth-child(12),#main-table td:nth-child(12){display:none} /* COA/Conf */
+  #main-table th:nth-child(12),#main-table td:nth-child(12),  /* Lote */
+  #main-table th:nth-child(13),#main-table td:nth-child(13){display:none} /* COA/Conf */
 }
 @media (max-width:950px){         /* celular acostado */
-  /* Quedan 7 columnas. A este ancho se quedaban cortos el importe
+  /* Quedan 8 columnas. A este ancho se quedaban cortos el importe
      c/IVA y el badge de Recepción (el ✓ con la fecha). Se les da lo
-     suyo y lo cede Descripción, que ya venía recortada. */
-  #main-table th:nth-child(9) {width:8%}
-  #main-table th:nth-child(10){width:9.3%}
-  #main-table th:nth-child(5) {width:12.9%}
+     suyo y lo cede Descripción, que ya venía recortada.
+
+     Acá los % NO son el ancho final: al ocultarse columnas el
+     navegador reparte el sobrante entre las que quedan, así que lo
+     que importa es la proporción. Sin los anchos de abajo, con la
+     columna nueva la celda de Acciones se quedaba corta para los
+     163px que mide "Ver Editar Entregas" y —al ser la única con
+     overflow visible— los botones se salían y volvía el scroll
+     horizontal, justo lo que este bloque existe para evitar.
+     Verificado a 880, 900, 920 y 950px. */
+  #main-table th:nth-child(1) {width:4.8%}   /* N° OC        */
+  #main-table th:nth-child(5) {width:11.9%}  /* Descripción  */
+  #main-table th:nth-child(6) {width:4.8%}   /* Cant.        */
+  #main-table th:nth-child(9) {width:8%}     /* c/IVA        */
+  #main-table th:nth-child(10){width:6%}     /* Est. Llegada */
+  #main-table th:nth-child(11){width:9.3%}   /* Recepción    */
+  #main-table th:nth-child(14){width:13.8%}  /* Acciones     */
+}
+@media (max-width:880px){
+  /* Debajo de esto ya no dan las 8: quedan 7 y la que se va es
+     Est. Llegada. Es la más nueva y la menos urgente de las que
+     quedaban — Pedidos se usa desde el escritorio de compras, y el
+     seguimiento de arribos en el celular lo tiene Recepción, donde
+     la columna entra con aire de sobra. La fecha estimada sigue en
+     el 👁 Ver de cada línea.
+     Acciones vuelve a su proporción original: con 7 columnas el
+     reparto es otro y con 13% los botones se salían de nuevo. */
+  #main-table th:nth-child(10),#main-table td:nth-child(10){display:none}
+  #main-table th:nth-child(14){width:15%}
 }
 
 /* Cells */
@@ -469,14 +526,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="oc-pdf.js?v=2026-09-15.1450"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-15.1450"/>
-<script src="supabase-config.js?v=2026-09-15.1450"></script>
-<script src="subatir-app.js?v=2026-09-15.1450"></script>
+<script src="oc-pdf.js?v=2026-09-17.1549"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-17.1549"/>
+<script src="supabase-config.js?v=2026-09-17.1549"></script>
+<script src="subatir-app.js?v=2026-09-17.1549"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-15.1450';
+window.APP_VER='2026-09-17.1549';
 </script>
 </head>
 <body>
@@ -492,7 +549,7 @@ window.APP_VER='2026-09-15.1450';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-15.1450"></script>
+  <script src="nav.js?v=2026-09-17.1549"></script>
   <div class="header-right">
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
@@ -630,6 +687,7 @@ window.APP_VER='2026-09-15.1450';
             <th onclick="sortBy('precio')" style="text-align:right">P. Unit</th>
             <th style="text-align:right">s/IVA</th>
             <th style="text-align:right">c/IVA</th>
+            <th onclick="sortBy('estimada')" title="Arribo estimado: fecha de la orden + la demora pactada con el proveedor">Est. Llegada</th>
             <th onclick="sortBy('recepcion')">Recepción</th>
             <th>Lote</th>
             <th style="text-align:center">COA / Conf.</th>
@@ -637,7 +695,7 @@ window.APP_VER='2026-09-15.1450';
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr class="empty-row"><td colspan="13">Cargando datos…</td></tr>
+          <tr class="empty-row"><td colspan="14">Cargando datos…</td></tr>
         </tbody>
       </table>
     </div>
@@ -678,7 +736,7 @@ window.APP_VER='2026-09-15.1450';
         <div class="form-grid">
           <div class="form-group">
             <label>Fecha de la orden</label>
-            <input type="date" class="form-input" id="ed-fecha"/>
+            <input type="date" class="form-input" id="ed-fecha" onchange="calcEdLlegada()"/>
           </div>
           <div class="form-group">
             <label>Proveedor</label>
@@ -710,6 +768,14 @@ window.APP_VER='2026-09-15.1450';
           <div class="form-group" style="justify-content:flex-end">
             <label>Totales (recalculados)</label>
             <div id="ed-calc" style="font-size:12px;color:var(--muted);padding:6px 0">—</div>
+          </div>
+          <div class="form-group">
+            <label>Demora estimada (días)</label>
+            <input type="number" class="form-input" id="ed-demora" min="1" step="1" placeholder="Ej: 15" oninput="calcEdLlegada()"/>
+          </div>
+          <div class="form-group" style="justify-content:flex-end">
+            <label>Est. Llegada</label>
+            <div id="ed-llegada" style="font-size:12px;color:var(--muted);padding:6px 0">—</div>
           </div>
         </div>
         <div style="font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--teal-l);margin:16px 0 10px">📦 Recepción y documentación</div>
@@ -898,7 +964,14 @@ window.APP_VER='2026-09-15.1450';
       <div class="form-grid">
         <div class="form-group">
           <label>Fecha *</label>
-          <input type="date" class="form-input" id="nw-fecha"/>
+          <input type="date" class="form-input" id="nw-fecha" onchange="calcNwLlegada()"/>
+        </div>
+        <!-- Demora de arribo: es un dato interno de seguimiento, NO sale
+             en la orden de compra impresa que se le manda al proveedor. -->
+        <div class="form-group">
+          <label>Demora estimada (días)</label>
+          <input type="number" class="form-input" id="nw-demora" min="1" step="1" placeholder="Ej: 15" oninput="calcNwLlegada()"/>
+          <div id="nw-llegada" style="font-size:11px;color:var(--muted);min-height:15px">Llega aprox. —</div>
         </div>
         <div class="form-group span2">
           <label>Proveedor *</label>
@@ -1020,7 +1093,7 @@ window.addEventListener('DOMContentLoaded', function(){
   if (!SCRIPT_URL){
     toast('No hay URL de Apps Script configurada. Volvé al Dashboard para configurarla.','err');
     document.getElementById('tbody').innerHTML =
-      '<tr class="empty-row"><td colspan="13">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
+      '<tr class="empty-row"><td colspan="14">⚠ Sin conexión. <a href="index.html" style="color:var(--teal-l)">Configurar en Dashboard →</a></td></tr>';
   } else {
     load();
   }
@@ -1104,7 +1177,7 @@ function load(){
       setLoading(false);
       toast('Error al cargar datos: ' + e.message, 'err');
       document.getElementById('tbody').innerHTML =
-        '<tr class="empty-row"><td colspan="13">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
+        '<tr class="empty-row"><td colspan="14">⚠ Error de conexión. ⟳ Reintentá.</td></tr>';
     }
   );
 }
@@ -1138,6 +1211,9 @@ function detectKeys(rows){
   K.coa       = fk(keys,['COA','coa','Coa','C.O.A','Certificado','CERTIFICADO','Cert. Calidad','CERT. CALIDAD','Cert Calidad']);
   K.conforme  = fk(keys,['Conforme','CONFORME','conforme','Aprobado','APROBADO','Estado Recepcion','ESTADO RECEPCION','Estado Recepción']);
   K.obs       = fk(keys,['Observaciones','OBSERVACIONES','observaciones','Obs.','OBS','Obs','Comentarios','COMENTARIOS','Notas','NOTAS']);
+  // Demora pactada al hacer la OC, en días. La fecha estimada de arribo
+  // se calcula con SubatirApp.llegada: acá no se guarda ninguna fecha.
+  K.demora    = fk(keys,['Demora días','Demora dias','Demora','DEMORA','demora_dias']);
 }
 
 function fk(keys, candidates){
@@ -1148,6 +1224,9 @@ function fk(keys, candidates){
   }
   return candidates[0];
 }
+
+// Fecha estimada de arribo de una línea, 'YYYY-MM-DD' o ''.
+function estLlegadaDe(r){ return SubatirApp.llegada.estimar(r[K.fecha], r[K.demora]); }
 
 // ── Override local ────────────────────────────────────────────
 function applyLocalOverrides(){
@@ -1377,6 +1456,9 @@ function sortFiltered(){
     else if (key === 'cantidad')  { va = pNum(a[K.cantidad]);vb = pNum(b[K.cantidad]); }
     else if (key === 'precio')    { va = pNum(a[K.precio]);   vb = pNum(b[K.precio]); }
     else if (key === 'recepcion') { va = a[K.recepcion]||''; vb = b[K.recepcion]||''; }
+    // Las líneas sin estimación van al final: ordenar por Est. Llegada
+    // es preguntar "qué llega primero", y un renglón sin dato no llega.
+    else if (key === 'estimada')  { va = estLlegadaDe(a)||'9999-99-99'; vb = estLlegadaDe(b)||'9999-99-99'; }
     else { va = ''; vb = ''; }
     if (va < vb) return -1 * dir;
     if (va > vb) return  1 * dir;
@@ -1389,7 +1471,7 @@ function renderTable(){
   var html  = '';
 
   if (FILTERED.length === 0){
-    html = '<tr class="empty-row"><td colspan="13">Sin resultados con los filtros actuales.</td></tr>';
+    html = '<tr class="empty-row"><td colspan="14">Sin resultados con los filtros actuales.</td></tr>';
   } else {
     FILTERED.forEach(function(r){
       var orden    = r[K.orden] || '—';
@@ -1443,6 +1525,9 @@ function renderTable(){
               : civaPSO > 0 ? '<span style="color:var(--teal-l)">' + fmtPSO(civaPSO) + '</span>'
               : '<span class="muted-cell">—</span>')
             + '</td>';
+      // Est. Llegada: se apaga en cuanto la línea llegó completa — un
+      // atraso ya resuelto no tiene por qué seguir en rojo.
+      html += '<td>' + SubatirApp.llegada.celda(r[K.fecha], r[K.demora], st.estado==='COMPLETA') + '</td>';
       html += '<td>' + recepBadge + '</td>';
       // Lote y COA parpadean en rojo solo cuando hay algo que resolver:
       // materia prima ya recibida a la que le falta el dato
@@ -1531,6 +1616,7 @@ function openDetail(id){
     {l:'s/IVA',  v: pNum(row[K.siva])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.siva])) : '—'},
     {l:'c/IVA',  v: pNum(row[K.civa])>0 ? (ocMoneda(row)==='USD'?fmtUSD:fmtPSO)(pNum(row[K.civa])) : '—'},
     {l:'', v:'', divider:true},
+    {l:'Est. Llegada', v: SubatirApp.llegada.texto(row[K.fecha], row[K.demora])},
     {l:'F. Recepción',v: fmtDate(row[K.recepcion]) || 'Pendiente'},
     {l:'F. Vencim.',  v: isVtoNA(row[K.vto]) ? 'No aplica' : (fmtDate(row[K.vto]) || '—')},
     (function(){
@@ -1583,7 +1669,9 @@ function toggleEditForm(){
     document.getElementById('ed-cant').value   = pNum(row[K.cantidad]) || '';
     document.getElementById('ed-precio').value = pNum(row[K.precio]) || '';
     document.getElementById('ed-moneda').value = (ocMoneda(row)==='USD' ? 'U$S' : '$');
+    document.getElementById('ed-demora').value  = SubatirApp.llegada.dias(row[K.demora]) || '';
     calcEditTotals();
+    calcEdLlegada();
     // Poblar formulario — recepción
     document.getElementById('ed-recepcion').value = row[K.recepcion] || '';
     document.getElementById('ed-lote').value       = row[K.lote]     || '';
@@ -1616,6 +1704,16 @@ function calcEditTotals(){
     +' <span style="opacity:.65">(IVA '+Math.round(tasa*100)+'%)</span>';
 }
 
+// Muestra a qué fecha da la demora que se está escribiendo, para no
+// tener que hacer la cuenta de cabeza antes de guardar.
+function calcEdLlegada(){
+  var est = SubatirApp.llegada.texto(document.getElementById('ed-fecha').value,
+                                     document.getElementById('ed-demora').value);
+  var el = document.getElementById('ed-llegada');
+  el.textContent = est;
+  el.style.color = est==='—' ? 'var(--muted)' : 'var(--teal-l)';
+}
+
 function saveEdit(){
   var row = CURRENT_ROW;
   if(!row) return;
@@ -1642,6 +1740,7 @@ function saveEdit(){
     '$/U$S':         mon,
     's/iva':         siva,
     'c/iva':         civa,
+    'Demora días':   SubatirApp.llegada.dias(document.getElementById('ed-demora').value) || '',
     'F.Recepción':   document.getElementById('ed-recepcion').value,
     'F. Vto':        vtoValor,
     'Lote':          document.getElementById('ed-lote').value,
@@ -2090,8 +2189,11 @@ function saveNew(){
 
   if(!lines.length){ toast('Tildá al menos un producto o cargá uno manualmente.','err'); return; }
 
-  var fecha = document.getElementById('nw-fecha').value;
-  var obs   = document.getElementById('nw-obs').value.trim();
+  var fecha  = document.getElementById('nw-fecha').value;
+  var obs    = document.getElementById('nw-obs').value.trim();
+  // Opcional: si no se sabe cuánto va a demorar, la columna Est. Llegada
+  // queda en "—" y se puede completar después desde ✏ Editar.
+  var demora = SubatirApp.llegada.dias(document.getElementById('nw-demora').value);
   // Cada línea se ata a su ficha de inventario ANTES de crear la orden.
   // Con el id adentro, el tránsito y la suma al recibir dejan de depender
   // de que el nombre siga escribiéndose igual dentro de tres meses.
@@ -2104,7 +2206,7 @@ function saveNew(){
   })).then(function(items){
     var sinFicha = items.filter(function(it){ return !it.inventario_id; }).length;
     if(sinFicha) console.warn('[OC] '+sinFicha+' línea(s) sin ficha: se resolverán por nombre');
-    apiWrite({ action:'addPedidoMulti', fecha:fecha, proveedor:prov, obs:obs, items:JSON.stringify(items) }, function(d){
+    apiWrite({ action:'addPedidoMulti', fecha:fecha, proveedor:prov, obs:obs, demora:demora, items:JSON.stringify(items) }, function(d){
     if(!d) return;
     var orden = d.orden || '?';
     closeModal('new-overlay');
@@ -2117,10 +2219,22 @@ function saveNew(){
   });
 }
 
+// Adelanta la fecha a la que da la demora escrita: el operador pacta
+// "quince días" y quiere ver el día, no volver a contarlo en el calendario.
+function calcNwLlegada(){
+  var est = SubatirApp.llegada.texto(document.getElementById('nw-fecha').value,
+                                     document.getElementById('nw-demora').value);
+  var el = document.getElementById('nw-llegada');
+  el.textContent = est==='—' ? 'Llega aprox. —' : 'Llega aprox. ' + est;
+  el.style.color = est==='—' ? 'var(--muted)' : 'var(--teal-l)';
+}
+
 function clearNewForm(){
   ['nw-proveedor','nw-desc','nw-obs','nw-pick-search'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
   document.getElementById('nw-cantidad').value = '';
   document.getElementById('nw-precio').value = '';
+  document.getElementById('nw-demora').value = '';
+  calcNwLlegada();
   document.getElementById('calc-siva').textContent = '—';
   document.getElementById('calc-civa').textContent = '—';
   NW_MONEDA='U$S'; updateCurrencyUI();
@@ -2207,12 +2321,14 @@ function updateSyncUI(){}
 
 // ── Export CSV ────────────────────────────────────────────────
 function exportCSV(){
-  var cols = [K.orden,K.fecha,K.proveedor,K.desc,K.cantidad,K.precio,K.siva,K.civa,K.recepcion,K.lote,K.coa,K.conforme,K.obs];
-  var header = ['Código'].concat(cols).join(',');
+  var cols = [K.orden,K.fecha,K.proveedor,K.desc,K.cantidad,K.precio,K.siva,K.civa,K.demora,K.recepcion,K.lote,K.coa,K.conforme,K.obs];
+  var header = ['Código'].concat(cols).concat(['Est. Llegada']).join(',');
   var rows   = FILTERED.map(function(r){
-    // El código va resuelto igual que en pantalla, no crudo del registro
+    // El código y la fecha estimada van resueltos igual que en pantalla,
+    // no crudos del registro (la estimación ni siquiera está guardada)
     return ['"'+codigoDe(r).replace(/"/g,'""')+'"'].concat(
-      cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; })).join(',');
+      cols.map(function(c){ return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; }))
+      .concat(['"'+SubatirApp.llegada.fmt(estLlegadaDe(r))+'"']).join(',');
   });
   var csv  = '﻿' + header + '\n' + rows.join('\n'); // BOM para Excel
   var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});

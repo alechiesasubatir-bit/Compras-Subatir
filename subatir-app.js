@@ -1767,11 +1767,12 @@
 
     // El modal es el mismo para sumar (recepción) y para restar (entrega
     // borrada). Lo único que cambia es cómo se llama lo que va a pasar.
-    function encabezar(titulo, btnTxt) {
+    function encabezar(titulo, btnTxt, noTxt) {
       montar();
       document.getElementById('sm-t').textContent = titulo;
       var b = document.getElementById('sm-ok');
       b.textContent = btnTxt; b.disabled = false; b.style.display = '';
+      document.getElementById('sm-no').textContent = noTxt || 'Ahora no';
     }
 
     function seguir() {
@@ -1880,7 +1881,7 @@
                btnTxt: '✓ Restar del stock',
                errTxt: 'La entrega se borró, pero NO se pudo descontar del stock: ' };
       if (!(cant > 0)) { seguir(); return Promise.resolve(); }
-      encabezar('📤 Devolver al stock', '✓ Restar del stock');
+      encabezar('📤 Devolver al stock', '✓ Restar del stock', 'No tocar el stock');
 
       var buscar = invId
         ? MATCH.fichaPorId(invId).then(function (f) {

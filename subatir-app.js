@@ -1724,7 +1724,7 @@
       '.sm-v{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:600;margin-top:3px}' +
       '.sm-txt{font-size:12px;line-height:1.55}';
 
-    var _cur = null;   // {ficha, cant, luego}
+    var _cur = null;   // {ficha, cant, luego, btnTxt, errTxt}
 
     function injectCSS() {
       if (document.getElementById('sm-css')) return;
@@ -1741,7 +1741,7 @@
       ovl.className = 'sm-ovl'; ovl.id = 'sm-ovl';
       ovl.innerHTML =
         '<div class="sm-box">' +
-          '<div class="sm-h"><span>📥 Sumar al stock</span>' +
+          '<div class="sm-h"><span id="sm-t">📥 Sumar al stock</span>' +
             '<button type="button" class="sm-x" id="sm-x">✕</button></div>' +
           '<div class="sm-b" id="sm-body"></div>' +
           '<div class="sm-f">' +
@@ -1764,6 +1764,15 @@
 
     function abrir()  { montar().classList.add('open'); }
     function cerrar() { var o = document.getElementById('sm-ovl'); if (o) o.classList.remove('open'); }
+
+    // El modal es el mismo para sumar (recepción) y para restar (entrega
+    // borrada). Lo único que cambia es cómo se llama lo que va a pasar.
+    function encabezar(titulo, btnTxt) {
+      montar();
+      document.getElementById('sm-t').textContent = titulo;
+      var b = document.getElementById('sm-ok');
+      b.textContent = btnTxt; b.disabled = false; b.style.display = '';
+    }
 
     function seguir() {
       var f = _cur && _cur.luego; _cur = null;
@@ -1793,7 +1802,10 @@
       var desc  = String(o.descripcion || '');
       var cant  = parseFloat(o.cantidad) || 0;
       var invId = o.inventarioId;
-      _cur = { luego: o.luego || function () {} };
+      _cur = { luego: o.luego || function () {},
+               btnTxt: '✓ Sumar al stock',
+               errTxt: 'La entrega se registró, pero NO se pudo sumar al stock: ' };
+      encabezar('📥 Sumar al stock', '✓ Sumar al stock');
 
       // Con el id no hay nada que cruzar: la orden sabe a qué ficha
       // pertenece aunque después la hayan renombrado. Las órdenes
@@ -1810,7 +1822,6 @@
         if (res.ficha) {
           _cur.ficha = res.ficha; _cur.cant = cant;
           var hoy = parseFloat(res.ficha.inventario) || 0, un = res.ficha.unidad || '';
-          document.getElementById('sm-body') || montar();
           document.getElementById('sm-body').innerHTML =
             '<div class="sm-art">' + esc(res.ficha.descripcion) + '</div>' +
             '<div class="sm-warn">⚠ En la orden figura como “' + esc(desc) + '”. ' +
@@ -1839,6 +1850,81 @@
       }, function () { seguir(); });   // si falla la consulta, no se traba la recepción
     }
 
+    /**
+     * Devuelve al inventario lo que se había sumado al recibir, cuando se
+     * borra una entrega.
+     *
+     * Hasta ahora borrar una entrega dejaba la mercadería en el stock: la
+     * suma la hizo inventario_sumar al recibirla y nada la revertía. Así
+     * la OC 976 (percarbonato, 21/09/2026) quedó con 2.000 Kg que nunca
+     * llegaron, y la 927 antes con 20.000 etiquetas.
+     *
+     * A diferencia de sumarAlRecibir, esto NUNCA se aplica solo, aunque la
+     * ficha coincida exacto: no hay forma de saber desde acá si esa entrega
+     * se había sumado al stock —las anteriores a agosto de 2026 no sumaban,
+     * y las que no encontraron ficha tampoco—, y restar de más es tan malo
+     * como no restar. Lo decide quien está mirando la ficha.
+     *
+     * @param {object} o
+     *   o.descripcion  texto de la línea de la OC
+     *   o.cantidad     lo que traía la entrega borrada (en positivo)
+     *   o.inventarioId id de ficha que la OC dejó anotada (si lo tiene)
+     *   o.luego        se llama SIEMPRE al terminar, reste o no
+     */
+    function restarAlBorrar(o) {
+      o = o || {};
+      var desc  = String(o.descripcion || '');
+      var cant  = parseFloat(o.cantidad) || 0;
+      var invId = o.inventarioId;
+      _cur = { luego: o.luego || function () {},
+               btnTxt: '✓ Restar del stock',
+               errTxt: 'La entrega se borró, pero NO se pudo descontar del stock: ' };
+      if (!(cant > 0)) { seguir(); return Promise.resolve(); }
+      encabezar('📤 Devolver al stock', '✓ Restar del stock');
+
+      var buscar = invId
+        ? MATCH.fichaPorId(invId).then(function (f) {
+            return f ? { ficha: f, exacta: true, porId: true } : MATCH.fichaDe(desc);
+          })
+        : MATCH.fichaDe(desc);
+
+      return buscar.then(function (res) {
+        if (!res.ficha) {
+          document.getElementById('sm-body').innerHTML = res.ambiguas
+            ? '<div class="sm-txt">La entrega se borró. El stock no se tocó: “' + esc(desc) +
+              '” se parece a más de una ficha (<b>' +
+              res.ambiguas.map(function (f) { return esc(f.descripcion); }).join('</b>, <b>') +
+              '</b>), así que no hay de cuál descontar. Corregilo a mano en Stock.</div>'
+            : '<div class="sm-txt">La entrega se borró. “' + esc(desc) + '” no tiene ficha en <b>Inventario</b>, ' +
+              'así que no hay de dónde descontar: lo más probable es que al recibirla tampoco se haya sumado.</div>';
+          document.getElementById('sm-ok').style.display = 'none';
+          abrir();
+          return;
+        }
+
+        _cur.ficha = res.ficha; _cur.cant = -cant;
+        var hoy = parseFloat(res.ficha.inventario) || 0, un = res.ficha.unidad || '';
+        var queda = hoy - cant;
+        document.getElementById('sm-body').innerHTML =
+          '<div class="sm-art">' + esc(res.ficha.descripcion) + '</div>' +
+          (res.exacta ? '' :
+            '<div class="sm-warn">⚠ En la orden figura como “' + esc(desc) + '”. ' +
+            'Es la ficha a la que se le habría sumado esta mercadería al recibirla.</div>') +
+          '<div class="sm-warn">Restá sólo si esta entrega <b>había sumado al stock</b> cuando se recibió. ' +
+          'Si la cargaron antes de agosto de 2026, o si en su momento avisó que no encontraba la ficha, ' +
+          'el stock nunca subió y descontarlo ahora lo deja de menos.</div>' +
+          (queda < 0 ? '<div class="sm-warn">⚠ El stock quedaría en <b>' + num(queda) + '</b>. ' +
+            'Un negativo es la señal de que esta entrega nunca se había sumado: revisá antes de restar.</div>' : '') +
+          '<div class="sm-nums">' +
+            '<div><div class="sm-l">Stock hoy</div><div class="sm-v">' + num(hoy) + '</div></div>' +
+            '<div><div class="sm-l">Se borró</div><div class="sm-v" style="color:#f87171">-' + num(cant) + '</div></div>' +
+            '<div><div class="sm-l">Queda</div><div class="sm-v" style="color:#1bc8ff">' + num(queda) + ' ' + esc(un) + '</div></div>' +
+          '</div>';
+        document.getElementById('sm-ok').onclick = function () { aplicar(false); };
+        abrir();
+      }, function () { seguir(); });   // si falla la consulta, el borrado ya está hecho
+    }
+
     // auto = el nombre coincidía exacto: no hubo modal, sólo se avisa
     //
     //  La suma la hace la BASE, con inventario_sumar (ver
@@ -1850,19 +1936,24 @@
     //   · Carrera. Antes se leía el stock, se sumaba en el navegador y
     //     se escribía el TOTAL. Dos personas recibiendo a la vez se
     //     pisaban. Ahora la base suma sobre el valor del momento.
+    //  La misma función sirve para las dos puntas: el delta va con signo
+    //  (+ al recibir, − al borrar la entrega). inventario_sumar suma lo
+    //  que le pasen, así que restar es sumar en negativo.
     function aplicar(auto) {
       if (!_cur || !_cur.ficha) { cerrar(); seguir(); return; }
       var ficha = _cur.ficha, cant = _cur.cant;
+      var resta  = cant < 0;
+      var btnTxt = _cur.btnTxt || '✓ Sumar al stock';
+      var errTxt = _cur.errTxt || 'La entrega se registró, pero NO se pudo sumar al stock: ';
       var b = document.getElementById('sm-ok');
-      if (!auto && b) { b.disabled = true; b.textContent = 'Sumando…'; }
+      if (!auto && b) { b.disabled = true; b.textContent = resta ? 'Restando…' : 'Sumando…'; }
       var hoy = parseFloat(ficha.inventario) || 0;
       return SB.rpc('inventario_sumar', { p_id: ficha.id, p_delta: cant }).then(function (r) {
-        if (!auto && b) { b.disabled = false; b.textContent = '✓ Sumar al stock'; }
+        if (!auto && b) { b.disabled = false; b.textContent = btnTxt; }
         var d = r && r.data;
         var err = (r && r.error && r.error.message) || (d && d.ok === false && d.error);
         if (err) {
-          aviso('La entrega se registró, pero NO se pudo sumar al stock: ' + err +
-                '. Anotalo y cargalo a mano en Stock.', 'err');
+          aviso(errTxt + err + '. Anotalo y cargalo a mano en Stock.', 'err');
           if (!auto) return;      // el modal queda abierto para reintentar
           seguir(); return;
         }
@@ -1870,14 +1961,14 @@
         // El total lo devuelve la base: es el de verdad, no el que
         // calculó esta pestaña con un stock que podía estar viejo.
         var nuevo = (d && d.inventario != null) ? parseFloat(d.inventario) : (hoy + cant);
-        aviso('📥 ' + String(ficha.descripcion).slice(0, 26) + ': ' +
-              num(hoy) + ' + ' + num(cant) + ' = ' + num(nuevo), 'ok');
+        aviso((resta ? '📤 ' : '📥 ') + String(ficha.descripcion).slice(0, 26) + ': ' +
+              num(hoy) + (resta ? ' - ' + num(-cant) : ' + ' + num(cant)) + ' = ' + num(nuevo), 'ok');
         cerrar();
         seguir();
       });
     }
 
-    return { sumarAlRecibir: sumarAlRecibir };
+    return { sumarAlRecibir: sumarAlRecibir, restarAlBorrar: restarAlBorrar };
   })();
 
   // ══ Categoría del artículo ════════════════════════════════

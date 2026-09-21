@@ -1,4 +1,8 @@
 -- ============================================================
+--  SUPERADO por entregas_trigger_v2.sql (21/09/2026): si se borraba la
+--  ULTIMA entrega de una linea, la de acá no la reabría y la línea
+--  quedaba marcada como recibida sin nada detrás. Correr aquel, no este.
+-- ============================================================
 --  Sincroniza pedidos.f_recepcion (y datos de recepción) con las
 --  entregas parciales. Corre con privilegios (SECURITY DEFINER),
 --  así el operario NO necesita permiso de escritura sobre pedidos.

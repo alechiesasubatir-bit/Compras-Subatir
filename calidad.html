@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Compras"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Calidad MP — Subatir / Prolimpio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ═══ TOKENS ══════════════════════════════════════════════════ */
+:root{
+  --bg0:#040810;--bg1:#080f1c;--bg2:#0b1628;--bg3:#0e1d34;
+  --teal:#0e6b8a;--teal-l:#12a0cc;--teal-g:rgba(14,107,138,.18);
+  --orange:#f97316;--orange-d:#c2580a;
+  --glass:rgba(255,255,255,.035);--glass-b:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.07);--border-b:rgba(255,255,255,.12);
+  --text:#dde6f0;--muted:#4e6175;--muted-l:#6b7f93;
+  --red:#ef4444;--red-g:rgba(239,68,68,.18);--red-b:rgba(239,68,68,.35);
+  --amber:#f59e0b;--amber-g:rgba(245,158,11,.15);--amber-b:rgba(245,158,11,.3);
+  --green:#22c55e;--green-g:rgba(34,197,94,.12);--green-b:rgba(34,197,94,.25);
+  --mono:'IBM Plex Mono',monospace;
+  --r:13px;--shadow:0 12px 40px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scrollbar-gutter:stable;overflow-x:hidden}
+body{
+  background:var(--bg0);
+  min-height:100vh;color:var(--text);
+  font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 55% at 5% 10%,rgba(167,139,250,.12) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 50% at 95% 90%,rgba(14,138,170,.09) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 50%,rgba(249,115,22,.04) 0%,transparent 50%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity:.5;
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(14,107,138,.6);border-radius:3px}
+
+/* ── Glass ─────────────────────────────────────────────────── */
+.glass{
+  background:var(--glass);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);
+}
+
+/* ═══ HEADER ══════════════════════════════════════════════════ */
+header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:13px 22px;
+  background:linear-gradient(90deg,rgba(14,107,138,.2) 0%,rgba(4,8,16,.7) 100%);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(24px);
+}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-mark{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  object-fit:cover;display:block;
+  box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25);
+}
+.logo h1{font-family:'Manrope',sans-serif;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo p{font-size:10px;color:var(--muted-l);margin-top:1px}
+nav{display:flex;gap:3px;flex-wrap:wrap}
+.nl{
+  padding:5px 13px;border-radius:7px;font-size:12px;font-weight:600;
+  color:var(--muted-l);text-decoration:none;transition:all .18s;border:1px solid transparent;
+}
+.nl:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.nl.on{
+  color:#fff;
+  background:linear-gradient(135deg,rgba(14,138,170,.4),rgba(27,200,255,.25));
+  border-color:rgba(27,200,255,.3);box-shadow:0 0 10px rgba(14,138,170,.25);
+}
+.nl.dim{opacity:.35;cursor:not-allowed;pointer-events:none}
+.hdr-right{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ts{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.btn{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 13px;
+  border-radius:8px;border:none;cursor:pointer;
+  font-size:11px;font-weight:700;letter-spacing:.4px;transition:all .18s;
+}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.1)}
+.btn-teal{background:linear-gradient(135deg,var(--teal),var(--teal-l));color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text)}
+.btn-orange{background:linear-gradient(135deg,var(--orange-d),var(--orange));color:#fff}
+.btn-sm{padding:4px 10px;font-size:10px}
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.12);
+  border-top-color:var(--teal-l);border-radius:50%;animation:spin .65s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══ MAIN ════════════════════════════════════════════════════ */
+.main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
+
+/* ═══ KPI ROW ══════════════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.kpi{
+  padding:12px 14px;position:relative;overflow:hidden;
+  transition:transform .2s;cursor:default;
+}
+.kpi:hover{transform:translateY(-3px)}
+.kpi::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  border-radius:0 0 var(--r) var(--r);
+}
+.kpi-total::after  {background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.kpi-medio::after  {background:linear-gradient(90deg,var(--amber),#fcd34d)}
+.kpi-optimo::after {background:linear-gradient(90deg,var(--green),#4ade80)}
+.kpi-crit::after   {background:linear-gradient(90deg,var(--red),#ff6b6b)}
+.kpi-label{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:10px}
+.kpi-num{font-family:var(--mono);font-size:21px;font-weight:700;line-height:1;letter-spacing:-.5px}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:5px;font-family:var(--mono)}
+.kpi-icon{position:absolute;right:11px;top:10px;font-size:15px;opacity:.35}
+.c-teal{color:var(--teal-l)}.c-red{color:var(--red)}.c-amber{color:var(--amber)}
+.c-green{color:var(--green)}.c-orange{color:var(--orange)}
+
+/* ── Section header ─────────────────────────────────────────── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.sec-hdr h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;letter-spacing:.2px}
+.sec-hdr h2 em{
+  font-style:normal;
+  background:linear-gradient(90deg,var(--teal-l),#5dd8ff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.b-info{background:rgba(14,107,138,.2);color:var(--teal-l);border:1px solid rgba(14,107,138,.3)}
+.b-red {background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid var(--red-b)}
+.b-amb {background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid var(--amber-b)}
+
+/* ─── Filtros ───────────────────────────────────────────────── */
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.fi{
+  padding:6px 10px;border-radius:7px;font-size:11px;
+  background:#0c1119;border:1px solid var(--border);
+  color:var(--text);outline:none;cursor:pointer;
+  color-scheme:dark;
+}
+.fi option{background:#0c1119;color:var(--text)}
+.fi:focus{border-color:var(--teal-l)}
+.fi-search{
+  flex:1;min-width:180px;max-width:280px;
+  padding:6px 10px 6px 30px;border-radius:7px;font-size:11px;
+  background:rgba(255,255,255,.05);border:1px solid var(--border);
+  color:var(--text);outline:none;position:relative;
+}
+.fi-search:focus{border-color:var(--teal-l)}
+.fi-search::placeholder{color:var(--muted)}
+.search-wrap{position:relative;flex:1;min-width:180px;max-width:280px}
+.search-wrap::before{content:'⌕';position:absolute;left:9px;top:50%;
+  transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none}
+
+/* ─── Tabla ─────────────────────────────────────────────────── */
+.tbl-wrap{overflow:auto;max-height:calc(100vh - 320px);min-height:280px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead{position:sticky;top:0;z-index:10}
+thead th{
+  padding:8px 10px;text-align:left;white-space:nowrap;
+  background:rgba(14,138,170,.15);color:var(--teal-l);
+  font-family:'Manrope',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.035);transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.04)}
+tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
+tbody td{padding:7px 10px;vertical-align:top}
+.num{font-family:var(--mono);text-align:right}
+.muted{color:var(--muted-l)}
+.empty-td{text-align:center;padding:28px;color:var(--muted);font-size:13px}
+
+/* ═══ FORMULARIOS ═══════════════════════════════════════════════ */
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+.fg label{font-size:9px;color:var(--muted-l);font-weight:700;letter-spacing:.7px;text-transform:uppercase}
+.fi2{
+  padding:8px 11px;border-radius:8px;font-size:12px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);
+  color:var(--text);outline:none;width:100%;transition:border .18s;
+}
+.fi2:focus{border-color:var(--teal-l)}
+.fi2::placeholder{color:var(--muted)}
+
+/* ═══ TOAST ═══════════════════════════════════════════════════ */
+#tc{position:fixed;bottom:22px;right:22px;z-index:999;
+  display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{
+  padding:10px 15px;border-radius:9px;font-size:12px;font-weight:600;
+  min-width:240px;animation:tin .22s ease;pointer-events:all;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);
+}
+.t-ok {background:rgba(34,197,94,.18);border:1px solid var(--green-b);color:#86efac}
+.t-err{background:rgba(239,68,68,.18);border:1px solid var(--red-b);color:#fca5a5}
+.t-inf{background:rgba(14,107,138,.22);border:1px solid rgba(14,107,138,.4);color:var(--teal-l)}
+@keyframes tin{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ═══ DESPLEGABLES OSCUROS ═══════════════════════════════════ */
+html{color-scheme:dark}
+select{color-scheme:dark}
+select option,select optgroup{background:#0c1119;color:#e2e8f0}
+select option:checked,select option:hover{background:#14212f;color:#fff}
+
+/* ═══ MODAL ═══════════════════════════════════════════════════ */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);
+  backdrop-filter:blur(5px);z-index:500;display:none;
+  align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.modal{
+  background:linear-gradient(150deg,#0d1b2e,#090f1b);
+  border:1px solid var(--border-b);border-radius:16px;
+  width:100%;max-width:560px;max-height:88vh;overflow-y:auto;
+  box-shadow:0 28px 90px rgba(0,0,0,.75);
+}
+.modal-hdr{padding:18px 22px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.modal-title{font-size:15px;font-weight:700}
+.modal-sub{font-size:11px;color:var(--muted-l);margin-top:2px}
+.modal-x{background:none;border:none;color:var(--muted-l);font-size:18px;
+  cursor:pointer;padding:3px 7px;border-radius:5px;line-height:1}
+.modal-x:hover{color:var(--text);background:rgba(255,255,255,.07)}
+.modal-body{padding:18px 22px}
+.modal-ftr{padding:14px 22px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:9px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn:disabled{opacity:.5;cursor:wait;transform:none}
+
+/* ═══ PROPIAS DE CALIDAD MP ═══════════════════════════════════
+   Cada celda de documento es un "chip": verde si está y vale, ámbar si
+   vence pronto, rojo si falta o venció. Tocarlo abre el archivo. */
+.dc{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;
+  font-size:10.5px;font-weight:700;white-space:nowrap;border:1px solid transparent;
+  background:none;font-family:inherit;cursor:pointer;line-height:1.35;text-align:left}
+.dc small{font-weight:500;opacity:.8;font-family:var(--mono);font-size:9.5px}
+.dc-ok  {color:#86efac;background:var(--green-g);border-color:var(--green-b)}
+.dc-amb {color:#fcd34d;background:var(--amber-g);border-color:var(--amber-b)}
+.dc-red {color:#fca5a5;background:var(--red-g);border-color:var(--red-b);cursor:default}
+.dc-red.vto{cursor:pointer}
+.dc-mut {color:var(--muted-l);background:rgba(255,255,255,.04);border-color:var(--border);cursor:default}
+.dc:not(.dc-red):not(.dc-mut):hover,.dc.vto:hover{filter:brightness(1.2)}
+.up{padding:2px 7px;border-radius:6px;border:1px solid rgba(18,160,204,.4);
+  background:rgba(14,107,138,.18);color:var(--teal-l);font-size:10px;font-weight:800;cursor:pointer}
+.up:hover{background:rgba(14,107,138,.35)}
+.cell{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.art-cod{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.llego{font-family:var(--mono);font-size:10px;color:var(--text)}
+.falta-coa{animation:coa-late 1.8s ease-in-out infinite}
+@keyframes coa-late{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}50%{box-shadow:0 0 0 3px rgba(239,68,68,.22)}}
+@media (prefers-reduced-motion: reduce){ .falta-coa{animation:none} }
+.fi-mes{padding:5px 9px}
+.kpi.clic{cursor:pointer}
+.kpi.sel{outline:1px solid var(--teal-l)}
+
+/* Historial */
+.hist-g{margin-bottom:14px}
+.hist-g h4{font-size:10px;color:var(--muted-l);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px}
+.hist-r{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--border);
+  border-radius:9px;margin-bottom:5px;background:rgba(255,255,255,.02)}
+.hist-r .hm{flex:1;min-width:0}
+.hist-r .hm b{font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-r .hm span{display:block;font-size:10px;color:var(--muted-l);font-family:var(--mono);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-empty{font-size:11px;color:var(--muted);padding:4px 0 2px}
+.drop{border:1.5px dashed var(--border-b);border-radius:10px;padding:16px;text-align:center;
+  font-size:12px;color:var(--muted-l);cursor:pointer;transition:border .18s,background .18s}
+.drop:hover,.drop.on{border-color:var(--teal-l);background:rgba(14,107,138,.08);color:var(--text)}
+.drop b{color:var(--teal-l)}
+
+@media (max-width:720px){
+  .main{padding:14px 12px}
+  header{padding:11px 14px}
+  .row2{grid-template-columns:1fr}
+  .search-wrap{max-width:none;min-width:100%}
+  .tbl-wrap{max-height:none}
+  .overlay{padding:0;align-items:flex-end}
+  .modal{border-radius:16px 16px 0 0;max-height:92vh}
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-25.1251"/>
+<script src="supabase-config.js?v=2026-09-25.1251"></script>
+<script src="subatir-app.js?v=2026-09-25.1251"></script>
+<script src="calidad-calc.js?v=2026-09-25.1251"></script>
+<script>
+// Version del modulo. La compara subatir-app.js contra version.json y si
+// hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
+window.APP_VER='2026-09-25.1251';
+</script>
+</head>
+<body>
+
+<!-- ══ HEADER ════════════════════════════════════════════════ -->
+<header>
+  <a class="logo" href="index.html" style="text-decoration:none">
+    <img class="logo-mark" src="logo.jpg" alt="Subatir"/>
+    <div>
+      <h1>Subatir</h1>
+      <p>Calidad · Materias Primas</p>
+    </div>
+  </a>
+  <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
+  <nav></nav>
+  <script src="nav.js?v=2026-09-25.1251"></script>
+  <div class="hdr-right">
+    <span class="ts" id="ts">—</span>
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
+    <button class="btn btn-ghost btn-sm" onclick="load()">⟳ Actualizar</button>
+  </div>
+</header>
+
+<!-- ══ MAIN ══════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- Aviso si falta correr la migración -->
+  <div id="sin-tabla" class="glass" style="display:none;padding:14px 16px;border-color:var(--amber-b);color:#fcd34d;font-size:12px">
+    ⚠ Falta crear la tabla de documentos en la base: hay que correr <b>migracion/calidad_mp.sql</b> en Supabase → SQL Editor.
+    Mientras tanto se ven las materias primas pero no se puede subir nada.
+  </div>
+
+  <!-- KPIs: tocar uno filtra la tabla -->
+  <div class="kpi-row">
+    <div class="glass kpi kpi-total clic" data-f="" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">🧪</div>
+      <div class="kpi-label">Materias primas</div>
+      <div class="kpi-num c-teal" id="k-total">—</div>
+      <div class="kpi-sub">de la categoría en Stock</div>
+    </div>
+    <div class="glass kpi kpi-crit clic" data-f="COA" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">📑</div>
+      <div class="kpi-label">Falta COA · <span id="k-mes-t">mes</span></div>
+      <div class="kpi-num c-red" id="k-coa">—</div>
+      <div class="kpi-sub" id="k-coa-sub">llegaron y no tienen COA</div>
+    </div>
+    <div class="glass kpi kpi-medio clic" data-f="HDS" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">⚠</div>
+      <div class="kpi-label">Sin hoja de seguridad</div>
+      <div class="kpi-num c-amber" id="k-hds">—</div>
+      <div class="kpi-sub">HDS no cargada</div>
+    </div>
+    <div class="glass kpi kpi-medio clic" data-f="FT" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">📄</div>
+      <div class="kpi-label">Sin ficha técnica</div>
+      <div class="kpi-num c-amber" id="k-ft">—</div>
+      <div class="kpi-sub">FT no cargada</div>
+    </div>
+    <div class="glass kpi kpi-crit clic" data-f="VTO" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">⏳</div>
+      <div class="kpi-label">FT / HDS vencidas</div>
+      <div class="kpi-num c-red" id="k-vto">—</div>
+      <div class="kpi-sub" id="k-vto-sub">+ por vencer en 30 días</div>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="glass" style="padding:18px">
+    <div class="sec-hdr">
+      <h2>🧪 <em>Documentos de Materias Primas</em></h2>
+      <span class="badge b-info" id="tbl-cnt">—</span>
+    </div>
+
+    <div class="filters">
+      <div class="search-wrap">
+        <input class="fi fi-search" id="f-q" placeholder="Buscar materia prima, código, proveedor o lote…" oninput="render()"/>
+      </div>
+      <select class="fi" id="f-est" onchange="render()" aria-label="Filtrar por estado">
+        <option value="">Todas</option>
+        <option value="COA">Falta COA del mes</option>
+        <option value="LLEGO">Llegaron en el mes</option>
+        <option value="FT">Sin ficha técnica</option>
+        <option value="HDS">Sin hoja de seguridad</option>
+        <option value="VTO">FT / HDS vencidas o por vencer</option>
+      </select>
+      <label class="muted" style="font-size:11px;display:flex;align-items:center;gap:6px">
+        COA de
+        <input type="month" class="fi fi-mes" id="f-mes" onchange="cambiarMes()"/>
+      </label>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Materia prima</th><th>Proveedor</th>
+          <th>Ficha técnica</th><th>Hoja de seguridad</th>
+          <th id="th-llego">Llegó</th><th id="th-coa">COA</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="7" class="empty-td">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="muted" style="font-size:11px;margin-top:10px">
+      El COA se pide uno por mes, y sólo a las materias primas que tuvieron una entrega en Recepción ese mes.
+      La ficha técnica y la hoja de seguridad las sube un administrador; el COA, también Recepción.
+      Tocá un documento para abrirlo; 🗂 muestra todo lo cargado de esa materia prima.
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══ MODAL: SUBIR DOCUMENTO ═══════════════════════════════ -->
+<div class="overlay" id="ov-up" onclick="if(event.target===this)cerrar('ov-up')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="up-t">
+    <div class="modal-hdr">
+      <div><div class="modal-title" id="up-t">Subir documento</div>
+        <div class="modal-sub" id="up-art">—</div></div>
+      <button class="modal-x" aria-label="Cerrar" onclick="cerrar('ov-up')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label for="up-tipo">Tipo</label>
+        <select class="fi2" id="up-tipo" onchange="upTipo()"></select>
+      </div>
+      <div class="fg">
+        <label for="up-prov">Proveedor</label>
+        <input class="fi2" id="up-prov" list="dl-prov" placeholder="Proveedor que emite el documento"/>
+        <datalist id="dl-prov"></datalist>
+      </div>
+      <div id="up-coa">
+        <div class="row2">
+          <div class="fg"><label for="up-mes">Mes que cubre</label><input type="month" class="fi2" id="up-mes"/></div>
+          <div class="fg"><label for="up-lote">Lote (opcional)</label><input class="fi2" id="up-lote" placeholder="Nº de lote"/></div>
+        </div>
+      </div>
+      <div id="up-ft">
+        <div class="row2">
+          <div class="fg"><label for="up-rev">Revisión (opcional)</label><input class="fi2" id="up-rev" placeholder="Rev. 3"/></div>
+          <div class="fg"><label for="up-vence">Vence (opcional)</label><input type="date" class="fi2" id="up-vence"/></div>
+        </div>
+      </div>
+      <div class="fg"><label for="up-fecha">Fecha del documento (opcional)</label><input type="date" class="fi2" id="up-fecha"/></div>
+      <div class="fg">
+        <label>Archivo · PDF o foto, hasta 20 MB</label>
+        <div class="drop" id="up-drop" tabindex="0" role="button" onclick="document.getElementById('up-file').click()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+          <span id="up-fname">Tocá para elegir el archivo, o arrastralo acá</span>
+        </div>
+        <input type="file" id="up-file" accept="application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="upArchivo(this.files[0])"/>
+      </div>
+      <div class="fg"><label for="up-obs">Observaciones (opcional)</label><input class="fi2" id="up-obs"/></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="cerrar('ov-up')">Cancelar</button>
+      <button class="btn btn-orange" id="up-ok" onclick="subir()">⬆ Subir</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: HISTORIAL DE LA MP ════════════════════════════ -->
+<div class="overlay" id="ov-hist" onclick="if(event.target===this)cerrar('ov-hist')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="hi-t">
+    <div class="modal-hdr">
+      <div><div class="modal-title" id="hi-t">Documentos</div>
+        <div class="modal-sub" id="hi-art">—</div></div>
+      <button class="modal-x" aria-label="Cerrar" onclick="cerrar('ov-hist')">✕</button>
+    </div>
+    <div class="modal-body" id="hi-body"></div>
+    <div class="modal-ftr" id="hi-ftr"></div>
+  </div>
+</div>
+
+<div id="tc"></div>
+
+<!-- ══ SCRIPT ═════════════════════════════════════════════════ -->
+<script>
+// ─── Estado ──────────────────────────────────────────────────
+var DATOS = null, FILAS = [], MES = CalidadMP.mesISO(), CARGA = '';
+var PERFIL = null, ES_ADMIN = false, PUEDE_COA = false;
+var UP = { inv: null, file: null };     // lo que se está por subir
+var HIST_INV = null;                     // MP abierta en el historial
+var TIPO_TXT = { FT: 'Ficha técnica', HDS: 'Hoja de seguridad', COA: 'Certificado de análisis (COA)' };
+var TIPOS_ORDEN = ['FT', 'HDS', 'COA'];
+
+function load(){
+  return CalidadMP.cargar(SB, MES).then(function(d){
+    DATOS = d; CARGA = 'ok';
+    document.getElementById('sin-tabla').style.display = d.falta === 'tabla' ? '' : 'none';
+    FILAS = CalidadMP.estado(d, MES);
+    setText('ts', new Date().toLocaleTimeString('es-UY'));
+    render();
+    if(HIST_INV != null) pintarHist();
+  }, function(e){
+    DATOS = null; FILAS = []; CARGA = 'err';
+    toast('Error cargando datos: '+(e && e.message || e), 'err');
+    render();
+  });
+}
+
+function cambiarMes(){
+  var v = document.getElementById('f-mes').value;
+  if(!v) return;
+  MES = v + '-01';
+  load();
+}
+
+// ─── Celdas ─────────────────────────────────────────────────
+function fechaCorta(iso){ if(!iso) return ''; var p=String(iso).slice(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0].slice(2); }
+function puedeTipo(t){ return (t === 'COA' ? PUEDE_COA : ES_ADMIN) && !!DATOS && !DATOS.falta; }
+function botonSubir(inv, tipo, titulo){
+  return puedeTipo(tipo)
+    ? '<button class="up" title="'+esc(titulo)+'" aria-label="'+esc(titulo)+'" onclick="abrirSubir('+inv+',\''+tipo+'\')">⬆</button>' : '';
+}
+
+function chipDoc(doc, vto, tipo, inv){
+  var up = botonSubir(inv, tipo, 'Subir '+TIPO_TXT[tipo].toLowerCase());
+  if(!doc) return '<div class="cell"><span class="dc dc-red">✕ falta</span>'+up+'</div>';
+  var cls = vto === 'vencido' ? 'dc-red vto' : (vto === 'pronto' ? 'dc-amb' : 'dc-ok');
+  var det = [doc.revision,
+             doc.vence ? (vto==='vencido' ? 'venció ' : 'vence ')+fechaCorta(doc.vence)
+                       : (doc.fecha_doc ? fechaCorta(doc.fecha_doc) : '')].filter(Boolean).join(' · ');
+  return '<div class="cell"><button class="dc '+cls+'" title="Abrir '+esc(doc.nombre_archivo||'')+(doc.proveedor?' · '+esc(doc.proveedor):'')+'" '
+    +'onclick="abrirDoc('+doc.id+')">📄 '+(vto==='vencido'?'vencida':'ver')+(det?' <small>'+esc(det)+'</small>':'')+'</button>'+up+'</div>';
+}
+
+function celdaCOA(f){
+  var up = botonSubir(f.mp.id, 'COA', 'Subir el COA de '+CalidadMP.mesTexto(MES));
+  if(f.coaMes.length){
+    var d = f.coaMes[f.coaMes.length-1];
+    return '<div class="cell"><button class="dc dc-ok" onclick="abrirDoc('+d.id+')" title="Abrir '+esc(d.nombre_archivo||'')+'">✓ COA'
+      +(d.lote?' <small>L. '+esc(d.lote)+'</small>':'')+(f.coaMes.length>1?' <small>×'+f.coaMes.length+'</small>':'')+'</button>'+up+'</div>';
+  }
+  if(f.faltaCOA) return '<div class="cell"><span class="dc dc-red falta-coa">⚠ falta</span>'+up+'</div>';
+  return '<div class="cell"><span class="dc dc-mut" title="No llegó en '+esc(CalidadMP.mesTexto(MES))+': no se pide COA">no se pide</span>'+up+'</div>';
+}
+
+function filaHtml(f){
+  var m = f.mp;
+  var dias = f.llego.map(function(x){ return fechaCorta(x).slice(0,5); })
+                    .filter(function(x,i,a){ return a.indexOf(x)===i; });
+  var llego = dias.length ? '<span class="llego">'+dias.join(', ')+'</span>' : '<span class="muted">—</span>';
+  return '<tr>'
+    +'<td><strong>'+esc(m.descripcion||'—')+'</strong>'+(m.codigo?'<br><span class="art-cod">'+esc(m.codigo)+'</span>':'')+'</td>'
+    +'<td>'+(m.proveedor ? esc(m.proveedor) : '<span class="muted">—</span>')+'</td>'
+    +'<td>'+chipDoc(f.ft, f.ftVto, 'FT', m.id)+'</td>'
+    +'<td>'+chipDoc(f.hds, f.hdsVto, 'HDS', m.id)+'</td>'
+    +'<td>'+llego+'</td>'
+    +'<td>'+celdaCOA(f)+'</td>'
+    +'<td><button class="btn btn-ghost btn-sm" title="Todo lo cargado de esta materia prima" onclick="abrirHist('+m.id+')">🗂 '
+      +(f.docs.length||'')+'</button></td>'
+    +'</tr>';
+}
+
+// ─── Filtro ─────────────────────────────────────────────────
+// Un solo predicado para el select y para los KPI: el número de la
+// tarjeta es exactamente cuántas filas quedan al tocarla.
+function pasa(f, est){
+  if(est === 'COA')   return f.faltaCOA;
+  if(est === 'LLEGO') return f.llego.length > 0;
+  if(est === 'FT')    return !f.ft;
+  if(est === 'HDS')   return !f.hds;
+  if(est === 'VTO')   return !!(f.ftVto || f.hdsVto);
+  return true;
+}
+function kpiFiltro(el){
+  document.getElementById('f-est').value = el.getAttribute('data-f');
+  render();
+}
+
+function render(){
+  var mesTxt = CalidadMP.mesTexto(MES);
+  setText('k-mes-t', mesTxt);
+  setText('th-llego', 'Llegó en '+mesTxt);
+  setText('th-coa', 'COA '+mesTxt);
+  if(!FILAS.length){
+    document.getElementById('tbody').innerHTML = CARGA === 'err'
+      ? '<tr><td colspan="7" class="empty-td" style="color:var(--amber)">⚠ No se pudieron cargar los datos. '
+        + '<button class="btn btn-ghost btn-sm" onclick="load()">↻ Reintentar</button></td></tr>'
+      : '<tr><td colspan="7" class="empty-td">'+(CARGA?'No hay materias primas en el inventario.':'Cargando…')+'</td></tr>';
+    setText('tbl-cnt','—');
+    ['k-total','k-coa','k-hds','k-ft','k-vto'].forEach(function(id){ setText(id,'—'); });
+    return;
+  }
+  var r = CalidadMP.resumen(FILAS);
+  setText('k-total', r.total);
+  setText('k-coa', r.faltaCOA);
+  setText('k-coa-sub', r.llegaron ? ('de '+r.llegaron+' que llegaron en el mes') : 'no llegó ninguna en el mes');
+  setText('k-hds', r.sinHDS);
+  setText('k-ft', r.sinFT);
+  setText('k-vto', r.vencidos);
+  setText('k-vto-sub', '+ '+r.pronto+' por vencer en '+CalidadMP.AVISO_DIAS+' días');
+
+  var est = document.getElementById('f-est').value;
+  document.querySelectorAll('.kpi.clic').forEach(function(k){ k.classList.toggle('sel', !!est && k.getAttribute('data-f')===est); });
+  var q = document.getElementById('f-q').value.trim().toUpperCase();
+  var rows = FILAS.filter(function(f){
+    if(!pasa(f, est)) return false;
+    if(q){
+      var hay = (String(f.mp.descripcion||'')+' '+String(f.mp.codigo||'')+' '+String(f.mp.proveedor||'')+' '
+        +f.docs.map(function(d){ return (d.proveedor||'')+' '+(d.lote||''); }).join(' ')).toUpperCase();
+      if(hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+  // Lo que hay que resolver primero: falta COA, después vencidos, después el resto
+  var peso = function(f){ return f.faltaCOA ? 0 : (f.ftVto==='vencido'||f.hdsVto==='vencido') ? 1 : (!f.hds||!f.ft) ? 2 : 3; };
+  rows.sort(function(a,b){
+    return peso(a)-peso(b) || String(a.mp.descripcion||'').localeCompare(String(b.mp.descripcion||''), 'es');
+  });
+  setText('tbl-cnt', rows.length+' de '+FILAS.length);
+  document.getElementById('tbody').innerHTML =
+    rows.map(filaHtml).join('') || '<tr><td colspan="7" class="empty-td">Sin resultados para el filtro.</td></tr>';
+}
+
+// ─── Abrir un documento ─────────────────────────────────────
+// El bucket es privado: se pide una URL firmada de 5 minutos. La
+// ventana se abre ANTES de pedirla, dentro del click, porque si se
+// abre después de esperar la respuesta el navegador la toma por
+// popup y la bloquea.
+function docById(id){ return (DATOS && DATOS.docs || []).filter(function(d){ return d.id === id; })[0]; }
+function abrirDoc(id){
+  var d = docById(id); if(!d) return;
+  var w = window.open('', '_blank');
+  if(w) w.document.write('<p style="font-family:sans-serif;color:#555">Abriendo '+esc(d.nombre_archivo||'documento')+'…</p>');
+  SB.storage.from(CalidadMP.BUCKET).createSignedUrl(d.archivo, 300).then(function(r){
+    if(r.error || !r.data){ if(w) w.close(); toast('No se pudo abrir: '+(r.error && r.error.message || 'sin URL'), 'err'); return; }
+    if(w) w.location.href = r.data.signedUrl; else location.href = r.data.signedUrl;
+  });
+}
+
+// ─── Subir ──────────────────────────────────────────────────
+function mpById(id){ return (DATOS && DATOS.mps || []).filter(function(m){ return m.id === id; })[0]; }
+function abrirSubir(inv, tipo){
+  var m = mpById(inv); if(!m) return;
+  UP = { inv: inv, file: null };
+  setText('up-art', m.descripcion + (m.codigo ? ' · '+m.codigo : ''));
+  var tipos = TIPOS_ORDEN.filter(puedeTipo);
+  document.getElementById('up-tipo').innerHTML = tipos.map(function(t){
+    return '<option value="'+t+'"'+(t===tipo?' selected':'')+'>'+TIPO_TXT[t]+'</option>'; }).join('');
+  // Proveedores sugeridos: el de la ficha y los que ya emitieron documentos
+  var provs = {}; [m.proveedor, m.proveedor_sugerido].forEach(function(p){ if(p) provs[p]=1; });
+  (DATOS.docs||[]).forEach(function(d){ if(d.inventario_id===inv && d.proveedor) provs[d.proveedor]=1; });
+  document.getElementById('dl-prov').innerHTML = Object.keys(provs).map(function(p){ return '<option value="'+esc(p)+'">'; }).join('');
+  document.getElementById('up-prov').value = m.proveedor || '';
+  document.getElementById('up-mes').value = MES.slice(0,7);
+  ['up-lote','up-rev','up-vence','up-fecha','up-obs'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('up-file').value = '';
+  setText('up-fname', 'Tocá para elegir el archivo, o arrastralo acá');
+  upTipo();
+  abrir('ov-up');
+}
+function upTipo(){
+  var t = document.getElementById('up-tipo').value;
+  document.getElementById('up-coa').style.display = t === 'COA' ? '' : 'none';
+  document.getElementById('up-ft').style.display  = t === 'COA' ? 'none' : '';
+  setText('up-t', 'Subir '+(TIPO_TXT[t]||'documento').toLowerCase());
+}
+var TIPOS_OK = ['application/pdf','image/jpeg','image/png','image/webp'];
+function upArchivo(f){
+  if(!f) return;
+  if(TIPOS_OK.indexOf(f.type) < 0){ toast('Sólo PDF o foto (JPG, PNG, WEBP).', 'err'); return; }
+  if(f.size > 20*1024*1024){ toast('El archivo pasa los 20 MB.', 'err'); return; }
+  UP.file = f;
+  document.getElementById('up-fname').innerHTML = '📎 <b>'+esc(f.name)+'</b> · '+(f.size/1024/1024).toFixed(1)+' MB';
+}
+(function(){
+  var d = document.getElementById('up-drop');
+  ['dragenter','dragover'].forEach(function(ev){ d.addEventListener(ev, function(e){ e.preventDefault(); d.classList.add('on'); }); });
+  ['dragleave','drop'].forEach(function(ev){ d.addEventListener(ev, function(e){ e.preventDefault(); d.classList.remove('on'); }); });
+  d.addEventListener('drop', function(e){ upArchivo(e.dataTransfer.files && e.dataTransfer.files[0]); });
+})();
+
+// Nombre seguro para la ruta del bucket: sin acentos, espacios ni símbolos
+function nombreSeguro(n){
+  return String(n||'archivo').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^A-Za-z0-9._-]+/g,'_').replace(/_+/g,'_').slice(-80);
+}
+// En cuentas compartidas queda la PERSONA que opera, no la cuenta
+function quien(){
+  var o = SubatirApp.operador && SubatirApp.operador.get && SubatirApp.operador.get();
+  return o || (PERFIL && (PERFIL.full_name || (PERFIL.email||'').split('@')[0])) || '';
+}
+
+function subir(){
+  var m = mpById(UP.inv); if(!m) return;
+  var tipo = document.getElementById('up-tipo').value;
+  var mes  = document.getElementById('up-mes').value;
+  if(!UP.file){ toast('Elegí el archivo.', 'err'); return; }
+  if(tipo === 'COA' && !mes){ toast('Indicá el mes que cubre el COA.', 'err'); return; }
+  var val = function(id){ var v=document.getElementById(id).value.trim(); return v || null; };
+  var ruta = tipo.toLowerCase()+'/'+m.id+'/'+Date.now()+'-'+nombreSeguro(UP.file.name);
+  var fila = {
+    inventario_id: m.id, articulo: m.descripcion, tipo: tipo,
+    proveedor: val('up-prov'),
+    mes: tipo === 'COA' ? mes+'-01' : null,
+    lote: tipo === 'COA' ? val('up-lote') : null,
+    revision: tipo === 'COA' ? null : val('up-rev'),
+    vence: tipo === 'COA' ? null : val('up-vence'),
+    fecha_doc: val('up-fecha'),
+    archivo: ruta, nombre_archivo: UP.file.name, bytes: UP.file.size,
+    observaciones: val('up-obs'), subido_por: quien()
+  };
+  var btn = document.getElementById('up-ok'); btn.disabled = true; btn.textContent = 'Subiendo…';
+  var fin = function(){ btn.disabled = false; btn.textContent = '⬆ Subir'; };
+  var st = SB.storage.from(CalidadMP.BUCKET);
+  st.upload(ruta, UP.file, { contentType: UP.file.type, upsert: false }).then(function(r){
+    if(r.error) throw new Error('No se pudo subir el archivo: '+r.error.message);
+    // .select(): si la política no deja, Supabase devuelve cero filas sin error
+    return SB.from('mp_documentos').insert(fila).select('id').then(function(ins){
+      if(ins.error || !ins.data || !ins.data.length){
+        st.remove([ruta]);     // sin fila el archivo quedaría huérfano
+        throw new Error('No se pudo registrar: '+(ins.error ? ins.error.message : 'sin permiso'));
+      }
+    });
+  }).then(function(){
+    fin(); cerrar('ov-up');
+    toast('✓ '+TIPO_TXT[tipo]+' cargado · '+m.descripcion, 'ok');
+    // COA de otro mes: se pasa a ese mes, si no parece que no subió
+    if(tipo === 'COA' && mes+'-01' !== MES){ MES = mes+'-01'; document.getElementById('f-mes').value = mes; }
+    load();
+  }).catch(function(e){ fin(); toast(e && e.message || String(e), 'err'); });
+}
+
+// ─── Historial ──────────────────────────────────────────────
+function abrirHist(inv){ HIST_INV = inv; pintarHist(); abrir('ov-hist'); }
+function pintarHist(){
+  var m = mpById(HIST_INV); if(!m) return;
+  setText('hi-t', m.descripcion);
+  setText('hi-art', (m.codigo ? m.codigo+' · ' : '')+(m.proveedor||''));
+  var docs = (DATOS.docs||[]).filter(function(d){ return d.inventario_id === HIST_INV; });
+  document.getElementById('hi-body').innerHTML = TIPOS_ORDEN.map(function(t){
+    var ds = docs.filter(function(d){ return d.tipo === t; }).sort(function(a,b){
+      var ka = (t==='COA'?a.mes:a.fecha_doc)||'', kb = (t==='COA'?b.mes:b.fecha_doc)||'';
+      return ka !== kb ? (ka < kb ? 1 : -1) : (String(a.created_at) < String(b.created_at) ? 1 : -1);
+    });
+    var puede = puedeTipo(t);
+    return '<div class="hist-g"><h4>'+TIPO_TXT[t]+' · '+ds.length+'</h4>'
+      +(ds.length ? ds.map(function(d){
+        var det = [t==='COA' ? CalidadMP.mesTexto(d.mes) : d.revision,
+                   d.lote ? 'lote '+d.lote : '', d.proveedor,
+                   d.vence ? 'vence '+fechaCorta(d.vence) : '',
+                   'subió '+(d.subido_por||'—')+' '+fechaCorta(d.created_at)].filter(Boolean).join(' · ');
+        return '<div class="hist-r"><div class="hm"><b title="'+esc(d.nombre_archivo||'')+'">'+esc(d.nombre_archivo||'documento')+'</b>'
+          +'<span title="'+esc(det)+'">'+esc(det)+'</span>'
+          +(d.observaciones?'<span>'+esc(d.observaciones)+'</span>':'')+'</div>'
+          +'<button class="btn btn-teal btn-sm" onclick="abrirDoc('+d.id+')">Abrir</button>'
+          +(puede?'<button class="btn btn-ghost btn-sm" id="del-'+d.id+'" title="Borrar" aria-label="Borrar" onclick="borrarDoc('+d.id+')">🗑</button>':'')
+          +'</div>';
+      }).join('') : '<div class="hist-empty">Nada cargado.</div>')
+      +'</div>';
+  }).join('');
+  var tipos = TIPOS_ORDEN.filter(puedeTipo);
+  document.getElementById('hi-ftr').innerHTML =
+    (tipos.length ? '<button class="btn btn-orange" onclick="cerrar(\'ov-hist\');abrirSubir('+m.id+',\''+tipos[0]+'\')">⬆ Subir documento</button>' : '')
+    +'<button class="btn btn-ghost" onclick="cerrar(\'ov-hist\')">Cerrar</button>';
+}
+
+// Borrar en dos toques sobre el mismo botón (sin confirm() nativo)
+var BORRAR_ARM = null;
+function borrarDoc(id){
+  var d = docById(id); if(!d) return;
+  var b = document.getElementById('del-'+id);
+  if(BORRAR_ARM !== id){
+    BORRAR_ARM = id; if(b){ b.textContent = '¿Borrar?'; b.style.color = '#fca5a5'; }
+    setTimeout(function(){ if(BORRAR_ARM === id){ BORRAR_ARM = null; if(b){ b.textContent='🗑'; b.style.color=''; } } }, 5000);
+    return;
+  }
+  BORRAR_ARM = null; if(b) b.disabled = true;
+  SB.from('mp_documentos').delete().eq('id', id).select('id').then(function(r){
+    if(r.error || !r.data || !r.data.length){
+      if(b) b.disabled = false;
+      toast('No se pudo borrar: '+(r.error ? r.error.message : 'sin permiso'), 'err'); return;
+    }
+    SB.storage.from(CalidadMP.BUCKET).remove([d.archivo]);
+    toast('Documento borrado', 'ok');
+    load();
+  });
+}
+
+// ─── CSV ────────────────────────────────────────────────────
+function exportCSV(){
+  if(!FILAS.length){ toast('No hay datos para exportar.', 'inf'); return; }
+  var mesTxt = CalidadMP.mesTexto(MES);
+  var head = ['Codigo','Materia prima','Proveedor','Ficha tecnica','FT revision','FT vence',
+              'Hoja de seguridad','HDS revision','HDS vence','Llego en '+mesTxt,'COA '+mesTxt,'Lote COA'];
+  var estDoc = function(d, v){ return !d ? 'FALTA' : (v==='vencido' ? 'VENCIDA' : (v==='pronto' ? 'POR VENCER' : 'OK')); };
+  var rows = FILAS.map(function(f){
+    var c = f.coaMes[f.coaMes.length-1];
+    return [f.mp.codigo, f.mp.descripcion, f.mp.proveedor,
+      estDoc(f.ft, f.ftVto), f.ft && f.ft.revision, f.ft && f.ft.vence,
+      estDoc(f.hds, f.hdsVto), f.hds && f.hds.revision, f.hds && f.hds.vence,
+      f.llego.join(' '), c ? 'OK' : (f.faltaCOA ? 'FALTA' : 'NO SE PIDE'), c && c.lote];
+  });
+  var csv = [head].concat(rows).map(function(r){
+    return r.map(function(v){ v = v == null ? '' : String(v); return /[;"\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(';');
+  }).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'calidad_mp_'+MES.slice(0,7)+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+function abrir(id){ document.getElementById(id).classList.add('open'); }
+function cerrar(id){ document.getElementById(id).classList.remove('open'); if(id==='ov-hist') HIST_INV = null; }
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape') ['ov-up','ov-hist'].forEach(function(id){
+    if(document.getElementById(id).classList.contains('open')) cerrar(id); });
+});
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+function toast(msg,type){
+  var c=document.getElementById('tc'),d=document.createElement('div');
+  d.className='toast t-'+(type||'inf');d.textContent=msg;c.appendChild(d);
+  setTimeout(function(){d.style.opacity='0';d.style.transition='opacity .35s';setTimeout(function(){d.remove();},350);},3600);
+}
+
+// ─── Init ─────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  document.getElementById('f-mes').value = MES.slice(0,7);
+  // ?f=COA viene del aviso del Dashboard
+  var f = (location.search.match(/[?&]f=([A-Z]+)/) || [])[1];
+  if(f) document.getElementById('f-est').value = f;
+  SubatirApp.ready.then(function(p){
+    PERFIL = p || {};
+    ES_ADMIN  = PERFIL.role === 'admin';
+    PUEDE_COA = ES_ADMIN || (PERFIL.modules || []).indexOf('recepcion') >= 0;
+    load();
+    if(SubatirApp.live) SubatirApp.live(['mp_documentos','entregas','inventario'], load);
+  });
+});
+</script>
+<script>
+// PWA: instalable y abre sin señal. El worker vive en la raíz.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>

@@ -24,10 +24,13 @@
     'varios.html': 'varios',
     'mp-importacion.html': 'mp_importacion',
     'cloro.html': 'cloro',
+    'calidad.html': 'calidad',
     'usuarios.html': 'usuarios'
   };
   // Módulos visibles/accesibles para cualquier usuario autenticado
-  var OPEN_MODULES = ['dashboard'];
+  // Calidad MP: ver los documentos es para todos (subir, según el tipo,
+  // lo deciden las políticas de la base).
+  var OPEN_MODULES = ['dashboard', 'calidad'];
 
   // Pantallas de celular de la app de Depósitos: viven en /deposito, con
   // su propio guard, y no abren nada de Compras. No cuentan para decidir
@@ -208,8 +211,9 @@
           SB.auth.signOut().then(function () { location.replace('login.html?sinacceso=1'); });
           return;
         }
-        // El operario de recepción solo puede estar en recepcion.html
-        if (isOperario(profile) && page !== 'recepcion.html') { location.replace('recepcion.html'); return; }
+        // El operario de recepción solo puede estar en recepcion.html, y
+        // en Calidad MP, donde sube el COA del mes (no hay costos ahí).
+        if (isOperario(profile) && page !== 'recepcion.html' && page !== 'calidad.html') { location.replace('recepcion.html'); return; }
         var mod = currentModule();
         if (!canAccess(mod, profile)) { location.replace(isOperario(profile) ? 'recepcion.html' : ('index.html?denegado=' + mod)); return; }
         gateNav(profile);
@@ -240,7 +244,7 @@
         page: currentPage(),
         can: function (k) {
           // El operario de recepción no sale de su pantalla: menú de uno.
-          if (operario) return k === 'recepcion';
+          if (operario) return k === 'recepcion' || k === 'calidad';
           if (k === 'deposito') return vaAlDeposito;
           if (k === 'usuarios') return profile.role === 'admin';
           return canAccess(k, profile);

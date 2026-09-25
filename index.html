@@ -508,17 +508,18 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-09-21.1449"/>
-<link rel="stylesheet" href="nav.css?v=2026-09-21.1449"/>
+<link rel="stylesheet" href="traslados.css?v=2026-09-25.1251"/>
+<link rel="stylesheet" href="nav.css?v=2026-09-25.1251"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-09-21.1449"></script>
-<script src="subatir-app.js?v=2026-09-21.1449"></script>
-<script src="reposicion-calc.js?v=2026-09-21.1449"></script>
-<script src="traslados.js?v=2026-09-21.1449"></script>
+<script src="supabase-config.js?v=2026-09-25.1251"></script>
+<script src="subatir-app.js?v=2026-09-25.1251"></script>
+<script src="reposicion-calc.js?v=2026-09-25.1251"></script>
+<script src="traslados.js?v=2026-09-25.1251"></script>
+<script src="calidad-calc.js?v=2026-09-25.1251"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-21.1449';
+window.APP_VER='2026-09-25.1251';
 </script>
 </head>
 <body>
@@ -571,7 +572,7 @@ window.APP_VER='2026-09-21.1449';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-09-21.1449"></script>
+    <script src="nav.js?v=2026-09-25.1251"></script>
     <div class="hdr-right">
       <span id="last-update">—</span>
       <button class="btn btn-primary" onclick="refresh()" id="btn-refresh">
@@ -613,6 +614,8 @@ window.APP_VER='2026-09-21.1449';
          Avisa desde el día anterior a la fecha configurada allá. -->
     <div id="mp-revision" style="display:none"></div>
     <div id="cloro-semana" style="display:none"></div>
+    <!-- Calidad MP: COA del mes que faltan y FT/HDS vencidas -->
+    <div id="calidad-mp" style="display:none"></div>
 
     <!-- Mercadería en camino desde los depósitos (app Depósitos, misma base) -->
     <div id="camino-card" style="display:none"></div>
@@ -917,6 +920,35 @@ function avisoRevisionMP(){
   });
 }
 
+// ══ Aviso: Calidad MP ═════════════════════════════════════════
+//  Materias primas que llegaron este mes y todavía no tienen el COA
+//  del mes, y fichas técnicas / hojas de seguridad vencidas. El
+//  cálculo es el de calidad-calc.js, el mismo de la pantalla: el
+//  número del aviso es el del KPI de allá.
+function avisoCalidadMP(){
+  var host=document.getElementById('calidad-mp'); if(!host || !window.CalidadMP) return;
+  SubatirApp.ready.then(function(perfil){
+    if(!perfil) return;
+    var mes=CalidadMP.mesISO();
+    return CalidadMP.cargar(SB, mes).then(function(d){
+      // Sin la migración corrida no hay nada que avisar todavía
+      if(d.falta){ host.style.display='none'; return; }
+      var r=CalidadMP.resumen(CalidadMP.estado(d, mes));
+      var html='';
+      if(r.faltaCOA) html+='<a href="calidad.html?f=COA" class="mp-rev urg"><span class="mp-rev-i">🔬</span>'
+        +'<span><b>'+r.faltaCOA+' materia'+(r.faltaCOA===1?'':'s')+' prima'+(r.faltaCOA===1?'':'s')
+        +' sin COA de '+CalidadMP.mesTexto(mes)+'</b> — llegaron este mes y todavía no se cargó el certificado de análisis.</span>'
+        +'<span class="mp-rev-x">Cargar →</span></a>';
+      if(r.vencidos) html+='<a href="calidad.html?f=VTO" class="mp-rev"><span class="mp-rev-i">⏳</span>'
+        +'<span><b>'+r.vencidos+' materia'+(r.vencidos===1?'':'s')+' prima'+(r.vencidos===1?'':'s')
+        +' con ficha técnica u hoja de seguridad vencida</b> — hay que pedirle la versión nueva al proveedor.</span>'
+        +'<span class="mp-rev-x">Ver →</span></a>';
+      host.innerHTML=html;
+      host.style.display=html?'':'none';
+    }, function(){ host.style.display='none'; });
+  });
+}
+
 // ══ Aviso: la semana de Previsión Cloro quedó sin importar ════
 //  El módulo se apoya en las ventas: con una semana cerrada sin
 //  importar, el stock, el sugerido y la cobertura muestran números que
@@ -1056,7 +1088,8 @@ function cargarReposicion(){
   // Antes de load() a propósito: si la carga de datos falla, el aviso
   // de revisión tiene que salir igual. Es de lo poco que no se puede
   // perder por un error en otra cosa.
-  avisoRevisionMP(); avisoSemanaCloro();
+  avisoRevisionMP(); avisoSemanaCloro(); avisoCalidadMP();
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['mp_documentos','entregas'], avisoCalidadMP);
   load();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','proveedores','art_proveedor'], load);
   // Aviso de lo que viene en camino desde los depósitos

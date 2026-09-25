@@ -290,14 +290,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-25.1251"/>
-<script src="supabase-config.js?v=2026-09-25.1251"></script>
-<script src="subatir-app.js?v=2026-09-25.1251"></script>
-<script src="calidad-calc.js?v=2026-09-25.1251"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-25.1300"/>
+<script src="supabase-config.js?v=2026-09-25.1300"></script>
+<script src="subatir-app.js?v=2026-09-25.1300"></script>
+<script src="calidad-calc.js?v=2026-09-25.1300"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-25.1251';
+window.APP_VER='2026-09-25.1300';
 </script>
 </head>
 <body>
@@ -313,7 +313,7 @@ window.APP_VER='2026-09-25.1251';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-25.1251"></script>
+  <script src="nav.js?v=2026-09-25.1300"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -815,15 +815,22 @@ function toast(msg,type){
 
 // ─── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
+  var qs = function(k, re){ return (location.search.match(new RegExp('[?&]'+k+'=('+re+')')) || [])[1]; };
+  // ?f=COA&mes=2026-09 vienen del aviso del Dashboard;
+  // ?subir=<id>&mes=… del ⚠ COA de Recepción y Pedidos: abre la carga lista
+  var f = qs('f','[A-Z]+'), m = qs('mes','[0-9]{4}-[0-9]{2}'), sub = qs('subir','[0-9]+');
+  if(m) MES = m + '-01';
   document.getElementById('f-mes').value = MES.slice(0,7);
-  // ?f=COA viene del aviso del Dashboard
-  var f = (location.search.match(/[?&]f=([A-Z]+)/) || [])[1];
   if(f) document.getElementById('f-est').value = f;
   SubatirApp.ready.then(function(p){
     PERFIL = p || {};
     ES_ADMIN  = PERFIL.role === 'admin';
     PUEDE_COA = ES_ADMIN || (PERFIL.modules || []).indexOf('recepcion') >= 0;
-    load();
+    load().then(function(){
+      if(!sub) return;
+      if(!mpById(+sub)) { toast('Esa materia prima no está en el inventario.', 'err'); return; }
+      if(PUEDE_COA) abrirSubir(+sub, 'COA'); else abrirHist(+sub);
+    });
     if(SubatirApp.live) SubatirApp.live(['mp_documentos','entregas','inventario'], load);
   });
 });

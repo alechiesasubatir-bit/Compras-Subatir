@@ -526,14 +526,15 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="oc-pdf.js?v=2026-09-25.1251"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-25.1251"/>
-<script src="supabase-config.js?v=2026-09-25.1251"></script>
-<script src="subatir-app.js?v=2026-09-25.1251"></script>
+<script src="oc-pdf.js?v=2026-09-25.1300"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-25.1300"/>
+<script src="supabase-config.js?v=2026-09-25.1300"></script>
+<script src="subatir-app.js?v=2026-09-25.1300"></script>
+<script src="calidad-calc.js?v=2026-09-25.1300"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-25.1251';
+window.APP_VER='2026-09-25.1300';
 </script>
 </head>
 <body>
@@ -549,7 +550,7 @@ window.APP_VER='2026-09-25.1251';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-25.1251"></script>
+  <script src="nav.js?v=2026-09-25.1300"></script>
   <div class="header-right">
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
@@ -606,11 +607,13 @@ window.APP_VER='2026-09-25.1251';
       <div class="kpi-val" style="color:var(--teal-l)" id="kpi-pso">—</div>
       <div class="kpi-sub">pendiente en pesos</div>
     </div>
-    <div class="card kpi">
-      <div class="kpi-label">Sin COA / Conforme</div>
+    <!-- COA mensual (Calidad MP): mismo número que el Dashboard -->
+    <a class="card kpi" href="calidad.html?f=COA" style="text-decoration:none;color:inherit"
+       title="Materias primas que llegaron en un mes y no tienen el COA de ese mes. Se cargan en Calidad MP.">
+      <div class="kpi-label">COA pendientes</div>
       <div class="kpi-val c-danger" id="kpi-coa">—</div>
-      <div class="kpi-sub">pendientes de calidad</div>
-    </div>
+      <div class="kpi-sub" id="kpi-coa-sub">materia prima × mes</div>
+    </a>
     <div class="card kpi">
       <div class="kpi-label">Sin Lote</div>
       <div class="kpi-val c-warn" id="kpi-lote">—</div>
@@ -1098,6 +1101,7 @@ window.addEventListener('DOMContentLoaded', function(){
     load();
   }
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','entregas'], load);
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['mp_documentos'], function(){ cargarCOAPend().then(renderAll); });
   setTodayDate();
   updateSyncUI();
 });
@@ -1163,8 +1167,12 @@ function load(){
       buildCurrencyMapP();
       buildCodeMapP();
       applyLocalOverrides();
-      (window.SubatirApp && SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
-        .then(function(ents){ ENTREGAS = ents || []; buildEntregasMap(); renderAll(); });
+      // Entregas y COA mensuales (Calidad MP): los dos deciden el ⚠ COA
+      Promise.all([
+        (window.SubatirApp && SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
+          .then(function(ents){ ENTREGAS = ents || []; }, function(){ ENTREGAS = []; }),
+        cargarCOAPend()
+      ]).then(function(){ buildEntregasMap(); renderAll(); });
       buildOCCatalog();
       setLoading(false);
       if (d.timestamp){
@@ -1359,7 +1367,6 @@ function updateKPIs(){
   // un numero grande de cosas que nadie iba a resolver. Los dos controles de
   // calidad —COA y lote— corren unicamente sobre materias primas ya
   // recibidas, el mismo criterio con el que Recepcion las muestra.
-  var sinCOA   = all.filter(faltaCOA);
   var sinLote  = all.filter(faltaLote);
   var sinChk   = all.filter(faltaChecklist);
   // La plata que FALTA pagar, no la que se pidio: si de 39.000 etiquetas
@@ -1374,12 +1381,16 @@ function updateKPIs(){
   setText('kpi-recv',       recv.length);
   setText('kpi-usd',        fmtUSD(totalUSD));
   setText('kpi-pso',        fmtPSO(totalPSO));
-  setText('kpi-coa',        sinCOA.length);
+  // COA: pares materia prima × mes sin certificado, no líneas. Sale de
+  // calidad-calc.js, igual que en el Dashboard y en Calidad MP.
+  var nCOA = COA_PEND ? COA_PEND.pend.length : null;
+  setText('kpi-coa',        nCOA == null ? '—' : nCOA);
+  setText('kpi-coa-sub',    nCOA ? (CalidadMP.porMes(COA_PEND.pend).map(function(g){ return g.n+' de '+CalidadMP.mesTexto(g.mes).split(' ')[0]; }).join(' · ')) : 'materia prima × mes');
   setText('kpi-lote',       sinLote.length);
   setText('kpi-chk',        sinChk.length);
   // La tarjeta parpadea mientras quede algo por resolver, y se queda
   // quieta sola cuando llega a cero
-  alertaKPI('kpi-coa',  sinCOA.length);
+  alertaKPI('kpi-coa',  nCOA || 0);
   alertaKPI('kpi-lote', sinLote.length);
   alertaKPI('kpi-chk',  sinChk.length);
   // Actualizar contador en header
@@ -1412,9 +1423,8 @@ function applyFilters(){
     if (estado === 'pendiente' && !isPendiente(r)) return false;
     if (estado === 'recibido'  &&  isPendiente(r)) return false;
     if (prov && String(r[K.proveedor]||'').toLowerCase() !== prov.toLowerCase()) return false;
-    var coaVal = String(r[K.coa]||'').toUpperCase().trim();
-    if (coa === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== '1' && coaVal !== 'TRUE' && coaVal !== 'NO NECESARIO' && coaVal !== 'NO APLICA' && coaVal !== 'NO REQUERIDO' && coaVal !== 'N/A' && coaVal !== 'NA') return false;
-    if (coa === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === '1' || coaVal === 'TRUE' || coaVal === 'NO NECESARIO' || coaVal === 'NO APLICA' || coaVal === 'NO REQUERIDO' || coaVal === 'N/A' || coaVal === 'NA')) return false;
+    if (coa === 'si' && !tieneCOA(r)) return false;
+    if (coa === 'no' &&  tieneCOA(r)) return false;
     if (lote === 'si' && (!r[K.lote] || String(r[K.lote]).trim()==='')) return false;
     if (lote === 'no' && r[K.lote] && String(r[K.lote]).trim()!=='') return false;
     if (desde && r[K.fecha] && r[K.fecha] < desde) return false;
@@ -1477,9 +1487,8 @@ function renderTable(){
       var orden    = r[K.orden] || '—';
       var pend     = isPendiente(r);
       var sinLote  = !r[K.lote] || String(r[K.lote]).trim() === '';
-      var coaUp    = String(r[K.coa]||'').toUpperCase().trim();
       var confUp   = String(r[K.conforme]||'').toUpperCase().trim();
-      var hasCOA   = coaUp === 'SI' || coaUp === 'S' || coaUp === '1' || coaUp === 'TRUE' || coaUp === 'NO NECESARIO' || coaUp === 'NO APLICA' || coaUp === 'NO REQUERIDO' || coaUp === 'N/A' || coaUp === 'NA';
+      var hasCOA   = tieneCOA(r);
       var hasConf  = confUp === 'SI' || confUp === 'S' || confUp === '1' || confUp === 'TRUE';
       var rowClass  = r.__local ? 'local-row' : r.__modified ? 'modified-row' : '';
       var moneda  = ocMoneda(r);
@@ -1537,7 +1546,7 @@ function renderTable(){
         : '<span style="font-size:11px;color:var(--muted)">'+esc(String(r[K.lote]))+'</span>') + '</td>';
       html += '<td><div style="display:flex;gap:4px;justify-content:center;white-space:nowrap">'
             + (hasCOA ? '<span class="pill pill-ok">✓COA</span>'
-                      : (faltaCOA(r) ? '<span class="pill falta-dato">⚠ COA</span>'
+                      : (faltaCOA(r) ? '<a class="pill falta-dato" style="text-decoration:none" href="'+linkCOA(r)+'" title="Falta el COA del mes. Tocá para subirlo en Calidad MP.">⚠ COA</a>'
                                      : '<span class="pill pill-warn" style="opacity:.55">COA</span>'))
             + (hasConf? '<span class="pill pill-ok">✓Conf</span>' : '<span class="pill pill-warn" style="opacity:.55">Conf</span>')
             + '</div></td>';
@@ -2686,9 +2695,28 @@ function buildCatMap(inv){ SubatirApp.cat.cargar(inv); }
 function catDeLinea(r){ return SubatirApp.cat.de(r['ID Inventario'], r[K.desc]); }
 function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.desc]); }
 
-// Reclaman COA y lote solo las materias primas ya recibidas: es lo unico
-// accionable, y es el mismo criterio con el que Recepcion las marca
-function faltaCOA(r){  return !isPendiente(r) && esMateriaPrima(r) && !coaOkR(r[K.coa]); }
+// El COA es MENSUAL y se carga en Calidad MP (reemplazó a la marca por
+// línea, 25/09/2026): una línea de materia prima lo reclama si en alguno
+// de los meses en que llegó esa MP no tiene su COA. La regla vive en
+// calidad-calc.js, la misma de Recepción, el Dashboard y Calidad MP.
+var COA_PEND = null;   // { pend:[{mp,mes}] } para el KPI
+function cargarCOAPend(){
+  if(!window.CalidadMP) return Promise.resolve();
+  return CalidadMP.cargarPendientes(SB).then(function(r){ COA_PEND = r.falta ? null : r; }, function(){ COA_PEND = null; });
+}
+function coaLinea(r){
+  if(isPendiente(r) || !esMateriaPrima(r) || !window.CalidadMP) return null;
+  var st = lineStats(r);
+  var fechas = st.legacy ? [r[K.recepcion]] : (st.entregas||[]).map(function(e){ return e.fecha; });
+  return CalidadMP.lineaCOA(r['ID Inventario'], fechas);
+}
+function faltaCOA(r){ var c = coaLinea(r); return !!c && c.estado === 'falta'; }
+// ✓ COA: el mensual si la línea entra en él; si no (otra categoría o
+// llegó antes de septiembre 2026), la marca vieja de la línea
+function tieneCOA(r){ var c = coaLinea(r); return c ? c.estado === 'ok' : coaOkR(r[K.coa]); }
+function linkCOA(r){ var c = coaLinea(r);
+  return 'calidad.html?subir='+encodeURIComponent(r['ID Inventario'])+(c ? '&mes='+c.mes.slice(0,7) : ''); }
+// Lote: solo las materias primas ya recibidas, el mismo criterio de Recepción
 function faltaLote(r){ return !isPendiente(r) && esMateriaPrima(r) && !String(r[K.lote]||'').trim(); }
 // Falta el check list PL-06: materia prima, ya llego, y alguna entrega sin
 // checklist. Se mira solo lo cargado DESDE que el PL-06 existe (11/08/2026):

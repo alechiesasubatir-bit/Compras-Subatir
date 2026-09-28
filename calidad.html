@@ -285,14 +285,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-28.1341"/>
-<script src="supabase-config.js?v=2026-09-28.1341"></script>
-<script src="subatir-app.js?v=2026-09-28.1341"></script>
-<script src="calidad-calc.js?v=2026-09-28.1341"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-28.1347"/>
+<script src="supabase-config.js?v=2026-09-28.1347"></script>
+<script src="subatir-app.js?v=2026-09-28.1347"></script>
+<script src="calidad-calc.js?v=2026-09-28.1347"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-28.1341';
+window.APP_VER='2026-09-28.1347';
 </script>
 </head>
 <body>
@@ -308,7 +308,7 @@ window.APP_VER='2026-09-28.1341';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-28.1341"></script>
+  <script src="nav.js?v=2026-09-28.1347"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -387,14 +387,15 @@ window.APP_VER='2026-09-28.1341';
         <thead><tr>
           <th>Materia prima</th><th>Proveedor</th>
           <th>Ficha técnica</th><th>Hoja de seguridad</th>
-          <th>Último COA</th><th></th>
+          <th>Último COA</th><th>Otros documentos</th><th></th>
         </tr></thead>
-        <tbody id="tbody"><tr><td colspan="6" class="empty-td">Cargando…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="7" class="empty-td">Cargando…</td></tr></tbody>
       </table>
     </div>
     <div class="muted" style="font-size:11px;margin-top:10px">
       Una fila por materia prima y proveedor: cada proveedor tiene su propia ficha técnica, hoja de seguridad y COA.
-      Para sumar un proveedor, subí un documento a su nombre. Los documentos los sube un administrador.
+      Para sumar un proveedor, subí un documento a su nombre. En "Otros documentos" va cualquier otro papel del producto;
+      sin proveedor, vale para todos. Los documentos los sube un administrador.
       Tocá un documento para abrirlo; 🗂 muestra todo lo cargado de ese proveedor.
     </div>
   </div>
@@ -418,8 +419,12 @@ window.APP_VER='2026-09-28.1341';
         <label for="up-tipo">Tipo</label>
         <select class="fi2" id="up-tipo" onchange="upTipo()"></select>
       </div>
+      <div class="fg" id="up-otro">
+        <label for="up-titulo">Nombre del documento</label>
+        <input class="fi2" id="up-titulo" placeholder="Ej.: Certificado kosher, declaración de alérgenos…"/>
+      </div>
       <div class="fg">
-        <label for="up-prov">Proveedor</label>
+        <label for="up-prov" id="up-prov-l">Proveedor</label>
         <input class="fi2" id="up-prov" list="dl-prov" placeholder="Proveedor que emite el documento"/>
         <datalist id="dl-prov"></datalist>
       </div>
@@ -472,8 +477,8 @@ var DATOS = null, FILAS = [], CARGA = '';
 var PERFIL = null, ES_ADMIN = false;
 var UP = { inv: null, file: null };     // lo que se está por subir
 var HIST = null;                         // { inv, prov } abierto en el historial
-var TIPO_TXT = { FT: 'Ficha técnica', HDS: 'Hoja de seguridad', COA: 'Certificado de análisis (COA)' };
-var TIPOS_ORDEN = ['FT', 'HDS', 'COA'];
+var TIPO_TXT = { FT: 'Ficha técnica', HDS: 'Hoja de seguridad', COA: 'Certificado de análisis (COA)', OTRO: 'Otro documento' };
+var TIPOS_ORDEN = ['FT', 'HDS', 'COA', 'OTRO'];
 
 function load(){
   return CalidadMP.cargar(SB).then(function(d){
@@ -536,6 +541,18 @@ function celdaCOA(f, i){
     +(det?' <small>'+esc(det)+'</small>':'')+(f.nCoa>1?' <small>· '+f.nCoa+' en total</small>':'')+'</button>'+up+'</div>';
 }
 
+// Otros documentos: el último a la vista (por nombre) y la cantidad;
+// tocar el contador abre el historial con todos
+function celdaOtros(f, i){
+  var up = botonSubir(i, 'OTRO');
+  if(!f.otros.length) return '<div class="cell"><span class="muted">—</span>'+up+'</div>';
+  var d = f.otros[0];
+  return '<div class="cell"><button class="dc dc-ok" onclick="abrirDoc('+d.id+')" title="Abrir '+esc(d.nombre_archivo||'')
+    +(d.proveedor?'':' · vale para todos los proveedores')+'">📎 '+esc(d.titulo||d.nombre_archivo||'documento')+'</button>'
+    +(f.otros.length>1?'<button class="dc dc-mut" style="cursor:pointer" title="Ver los '+f.otros.length+'" onclick="abrirHist('+i+')">+'+(f.otros.length-1)+'</button>':'')
+    +up+'</div>';
+}
+
 function filaHtml(f){
   var m = f.mp, i = FILAS.indexOf(f);
   return '<tr>'
@@ -544,6 +561,7 @@ function filaHtml(f){
     +'<td>'+chipDoc(f.ft, f.ftVto, 'FT', i)+'</td>'
     +'<td>'+chipDoc(f.hds, f.hdsVto, 'HDS', i)+'</td>'
     +'<td>'+celdaCOA(f, i)+'</td>'
+    +'<td>'+celdaOtros(f, i)+'</td>'
     +'<td><button class="btn btn-ghost btn-sm" title="Todo lo cargado de este proveedor" onclick="abrirHist('+i+')">🗂 '
       +(f.docs.length||'')+'</button></td>'
     +'</tr>';
@@ -567,9 +585,9 @@ function kpiFiltro(el){
 function render(){
   if(!FILAS.length){
     document.getElementById('tbody').innerHTML = CARGA === 'err'
-      ? '<tr><td colspan="6" class="empty-td" style="color:var(--amber)">⚠ No se pudieron cargar los datos. '
+      ? '<tr><td colspan="7" class="empty-td" style="color:var(--amber)">⚠ No se pudieron cargar los datos. '
         + '<button class="btn btn-ghost btn-sm" onclick="load()">↻ Reintentar</button></td></tr>'
-      : '<tr><td colspan="6" class="empty-td">'+(CARGA?'No hay materias primas en el inventario.':'Cargando…')+'</td></tr>';
+      : '<tr><td colspan="7" class="empty-td">'+(CARGA?'No hay materias primas en el inventario.':'Cargando…')+'</td></tr>';
     setText('tbl-cnt','—');
     ['k-total','k-coa','k-hds','k-ft','k-vto'].forEach(function(id){ setText(id,'—'); });
     return;
@@ -592,7 +610,7 @@ function render(){
     if(prov && CalidadMP.norm(f.prov) !== prov) return false;
     if(q){
       var hay = (String(f.mp.descripcion||'')+' '+String(f.mp.codigo||'')+' '+f.prov+' '
-        +f.docs.map(function(d){ return (d.lote||'')+' '+(d.nombre_archivo||''); }).join(' ')).toUpperCase();
+        +f.docs.map(function(d){ return (d.lote||'')+' '+(d.titulo||'')+' '+(d.nombre_archivo||''); }).join(' ')).toUpperCase();
       if(hay.indexOf(q) === -1) return false;
     }
     return true;
@@ -605,7 +623,7 @@ function render(){
   });
   setText('tbl-cnt', rows.length+' de '+FILAS.length);
   document.getElementById('tbody').innerHTML =
-    rows.map(filaHtml).join('') || '<tr><td colspan="6" class="empty-td">Sin resultados para el filtro.</td></tr>';
+    rows.map(filaHtml).join('') || '<tr><td colspan="7" class="empty-td">Sin resultados para el filtro.</td></tr>';
 }
 
 // ─── Abrir un documento ─────────────────────────────────────
@@ -639,7 +657,7 @@ function abrirSubir(inv, tipo, prov){
   document.getElementById('up-tipo').innerHTML = TIPOS_ORDEN.map(function(t){
     return '<option value="'+t+'"'+(t===tipo?' selected':'')+'>'+TIPO_TXT[t]+'</option>'; }).join('');
   document.getElementById('up-prov').value = prov || '';
-  ['up-lote','up-rev','up-vence','up-fecha','up-obs'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['up-titulo','up-lote','up-rev','up-vence','up-fecha','up-obs'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('up-file').value = '';
   UP = { inv: inv, file: null };
   setText('up-fname', 'Tocá para elegir el archivo, o arrastralo acá');
@@ -669,6 +687,9 @@ function upTipo(){
   var t = document.getElementById('up-tipo').value;
   document.getElementById('up-coa').style.display = t === 'COA' ? '' : 'none';
   document.getElementById('up-ft').style.display  = t === 'COA' ? 'none' : '';
+  document.getElementById('up-otro').style.display = t === 'OTRO' ? '' : 'none';
+  // Otro documento sin proveedor = vale para el producto, con todos sus proveedores
+  setText('up-prov-l', t === 'OTRO' ? 'Proveedor (opcional: vacío = vale para todos)' : 'Proveedor');
   // Sólo la inicial en minúscula: toLowerCase() entero dejaba "(coa)"
   var tx = TIPO_TXT[t] || 'Documento';
   setText('up-t', 'Subir '+tx.charAt(0).toLowerCase()+tx.slice(1));
@@ -705,10 +726,12 @@ function subir(){
   var tipo = document.getElementById('up-tipo').value;
   var val = function(id){ var v=document.getElementById(id).value.trim(); return v || null; };
   var prov = val('up-prov');
-  if(!prov){ toast('Indicá el proveedor: cada proveedor tiene sus propios documentos.', 'err'); return; }
+  var titulo = val('up-titulo');
+  if(tipo === 'OTRO' && !titulo){ toast('Poné el nombre del documento.', 'err'); return; }
+  if(!prov && tipo !== 'OTRO'){ toast('Indicá el proveedor: cada proveedor tiene sus propios documentos.', 'err'); return; }
   if(!UP.file){ toast('Elegí el archivo.', 'err'); return; }
   // Mismo proveedor escrito distinto: se usa el nombre que ya existe
-  FILAS.forEach(function(f){ if(f.prov && CalidadMP.norm(f.prov) === CalidadMP.norm(prov)) prov = f.prov; });
+  if(prov) FILAS.forEach(function(f){ if(f.prov && CalidadMP.norm(f.prov) === CalidadMP.norm(prov)) prov = f.prov; });
   var fecha = val('up-fecha');
   var ruta = tipo.toLowerCase()+'/'+m.id+'/'+Date.now()+'-'+nombreSeguro(UP.file.name);
   var fila = {
@@ -723,6 +746,9 @@ function subir(){
     archivo: ruta, nombre_archivo: UP.file.name, bytes: UP.file.size,
     observaciones: val('up-obs'), subido_por: quien()
   };
+  // La columna titulo es de calidad_mp_otros.sql: sólo se manda cuando
+  // hace falta, así FT/HDS/COA siguen andando aunque no se haya corrido
+  if(tipo === 'OTRO') fila.titulo = titulo;
   var btn = document.getElementById('up-ok'); btn.disabled = true; btn.textContent = 'Subiendo…';
   var fin = function(){ btn.disabled = false; btn.textContent = '⬆ Subir'; };
   var st = SB.storage.from(CalidadMP.BUCKET);
@@ -737,9 +763,15 @@ function subir(){
     });
   }).then(function(){
     fin(); cerrar('ov-up');
-    toast('✓ '+TIPO_TXT[tipo]+' cargado · '+m.descripcion+' · '+prov, 'ok');
+    toast('✓ '+(tipo === 'OTRO' ? titulo : TIPO_TXT[tipo])+' cargado · '+m.descripcion+(prov ? ' · '+prov : ''), 'ok');
     load();
-  }).catch(function(e){ fin(); toast(e && e.message || String(e), 'err'); });
+  }).catch(function(e){
+    fin();
+    var msg = e && e.message || String(e);
+    if(tipo === 'OTRO' && /titulo|tipo_check|mp_doc_tipo|check constraint|row-level security|permiso/i.test(msg))
+      msg = 'Falta correr migracion/calidad_mp_otros.sql en Supabase para poder subir otros documentos.';
+    toast(msg, 'err');
+  });
 }
 
 // ─── Historial de una MP × proveedor ────────────────────────
@@ -758,10 +790,11 @@ function pintarHist(){
     return '<div class="hist-g"><h4>'+TIPO_TXT[t]+' · '+ds.length+'</h4>'
       +(ds.length ? ds.map(function(d){
         var fe = CalidadMP.fechaDe(d);
-        var det = [d.revision, d.lote ? 'lote '+d.lote : '', fe ? fechaCorta(fe) : '',
+        var det = [t === 'OTRO' && !d.proveedor ? 'vale para todos los proveedores' : '',
+                   d.revision, d.lote ? 'lote '+d.lote : '', fe ? fechaCorta(fe) : '',
                    d.vence ? 'vence '+fechaCorta(d.vence) : '',
                    'subió '+(d.subido_por||'—')+' '+fechaCorta(d.created_at)].filter(Boolean).join(' · ');
-        return '<div class="hist-r"><div class="hm"><b title="'+esc(d.nombre_archivo||'')+'">'+esc(d.nombre_archivo||'documento')+'</b>'
+        return '<div class="hist-r"><div class="hm"><b title="'+esc(d.nombre_archivo||'')+'">'+esc(d.titulo||d.nombre_archivo||'documento')+'</b>'
           +'<span title="'+esc(det)+'">'+esc(det)+'</span>'
           +(d.observaciones?'<span>'+esc(d.observaciones)+'</span>':'')+'</div>'
           +'<button class="btn btn-teal btn-sm" onclick="abrirDoc('+d.id+')">Abrir</button>'
@@ -801,13 +834,14 @@ function borrarDoc(id){
 function exportCSV(){
   if(!FILAS.length){ toast('No hay datos para exportar.', 'inf'); return; }
   var head = ['Codigo','Materia prima','Proveedor','Ficha tecnica','FT revision','FT vence',
-              'Hoja de seguridad','HDS revision','HDS vence','Ultimo COA','COA lote','COA cargados'];
+              'Hoja de seguridad','HDS revision','HDS vence','Ultimo COA','COA lote','COA cargados','Otros documentos'];
   var estDoc = function(d, v){ return !d ? 'FALTA' : (v==='vencido' ? 'VENCIDA' : (v==='pronto' ? 'POR VENCER' : 'OK')); };
   var rows = FILAS.map(function(f){
     return [f.mp.codigo, f.mp.descripcion, f.prov,
       estDoc(f.ft, f.ftVto), f.ft && f.ft.revision, f.ft && f.ft.vence,
       estDoc(f.hds, f.hdsVto), f.hds && f.hds.revision, f.hds && f.hds.vence,
-      f.coa ? CalidadMP.fechaDe(f.coa) : '', f.coa && f.coa.lote, f.nCoa];
+      f.coa ? CalidadMP.fechaDe(f.coa) : '', f.coa && f.coa.lote, f.nCoa,
+      f.otros.map(function(d){ return d.titulo || d.nombre_archivo; }).join(' | ')];
   });
   var csv = [head].concat(rows).map(function(r){
     return r.map(function(v){ v = v == null ? '' : String(v); return /[;"\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(';');

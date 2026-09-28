@@ -13,6 +13,9 @@
 //   · FT y HDS: el último cargado de cada tipo es el que vale. Si tiene
 //     fecha de vencimiento, avisa 30 días antes.
 //   · COA: se guardan todos; se muestra el último. No se reclama.
+//   · OTRO: cualquier otro documento del producto, con un nombre
+//     (titulo). Con proveedor va en la fila de ese proveedor; sin
+//     proveedor es del producto y aparece en todas sus filas.
 //   · Todo lo sube el administrador.
 // ============================================================
 (function () {
@@ -86,23 +89,30 @@
     var out = [];
     datos.mps.forEach(function (m) {
       var docs = porArt[m.id] || [];
-      var provs = {}, orden = [];
+      var provs = {}, orden = [], delProducto = [];
       var sumar = function (p) {
         var k = norm(p);
         if (!(k in provs)) { provs[k] = { nombre: String(p || '').trim(), docs: [] }; orden.push(k); }
         return provs[k];
       };
       if (m.proveedor) sumar(m.proveedor);
-      docs.forEach(function (d) { sumar(d.proveedor).docs.push(d); });
+      docs.forEach(function (d) {
+        // Un "otro documento" sin proveedor es del producto: va en todas
+        // sus filas y no abre una fila "sin proveedor" propia.
+        if (d.tipo === 'OTRO' && !norm(d.proveedor)) delProducto.push(d);
+        else sumar(d.proveedor).docs.push(d);
+      });
       if (!orden.length) sumar('');
       orden.forEach(function (k) {
         var g = provs[k];
-        var de = function (t) { return g.docs.filter(function (d) { return d.tipo === t; }); };
+        var todos = g.docs.concat(delProducto);
+        var de = function (t) { return todos.filter(function (d) { return d.tipo === t; }); };
         var ft = ultimo(de('FT')), hds = ultimo(de('HDS')), coas = de('COA');
         out.push({
-          key: m.id + '|' + k, mp: m, prov: g.nombre, docs: g.docs,
+          key: m.id + '|' + k, mp: m, prov: g.nombre, docs: todos,
           ft: ft, hds: hds, ftVto: vencimiento(ft, hoy), hdsVto: vencimiento(hds, hoy),
-          coa: ultimo(coas), nCoa: coas.length
+          coa: ultimo(coas), nCoa: coas.length,
+          otros: ordenar(de('OTRO'))
         });
       });
     });

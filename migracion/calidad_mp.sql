@@ -6,6 +6,8 @@
 --    admin (28/09/2026: antes el COA lo subia tambien Recepcion; ver
 --    calidad_mp_solo_admin.sql). El modulo es un archivo, no reclama.
 --  · Ver y descargar: cualquier usuario autenticado.
+--  · "Otros documentos" (tipo OTRO, columna titulo): se agregan con
+--    calidad_mp_otros.sql, que hay que correr despues de este.
 --
 --  Los archivos van al bucket privado 'calidad-mp', en carpetas
 --  ft/ hds/ coa/. La carpeta decide quien puede subir o borrar, con
@@ -19,7 +21,7 @@
 -- 1 . Quien puede escribir cada tipo
 create or replace function public.puede_doc_mp(t text)
 returns boolean language sql stable security definer set search_path = public as $$
-  select t in ('FT','HDS','COA') and public.is_admin();
+  select t in ('FT','HDS','COA','OTRO') and public.is_admin();
 $$;
 
 -- 2 . La tabla

@@ -256,11 +256,6 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 .up:hover{background:rgba(14,107,138,.35)}
 .cell{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
 .art-cod{font-family:var(--mono);font-size:9px;color:var(--muted)}
-.llego{font-family:var(--mono);font-size:10px;color:var(--text)}
-.falta-coa{animation:coa-late 1.8s ease-in-out infinite}
-@keyframes coa-late{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}50%{box-shadow:0 0 0 3px rgba(239,68,68,.22)}}
-@media (prefers-reduced-motion: reduce){ .falta-coa{animation:none} }
-.fi-mes{padding:5px 9px}
 .kpi.clic{cursor:pointer}
 .kpi.sel{outline:1px solid var(--teal-l)}
 
@@ -290,14 +285,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-25.1527"/>
-<script src="supabase-config.js?v=2026-09-25.1527"></script>
-<script src="subatir-app.js?v=2026-09-25.1527"></script>
-<script src="calidad-calc.js?v=2026-09-25.1527"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-28.1339"/>
+<script src="supabase-config.js?v=2026-09-28.1339"></script>
+<script src="subatir-app.js?v=2026-09-28.1339"></script>
+<script src="calidad-calc.js?v=2026-09-28.1339"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-25.1527';
+window.APP_VER='2026-09-28.1339';
 </script>
 </head>
 <body>
@@ -313,7 +308,7 @@ window.APP_VER='2026-09-25.1527';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-25.1527"></script>
+  <script src="nav.js?v=2026-09-28.1339"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -336,25 +331,25 @@ window.APP_VER='2026-09-25.1527';
       <div class="kpi-icon">🧪</div>
       <div class="kpi-label">Materias primas</div>
       <div class="kpi-num c-teal" id="k-total">—</div>
-      <div class="kpi-sub">de la categoría en Stock</div>
-    </div>
-    <div class="glass kpi kpi-crit clic" data-f="COA" onclick="kpiFiltro(this)">
-      <div class="kpi-icon">📑</div>
-      <div class="kpi-label">Falta COA · <span id="k-mes-t">mes</span></div>
-      <div class="kpi-num c-red" id="k-coa">—</div>
-      <div class="kpi-sub" id="k-coa-sub">llegaron y no tienen COA</div>
-    </div>
-    <div class="glass kpi kpi-medio clic" data-f="HDS" onclick="kpiFiltro(this)">
-      <div class="kpi-icon">⚠</div>
-      <div class="kpi-label">Sin hoja de seguridad</div>
-      <div class="kpi-num c-amber" id="k-hds">—</div>
-      <div class="kpi-sub">HDS no cargada</div>
+      <div class="kpi-sub" id="k-total-sub">de la categoría en Stock</div>
     </div>
     <div class="glass kpi kpi-medio clic" data-f="FT" onclick="kpiFiltro(this)">
       <div class="kpi-icon">📄</div>
       <div class="kpi-label">Sin ficha técnica</div>
       <div class="kpi-num c-amber" id="k-ft">—</div>
-      <div class="kpi-sub">FT no cargada</div>
+      <div class="kpi-sub">MP × proveedor</div>
+    </div>
+    <div class="glass kpi kpi-medio clic" data-f="HDS" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">⚠</div>
+      <div class="kpi-label">Sin hoja de seguridad</div>
+      <div class="kpi-num c-amber" id="k-hds">—</div>
+      <div class="kpi-sub">MP × proveedor</div>
+    </div>
+    <div class="glass kpi kpi-total clic" data-f="COA" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">📑</div>
+      <div class="kpi-label">Sin COA cargado</div>
+      <div class="kpi-num c-teal" id="k-coa">—</div>
+      <div class="kpi-sub">MP × proveedor</div>
     </div>
     <div class="glass kpi kpi-crit clic" data-f="VTO" onclick="kpiFiltro(this)">
       <div class="kpi-icon">⏳</div>
@@ -377,31 +372,30 @@ window.APP_VER='2026-09-25.1527';
       </div>
       <select class="fi" id="f-est" onchange="render()" aria-label="Filtrar por estado">
         <option value="">Todas</option>
-        <option value="COA">Falta COA del mes</option>
-        <option value="LLEGO">Llegaron en el mes</option>
         <option value="FT">Sin ficha técnica</option>
         <option value="HDS">Sin hoja de seguridad</option>
+        <option value="COA">Sin COA cargado</option>
         <option value="VTO">FT / HDS vencidas o por vencer</option>
       </select>
-      <label class="muted" style="font-size:11px;display:flex;align-items:center;gap:6px">
-        COA de
-        <input type="month" class="fi fi-mes" id="f-mes" onchange="cambiarMes()"/>
-      </label>
+      <select class="fi" id="f-prov" onchange="render()" aria-label="Filtrar por proveedor">
+        <option value="">Todos los proveedores</option>
+      </select>
+      <button class="btn btn-orange btn-sm" id="btn-subir" style="display:none;margin-left:auto" onclick="abrirSubir(null,'FT','')">⬆ Subir documento</button>
     </div>
     <div class="tbl-wrap">
       <table>
         <thead><tr>
           <th>Materia prima</th><th>Proveedor</th>
           <th>Ficha técnica</th><th>Hoja de seguridad</th>
-          <th id="th-llego">Llegó</th><th id="th-coa">COA</th><th></th>
+          <th>Último COA</th><th></th>
         </tr></thead>
-        <tbody id="tbody"><tr><td colspan="7" class="empty-td">Cargando…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="6" class="empty-td">Cargando…</td></tr></tbody>
       </table>
     </div>
     <div class="muted" style="font-size:11px;margin-top:10px">
-      El COA se pide uno por mes, y sólo a las materias primas que tuvieron una entrega en Recepción ese mes.
-      La ficha técnica y la hoja de seguridad las sube un administrador; el COA, también Recepción.
-      Tocá un documento para abrirlo; 🗂 muestra todo lo cargado de esa materia prima.
+      Una fila por materia prima y proveedor: cada proveedor tiene su propia ficha técnica, hoja de seguridad y COA.
+      Para sumar un proveedor, subí un documento a su nombre. Los documentos los sube un administrador.
+      Tocá un documento para abrirlo; 🗂 muestra todo lo cargado de ese proveedor.
     </div>
   </div>
 
@@ -416,6 +410,10 @@ window.APP_VER='2026-09-25.1527';
       <button class="modal-x" aria-label="Cerrar" onclick="cerrar('ov-up')">✕</button>
     </div>
     <div class="modal-body">
+      <div class="fg" id="up-mp-g">
+        <label for="up-mp">Materia prima</label>
+        <select class="fi2" id="up-mp" onchange="upMP()"></select>
+      </div>
       <div class="fg">
         <label for="up-tipo">Tipo</label>
         <select class="fi2" id="up-tipo" onchange="upTipo()"></select>
@@ -426,10 +424,7 @@ window.APP_VER='2026-09-25.1527';
         <datalist id="dl-prov"></datalist>
       </div>
       <div id="up-coa">
-        <div class="row2">
-          <div class="fg"><label for="up-mes">Mes que cubre</label><input type="month" class="fi2" id="up-mes"/></div>
-          <div class="fg"><label for="up-lote">Lote (opcional)</label><input class="fi2" id="up-lote" placeholder="Nº de lote"/></div>
-        </div>
+        <div class="fg"><label for="up-lote">Lote (opcional)</label><input class="fi2" id="up-lote" placeholder="Nº de lote"/></div>
       </div>
       <div id="up-ft">
         <div class="row2">
@@ -473,21 +468,23 @@ window.APP_VER='2026-09-25.1527';
 <!-- ══ SCRIPT ═════════════════════════════════════════════════ -->
 <script>
 // ─── Estado ──────────────────────────────────────────────────
-var DATOS = null, FILAS = [], MES = CalidadMP.mesISO(), CARGA = '';
-var PERFIL = null, ES_ADMIN = false, PUEDE_COA = false;
+var DATOS = null, FILAS = [], CARGA = '';
+var PERFIL = null, ES_ADMIN = false;
 var UP = { inv: null, file: null };     // lo que se está por subir
-var HIST_INV = null;                     // MP abierta en el historial
+var HIST = null;                         // { inv, prov } abierto en el historial
 var TIPO_TXT = { FT: 'Ficha técnica', HDS: 'Hoja de seguridad', COA: 'Certificado de análisis (COA)' };
 var TIPOS_ORDEN = ['FT', 'HDS', 'COA'];
 
 function load(){
-  return CalidadMP.cargar(SB, MES).then(function(d){
+  return CalidadMP.cargar(SB).then(function(d){
     DATOS = d; CARGA = 'ok';
     document.getElementById('sin-tabla').style.display = d.falta === 'tabla' ? '' : 'none';
-    FILAS = CalidadMP.estado(d, MES);
+    FILAS = CalidadMP.filas(d);
     setText('ts', new Date().toLocaleTimeString('es-UY'));
+    llenarProveedores();
+    document.getElementById('btn-subir').style.display = puede() ? '' : 'none';
     render();
-    if(HIST_INV != null) pintarHist();
+    if(HIST) pintarHist();
   }, function(e){
     DATOS = null; FILAS = []; CARGA = 'err';
     toast('Error cargando datos: '+(e && e.message || e), 'err');
@@ -495,56 +492,59 @@ function load(){
   });
 }
 
-function cambiarMes(){
-  var v = document.getElementById('f-mes').value;
-  if(!v) return;
-  MES = v + '-01';
-  load();
+// Proveedores del filtro: todos los que tienen alguna fila
+function llenarProveedores(){
+  var sel = document.getElementById('f-prov'), actual = sel.value, vistos = {};
+  FILAS.forEach(function(f){ if(f.prov) vistos[CalidadMP.norm(f.prov)] = vistos[CalidadMP.norm(f.prov)] || f.prov; });
+  var ps = Object.keys(vistos).map(function(k){ return vistos[k]; })
+    .sort(function(a,b){ return a.localeCompare(b, 'es'); });
+  sel.innerHTML = '<option value="">Todos los proveedores</option>'
+    + ps.map(function(p){ return '<option value="'+esc(CalidadMP.norm(p))+'">'+esc(p)+'</option>'; }).join('');
+  if(actual && vistos[actual]) sel.value = actual;
 }
 
 // ─── Celdas ─────────────────────────────────────────────────
 function fechaCorta(iso){ if(!iso) return ''; var p=String(iso).slice(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0].slice(2); }
-function puedeTipo(t){ return (t === 'COA' ? PUEDE_COA : ES_ADMIN) && !!DATOS && !DATOS.falta; }
-function botonSubir(inv, tipo, titulo){
-  return puedeTipo(tipo)
-    ? '<button class="up" title="'+esc(titulo)+'" aria-label="'+esc(titulo)+'" onclick="abrirSubir('+inv+',\''+tipo+'\')">⬆</button>' : '';
+function puede(){ return ES_ADMIN && !!DATOS && !DATOS.falta; }
+// El índice de la fila viaja en el onclick: el proveedor es texto libre
+// y meterlo entre comillas en el HTML se rompe con un apóstrofe.
+function botonSubir(i, tipo){
+  if(!puede()) return '';
+  var t = 'Subir '+TIPO_TXT[tipo].charAt(0).toLowerCase()+TIPO_TXT[tipo].slice(1);
+  return '<button class="up" title="'+esc(t)+'" aria-label="'+esc(t)+'" onclick="subirFila('+i+',\''+tipo+'\')">⬆</button>';
 }
 
-function chipDoc(doc, vto, tipo, inv){
-  var up = botonSubir(inv, tipo, 'Subir '+TIPO_TXT[tipo].toLowerCase());
+function chipDoc(doc, vto, tipo, i){
+  var up = botonSubir(i, tipo);
   if(!doc) return '<div class="cell"><span class="dc dc-red">✕ falta</span>'+up+'</div>';
   var cls = vto === 'vencido' ? 'dc-red vto' : (vto === 'pronto' ? 'dc-amb' : 'dc-ok');
   var det = [doc.revision,
              doc.vence ? (vto==='vencido' ? 'venció ' : 'vence ')+fechaCorta(doc.vence)
                        : (doc.fecha_doc ? fechaCorta(doc.fecha_doc) : '')].filter(Boolean).join(' · ');
-  return '<div class="cell"><button class="dc '+cls+'" title="Abrir '+esc(doc.nombre_archivo||'')+(doc.proveedor?' · '+esc(doc.proveedor):'')+'" '
+  return '<div class="cell"><button class="dc '+cls+'" title="Abrir '+esc(doc.nombre_archivo||'')+'" '
     +'onclick="abrirDoc('+doc.id+')">📄 '+(vto==='vencido'?'vencida':'ver')+(det?' <small>'+esc(det)+'</small>':'')+'</button>'+up+'</div>';
 }
 
-function celdaCOA(f){
-  var up = botonSubir(f.mp.id, 'COA', 'Subir el COA de '+CalidadMP.mesTexto(MES));
-  if(f.coaMes.length){
-    var d = f.coaMes[f.coaMes.length-1];
-    return '<div class="cell"><button class="dc dc-ok" onclick="abrirDoc('+d.id+')" title="Abrir '+esc(d.nombre_archivo||'')+'">✓ COA'
-      +(d.lote?' <small>L. '+esc(d.lote)+'</small>':'')+(f.coaMes.length>1?' <small>×'+f.coaMes.length+'</small>':'')+'</button>'+up+'</div>';
-  }
-  if(f.faltaCOA) return '<div class="cell"><span class="dc dc-red falta-coa">⚠ falta</span>'+up+'</div>';
-  return '<div class="cell"><span class="dc dc-mut" title="No llegó en '+esc(CalidadMP.mesTexto(MES))+': no se pide COA">no se pide</span>'+up+'</div>';
+// El COA no se reclama acá (eso lo dice el Check List de Recepción):
+// si no hay ninguno, la celda queda neutra, no en rojo.
+function celdaCOA(f, i){
+  var up = botonSubir(i, 'COA');
+  if(!f.coa) return '<div class="cell"><span class="dc dc-mut">sin cargar</span>'+up+'</div>';
+  var d = f.coa, fe = CalidadMP.fechaDe(d);
+  var det = [d.lote ? 'L. '+d.lote : '', fe ? fechaCorta(fe) : ''].filter(Boolean).join(' · ');
+  return '<div class="cell"><button class="dc dc-ok" onclick="abrirDoc('+d.id+')" title="Abrir '+esc(d.nombre_archivo||'')+'">📄 ver'
+    +(det?' <small>'+esc(det)+'</small>':'')+(f.nCoa>1?' <small>· '+f.nCoa+' en total</small>':'')+'</button>'+up+'</div>';
 }
 
 function filaHtml(f){
-  var m = f.mp;
-  var dias = f.llego.map(function(x){ return fechaCorta(x).slice(0,5); })
-                    .filter(function(x,i,a){ return a.indexOf(x)===i; });
-  var llego = dias.length ? '<span class="llego">'+dias.join(', ')+'</span>' : '<span class="muted">—</span>';
+  var m = f.mp, i = FILAS.indexOf(f);
   return '<tr>'
     +'<td><strong>'+esc(m.descripcion||'—')+'</strong>'+(m.codigo?'<br><span class="art-cod">'+esc(m.codigo)+'</span>':'')+'</td>'
-    +'<td>'+(m.proveedor ? esc(m.proveedor) : '<span class="muted">—</span>')+'</td>'
-    +'<td>'+chipDoc(f.ft, f.ftVto, 'FT', m.id)+'</td>'
-    +'<td>'+chipDoc(f.hds, f.hdsVto, 'HDS', m.id)+'</td>'
-    +'<td>'+llego+'</td>'
-    +'<td>'+celdaCOA(f)+'</td>'
-    +'<td><button class="btn btn-ghost btn-sm" title="Todo lo cargado de esta materia prima" onclick="abrirHist('+m.id+')">🗂 '
+    +'<td>'+(f.prov ? esc(f.prov) : '<span class="muted">sin proveedor</span>')+'</td>'
+    +'<td>'+chipDoc(f.ft, f.ftVto, 'FT', i)+'</td>'
+    +'<td>'+chipDoc(f.hds, f.hdsVto, 'HDS', i)+'</td>'
+    +'<td>'+celdaCOA(f, i)+'</td>'
+    +'<td><button class="btn btn-ghost btn-sm" title="Todo lo cargado de este proveedor" onclick="abrirHist('+i+')">🗂 '
       +(f.docs.length||'')+'</button></td>'
     +'</tr>';
 }
@@ -553,11 +553,10 @@ function filaHtml(f){
 // Un solo predicado para el select y para los KPI: el número de la
 // tarjeta es exactamente cuántas filas quedan al tocarla.
 function pasa(f, est){
-  if(est === 'COA')   return f.faltaCOA;
-  if(est === 'LLEGO') return f.llego.length > 0;
-  if(est === 'FT')    return !f.ft;
-  if(est === 'HDS')   return !f.hds;
-  if(est === 'VTO')   return !!(f.ftVto || f.hdsVto);
+  if(est === 'FT')  return !f.ft;
+  if(est === 'HDS') return !f.hds;
+  if(est === 'COA') return !f.coa;
+  if(est === 'VTO') return !!(f.ftVto || f.hdsVto);
   return true;
 }
 function kpiFiltro(el){
@@ -566,48 +565,47 @@ function kpiFiltro(el){
 }
 
 function render(){
-  var mesTxt = CalidadMP.mesTexto(MES);
-  setText('k-mes-t', mesTxt);
-  setText('th-llego', 'Llegó en '+mesTxt);
-  setText('th-coa', 'COA '+mesTxt);
   if(!FILAS.length){
     document.getElementById('tbody').innerHTML = CARGA === 'err'
-      ? '<tr><td colspan="7" class="empty-td" style="color:var(--amber)">⚠ No se pudieron cargar los datos. '
+      ? '<tr><td colspan="6" class="empty-td" style="color:var(--amber)">⚠ No se pudieron cargar los datos. '
         + '<button class="btn btn-ghost btn-sm" onclick="load()">↻ Reintentar</button></td></tr>'
-      : '<tr><td colspan="7" class="empty-td">'+(CARGA?'No hay materias primas en el inventario.':'Cargando…')+'</td></tr>';
+      : '<tr><td colspan="6" class="empty-td">'+(CARGA?'No hay materias primas en el inventario.':'Cargando…')+'</td></tr>';
     setText('tbl-cnt','—');
     ['k-total','k-coa','k-hds','k-ft','k-vto'].forEach(function(id){ setText(id,'—'); });
     return;
   }
   var r = CalidadMP.resumen(FILAS);
-  setText('k-total', r.total);
-  setText('k-coa', r.faltaCOA);
-  setText('k-coa-sub', r.llegaron ? ('de '+r.llegaron+' que llegaron en el mes') : 'no llegó ninguna en el mes');
-  setText('k-hds', r.sinHDS);
+  setText('k-total', r.mps);
+  setText('k-total-sub', r.filas+' combinaciones con proveedor');
   setText('k-ft', r.sinFT);
+  setText('k-hds', r.sinHDS);
+  setText('k-coa', r.sinCOA);
   setText('k-vto', r.vencidos);
   setText('k-vto-sub', '+ '+r.pronto+' por vencer en '+CalidadMP.AVISO_DIAS+' días');
 
   var est = document.getElementById('f-est').value;
+  var prov = document.getElementById('f-prov').value;
   document.querySelectorAll('.kpi.clic').forEach(function(k){ k.classList.toggle('sel', !!est && k.getAttribute('data-f')===est); });
   var q = document.getElementById('f-q').value.trim().toUpperCase();
   var rows = FILAS.filter(function(f){
     if(!pasa(f, est)) return false;
+    if(prov && CalidadMP.norm(f.prov) !== prov) return false;
     if(q){
-      var hay = (String(f.mp.descripcion||'')+' '+String(f.mp.codigo||'')+' '+String(f.mp.proveedor||'')+' '
-        +f.docs.map(function(d){ return (d.proveedor||'')+' '+(d.lote||''); }).join(' ')).toUpperCase();
+      var hay = (String(f.mp.descripcion||'')+' '+String(f.mp.codigo||'')+' '+f.prov+' '
+        +f.docs.map(function(d){ return (d.lote||'')+' '+(d.nombre_archivo||''); }).join(' ')).toUpperCase();
       if(hay.indexOf(q) === -1) return false;
     }
     return true;
   });
-  // Lo que hay que resolver primero: falta COA, después vencidos, después el resto
-  var peso = function(f){ return f.faltaCOA ? 0 : (f.ftVto==='vencido'||f.hdsVto==='vencido') ? 1 : (!f.hds||!f.ft) ? 2 : 3; };
+  // Primero lo vencido, después lo incompleto; dentro, por nombre
+  var peso = function(f){ return (f.ftVto==='vencido'||f.hdsVto==='vencido') ? 0 : (!f.hds||!f.ft) ? 1 : 2; };
   rows.sort(function(a,b){
-    return peso(a)-peso(b) || String(a.mp.descripcion||'').localeCompare(String(b.mp.descripcion||''), 'es');
+    return peso(a)-peso(b) || String(a.mp.descripcion||'').localeCompare(String(b.mp.descripcion||''), 'es')
+      || a.prov.localeCompare(b.prov, 'es');
   });
   setText('tbl-cnt', rows.length+' de '+FILAS.length);
   document.getElementById('tbody').innerHTML =
-    rows.map(filaHtml).join('') || '<tr><td colspan="7" class="empty-td">Sin resultados para el filtro.</td></tr>';
+    rows.map(filaHtml).join('') || '<tr><td colspan="6" class="empty-td">Sin resultados para el filtro.</td></tr>';
 }
 
 // ─── Abrir un documento ─────────────────────────────────────
@@ -628,24 +626,39 @@ function abrirDoc(id){
 
 // ─── Subir ──────────────────────────────────────────────────
 function mpById(id){ return (DATOS && DATOS.mps || []).filter(function(m){ return m.id === id; })[0]; }
-function abrirSubir(inv, tipo){
-  var m = mpById(inv); if(!m) return;
-  UP = { inv: inv, file: null };
-  setText('up-art', m.descripcion + (m.codigo ? ' · '+m.codigo : ''));
-  var tipos = TIPOS_ORDEN.filter(puedeTipo);
-  document.getElementById('up-tipo').innerHTML = tipos.map(function(t){
+function subirFila(i, tipo){ var f = FILAS[i]; if(f) abrirSubir(f.mp.id, tipo, f.prov); }
+// inv null = desde el botón general: se elige la materia prima en el modal
+function abrirSubir(inv, tipo, prov){
+  if(!puede()) return;
+  var sel = document.getElementById('up-mp');
+  sel.innerHTML = (inv == null ? '<option value="">Elegí la materia prima…</option>' : '')
+    + DATOS.mps.slice().sort(function(a,b){ return String(a.descripcion||'').localeCompare(String(b.descripcion||''), 'es'); })
+      .map(function(m){ return '<option value="'+m.id+'">'+esc(m.descripcion+(m.codigo?' · '+m.codigo:''))+'</option>'; }).join('');
+  sel.value = inv == null ? '' : String(inv);
+  document.getElementById('up-mp-g').style.display = inv == null ? '' : 'none';
+  document.getElementById('up-tipo').innerHTML = TIPOS_ORDEN.map(function(t){
     return '<option value="'+t+'"'+(t===tipo?' selected':'')+'>'+TIPO_TXT[t]+'</option>'; }).join('');
-  // Proveedores sugeridos: el de la ficha y los que ya emitieron documentos
-  var provs = {}; [m.proveedor, m.proveedor_sugerido].forEach(function(p){ if(p) provs[p]=1; });
-  (DATOS.docs||[]).forEach(function(d){ if(d.inventario_id===inv && d.proveedor) provs[d.proveedor]=1; });
-  document.getElementById('dl-prov').innerHTML = Object.keys(provs).map(function(p){ return '<option value="'+esc(p)+'">'; }).join('');
-  document.getElementById('up-prov').value = m.proveedor || '';
-  document.getElementById('up-mes').value = MES.slice(0,7);
+  document.getElementById('up-prov').value = prov || '';
   ['up-lote','up-rev','up-vence','up-fecha','up-obs'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('up-file').value = '';
+  UP = { inv: inv, file: null };
   setText('up-fname', 'Tocá para elegir el archivo, o arrastralo acá');
-  upTipo();
+  upMP(); upTipo();
   abrir('ov-up');
+}
+// Proveedores sugeridos: todos los que ya tienen fila, los de esta MP primero
+function upMP(){
+  var inv = +document.getElementById('up-mp').value || null;
+  UP.inv = inv;
+  var m = inv && mpById(inv);
+  setText('up-art', m ? m.descripcion + (m.codigo ? ' · '+m.codigo : '') : 'Elegí la materia prima');
+  var propios = [], otros = [], vistos = {};
+  FILAS.forEach(function(f){
+    var k = CalidadMP.norm(f.prov); if(!f.prov || vistos[k]) return;
+    vistos[k] = 1; (f.mp.id === inv ? propios : otros).push(f.prov);
+  });
+  document.getElementById('dl-prov').innerHTML = propios.concat(otros.sort(function(a,b){ return a.localeCompare(b,'es'); }))
+    .map(function(p){ return '<option value="'+esc(p)+'">'; }).join('');
 }
 function upTipo(){
   var t = document.getElementById('up-tipo').value;
@@ -682,21 +695,26 @@ function quien(){
 }
 
 function subir(){
-  var m = mpById(UP.inv); if(!m) return;
+  var m = mpById(UP.inv);
+  if(!m){ toast('Elegí la materia prima.', 'err'); return; }
   var tipo = document.getElementById('up-tipo').value;
-  var mes  = document.getElementById('up-mes').value;
-  if(!UP.file){ toast('Elegí el archivo.', 'err'); return; }
-  if(tipo === 'COA' && !mes){ toast('Indicá el mes que cubre el COA.', 'err'); return; }
   var val = function(id){ var v=document.getElementById(id).value.trim(); return v || null; };
+  var prov = val('up-prov');
+  if(!prov){ toast('Indicá el proveedor: cada proveedor tiene sus propios documentos.', 'err'); return; }
+  if(!UP.file){ toast('Elegí el archivo.', 'err'); return; }
+  // Mismo proveedor escrito distinto: se usa el nombre que ya existe
+  FILAS.forEach(function(f){ if(f.prov && CalidadMP.norm(f.prov) === CalidadMP.norm(prov)) prov = f.prov; });
+  var fecha = val('up-fecha');
   var ruta = tipo.toLowerCase()+'/'+m.id+'/'+Date.now()+'-'+nombreSeguro(UP.file.name);
   var fila = {
-    inventario_id: m.id, articulo: m.descripcion, tipo: tipo,
-    proveedor: val('up-prov'),
-    mes: tipo === 'COA' ? mes+'-01' : null,
+    inventario_id: m.id, articulo: m.descripcion, tipo: tipo, proveedor: prov,
+    // La tabla pide el mes en los COA (columna de la versión mensual);
+    // se completa con el de la fecha del documento, o el de hoy.
+    mes: tipo === 'COA' ? (fecha || CalidadMP.hoyISO()).slice(0,7)+'-01' : null,
     lote: tipo === 'COA' ? val('up-lote') : null,
     revision: tipo === 'COA' ? null : val('up-rev'),
     vence: tipo === 'COA' ? null : val('up-vence'),
-    fecha_doc: val('up-fecha'),
+    fecha_doc: fecha,
     archivo: ruta, nombre_archivo: UP.file.name, bytes: UP.file.size,
     observaciones: val('up-obs'), subido_por: quien()
   };
@@ -714,44 +732,41 @@ function subir(){
     });
   }).then(function(){
     fin(); cerrar('ov-up');
-    toast('✓ '+TIPO_TXT[tipo]+' cargado · '+m.descripcion, 'ok');
-    // COA de otro mes: se pasa a ese mes, si no parece que no subió
-    if(tipo === 'COA' && mes+'-01' !== MES){ MES = mes+'-01'; document.getElementById('f-mes').value = mes; }
+    toast('✓ '+TIPO_TXT[tipo]+' cargado · '+m.descripcion+' · '+prov, 'ok');
     load();
   }).catch(function(e){ fin(); toast(e && e.message || String(e), 'err'); });
 }
 
-// ─── Historial ──────────────────────────────────────────────
-function abrirHist(inv){ HIST_INV = inv; pintarHist(); abrir('ov-hist'); }
+// ─── Historial de una MP × proveedor ────────────────────────
+function abrirHist(i){ var f = FILAS[i]; if(!f) return; HIST = { inv: f.mp.id, prov: CalidadMP.norm(f.prov) }; pintarHist(); abrir('ov-hist'); }
+function filaHist(){
+  return HIST && FILAS.filter(function(f){ return f.mp.id === HIST.inv && CalidadMP.norm(f.prov) === HIST.prov; })[0];
+}
 function pintarHist(){
-  var m = mpById(HIST_INV); if(!m) return;
+  var f = filaHist();
+  if(!f){ cerrar('ov-hist'); return; }
+  var m = f.mp, i = FILAS.indexOf(f);
   setText('hi-t', m.descripcion);
-  setText('hi-art', (m.codigo ? m.codigo+' · ' : '')+(m.proveedor||''));
-  var docs = (DATOS.docs||[]).filter(function(d){ return d.inventario_id === HIST_INV; });
+  setText('hi-art', (m.codigo ? m.codigo+' · ' : '')+(f.prov || 'sin proveedor'));
   document.getElementById('hi-body').innerHTML = TIPOS_ORDEN.map(function(t){
-    var ds = docs.filter(function(d){ return d.tipo === t; }).sort(function(a,b){
-      var ka = (t==='COA'?a.mes:a.fecha_doc)||'', kb = (t==='COA'?b.mes:b.fecha_doc)||'';
-      return ka !== kb ? (ka < kb ? 1 : -1) : (String(a.created_at) < String(b.created_at) ? 1 : -1);
-    });
-    var puede = puedeTipo(t);
+    var ds = CalidadMP.ordenar(f.docs.filter(function(d){ return d.tipo === t; }));
     return '<div class="hist-g"><h4>'+TIPO_TXT[t]+' · '+ds.length+'</h4>'
       +(ds.length ? ds.map(function(d){
-        var det = [t==='COA' ? CalidadMP.mesTexto(d.mes) : d.revision,
-                   d.lote ? 'lote '+d.lote : '', d.proveedor,
+        var fe = CalidadMP.fechaDe(d);
+        var det = [d.revision, d.lote ? 'lote '+d.lote : '', fe ? fechaCorta(fe) : '',
                    d.vence ? 'vence '+fechaCorta(d.vence) : '',
                    'subió '+(d.subido_por||'—')+' '+fechaCorta(d.created_at)].filter(Boolean).join(' · ');
         return '<div class="hist-r"><div class="hm"><b title="'+esc(d.nombre_archivo||'')+'">'+esc(d.nombre_archivo||'documento')+'</b>'
           +'<span title="'+esc(det)+'">'+esc(det)+'</span>'
           +(d.observaciones?'<span>'+esc(d.observaciones)+'</span>':'')+'</div>'
           +'<button class="btn btn-teal btn-sm" onclick="abrirDoc('+d.id+')">Abrir</button>'
-          +(puede?'<button class="btn btn-ghost btn-sm" id="del-'+d.id+'" title="Borrar" aria-label="Borrar" onclick="borrarDoc('+d.id+')">🗑</button>':'')
+          +(puede()?'<button class="btn btn-ghost btn-sm" id="del-'+d.id+'" title="Borrar" aria-label="Borrar" onclick="borrarDoc('+d.id+')">🗑</button>':'')
           +'</div>';
       }).join('') : '<div class="hist-empty">Nada cargado.</div>')
       +'</div>';
   }).join('');
-  var tipos = TIPOS_ORDEN.filter(puedeTipo);
   document.getElementById('hi-ftr').innerHTML =
-    (tipos.length ? '<button class="btn btn-orange" onclick="cerrar(\'ov-hist\');abrirSubir('+m.id+',\''+tipos[0]+'\')">⬆ Subir documento</button>' : '')
+    (puede() ? '<button class="btn btn-orange" onclick="cerrar(\'ov-hist\');subirFila('+i+',\'FT\')">⬆ Subir documento</button>' : '')
     +'<button class="btn btn-ghost" onclick="cerrar(\'ov-hist\')">Cerrar</button>';
 }
 
@@ -780,29 +795,27 @@ function borrarDoc(id){
 // ─── CSV ────────────────────────────────────────────────────
 function exportCSV(){
   if(!FILAS.length){ toast('No hay datos para exportar.', 'inf'); return; }
-  var mesTxt = CalidadMP.mesTexto(MES);
   var head = ['Codigo','Materia prima','Proveedor','Ficha tecnica','FT revision','FT vence',
-              'Hoja de seguridad','HDS revision','HDS vence','Llego en '+mesTxt,'COA '+mesTxt,'Lote COA'];
+              'Hoja de seguridad','HDS revision','HDS vence','Ultimo COA','COA lote','COA cargados'];
   var estDoc = function(d, v){ return !d ? 'FALTA' : (v==='vencido' ? 'VENCIDA' : (v==='pronto' ? 'POR VENCER' : 'OK')); };
   var rows = FILAS.map(function(f){
-    var c = f.coaMes[f.coaMes.length-1];
-    return [f.mp.codigo, f.mp.descripcion, f.mp.proveedor,
+    return [f.mp.codigo, f.mp.descripcion, f.prov,
       estDoc(f.ft, f.ftVto), f.ft && f.ft.revision, f.ft && f.ft.vence,
       estDoc(f.hds, f.hdsVto), f.hds && f.hds.revision, f.hds && f.hds.vence,
-      f.llego.join(' '), c ? 'OK' : (f.faltaCOA ? 'FALTA' : 'NO SE PIDE'), c && c.lote];
+      f.coa ? CalidadMP.fechaDe(f.coa) : '', f.coa && f.coa.lote, f.nCoa];
   });
   var csv = [head].concat(rows).map(function(r){
     return r.map(function(v){ v = v == null ? '' : String(v); return /[;"\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(';');
   }).join('\r\n');
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'calidad_mp_'+MES.slice(0,7)+'.csv';
+  a.download = 'calidad_mp_'+CalidadMP.hoyISO()+'.csv';
   document.body.appendChild(a); a.click(); a.remove();
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
 function abrir(id){ document.getElementById(id).classList.add('open'); }
-function cerrar(id){ document.getElementById(id).classList.remove('open'); if(id==='ov-hist') HIST_INV = null; }
+function cerrar(id){ document.getElementById(id).classList.remove('open'); if(id==='ov-hist') HIST = null; }
 document.addEventListener('keydown', function(e){
   if(e.key === 'Escape') ['ov-up','ov-hist'].forEach(function(id){
     if(document.getElementById(id).classList.contains('open')) cerrar(id); });
@@ -817,23 +830,11 @@ function toast(msg,type){
 
 // ─── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
-  var qs = function(k, re){ return (location.search.match(new RegExp('[?&]'+k+'=('+re+')')) || [])[1]; };
-  // ?f=COA&mes=2026-09 vienen del aviso del Dashboard;
-  // ?subir=<id>&mes=… del ⚠ COA de Recepción y Pedidos: abre la carga lista
-  var f = qs('f','[A-Z]+'), m = qs('mes','[0-9]{4}-[0-9]{2}'), sub = qs('subir','[0-9]+');
-  if(m) MES = m + '-01';
-  document.getElementById('f-mes').value = MES.slice(0,7);
-  if(f) document.getElementById('f-est').value = f;
   SubatirApp.ready.then(function(p){
     PERFIL = p || {};
-    ES_ADMIN  = PERFIL.role === 'admin';
-    PUEDE_COA = ES_ADMIN || (PERFIL.modules || []).indexOf('recepcion') >= 0;
-    load().then(function(){
-      if(!sub) return;
-      if(!mpById(+sub)) { toast('Esa materia prima no está en el inventario.', 'err'); return; }
-      if(PUEDE_COA) abrirSubir(+sub, 'COA'); else abrirHist(+sub);
-    });
-    if(SubatirApp.live) SubatirApp.live(['mp_documentos','entregas','inventario'], load);
+    ES_ADMIN = PERFIL.role === 'admin';
+    load();
+    if(SubatirApp.live) SubatirApp.live(['mp_documentos','inventario'], load);
   });
 });
 </script>

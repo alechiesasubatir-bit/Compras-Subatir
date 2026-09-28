@@ -2,10 +2,9 @@
 --  Calidad MP: fichas tecnicas (FT), hojas de seguridad (HDS) y
 --  certificados de analisis (COA) de las materias primas.
 --
---  · FT y HDS: por materia prima + proveedor. Las sube solo admin.
---  · COA: uno por materia prima y MES, suelto (no atado a una
---    entrega). Lo sube admin o quien tenga el modulo 'recepcion'.
---    Se reclama solo a las MP que tuvieron una entrega ese mes.
+--  · FT, HDS y COA: por materia prima + proveedor. Los sube solo
+--    admin (28/09/2026: antes el COA lo subia tambien Recepcion; ver
+--    calidad_mp_solo_admin.sql). El modulo es un archivo, no reclama.
 --  · Ver y descargar: cualquier usuario autenticado.
 --
 --  Los archivos van al bucket privado 'calidad-mp', en carpetas
@@ -20,10 +19,7 @@
 -- 1 . Quien puede escribir cada tipo
 create or replace function public.puede_doc_mp(t text)
 returns boolean language sql stable security definer set search_path = public as $$
-  select case
-    when t in ('FT','HDS') then public.is_admin()
-    when t = 'COA'         then public.has_module('recepcion')   -- admin tambien pasa
-    else false end;
+  select t in ('FT','HDS','COA') and public.is_admin();
 $$;
 
 -- 2 . La tabla
@@ -35,7 +31,7 @@ create table if not exists public.mp_documentos (
   articulo       text,
   tipo           text not null check (tipo in ('FT','HDS','COA')),
   proveedor      text,
-  mes            date,          -- COA: dia 1 del mes que cubre
+  mes            date,          -- COA: dia 1 del mes de la fecha del documento
   lote           text,          -- COA, opcional
   revision       text,          -- FT/HDS: "Rev. 3", "v2024"...
   fecha_doc      date,          -- fecha que figura en el documento

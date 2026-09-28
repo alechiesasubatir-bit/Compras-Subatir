@@ -212,7 +212,8 @@
           return;
         }
         // El operario de recepción solo puede estar en recepcion.html, y
-        // en Calidad MP, donde sube el COA del mes (no hay costos ahí).
+        // en Calidad MP, a consultar hojas de seguridad y fichas técnicas
+        // (sólo lectura: subir es del admin; no hay costos ahí).
         if (isOperario(profile) && page !== 'recepcion.html' && page !== 'calidad.html') { location.replace('recepcion.html'); return; }
         var mod = currentModule();
         if (!canAccess(mod, profile)) { location.replace(isOperario(profile) ? 'recepcion.html' : ('index.html?denegado=' + mod)); return; }

@@ -508,18 +508,17 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-09-25.1527"/>
-<link rel="stylesheet" href="nav.css?v=2026-09-25.1527"/>
+<link rel="stylesheet" href="traslados.css?v=2026-09-28.1339"/>
+<link rel="stylesheet" href="nav.css?v=2026-09-28.1339"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-09-25.1527"></script>
-<script src="subatir-app.js?v=2026-09-25.1527"></script>
-<script src="reposicion-calc.js?v=2026-09-25.1527"></script>
-<script src="traslados.js?v=2026-09-25.1527"></script>
-<script src="calidad-calc.js?v=2026-09-25.1527"></script>
+<script src="supabase-config.js?v=2026-09-28.1339"></script>
+<script src="subatir-app.js?v=2026-09-28.1339"></script>
+<script src="reposicion-calc.js?v=2026-09-28.1339"></script>
+<script src="traslados.js?v=2026-09-28.1339"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-25.1527';
+window.APP_VER='2026-09-28.1339';
 </script>
 </head>
 <body>
@@ -572,7 +571,7 @@ window.APP_VER='2026-09-25.1527';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-09-25.1527"></script>
+    <script src="nav.js?v=2026-09-28.1339"></script>
     <div class="hdr-right">
       <span id="last-update">—</span>
       <button class="btn btn-primary" onclick="refresh()" id="btn-refresh">
@@ -590,14 +589,14 @@ window.APP_VER='2026-09-25.1527';
       <span class="ticker-item"><span class="ti-dot"></span>Stock crítico: <span class="ti-or" id="tk-crit">—</span> artículos</span>
       <span class="ticker-item"><span class="ti-dot"></span>Comprometido U$S: <span class="ti-gr" id="tk-usd">—</span></span>
       <span class="ticker-item"><span class="ti-dot"></span>Comprometido $: <span class="ti-val" id="tk-pso">—</span></span>
-      <span class="ticker-item"><span class="ti-dot"></span>COA pendientes: <span class="ti-pu" id="tk-coa">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Sin COA / Conforme: <span class="ti-pu" id="tk-coa">—</span></span>
       <span class="ticker-item"><span class="ti-dot"></span>Sistema de Compras — Subatir S.A. / Prolimpio</span>
       <!-- duplicado para loop continuo -->
       <span class="ticker-item"><span class="ti-dot"></span>Pedidos pendientes: <span class="ti-val" id="tk-pend2">—</span></span>
       <span class="ticker-item"><span class="ti-dot"></span>Stock crítico: <span class="ti-or" id="tk-crit2">—</span> artículos</span>
       <span class="ticker-item"><span class="ti-dot"></span>Comprometido U$S: <span class="ti-gr" id="tk-usd2">—</span></span>
       <span class="ticker-item"><span class="ti-dot"></span>Comprometido $: <span class="ti-val" id="tk-pso2">—</span></span>
-      <span class="ticker-item"><span class="ti-dot"></span>COA pendientes: <span class="ti-pu" id="tk-coa2">—</span></span>
+      <span class="ticker-item"><span class="ti-dot"></span>Sin COA / Conforme: <span class="ti-pu" id="tk-coa2">—</span></span>
       <span class="ticker-item"><span class="ti-dot"></span>Sistema de Compras — Subatir S.A. / Prolimpio</span>
     </div>
   </div>
@@ -614,8 +613,6 @@ window.APP_VER='2026-09-25.1527';
          Avisa desde el día anterior a la fecha configurada allá. -->
     <div id="mp-revision" style="display:none"></div>
     <div id="cloro-semana" style="display:none"></div>
-    <!-- Calidad MP: COA del mes que faltan y FT/HDS vencidas -->
-    <div id="calidad-mp" style="display:none"></div>
 
     <!-- Mercadería en camino desde los depósitos (app Depósitos, misma base) -->
     <div id="camino-card" style="display:none"></div>
@@ -660,13 +657,12 @@ window.APP_VER='2026-09-25.1527';
         <div class="kpi-value" id="kpi-pso">—</div>
         <div class="kpi-sub" id="kpi-pso-sub">pedidos en pesos</div>
       </div>
-      <a class="card kpi kpi-conform" href="calidad.html?f=COA" style="text-decoration:none;color:inherit"
-         title="Materias primas que llegaron en un mes y no tienen el COA de ese mes (Calidad MP). Pueden bloquear liberación de MP.">
+      <div class="card kpi kpi-conform" title="Pedidos recibidos que no tienen Certificado de Análisis (COA) o Conformidad de calidad registrados. Pueden bloquear liberación de MP.">
         <div class="kpi-icon">📋</div>
-        <div class="kpi-label">COA pendientes</div>
+        <div class="kpi-label">Sin COA / Conforme</div>
         <div class="kpi-value" id="kpi-conform">—</div>
-        <div class="kpi-sub" id="kpi-conform-sub">materia prima × mes</div>
-      </a>
+        <div class="kpi-sub" id="kpi-conform-sub">pendientes de calidad</div>
+      </div>
       <div class="card kpi kpi-conform" title="Materias primas ya recibidas a las que no se les cargó el lote. Sin lote no hay trazabilidad.">
         <div class="kpi-icon">🏷</div>
         <div class="kpi-label">Sin Lote</div>
@@ -921,44 +917,6 @@ function avisoRevisionMP(){
   });
 }
 
-// ══ Aviso: Calidad MP ═════════════════════════════════════════
-//  COA pendientes: cada materia prima que llegó en un mes y no tiene
-//  el COA de ese mes, desde septiembre 2026. Es el MISMO número del KPI
-//  "COA pendientes" de acá y de Pedidos, y del ⚠ de cada línea: todo
-//  sale de calidad-calc.js (el COA mensual reemplazó a la marca por
-//  línea, 25/09/2026). Además, fichas técnicas / HDS vencidas.
-var COA_PEND = null;   // { pend:[{mp,mes}] } — null mientras no se leyó
-function avisoCalidadMP(){
-  var host=document.getElementById('calidad-mp'); if(!host || !window.CalidadMP) return;
-  SubatirApp.ready.then(function(perfil){
-    if(!perfil) return;
-    return CalidadMP.cargarPendientes(SB).then(function(r){
-      // Sin la migración corrida no hay nada que avisar todavía
-      if(r.falta){ COA_PEND=null; host.style.display='none'; return; }
-      COA_PEND=r;
-      var grupos=CalidadMP.porMes(r.pend);
-      var venc=CalidadMP.resumen(CalidadMP.estado(r.datos, CalidadMP.mesISO())).vencidos;
-      var html='';
-      if(r.pend.length){
-        var n=r.pend.length, viejo=grupos[0].mes;
-        html+='<a href="calidad.html?f=COA&mes='+viejo.slice(0,7)+'" class="mp-rev urg"><span class="mp-rev-i">🔬</span>'
-          +'<span><b>'+n+' COA pendiente'+(n===1?'':'s')+'</b> — '
-          +grupos.map(function(g){ return g.n+' de '+CalidadMP.mesTexto(g.mes); }).join(', ')
-          +'. Materias primas que llegaron y todavía no tienen el certificado de análisis del mes.</span>'
-          +'<span class="mp-rev-x">Cargar →</span></a>';
-      }
-      if(venc) html+='<a href="calidad.html?f=VTO" class="mp-rev"><span class="mp-rev-i">⏳</span>'
-        +'<span><b>'+venc+' materia'+(venc===1?'':'s')+' prima'+(venc===1?'':'s')
-        +' con ficha técnica u hoja de seguridad vencida</b> — hay que pedirle la versión nueva al proveedor.</span>'
-        +'<span class="mp-rev-x">Ver →</span></a>';
-      host.innerHTML=html;
-      host.style.display=html?'':'none';
-      // El KPI, el ticker y los ⚠ de la tabla dependen de esto
-      if(DATA && DATA.pedidos && DATA.pedidos.length) renderAll();
-    }, function(){ host.style.display='none'; });
-  });
-}
-
 // ══ Aviso: la semana de Previsión Cloro quedó sin importar ════
 //  El módulo se apoya en las ventas: con una semana cerrada sin
 //  importar, el stock, el sugerido y la cobertura muestran números que
@@ -1098,8 +1056,7 @@ function cargarReposicion(){
   // Antes de load() a propósito: si la carga de datos falla, el aviso
   // de revisión tiene que salir igual. Es de lo poco que no se puede
   // perder por un error en otra cosa.
-  avisoRevisionMP(); avisoSemanaCloro(); avisoCalidadMP();
-  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['mp_documentos','entregas'], avisoCalidadMP);
+  avisoRevisionMP(); avisoSemanaCloro();
   load();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','proveedores','art_proveedor'], load);
   // Aviso de lo que viene en camino desde los depósitos
@@ -1286,22 +1243,11 @@ function isPendiente(row){
 // El COA se le pide solo a las materias primas, y solo cuando ya llego:
 // contando todo, el KPI marcaba decenas de lineas que nadie iba a resolver
 function esMP(row){ return SubatirApp.cat.esMP(row['ID Inventario'], row[KEYS.desc]); }
-// El COA es MENSUAL (Calidad MP): la línea lo reclama si en alguno de los
-// meses en que llegó esa materia prima no tiene su COA. Misma regla que
-// Pedidos y Recepción, en calidad-calc.js.
-function coaViejoOk(row){
+function faltaCOA(row){
+  if(isPendiente(row) || !esMP(row)) return false;
   var cv = String(row[KEYS.coa]||'').trim().toUpperCase();
-  return ['SI','S','SÍ','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(cv) >= 0;
+  return ['SI','S','SÍ','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(cv) < 0;
 }
-function coaLinea(row){
-  if(isPendiente(row) || !esMP(row) || !window.CalidadMP) return null;
-  var ents = ENTREGAS_POR_PEDIDO[row.__row] || [];
-  var fechas = ents.length ? ents.map(function(e){ return e.fecha; }) : [row[KEYS.recepcion]];
-  return CalidadMP.lineaCOA(row['ID Inventario'], fechas);
-}
-function faltaCOA(row){ var c = coaLinea(row); return !!c && c.estado === 'falta'; }
-// ✓ COA: el mensual si la línea entra en él; si no, la marca vieja
-function tieneCOA(row){ var c = coaLinea(row); return c ? c.estado === 'ok' : coaViejoOk(row); }
 function faltaLote(row){
   return !isPendiente(row) && esMP(row) && isEmpty(row[KEYS.lote]);
 }
@@ -1479,8 +1425,7 @@ function renderTicker(){
   var inv        = DATA.inventario || [];
   var pendientes = pedidos.filter(isPendiente);
   var criticos   = inv.filter(isCritical);
-  // COA: pares materia prima × mes, el mismo número del KPI y del aviso
-  var nCOA       = COA_PEND ? COA_PEND.pend.length : '—';
+  var sinCOA     = pedidos.filter(faltaCOA);
   // La plata que FALTA pagar, no la que se pidio: una entrega parcial no
   // cierra la linea, asi que sin prorratear el importe entero seguia
   // contando aunque la mercaderia ya estuviera en el deposito.
@@ -1491,7 +1436,7 @@ function renderTicker(){
     'tk-crit':criticos.length,   'tk-crit2':criticos.length,
     'tk-usd':fmtUSD(totalUSD),   'tk-usd2':fmtUSD(totalUSD),
     'tk-pso':fmtPSO(totalPSO),   'tk-pso2':fmtPSO(totalPSO),
-    'tk-coa':nCOA,               'tk-coa2':nCOA
+    'tk-coa':sinCOA.length,      'tk-coa2':sinCOA.length
   };
   Object.keys(vals).forEach(function(id){
     var el=document.getElementById(id); if(el) el.textContent=vals[id];
@@ -1506,7 +1451,7 @@ function renderKPIs(){
 
   var pendientes  = pedidos.filter(isPendiente);
   var criticos    = inv.filter(isCritical);
-  var nCOA        = COA_PEND ? COA_PEND.pend.length : null;
+  var sinCOA      = pedidos.filter(faltaCOA);
   var totalUSD    = plataPendiente(pendientes, 'USD');
   var totalPSO    = plataPendiente(pendientes, 'PSO');
 
@@ -1514,13 +1459,11 @@ function renderKPIs(){
   set('kpi-critical',  criticos.length);
   set('kpi-usd',       fmtUSD(totalUSD));
   set('kpi-pso',       fmtPSO(totalPSO));
-  set('kpi-conform',   nCOA == null ? '—' : nCOA);
-  set('kpi-conform-sub', nCOA ? CalidadMP.porMes(COA_PEND.pend).map(function(g){ return g.n+' de '+CalidadMP.mesTexto(g.mes).split(' ')[0]; }).join(' · ')
-                              : 'materia prima × mes');
+  set('kpi-conform',   sinCOA.length);
   // La tarjeta avisa mientras quede algo por resolver
   var elCoa=document.getElementById('kpi-conform');
   var cardCoa=elCoa && elCoa.closest('.kpi');
-  if(cardCoa) cardCoa.classList.toggle('kpi-alerta', nCOA>0);
+  if(cardCoa) cardCoa.classList.toggle('kpi-alerta', sinCOA.length>0);
 
   var sinLote = pedidos.filter(faltaLote);
   set('kpi-lote', sinLote.length);
@@ -1538,6 +1481,7 @@ function renderKPIs(){
   set('kpi-critical-sub', 'requieren reposición urgente');
   set('kpi-usd-sub',      'pedidos en dólares');
   set('kpi-pso-sub',      'pedidos en pesos');
+  set('kpi-conform-sub',  'sin COA o conformidad');
 }
 
 // ── Alert banner ───────────────────────────────────────────────
@@ -1583,8 +1527,9 @@ function renderPedidos(){
     if (estado === 'pendiente' && !isPendiente(p)) return false;
     if (estado === 'recibido'  &&  isPendiente(p)) return false;
     if (provFilt && String(p[KEYS.proveedor]||'') !== provFilt) return false;
-    if (coaFilt === 'si' && !tieneCOA(p)) return false;
-    if (coaFilt === 'no' &&  tieneCOA(p)) return false;
+    var coaVal = String(p[KEYS.coa] || '').trim().toUpperCase();
+    if (coaFilt === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== 'SÍ' && coaVal !== 'NO NECESARIO' && coaVal !== 'NO APLICA' && coaVal !== 'NO REQUERIDO' && coaVal !== 'N/A' && coaVal !== 'NA') return false;
+    if (coaFilt === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === 'SÍ' || coaVal === 'NO NECESARIO' || coaVal === 'NO APLICA' || coaVal === 'NO REQUERIDO' || coaVal === 'N/A' || coaVal === 'NA')) return false;
     var f = String(p[KEYS.fecha]||'');
     if (desde && f && f < desde) return false;
     if (hasta && f && f > hasta) return false;
@@ -1607,8 +1552,9 @@ function renderPedidos(){
     rows.forEach(function(p){
       var pend = isPendiente(p);
       var sinLote = isEmpty(p[KEYS.lote]);
+      var coaNorm = String(p[KEYS.coa]||'').trim().toUpperCase();
       var confNorm= String(p[KEYS.conforme]||'').trim().toUpperCase();
-      var hasCOA  = tieneCOA(p);
+      var hasCOA  = coaNorm === 'SI' || coaNorm === 'S' || coaNorm === 'SÍ' || coaNorm === 'NO NECESARIO' || coaNorm === 'NO APLICA' || coaNorm === 'NO REQUERIDO' || coaNorm === 'N/A' || coaNorm === 'NA';
       var hasConf = confNorm === 'SI' || confNorm === 'S' || confNorm === 'SÍ';
       html += '<tr>';
       html += '<td style="font-weight:700;color:var(--tl);font-family:\'IBM Plex Mono\',monospace">' + (p[KEYS.orden]||'—') + '</td>';
@@ -1627,7 +1573,7 @@ function renderPedidos(){
                         : '<span class="pill pill-sinlote">Sin lote</span>')
         : '<span style="color:var(--mut2);font-size:11px;font-family:\'IBM Plex Mono\',monospace">' + p[KEYS.lote] + '</span>') + '</td>';
       html += '<td>' + (hasCOA ? '<span class="pill pill-ok">✓</span>'
-                : (faltaCOA(p) ? '<a class="pill falta-dato" style="text-decoration:none" title="Falta el COA del mes. Tocá para subirlo en Calidad MP." href="calidad.html?subir='+encodeURIComponent(p['ID Inventario'])+'&mes='+coaLinea(p).mes.slice(0,7)+'">⚠</a>'
+                : (faltaCOA(p) ? '<span class="pill falta-dato">⚠</span>'
                                : '<span style="color:var(--mut)">—</span>')) + '</td>';
       html += '<td>' + (hasConf? '<span class="pill pill-ok">✓</span>' : '<span style="color:var(--mut)">—</span>') + '</td>';
       html += '</tr>';
@@ -1657,8 +1603,9 @@ function exportarCSV(){
     if (estado === 'pendiente' && !isPendiente(p)) return false;
     if (estado === 'recibido'  &&  isPendiente(p)) return false;
     if (provFilt && String(p[KEYS.proveedor]||'') !== provFilt) return false;
-    if (coaFilt === 'si' && !tieneCOA(p)) return false;
-    if (coaFilt === 'no' &&  tieneCOA(p)) return false;
+    var coaVal = String(p[KEYS.coa] || '').trim().toUpperCase();
+    if (coaFilt === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== 'SÍ' && coaVal !== 'NO NECESARIO' && coaVal !== 'NO APLICA' && coaVal !== 'NO REQUERIDO' && coaVal !== 'N/A' && coaVal !== 'NA') return false;
+    if (coaFilt === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === 'SÍ' || coaVal === 'NO NECESARIO' || coaVal === 'NO APLICA' || coaVal === 'NO REQUERIDO' || coaVal === 'N/A' || coaVal === 'NA')) return false;
     var f = String(p[KEYS.fecha]||'');
     if (desde && f && f < desde) return false;
     if (hasta && f && f > hasta) return false;

@@ -493,14 +493,13 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-25.1527"/>
-<script src="supabase-config.js?v=2026-09-25.1527"></script>
-<script src="subatir-app.js?v=2026-09-25.1527"></script>
-<script src="calidad-calc.js?v=2026-09-25.1527"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-28.1339"/>
+<script src="supabase-config.js?v=2026-09-28.1339"></script>
+<script src="subatir-app.js?v=2026-09-28.1339"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-25.1527';
+window.APP_VER='2026-09-28.1339';
 </script>
 </head>
 <body>
@@ -516,7 +515,7 @@ window.APP_VER='2026-09-25.1527';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-25.1527"></script>
+  <script src="nav.js?v=2026-09-28.1339"></script>
   <div class="header-right">
     <!-- Quién opera, en cuentas compartidas. Lo pinta SubatirApp.operador -->
     <span id="oper-chip"></span>
@@ -857,9 +856,6 @@ window.addEventListener('DOMContentLoaded', function(){
     load();
   }
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos'], load);
-  // Un COA subido en Calidad MP apaga el ⚠ acá sin recargar todo
-  if(window.SubatirApp&&SubatirApp.live&&window.CalidadMP)
-    SubatirApp.live(['mp_documentos'], function(){ CalidadMP.cargarCOAs(SB).then(function(){ if(DATA_DISPLAY) renderAll(); }); });
   setTodayDate();
   updateSyncUI();
 });
@@ -927,12 +923,9 @@ function load(){
       applyLocalOverrides();
       buildOCCatalog();
       // Cargar entregas parciales y recién ahí renderizar
-      // y los COA mensuales (Calidad MP), que deciden el ⚠ COA de cada línea
-      Promise.all([
-        (window.SubatirApp && SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
-          .then(function(list){ ENTREGAS = list || []; }).catch(function(){ ENTREGAS = []; }),
-        window.CalidadMP ? CalidadMP.cargarCOAs(SB) : null
-      ]).then(function(){ buildEntregasMap(); renderAll(); });
+      (window.SubatirApp && SubatirApp.getEntregas ? SubatirApp.getEntregas() : Promise.resolve([]))
+        .then(function(list){ ENTREGAS = list || []; }).catch(function(){ ENTREGAS = []; })
+        .then(function(){ buildEntregasMap(); renderAll(); });
       setLoading(false);
       if (d.timestamp){
         var dt = new Date(d.timestamp);
@@ -1296,18 +1289,13 @@ function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.d
 
 var FILTRO_COA = false, FILTRO_LOTE = false, FILTRO_CHK = false;
 
-// El COA es MENSUAL y se carga en Calidad MP (reemplazó a la marca por
-// línea, 25/09/2026). Una línea de materia prima lo reclama si en alguno
-// de los meses en que llegó esa MP no tiene su COA. La regla vive en
-// calidad-calc.js, la misma para Pedidos, el Dashboard y Calidad MP.
-function coaLinea(r){
-  if(!esMateriaPrima(r) || !window.CalidadMP) return null;
+// Una linea reclama COA cuando es materia prima, ya llego algo y no esta
+function faltaCoa(r){
+  if(!esMateriaPrima(r)) return false;
   var st = lineStats(r);
-  if(!st.recibido) return null;
-  var fechas = st.legacy ? [r[K.recepcion]] : (st.entregas||[]).map(function(e){ return e.fecha; });
-  return CalidadMP.lineaCOA(r['ID Inventario'], fechas);
+  if(!st.recibido) return false;
+  return !coaOkR(r[K.coa]) && !(st.entregas||[]).some(function(e){ return coaOkR(e.coa); });
 }
-function faltaCoa(r){ var c = coaLinea(r); return !!c && c.estado === 'falta'; }
 
 // Mismo criterio para el lote: materia prima, ya llego y sin lote en
 // alguna entrega (o en la linea, si se recibio al viejo estilo)
@@ -1379,21 +1367,36 @@ function refreshBotonCoa(){
 }
 
 // ── El COA en el listado ─────────────────────────────────────────────
-//  Solo materias primas ya recibidas. Si falta el COA del mes, parpadea
-//  en rojo y al tocarlo abre Calidad MP con la carga de ese COA lista.
-//  Lo que llegó antes del COA mensual muestra la marca vieja, sin reclamar.
+//  Solo se le pide a las materias primas, y solo cuando ya llegó algo:
+//  antes de recibir no hay COA que reclamar. Si falta, parpadea en rojo
+//  hasta que alguien lo resuelva; se toca y queda en verde.
 function coaCell(r, st){
   if(!esMateriaPrima(r)) return '<span class="muted-cell">—</span>';
   if(!st.recibido) return '<span class="muted-cell" title="Todavía no llegó nada">—</span>';
-  var c = coaLinea(r);
-  if(c && c.estado === 'ok')
-    return '<span class="pill pill-ok" title="COA de '+esc(CalidadMP.mesTexto(c.mes))+' cargado en Calidad MP">✓ COA</span>';
-  if(c && c.estado === 'falta')
-    return '<a class="pill coa-falta" style="text-decoration:none" href="calidad.html?subir='+encodeURIComponent(r['ID Inventario'])
-      +'&mes='+c.mes.slice(0,7)+'" title="Falta el COA de '+esc(CalidadMP.mesTexto(c.mes))+'. Tocá para subirlo en Calidad MP.">⚠ COA</a>';
-  var viejo = coaOkR(r[K.coa]) || (st.entregas||[]).some(function(e){ return coaOkR(e.coa); });
-  return viejo ? '<span class="pill pill-ok" style="opacity:.6" title="Marcado antes del COA mensual">✓ COA</span>'
-               : '<span class="muted-cell" title="Llegó antes del COA mensual (septiembre 2026): no se reclama">—</span>';
+  if(!faltaCoa(r)) return '<span class="pill pill-ok" title="COA resuelto">✓ COA</span>';
+  return '<span class="pill coa-falta" title="Falta el COA. Tocá cuando esté resuelto." '+
+         'onclick="resolverCoa('+r.__row+')">⚠ COA</span>';
+}
+
+// Marca el COA como resuelto: en la línea y en sus entregas, porque el
+// trigger que sincroniza la recepción recalcula el COA de la línea desde
+// las entregas y si no lo pisaría en la próxima entrega parcial.
+function resolverCoa(row){
+  var r = DATA_DISPLAY.filter(function(x){ return x.__row===row; })[0];
+  if(!r) return;
+  toast('Marcando COA…','info');
+  var ops = [ SubatirApp.write({action:'updateRow', sheetKey:'pedidos', row:row,
+                                fields:JSON.stringify({'COA':'SI'})}) ];
+  ops.push(SB.from('entregas').update({coa:'SI'}).eq('pedido_id', row));
+  Promise.all(ops).then(function(res){
+    var err = (res||[]).filter(function(x){ return x && x.error; })[0];
+    if(err){ toast('No se pudo marcar el COA: '+((err.error&&err.error.message)||err.error),'err'); return; }
+    r[K.coa] = 'SI';
+    (ENTREGAS||[]).forEach(function(e){ if(e.pedido_id===row) e.coa='SI'; });
+    buildEntregasMap();
+    renderAll();
+    toast('COA resuelto ✓','ok');
+  });
 }
 // "Mercadería conforme" es el atajo para lo que NO es materia prima ni
 // producto químico: ahí el PL-06 no aplica, así que se esconde en vez de

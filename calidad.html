@@ -285,14 +285,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-28.1339"/>
-<script src="supabase-config.js?v=2026-09-28.1339"></script>
-<script src="subatir-app.js?v=2026-09-28.1339"></script>
-<script src="calidad-calc.js?v=2026-09-28.1339"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-28.1341"/>
+<script src="supabase-config.js?v=2026-09-28.1341"></script>
+<script src="subatir-app.js?v=2026-09-28.1341"></script>
+<script src="calidad-calc.js?v=2026-09-28.1341"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-28.1339';
+window.APP_VER='2026-09-28.1341';
 </script>
 </head>
 <body>
@@ -308,7 +308,7 @@ window.APP_VER='2026-09-28.1339';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-28.1339"></script>
+  <script src="nav.js?v=2026-09-28.1341"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -576,7 +576,7 @@ function render(){
   }
   var r = CalidadMP.resumen(FILAS);
   setText('k-total', r.mps);
-  setText('k-total-sub', r.filas+' combinaciones con proveedor');
+  setText('k-total-sub', r.filas+' filas MP × proveedor');
   setText('k-ft', r.sinFT);
   setText('k-hds', r.sinHDS);
   setText('k-coa', r.sinCOA);
@@ -653,9 +653,14 @@ function upMP(){
   var m = inv && mpById(inv);
   setText('up-art', m ? m.descripcion + (m.codigo ? ' · '+m.codigo : '') : 'Elegí la materia prima');
   var propios = [], otros = [], vistos = {};
-  FILAS.forEach(function(f){
-    var k = CalidadMP.norm(f.prov); if(!f.prov || vistos[k]) return;
-    vistos[k] = 1; (f.mp.id === inv ? propios : otros).push(f.prov);
+  // Dos pasadas: si otra MP que va antes comparte proveedor, igual
+  // tiene que quedar arriba como propio
+  [true, false].forEach(function(suyo){
+    FILAS.forEach(function(f){
+      var k = CalidadMP.norm(f.prov);
+      if(!f.prov || vistos[k] || (f.mp.id === inv) !== suyo) return;
+      vistos[k] = 1; (suyo ? propios : otros).push(f.prov);
+    });
   });
   document.getElementById('dl-prov').innerHTML = propios.concat(otros.sort(function(a,b){ return a.localeCompare(b,'es'); }))
     .map(function(p){ return '<option value="'+esc(p)+'">'; }).join('');

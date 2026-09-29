@@ -33,7 +33,7 @@
       title: 'Previsión y control de compra de materia prima importada' },
     { k: 'cloro', href: 'cloro.html', ico: '💧', txt: 'Previsión Cloro',
       title: 'Previsión de envasado y compra de materia prima de la línea de piscinas' },
-    { k: 'calidad', href: 'calidad.html', ico: '🔬', txt: 'Calidad MP',
+    { k: 'calidad', href: 'calidad.html', ico: '🔬', txt: 'Calidad MP', sub: ['calidad-imp.html'],
       title: 'Fichas técnicas, hojas de seguridad y COA de las materias primas' },
     { k: 'deposito',     href: 'deposito/index.html', ico: '🏢', txt: 'Depósitos',
       title: 'Ir a la app de Control de Stock de Depósitos' },
@@ -77,7 +77,9 @@
     for (var i = 0; i < ITEMS.length; i++) {
       var it = ITEMS[i];
       if (!can(it.k)) continue;
-      html += '<a class="sbnl' + (it.href === aqui ? ' on' : '') + '"'
+      // Una subpágina (MP Importadas) enciende el módulo del que cuelga
+      var on = it.href === aqui || (it.sub && it.sub.indexOf(aqui) >= 0);
+      html += '<a class="sbnl' + (on ? ' on' : '') + '"'
             + ' href="' + it.href + '" data-nav="' + it.k + '"'
             + (it.title ? ' title="' + texto(it.title) + '"' : '')
             + (it.href === aqui ? ' aria-current="page"' : '') + '>'

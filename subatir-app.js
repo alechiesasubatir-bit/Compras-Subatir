@@ -25,6 +25,7 @@
     'mp-importacion.html': 'mp_importacion',
     'cloro.html': 'cloro',
     'calidad.html': 'calidad',
+    'calidad-imp.html': 'calidad',
     'usuarios.html': 'usuarios'
   };
   // Módulos visibles/accesibles para cualquier usuario autenticado
@@ -214,7 +215,7 @@
         // El operario de recepción solo puede estar en recepcion.html, y
         // en Calidad MP, a consultar hojas de seguridad y fichas técnicas
         // (sólo lectura: subir es del admin; no hay costos ahí).
-        if (isOperario(profile) && page !== 'recepcion.html' && page !== 'calidad.html') { location.replace('recepcion.html'); return; }
+        if (isOperario(profile) && page !== 'recepcion.html' && page !== 'calidad.html' && page !== 'calidad-imp.html') { location.replace('recepcion.html'); return; }
         var mod = currentModule();
         if (!canAccess(mod, profile)) { location.replace(isOperario(profile) ? 'recepcion.html' : ('index.html?denegado=' + mod)); return; }
         gateNav(profile);

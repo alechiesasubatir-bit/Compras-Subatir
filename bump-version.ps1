@@ -46,7 +46,7 @@ $SUB_APP = @{
   que = 'window.APP_VER'
 }
 $SUB_BUST = @{
-  pat = '((?:supabase-config|subatir-app|deposito-app|traslados|nav|reposicion-calc|cloro-calc|calidad-calc|oc-pdf)\.(?:js|css)\?v=)[^"'']*'
+  pat = '((?:supabase-config|subatir-app|deposito-app|traslados|nav|reposicion-calc|cloro-calc|calidad-calc|calidad-ui|oc-pdf)\.(?:js|css)\?v=)[^"'']*'
   rep = '${1}' + $v
   que = 'el ?v= de los scripts compartidos'
 }
@@ -62,7 +62,7 @@ $SUB_CSS = @{
 # Modulos de Compras: todos tienen APP_VER y cargan los scripts compartidos.
 $modulos = @(
   'index.html', 'pedidos.html', 'recepcion.html', 'stock.html', 'reposicion.html', 'precios.html',
-  'proveedores.html', 'varios.html', 'usuarios.html', 'mp-importacion.html', 'cloro.html', 'calidad.html'
+  'proveedores.html', 'varios.html', 'usuarios.html', 'mp-importacion.html', 'cloro.html', 'calidad.html', 'calidad-imp.html'
 )
 
 # req = si el archivo existe y no aparece el patron, no se publica.

@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Compras"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>MP Importadas · Calidad — Subatir / Prolimpio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="calidad-ui.css?v=2026-09-29.1726"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-29.1726"/>
+<script src="supabase-config.js?v=2026-09-29.1726"></script>
+<script src="subatir-app.js?v=2026-09-29.1726"></script>
+<script src="calidad-calc.js?v=2026-09-29.1726"></script>
+<script src="calidad-ui.js?v=2026-09-29.1726"></script>
+<script>
+// Version del modulo. La compara subatir-app.js contra version.json y si
+// hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
+window.APP_VER='2026-09-29.1726';
+</script>
+</head>
+<body>
+
+<!-- ══ HEADER ════════════════════════════════════════════════ -->
+<header>
+  <a class="logo" href="index.html" style="text-decoration:none">
+    <img class="logo-mark" src="logo.jpg" alt="Subatir"/>
+    <div>
+      <h1>Subatir</h1>
+      <p>Calidad · MP Importadas</p>
+    </div>
+  </a>
+  <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
+  <nav></nav>
+  <script src="nav.js?v=2026-09-29.1726"></script>
+  <div class="hdr-right">
+    <span class="ts" id="ts">—</span>
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
+    <button class="btn btn-ghost btn-sm" onclick="load()">⟳ Actualizar</button>
+  </div>
+</header>
+
+<!-- ══ MAIN ══════════════════════════════════════════════════ -->
+<div class="main">
+
+  <div id="sin-col" class="glass" style="display:none;padding:14px 16px;border-color:var(--amber-b);color:#fcd34d;font-size:12px">
+    ⚠ Falta preparar la base para los documentos de MP importadas: hay que correr
+    <b>migracion/calidad_mp_importadas.sql</b> en Supabase → SQL Editor.
+    Mientras tanto se ven los artículos pero no se puede subir nada.
+  </div>
+
+  <!-- Encabezado con la cobertura del proveedor -->
+  <section class="glass hero rv" style="--i:0">
+    <div class="hero-t">
+      <div class="crumb"><a href="calidad.html">← Calidad MP</a><span>/</span><span>MP Importadas</span></div>
+      <h2>Documentación de <em id="h-prov">MP importadas</em></h2>
+      <p>Fichas técnicas y hojas de seguridad de cada materia prima importada, por proveedor.
+        Soltá todos los archivos juntos y se reconocen solos por el código o el nombre del artículo.</p>
+    </div>
+    <div class="ring" title="FT + HDS cargadas sobre las que tendría que haber">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f97316"/><stop offset="1" stop-color="#12a0cc"/></linearGradient></defs>
+        <circle class="rtrack" cx="50" cy="50" r="42"/>
+        <circle class="rval" id="ring" cx="50" cy="50" r="42" stroke-dasharray="263.9" stroke-dashoffset="263.9"/>
+      </svg>
+      <b id="ring-n">0%</b><small>cobertura</small>
+    </div>
+  </section>
+
+  <!-- KPIs: tocar uno filtra -->
+  <div class="kpi-row">
+    <div class="glass kpi kpi-total clic rv" style="--i:1" data-f="" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">🧪</div>
+      <div class="kpi-label">Artículos</div>
+      <div class="kpi-num c-teal" id="k-arts">—</div>
+      <div class="kpi-sub" id="k-arts-sub">del proveedor</div>
+    </div>
+    <div class="glass kpi kpi-medio clic rv" style="--i:2" data-f="FT" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">📄</div>
+      <div class="kpi-label">Sin ficha técnica</div>
+      <div class="kpi-num c-amber" id="k-ft">—</div>
+      <div class="kpi-sub" id="k-ft-sub">—</div>
+    </div>
+    <div class="glass kpi kpi-medio clic rv" style="--i:3" data-f="HDS" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">⚠</div>
+      <div class="kpi-label">Sin hoja de seguridad</div>
+      <div class="kpi-num c-amber" id="k-hds">—</div>
+      <div class="kpi-sub" id="k-hds-sub">—</div>
+    </div>
+    <div class="glass kpi kpi-optimo clic rv" style="--i:4" data-f="OK" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">✓</div>
+      <div class="kpi-label">Completos</div>
+      <div class="kpi-num c-green" id="k-ok">—</div>
+      <div class="kpi-sub">con FT y HDS</div>
+    </div>
+    <div class="glass kpi kpi-crit clic rv" style="--i:5" data-f="VTO" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">⏳</div>
+      <div class="kpi-label">Vencidas</div>
+      <div class="kpi-num c-red" id="k-vto">—</div>
+      <div class="kpi-sub" id="k-vto-sub">—</div>
+    </div>
+  </div>
+
+  <!-- Proveedores + artículos -->
+  <div class="glass rv" style="--i:6;padding:18px">
+    <div class="sec-hdr">
+      <div class="ptabs" id="ptabs"></div>
+      <div class="sec-actions">
+        <span class="badge b-info" id="cnt">—</span>
+        <div class="seg" role="group" aria-label="Vista">
+          <button id="v-grid" class="on" onclick="setVista('grid')">▦ Tarjetas</button>
+          <button id="v-list" onclick="setVista('list')">☰ Lista</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <div class="search-wrap">
+        <input class="fi fi-search" id="f-q" placeholder="Buscar artículo, código o archivo…" oninput="render()"/>
+      </div>
+      <select class="fi" id="f-est" onchange="render()" aria-label="Filtrar por estado">
+        <option value="">Todos</option>
+        <option value="FT">Sin ficha técnica</option>
+        <option value="HDS">Sin hoja de seguridad</option>
+        <option value="OK">Completos</option>
+        <option value="VTO">Vencidas o por vencer</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" id="btn-art" style="display:none;margin-left:auto" onclick="abrirArt()">＋ Artículo</button>
+      <button class="btn btn-orange adm" id="btn-bulk" style="display:none" onclick="abrirBulk([])">⬆ Carga masiva FT / HDS</button>
+    </div>
+
+    <div id="vista"></div>
+
+    <div class="muted" style="font-size:11px;margin-top:12px">
+      Tocá una ficha para verla adentro de la app (← → pasa a la siguiente). Cada artículo guarda todas las versiones:
+      vale la última cargada. Los artículos son los mismos de MP Importación. Los documentos los sube un administrador:
+      podés soltar un archivo directo sobre la ficha vacía de un artículo.
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══ MODAL: CARGA MASIVA ═══════════════════════════════════ -->
+<div class="overlay" id="ov-bulk" onclick="if(event.target===this)cerrarBulk()">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="bk-t">
+    <div class="modal-hdr">
+      <div><div class="modal-title" id="bk-t">Carga masiva de FT y HDS</div>
+        <div class="modal-sub" id="bk-sub">—</div></div>
+      <button class="modal-x" aria-label="Cerrar" onclick="cerrarBulk()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="bdrop" id="bk-drop" tabindex="0" role="button"
+           onclick="document.getElementById('bk-file').click()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+        <big>📂</big>
+        <div><b>Soltá acá todas las fichas técnicas y hojas de seguridad</b> o tocá para elegirlas</div>
+        <p>PDF o foto, hasta 20 MB cada una. Si el nombre del archivo trae el código (761453) o el nombre del
+          artículo y dice FT / HDS / MSDS / Ficha / Seguridad, se completa solo.</p>
+      </div>
+      <input type="file" id="bk-file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" style="display:none"
+             onchange="sumarArchivos(this.files);this.value=''"/>
+      <div class="bsum" id="bk-sum"></div>
+      <div class="blist" id="bk-list"></div>
+    </div>
+    <div class="modal-ftr" style="align-items:center">
+      <div class="bprog" id="bk-prog" style="visibility:hidden"><i id="bk-bar"></i></div>
+      <button class="btn btn-ghost" onclick="cerrarBulk()">Cerrar</button>
+      <button class="btn btn-orange" id="bk-ok" onclick="subirTodo()" disabled>⬆ Subir</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: NUEVO PROVEEDOR ════════════════════════════════ -->
+<div class="overlay" id="ov-prov" onclick="if(event.target===this)cerrar('ov-prov')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pv-t" style="max-width:440px">
+    <div class="modal-hdr">
+      <div><div class="modal-title" id="pv-t">Nuevo proveedor de MP importada</div>
+        <div class="modal-sub">Queda también en MP Importación, con los parámetros por defecto</div></div>
+      <button class="modal-x" aria-label="Cerrar" onclick="cerrar('ov-prov')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg"><label for="pv-nom">Nombre</label><input class="fi2" id="pv-nom" placeholder="Ej.: MERO AR"/></div>
+      <div class="muted" style="font-size:11px">Después agregás sus artículos con ＋ Artículo y cargás los documentos.</div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="cerrar('ov-prov')">Cancelar</button>
+      <button class="btn btn-orange" id="pv-ok" onclick="crearProv()">Crear proveedor</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: NUEVO ARTÍCULO ═════════════════════════════════ -->
+<div class="overlay" id="ov-art" onclick="if(event.target===this)cerrar('ov-art')">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ar-t" style="max-width:480px">
+    <div class="modal-hdr">
+      <div><div class="modal-title" id="ar-t">Nuevo artículo</div>
+        <div class="modal-sub" id="ar-sub">—</div></div>
+      <button class="modal-x" aria-label="Cerrar" onclick="cerrar('ov-art')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg"><label for="ar-nom">Nombre</label><input class="fi2" id="ar-nom" placeholder="Ej.: Esencia Bosque MEROAR"/></div>
+      <div class="row2">
+        <div class="fg"><label for="ar-cod">Código del proveedor (opcional)</label><input class="fi2" id="ar-cod" placeholder="762504"/></div>
+        <div class="fg"><label for="ar-grp">Grupo</label><input class="fi2" id="ar-grp" list="dl-grp" placeholder="Esencias"/></div>
+      </div>
+      <datalist id="dl-grp"></datalist>
+      <div class="muted" style="font-size:11px">El artículo aparece también en MP Importación, para la previsión de compra.</div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="cerrar('ov-art')">Cancelar</button>
+      <button class="btn btn-orange" id="ar-ok" onclick="crearArt()">Agregar artículo</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="one-file" accept="application/pdf,image/jpeg,image/png,image/webp" style="display:none"/>
+<div id="tc"></div>
+
+<!-- ══ SCRIPT ═════════════════════════════════════════════════ -->
+<script>
+// ─── Estado ──────────────────────────────────────────────────
+var PROVS = [], ARTS = [], DOCS = [], FILAS = [], CUR = null;
+var CARGA = '', FALTA = '', PERFIL = null, ES_ADMIN = false;
+var VISTA = 'grid';
+var TIPO_TXT = { FT: 'Ficha técnica', HDS: 'Hoja de seguridad' };
+var LS = 'calidadImp.';
+function lsGet(k){ try { return localStorage.getItem(LS+k); } catch(e){ return null; } }
+function lsSet(k,v){ try { localStorage.setItem(LS+k, v); } catch(e){} }
+
+function load(){
+  return Promise.all([
+    SB.from('mp_proveedores').select('*').eq('activo', true).order('nombre'),
+    SB.from('mp_articulos').select('id,proveedor_id,grupo,nombre,codigo,orden,activo').eq('activo', true).order('orden'),
+    SB.from('mp_documentos').select('*').not('mp_articulo_id', 'is', null)
+  ]).then(function(r){
+    if(r[0].error) throw new Error(r[0].error.message);
+    if(r[1].error) throw new Error(r[1].error.message);
+    PROVS = r[0].data || []; ARTS = r[1].data || [];
+    // Sin la columna mp_articulo_id la consulta falla: se ven los
+    // artículos igual, pero no se puede subir
+    FALTA = r[2].error ? 'col' : '';
+    DOCS = r[2].error ? [] : (r[2].data || []);
+    CARGA = 'ok';
+    document.getElementById('sin-col').style.display = FALTA ? '' : 'none';
+    if(!PROVS.some(function(p){ return p.id === CUR; })){
+      var guardado = +lsGet('prov');
+      CUR = PROVS.some(function(p){ return p.id === guardado; }) ? guardado : (PROVS[0] && PROVS[0].id) || null;
+    }
+    setText('ts', new Date().toLocaleTimeString('es-UY'));
+    document.querySelectorAll('.adm').forEach(function(b){ b.style.display = puede() ? '' : 'none'; });
+    // Dar de alta artículos no depende de la columna nueva de documentos
+    document.getElementById('btn-art').style.display = ES_ADMIN && prov() ? '' : 'none';
+    document.getElementById('btn-bulk').style.marginLeft = ES_ADMIN && prov() ? '' : 'auto';
+    render();
+    if(BK.items.length) pintarBulk();
+  }).catch(function(e){
+    CARGA = 'err';
+    toast('Error cargando datos: '+(e && e.message || e), 'err');
+    render();
+  });
+}
+function puede(){ return ES_ADMIN && CARGA === 'ok' && !FALTA; }
+function prov(){ return PROVS.filter(function(p){ return p.id === CUR; })[0] || null; }
+function artsDe(pid){ return ARTS.filter(function(a){ return a.proveedor_id === pid; }); }
+function artById(id){ return ARTS.filter(function(a){ return a.id === id; })[0]; }
+function docById(id){ return DOCS.filter(function(d){ return d.id === id; })[0]; }
+function filaDe(artId){ return FILAS.filter(function(f){ return f.art.id === artId; })[0]; }
+
+// ─── Proveedores ─────────────────────────────────────────────
+function pintarTabs(){
+  var h = PROVS.map(function(p){
+    return '<button class="ptab'+(p.id===CUR?' on':'')+'" onclick="elegirProv('+p.id+')">🌎 '+esc(p.nombre)
+      +' <i>'+artsDe(p.id).length+'</i></button>';
+  }).join('');
+  if(ES_ADMIN) h += '<button class="ptab add" onclick="abrirProv()" title="Nuevo proveedor">＋ Proveedor</button>';
+  document.getElementById('ptabs').innerHTML = h || '<span class="muted">No hay proveedores de MP importada.</span>';
+}
+function elegirProv(id){ CUR = id; lsSet('prov', id); ANIM = true; render(); }
+
+// ─── Render ──────────────────────────────────────────────────
+var ANIM = true;   // la entrada escalonada sólo al cambiar de vista o proveedor, no al tipear
+function pasa(f, est){
+  if(est === 'FT')  return !f.ft;
+  if(est === 'HDS') return !f.hds;
+  if(est === 'OK')  return !!(f.ft && f.hds);
+  if(est === 'VTO') return !!(f.ftVto || f.hdsVto);
+  return true;
+}
+function kpiFiltro(el){ document.getElementById('f-est').value = el.getAttribute('data-f'); ANIM = true; render(); }
+
+function render(){
+  pintarTabs();
+  var p = prov();
+  setText('h-prov', p ? p.nombre : 'MP importadas');
+  setText('bk-sub', p ? p.nombre+' · '+artsDe(p.id).length+' artículos' : '—');
+  FILAS = p ? CalidadMP.filasImp(artsDe(p.id), DOCS) : [];
+  var r = CalidadMP.resumenImp(FILAS);
+  CalidadUI.countUp('k-arts', r.arts);
+  CalidadUI.countUp('k-ft', r.arts - r.conFT);
+  CalidadUI.countUp('k-hds', r.arts - r.conHDS);
+  CalidadUI.countUp('k-ok', r.completos);
+  CalidadUI.countUp('k-vto', r.vencidos);
+  setText('k-arts-sub', r.docs+' documentos cargados');
+  setText('k-ft-sub', r.conFT+' de '+r.arts+' cargadas');
+  setText('k-hds-sub', r.conHDS+' de '+r.arts+' cargadas');
+  setText('k-vto-sub', '+ '+r.pronto+' por vencer en '+CalidadMP.AVISO_DIAS+' días');
+  CalidadUI.countUp('ring-n', r.cobertura, '%');
+  document.getElementById('ring').style.strokeDashoffset = (263.9 * (1 - r.cobertura/100)).toFixed(1);
+
+  var est = document.getElementById('f-est').value;
+  document.querySelectorAll('.kpi.clic').forEach(function(k){ k.classList.toggle('sel', !!est && k.getAttribute('data-f')===est); });
+  var q = CalidadMP.palabras(document.getElementById('f-q').value);
+  var rows = FILAS.filter(function(f){
+    if(!pasa(f, est)) return false;
+    if(q){
+      var hay = CalidadMP.palabras(f.art.nombre+' '+(f.art.codigo||'')+' '+(f.art.grupo||'')+' '
+        + f.docs.map(function(d){ return d.nombre_archivo||''; }).join(' '));
+      if(hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+  setText('cnt', rows.length+' de '+FILAS.length);
+  VISIBLES = rows;
+  var cont = document.getElementById('vista');
+  if(!p){
+    cont.innerHTML = '<div class="agrid"><div class="empty-grid"><big>🌎</big>'
+      +(CARGA==='err' ? '⚠ No se pudieron cargar los datos. <button class="btn btn-ghost btn-sm" onclick="load()">↻ Reintentar</button>'
+        : CARGA ? 'Todavía no hay proveedores.'+(ES_ADMIN?' Creá el primero con ＋ Proveedor.':'') : 'Cargando…')+'</div></div>';
+    return;
+  }
+  cont.innerHTML = VISTA === 'grid' ? gridHtml(rows) : listaHtml(rows);
+  ANIM = false;
+  CalidadUI.miniaturas(cont, docById);
+  engancharTiles(cont);
+}
+var VISIBLES = [];
+
+function estadoCard(f){
+  if(f.ftVto === 'vencido' || f.hdsVto === 'vencido' || (!f.ft && !f.hds)) return 'bad';
+  if(f.ft && f.hds && !f.ftVto && !f.hdsVto) return 'ok';
+  return 'mid';
+}
+function detalle(doc, vto){
+  if(!doc) return 'falta';
+  if(doc.vence) return (vto === 'vencido' ? 'venció ' : 'vence ')+fechaCorta(doc.vence);
+  return fechaCorta(doc.fecha_doc || doc.created_at);
+}
+function tile(f, tipo){
+  var doc = f[tipo === 'FT' ? 'ft' : 'hds'], vto = f[tipo === 'FT' ? 'ftVto' : 'hdsVto'];
+  var n = f[tipo === 'FT' ? 'nFt' : 'nHds'], can = puede();
+  var cls = 'dtile'+(can?' can':'')+(vto?' v-'+vto:'')+(!doc && !can?' nada':'');
+  var body = doc
+    ? CalidadUI.thumbHtml(doc)+'<span class="zoom" aria-hidden="true">🔍</span>'+(n>1?'<span class="badge-n" title="'+n+' versiones">×'+n+'</span>':'')
+    : '<div class="dempty">'+(can ? '<big>＋</big>Subir '+tipo+'<small>o soltá el archivo</small>' : '<big>—</big>Sin '+tipo)+'</div>';
+  var tt = doc ? 'Ver '+TIPO_TXT[tipo].toLowerCase() : (can ? 'Subir '+TIPO_TXT[tipo].toLowerCase() : 'Sin '+TIPO_TXT[tipo].toLowerCase());
+  return '<button class="'+cls+'" data-a="'+f.art.id+'" data-t="'+tipo+'" title="'+esc(tt)+'" aria-label="'+esc(tt+' · '+f.art.nombre)+'"'
+    +(!doc && !can ? ' tabindex="-1"' : '')+'>'
+    + body + '<div class="dt-l"><span>'+tipo+'</span><span>'+esc(detalle(doc, vto))+'</span></div></button>';
+}
+function gridHtml(rows){
+  if(!rows.length) return '<div class="agrid"><div class="empty-grid"><big>🔎</big>'
+    +(FILAS.length ? 'Sin resultados para el filtro.' : 'Este proveedor todavía no tiene artículos.'+(ES_ADMIN?' Agregalos con ＋ Artículo.':''))+'</div></div>';
+  return '<div class="agrid">'+rows.map(function(f, k){
+    return '<article class="glass acard '+estadoCard(f)+(ANIM?' rv':'')+'" style="--i:'+Math.min(k,24)+'">'
+      +'<div class="ahd"><b>'+esc(f.art.nombre)+'</b>'+(f.art.codigo?'<span class="art-cod">'+esc(f.art.codigo)+'</span>':'')+'</div>'
+      +'<div class="atiles">'+tile(f,'FT')+tile(f,'HDS')+'</div>'
+      +'<div class="afoot"><span>'+esc(f.art.grupo||'')+'</span><span class="sp"></span><span>'+f.docs.length+' doc'+(f.docs.length===1?'':'s')+'</span></div>'
+      +'</article>';
+  }).join('')+'</div>';
+}
+function celdaLista(f, tipo){
+  var doc = f[tipo === 'FT' ? 'ft' : 'hds'], vto = f[tipo === 'FT' ? 'ftVto' : 'hdsVto'];
+  if(!doc) return '<div class="cell"><span class="dc dc-red">✕ falta</span>'
+    +(puede()?'<button class="up" data-a="'+f.art.id+'" data-t="'+tipo+'" title="Subir">⬆</button>':'')+'</div>';
+  var cls = vto === 'vencido' ? 'dc-red vto' : (vto === 'pronto' ? 'dc-amb' : 'dc-ok');
+  return '<span class="lchip">'+CalidadUI.thumbHtml(doc)
+    +'<button class="dc '+cls+'" data-doc-open="'+doc.id+'">📄 ver <small>'+esc(detalle(doc, vto))+'</small></button></span>';
+}
+function listaHtml(rows){
+  return '<div class="tbl-wrap"><table><thead><tr><th>Artículo</th><th>Código</th><th>Ficha técnica</th><th>Hoja de seguridad</th><th>Docs</th></tr></thead><tbody>'
+    + (rows.map(function(f, k){
+      return '<tr class="'+(ANIM?'rv':'')+'" style="--i:'+Math.min(k,30)+'"><td><strong>'+esc(f.art.nombre)+'</strong><br><span class="art-cod">'+esc(f.art.grupo||'')+'</span></td>'
+        +'<td class="art-cod" style="font-size:11px">'+esc(f.art.codigo||'—')+'</td>'
+        +'<td>'+celdaLista(f,'FT')+'</td><td>'+celdaLista(f,'HDS')+'</td>'
+        +'<td class="num">'+f.docs.length+'</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="empty-td">Sin resultados.</td></tr>')
+    +'</tbody></table></div>';
+}
+function setVista(v){
+  VISTA = v; lsSet('vista', v); ANIM = true;
+  document.getElementById('v-grid').classList.toggle('on', v === 'grid');
+  document.getElementById('v-list').classList.toggle('on', v === 'list');
+  render();
+}
+
+// ─── Tocar / soltar sobre una ficha ─────────────────────────
+function engancharTiles(cont){
+  cont.querySelectorAll('[data-a][data-t]').forEach(function(el){
+    var a = +el.getAttribute('data-a'), t = el.getAttribute('data-t');
+    el.onclick = function(){
+      var f = filaDe(a), doc = f && f[t === 'FT' ? 'ft' : 'hds'];
+      if(doc) verDoc(doc.id); else if(puede()) elegirUno(a, t);
+    };
+    if(!puede()) return;
+    el.addEventListener('dragover', function(e){ e.preventDefault(); e.stopPropagation(); el.classList.add('drag'); });
+    el.addEventListener('dragleave', function(){ el.classList.remove('drag'); });
+    el.addEventListener('drop', function(e){
+      e.preventDefault(); e.stopPropagation(); el.classList.remove('drag');
+      var fs = e.dataTransfer && e.dataTransfer.files;
+      if(!fs || !fs.length) return;
+      // Un archivo sobre la ficha = ese artículo y ese tipo. Varios: el
+      // artículo es ese y el tipo se deduce de cada nombre.
+      abrirBulk(fs, { art: a, tipo: fs.length === 1 ? t : '' });
+    });
+  });
+  cont.querySelectorAll('[data-doc-open]').forEach(function(b){ b.onclick = function(){ verDoc(+b.getAttribute('data-doc-open')); }; });
+  cont.querySelectorAll('.lchip .thumb').forEach(function(th){ th.onclick = function(){ verDoc(+th.getAttribute('data-doc')); }; });
+}
+function elegirUno(a, t){
+  var inp = document.getElementById('one-file');
+  inp.value = '';
+  inp.onchange = function(){ if(inp.files.length) abrirBulk(inp.files, { art: a, tipo: t }); };
+  inp.click();
+}
+
+// ─── Visor ───────────────────────────────────────────────────
+// Se recorren los documentos vigentes de lo que está a la vista, en el
+// mismo orden de las tarjetas: FT y HDS de cada artículo.
+function verDoc(id){
+  var lista = [];
+  VISIBLES.forEach(function(f){ if(f.ft) lista.push(f.ft); if(f.hds) lista.push(f.hds); });
+  var i = lista.map(function(d){ return d.id; }).indexOf(id);
+  if(i < 0){ var d = docById(id); if(!d) return; lista = [d]; i = 0; }
+  CalidadUI.visor.abrir(lista, i, {
+    titulo: function(d){ var a = artById(d.mp_articulo_id); return (a ? a.nombre : d.articulo) || 'Documento'; },
+    sub: function(d){ var a = artById(d.mp_articulo_id);
+      return [TIPO_TXT[d.tipo], d.proveedor, a && a.codigo, d.nombre_archivo].filter(Boolean).join(' · '); },
+    versiones: function(d){
+      return CalidadMP.ordenar(DOCS.filter(function(x){ return x.mp_articulo_id === d.mp_articulo_id && x.tipo === d.tipo; }));
+    },
+    puedeBorrar: puede(),
+    onBorrar: borrarDoc
+  });
+}
+function borrarDoc(d){
+  return SB.from('mp_documentos').delete().eq('id', d.id).select('id').then(function(r){
+    if(r.error || !r.data || !r.data.length){
+      toast('No se pudo borrar: '+(r.error ? r.error.message : 'sin permiso'), 'err');
+      throw new Error('no');
+    }
+    SB.storage.from(CalidadMP.BUCKET).remove([d.archivo]);
+    CalidadUI.olvidar(d.id);
+    toast('Documento borrado', 'ok');
+    load();
+  });
+}
+
+// ─── Carga masiva ────────────────────────────────────────────
+// BK.items: { k, file, art, tipo, vence, por, estado:''|'up'|'done'|'fail', msg }
+var BK = { items: [], sec: 0, subiendo: false };
+var TIPOS_OK = ['application/pdf','image/jpeg','image/png','image/webp'];
+
+function abrirBulk(files, fijo){
+  if(!puede()) return;
+  if(!document.getElementById('ov-bulk').classList.contains('open')){
+    BK.items = BK.items.filter(function(it){ return it.estado !== 'done'; });
+    abrir('ov-bulk');
+  }
+  sumarArchivos(files, fijo);
+  pintarBulk();
+}
+function cerrarBulk(){
+  if(BK.subiendo){ toast('Esperá a que termine la subida.', 'inf'); return; }
+  cerrar('ov-bulk');
+  BK.items = BK.items.filter(function(it){ return it.estado !== 'done'; });
+}
+function sumarArchivos(files, fijo){
+  var p = prov(); if(!p) return;
+  var arts = artsDe(p.id), malos = [];
+  Array.prototype.forEach.call(files || [], function(file){
+    if(TIPOS_OK.indexOf(file.type) < 0){ malos.push(file.name+' (no es PDF ni foto)'); return; }
+    if(file.size > 20*1024*1024){ malos.push(file.name+' (pasa los 20 MB)'); return; }
+    // El mismo archivo dos veces en la misma tanda no se suma
+    if(BK.items.some(function(it){ return it.estado !== 'done' && it.file.name === file.name && it.file.size === file.size; })) return;
+    var m = fijo && fijo.art ? { art: artById(fijo.art), por: 'ficha' } : CalidadMP.emparejar(file.name, arts);
+    BK.items.push({
+      k: ++BK.sec, file: file, art: m.art ? m.art.id : null, por: m.por,
+      tipo: (fijo && fijo.tipo) || CalidadMP.detectarTipo(file.name), vence: '', estado: '', msg: ''
+    });
+  });
+  if(malos.length) toast('Quedaron afuera: '+malos.join(', '), 'err');
+  pintarBulk();
+}
+function listo(it){ return it.art && (it.tipo === 'FT' || it.tipo === 'HDS'); }
+
+function pintarBulk(){
+  var p = prov(), arts = p ? artsDe(p.id).slice().sort(function(a,b){ return a.nombre.localeCompare(b.nombre,'es'); }) : [];
+  var its = BK.items;
+  document.getElementById('bk-drop').classList.toggle('mini', its.length > 0);
+  // Mismo artículo y tipo dos veces en la tanda: se suben los dos y
+  // queda vigente el último, pero conviene que la persona lo vea
+  var cuenta = {};
+  its.forEach(function(it){ if(listo(it) && it.estado !== 'done'){ var c = it.art+'|'+it.tipo; cuenta[c] = (cuenta[c]||0)+1; } });
+  var nListos = its.filter(function(it){ return listo(it) && it.estado !== 'done'; }).length;
+  var nRev = its.filter(function(it){ return !listo(it) && it.estado !== 'done'; }).length;
+  var nOk = its.filter(function(it){ return it.estado === 'done'; }).length;
+  document.getElementById('bk-sum').innerHTML = its.length
+    ? '<span class="badge b-info">'+its.length+' archivo'+(its.length===1?'':'s')+'</span>'
+      +(nListos?'<span class="badge" style="background:var(--green-g);color:#86efac;border:1px solid var(--green-b)">'+nListos+' listos</span>':'')
+      +(nRev?'<span class="badge b-amb">'+nRev+' para completar</span>':'')
+      +(nOk?'<span class="badge" style="background:var(--green-g);color:#86efac;border:1px solid var(--green-b)">✓ '+nOk+' subidos</span>':'')
+    : '';
+  var opts = '<option value="">Elegí el artículo…</option>'+arts.map(function(a){
+    return '<option value="'+a.id+'">'+esc(a.nombre+(a.codigo?' · '+a.codigo:''))+'</option>'; }).join('');
+  document.getElementById('bk-list').innerHTML = its.map(function(it, k){
+    var bloq = BK.subiendo || it.estado === 'done' || it.estado === 'up';
+    var f = it.art && filaDe(it.art), ya = f && it.tipo && f[it.tipo === 'FT' ? 'ft' : 'hds'];
+    var by = it.por === 'codigo' ? '<span class="by cod">✓ por código</span>'
+           : it.por === 'nombre' ? '<span class="by nom">✓ por nombre</span>'
+           : it.por === 'ficha' ? '<span class="by cod">✓ ficha elegida</span>'
+           : '<span class="by no">elegir artículo</span>';
+    var msg = it.estado === 'fail' ? '<div class="bmsg e">✕ '+esc(it.msg)+'</div>'
+      : it.estado === 'done' ? '<div class="bmsg ok">✓ Subido</div>'
+      : (listo(it) && cuenta[it.art+'|'+it.tipo] > 1) ? '<div class="bmsg w">⚠ Hay otro archivo para el mismo artículo y tipo en esta carga: queda vigente el último.</div>'
+      : ya ? '<div class="bmsg w">Ya tiene '+it.tipo+': ésta pasa a ser la vigente y la anterior queda en versiones.</div>' : '';
+    return '<div class="brow '+(it.estado||'')+'" style="--i:'+Math.min(k,20)+'" data-k="'+it.k+'">'
+      +'<div class="thumb" data-file="'+it.k+'"></div>'
+      +'<div class="bf"><b title="'+esc(it.file.name)+'">'+esc(it.file.name)+'</b><span>'+(it.file.size/1024/1024).toFixed(2)+' MB</span> '+by+'</div>'
+      +'<select class="fi2 bsel'+(it.art?'':' need')+'" aria-label="Artículo" data-f="art"'+(bloq?' disabled':'')+'>'+opts.replace('value="'+it.art+'"','value="'+it.art+'" selected')+'</select>'
+      +'<select class="fi2 btipo'+(it.tipo?'':' need')+'" aria-label="Tipo" data-f="tipo"'+(bloq?' disabled':'')+'>'
+        +'<option value="">Tipo…</option><option value="FT"'+(it.tipo==='FT'?' selected':'')+'>Ficha técnica</option>'
+        +'<option value="HDS"'+(it.tipo==='HDS'?' selected':'')+'>Hoja de seguridad</option></select>'
+      +'<input type="date" class="fi2 bvto" title="Vence (opcional)" aria-label="Vence (opcional)" data-f="vence" value="'+esc(it.vence)+'"'+(bloq?' disabled':'')+'/>'
+      +'<button class="bx" title="Quitar" aria-label="Quitar" data-f="x"'+(bloq?' disabled':'')+'>✕</button>'
+      +msg+'<i class="bbar"></i></div>';
+  }).join('');
+  // Miniaturas de los archivos locales (se guardan en el item: al
+  // repintar no se vuelve a leer el PDF)
+  document.querySelectorAll('#bk-list .thumb[data-file]').forEach(function(el){
+    var it = itemK(+el.getAttribute('data-file')); if(!it) return;
+    it.mini = it.mini || CalidadUI.miniArchivo(it.file);
+    CalidadUI.pintar(el, it.mini);
+  });
+  document.querySelectorAll('#bk-list [data-f]').forEach(function(el){
+    var it = itemK(+el.closest('.brow').getAttribute('data-k'));
+    var f = el.getAttribute('data-f');
+    if(f === 'x') el.onclick = function(){ BK.items = BK.items.filter(function(x){ return x !== it; }); pintarBulk(); };
+    else el.onchange = function(){
+      if(f === 'art'){ it.art = +el.value || null; it.por = it.art ? 'manual' : ''; }
+      else if(f === 'tipo') it.tipo = el.value;
+      else it.vence = el.value;
+      if(it.estado === 'fail'){ it.estado = ''; it.msg = ''; }
+      pintarBulk();
+    };
+  });
+  var ok = document.getElementById('bk-ok');
+  ok.disabled = BK.subiendo || !nListos;
+  ok.textContent = BK.subiendo ? 'Subiendo…' : '⬆ Subir '+(nListos||'')+' documento'+(nListos===1?'':'s')+(nRev?' listos':'');
+}
+function itemK(k){ return BK.items.filter(function(it){ return it.k === k; })[0]; }
+
+// Nombre seguro para la ruta del bucket: sin acentos, espacios ni símbolos
+function nombreSeguro(n){
+  return String(n||'archivo').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^A-Za-z0-9._-]+/g,'_').replace(/_+/g,'_').slice(-80);
+}
+// En cuentas compartidas queda la PERSONA que opera, no la cuenta
+function quien(){
+  var o = SubatirApp.operador && SubatirApp.operador.get && SubatirApp.operador.get();
+  return o || (PERFIL && (PERFIL.full_name || (PERFIL.email||'').split('@')[0])) || '';
+}
+
+function subirUno(it){
+  var a = artById(it.art), p = PROVS.filter(function(x){ return x.id === a.proveedor_id; })[0];
+  // La primera carpeta decide el permiso en el bucket (ft/ o hds/)
+  var ruta = it.tipo.toLowerCase()+'/imp/'+a.id+'/'+Date.now()+'-'+nombreSeguro(it.file.name);
+  var fila = {
+    inventario_id: null, mp_articulo_id: a.id, articulo: a.nombre, tipo: it.tipo,
+    proveedor: p ? p.nombre : null, vence: it.vence || null,
+    archivo: ruta, nombre_archivo: it.file.name, bytes: it.file.size, subido_por: quien()
+  };
+  var st = SB.storage.from(CalidadMP.BUCKET);
+  return st.upload(ruta, it.file, { contentType: it.file.type, upsert: false }).then(function(r){
+    if(r.error) throw new Error('archivo: '+r.error.message);
+    // .select(): si la política no deja, Supabase devuelve cero filas sin error
+    return SB.from('mp_documentos').insert(fila).select('id').then(function(ins){
+      if(ins.error || !ins.data || !ins.data.length){
+        st.remove([ruta]);     // sin fila el archivo quedaría huérfano
+        throw new Error('registro: '+(ins.error ? ins.error.message : 'sin permiso'));
+      }
+    });
+  });
+}
+function subirTodo(){
+  var cola = BK.items.filter(function(it){ return listo(it) && it.estado !== 'done'; });
+  if(!cola.length || BK.subiendo) return;
+  BK.subiendo = true;
+  var total = cola.length, hechos = 0, fallas = 0;
+  var prog = document.getElementById('bk-prog'), bar = document.getElementById('bk-bar');
+  prog.style.visibility = ''; bar.style.width = '0';
+  cola.forEach(function(it){ it.estado = ''; it.msg = ''; });
+  pintarBulk();
+  var marcar = function(it){
+    var el = document.querySelector('#bk-list .brow[data-k="'+it.k+'"]');
+    if(el) el.className = 'brow '+it.estado;
+  };
+  // De a uno: con muchos archivos en paralelo el celular se queda sin
+  // conexión a mitad y es más difícil saber cuál quedó
+  var paso = function(i){
+    if(i >= cola.length) return Promise.resolve();
+    var it = cola[i]; it.estado = 'up'; marcar(it);
+    return subirUno(it).then(function(){ it.estado = 'done'; }, function(e){
+      it.estado = 'fail'; it.msg = e && e.message || String(e); fallas++;
+    }).then(function(){
+      hechos++; bar.style.width = Math.round(hechos*100/total)+'%'; marcar(it);
+      return paso(i+1);
+    });
+  };
+  paso(0).then(function(){
+    BK.subiendo = false;
+    pintarBulk();
+    setTimeout(function(){ prog.style.visibility = 'hidden'; }, 900);
+    if(fallas) toast((total-fallas)+' subidos · '+fallas+' con error (quedaron en la lista)', 'err');
+    else toast('✓ '+total+' documento'+(total===1?'':'s')+' cargado'+(total===1?'':'s'), 'ok');
+    load();
+    // Si todo salió bien y no queda nada por completar, se cierra solo
+    if(!fallas && !BK.items.some(function(it){ return it.estado !== 'done'; }))
+      setTimeout(function(){ if(!BK.subiendo) cerrarBulk(); }, 1100);
+  });
+}
+(function(){
+  var d = document.getElementById('bk-drop');
+  ['dragenter','dragover'].forEach(function(ev){ d.addEventListener(ev, function(e){ e.preventDefault(); d.classList.add('on'); }); });
+  ['dragleave','drop'].forEach(function(ev){ d.addEventListener(ev, function(e){ e.preventDefault(); d.classList.remove('on'); }); });
+  d.addEventListener('drop', function(e){ e.stopPropagation(); sumarArchivos(e.dataTransfer && e.dataTransfer.files); });
+  // Soltar archivos en cualquier lado de la página abre la carga masiva
+  document.addEventListener('dragover', function(e){ if(puede() && e.dataTransfer && [].indexOf.call(e.dataTransfer.types||[], 'Files') >= 0) e.preventDefault(); });
+  document.addEventListener('drop', function(e){
+    var fs = e.dataTransfer && e.dataTransfer.files;
+    if(!fs || !fs.length) return;
+    e.preventDefault();
+    if(puede()) abrirBulk(fs);
+  });
+})();
+
+// ─── Proveedor y artículo nuevos ─────────────────────────────
+function abrirProv(){ if(!ES_ADMIN) return; document.getElementById('pv-nom').value=''; abrir('ov-prov'); setTimeout(function(){ document.getElementById('pv-nom').focus(); }, 60); }
+function crearProv(){
+  var nom = document.getElementById('pv-nom').value.trim().replace(/\s+/g,' ');
+  if(!nom){ toast('Poné el nombre del proveedor.', 'err'); return; }
+  if(PROVS.some(function(p){ return CalidadMP.norm(p.nombre) === CalidadMP.norm(nom); })){ toast('Ese proveedor ya existe.', 'err'); return; }
+  var b = document.getElementById('pv-ok'); b.disabled = true;
+  SB.from('mp_proveedores').insert({ nombre: nom }).select('id').then(function(r){
+    if(r.error || !r.data || !r.data.length) throw new Error(r.error ? r.error.message : 'sin permiso');
+    var id = r.data[0].id;
+    // MP Importación necesita su fila de parámetros para poder guardarlos
+    return SB.from('mp_parametros').insert({ proveedor_id: id }).then(function(){ return id; });
+  }).then(function(id){
+    b.disabled = false; cerrar('ov-prov');
+    toast('✓ Proveedor '+nom+' creado', 'ok');
+    CUR = id; lsSet('prov', id); ANIM = true;
+    return load();
+  }).catch(function(e){ b.disabled = false; toast('No se pudo crear: '+(e && e.message || e), 'err'); });
+}
+function abrirArt(){
+  var p = prov(); if(!ES_ADMIN || !p) return;
+  setText('ar-sub', p.nombre);
+  ['ar-nom','ar-cod'].forEach(function(id){ document.getElementById(id).value=''; });
+  var grupos = {}; artsDe(p.id).forEach(function(a){ if(a.grupo) grupos[a.grupo] = 1; });
+  document.getElementById('dl-grp').innerHTML = Object.keys(grupos).map(function(g){ return '<option value="'+esc(g)+'">'; }).join('');
+  document.getElementById('ar-grp').value = Object.keys(grupos)[0] || 'Esencias';
+  abrir('ov-art'); setTimeout(function(){ document.getElementById('ar-nom').focus(); }, 60);
+}
+function crearArt(){
+  var p = prov(); if(!p) return;
+  var nom = document.getElementById('ar-nom').value.trim().replace(/\s+/g,' ');
+  var cod = document.getElementById('ar-cod').value.trim() || null;
+  var grp = document.getElementById('ar-grp').value.trim() || 'Esencias';
+  if(!nom){ toast('Poné el nombre del artículo.', 'err'); return; }
+  var arts = artsDe(p.id);
+  if(arts.some(function(a){ return CalidadMP.norm(a.nombre) === CalidadMP.norm(nom); })){ toast('Ese artículo ya está en '+p.nombre+'.', 'err'); return; }
+  var orden = arts.reduce(function(m, a){ return Math.max(m, a.orden || 0); }, 0) + 1;
+  var b = document.getElementById('ar-ok'); b.disabled = true;
+  SB.from('mp_articulos').insert({ proveedor_id: p.id, nombre: nom, codigo: cod, grupo: grp, orden: orden }).select('id').then(function(r){
+    b.disabled = false;
+    if(r.error || !r.data || !r.data.length){ toast('No se pudo agregar: '+(r.error ? r.error.message : 'sin permiso'), 'err'); return; }
+    cerrar('ov-art'); toast('✓ '+nom+' agregado', 'ok'); load();
+  });
+}
+
+// ─── CSV ────────────────────────────────────────────────────
+function exportCSV(){
+  if(!FILAS.length){ toast('No hay datos para exportar.', 'inf'); return; }
+  var p = prov();
+  var estDoc = function(d, v){ return !d ? 'FALTA' : (v==='vencido' ? 'VENCIDA' : (v==='pronto' ? 'POR VENCER' : 'OK')); };
+  var head = ['Proveedor','Codigo','Articulo','Grupo','Ficha tecnica','FT archivo','FT vence','FT versiones',
+              'Hoja de seguridad','HDS archivo','HDS vence','HDS versiones'];
+  var rows = FILAS.map(function(f){
+    return [p.nombre, f.art.codigo, f.art.nombre, f.art.grupo,
+      estDoc(f.ft, f.ftVto), f.ft && f.ft.nombre_archivo, f.ft && f.ft.vence, f.nFt,
+      estDoc(f.hds, f.hdsVto), f.hds && f.hds.nombre_archivo, f.hds && f.hds.vence, f.nHds];
+  });
+  var csv = [head].concat(rows).map(function(r){
+    return r.map(function(v){ v = v == null ? '' : String(v); return /[;"\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(';');
+  }).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'calidad_mp_importadas_'+nombreSeguro(p.nombre)+'_'+CalidadMP.hoyISO()+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+function abrir(id){ document.getElementById(id).classList.add('open'); }
+function cerrar(id){ document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  if(document.getElementById('ov-bulk').classList.contains('open')) cerrarBulk();
+  ['ov-prov','ov-art'].forEach(function(id){ if(document.getElementById(id).classList.contains('open')) cerrar(id); });
+});
+function fechaCorta(iso){ if(!iso) return ''; var p=String(iso).slice(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0].slice(2); }
+var esc = CalidadUI.esc;
+function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+function toast(msg,type){
+  var c=document.getElementById('tc'),d=document.createElement('div');
+  d.className='toast t-'+(type||'inf');d.textContent=msg;c.appendChild(d);
+  setTimeout(function(){d.style.opacity='0';d.style.transition='opacity .35s';setTimeout(function(){d.remove();},350);},3600);
+}
+
+// ─── Init ─────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  if(lsGet('vista') === 'list'){ VISTA = 'list'; document.getElementById('v-grid').classList.remove('on'); document.getElementById('v-list').classList.add('on'); }
+  render();
+  SubatirApp.ready.then(function(p){
+    PERFIL = p || {};
+    ES_ADMIN = PERFIL.role === 'admin';
+    load();
+    // Mientras sube la carga masiva cada fila nueva dispararía una
+    // recarga: se espera a que termine (subirTodo recarga al final)
+    if(SubatirApp.live) SubatirApp.live(['mp_documentos','mp_articulos','mp_proveedores'], function(){ if(!BK.subiendo) load(); });
+  });
+});
+</script>
+<script>
+// PWA: instalable y abre sin señal. El worker vive en la raíz.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>

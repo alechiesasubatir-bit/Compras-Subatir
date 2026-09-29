@@ -17,8 +17,18 @@
 //     (titulo). Con proveedor va en la fila de ese proveedor; sin
 //     proveedor es del producto y aparece en todas sus filas.
 //   · Todo lo sube el administrador.
+//
+//  MP IMPORTADAS (29/09/2026): las materias primas que se compran afuera
+//  no están en el inventario como MP: viven en mp_articulos, por
+//  proveedor (MERO AR), la misma lista que usa MP Importación. Sus FT y
+//  HDS van a la misma tabla mp_documentos con mp_articulo_id en vez de
+//  inventario_id, así que filas() de arriba no las ve (y no debe).
 // ============================================================
-(function () {
+(function (root, factory) {
+  var api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = { CalidadMP: api };
+  root.CalidadMP = api;
+})(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
   var AVISO_DIAS = 30;
@@ -27,7 +37,7 @@
   function hoyISO() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
 
   function norm(s) {
-    if (window.SubatirApp && SubatirApp.match && SubatirApp.match.norm) return SubatirApp.match.norm(String(s || ''));
+    if (typeof SubatirApp !== 'undefined' && SubatirApp.match && SubatirApp.match.norm) return SubatirApp.match.norm(String(s || ''));
     return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
   }
 
@@ -133,9 +143,107 @@
     return r;
   }
 
-  window.CalidadMP = {
+  // ── MP IMPORTADAS ─────────────────────────────────────────
+
+  // Texto de un nombre de archivo listo para buscar palabras: sin
+  // extensión ni acentos, en mayúsculas y con todo lo que no es letra o
+  // número hecho espacio ("HDS_Esencia-Bosque.pdf" → "HDS ESENCIA BOSQUE").
+  function palabras(s) {
+    return String(s || '').replace(/\.[A-Za-z0-9]{2,5}$/, '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
+      .replace(/[^A-Z0-9]+/g, ' ').trim();
+  }
+
+  // Tipo de documento según el nombre del archivo: 'FT', 'HDS' o ''.
+  // HDS se mira primero: "Ficha de datos de SEGURIDAD" es una HDS
+  // aunque diga "ficha".
+  var RX_HDS = /(^| )(HDS|MSDS|SDS|FDS|HOJA SEG\w*|SEGURIDAD|SAFETY)( |$)/;
+  var RX_FT = /(^| )(FT|TDS|FICHA|FICHA TEC\w*|TECNICA|TECHNICAL|SPEC\w*|ESPECIFICACION\w*)( |$)/;
+  function detectarTipo(nombreArchivo) {
+    var t = palabras(nombreArchivo);
+    if (RX_HDS.test(t)) return 'HDS';
+    if (RX_FT.test(t)) return 'FT';
+    return '';
+  }
+
+  // Palabras de un nombre de artículo que no sirven para distinguirlo:
+  // están en todos ("Esencia … MEROAR") o son del tipo de documento.
+  var RUIDO = { ESENCIA: 1, ESENCIAS: 1, MEROAR: 1, MEORAR: 1, MERO: 1, AR: 1, MP: 1, KG: 1, X: 1,
+    Y: 1, DE: 1, LA: 1, EL: 1, CON: 1, FT: 1, HDS: 1, MSDS: 1, SDS: 1, FDS: 1, TDS: 1 };
+  function clave(nombre) {
+    return palabras(nombre).split(' ').filter(function (w) { return w && !RUIDO[w] && !/^\d+$/.test(w); });
+  }
+
+  /**
+   * A qué artículo corresponde un archivo, por su nombre.
+   *  1. Un número del nombre igual al código del artículo (761453).
+   *  2. Si no, las palabras propias del artículo ("BOSQUE") que aparecen
+   *     en el nombre. Gana el que más cubre, y sólo si cubre al menos la
+   *     mitad y no empata: "HDS Lavanda.pdf" puede ser Lavanda Limpiador
+   *     o Lavanda Textil, y ahí mejor que elija la persona.
+   * @returns {{art:Object|null, por:'codigo'|'nombre'|''}}
+   */
+  function emparejar(nombreArchivo, arts) {
+    var t = palabras(nombreArchivo), ws = t.split(' ');
+    var nums = ws.filter(function (w) { return /^\d{4,}$/.test(w); });
+    for (var i = 0; i < arts.length; i++) {
+      var c = String(arts[i].codigo || '').trim();
+      if (c && nums.indexOf(c) >= 0) return { art: arts[i], por: 'codigo' };
+    }
+    var set = {}; ws.forEach(function (w) { set[w] = 1; });
+    var mejor = null, pMejor = 0, empate = false;
+    arts.forEach(function (a) {
+      var k = clave(a.nombre); if (!k.length) return;
+      var hits = k.filter(function (w) { return set[w]; }).length;
+      var p = hits / k.length;
+      if (p > pMejor) { mejor = a; pMejor = p; empate = false; }
+      else if (p === pMejor && p > 0) empate = true;
+    });
+    if (mejor && pMejor >= 0.5 && !empate) return { art: mejor, por: 'nombre' };
+    return { art: null, por: '' };
+  }
+
+  /**
+   * Una fila por artículo importado del proveedor, con su FT y HDS
+   * vigentes (el último de cada tipo, igual que en las MP de Stock).
+   */
+  function filasImp(arts, docs, hoy) {
+    var por = {};
+    (docs || []).forEach(function (d) {
+      if (d.mp_articulo_id == null) return;
+      (por[d.mp_articulo_id] = por[d.mp_articulo_id] || []).push(d);
+    });
+    return (arts || []).map(function (a) {
+      var ds = por[a.id] || [];
+      var de = function (t) { return ds.filter(function (d) { return d.tipo === t; }); };
+      var ft = ultimo(de('FT')), hds = ultimo(de('HDS'));
+      return { art: a, docs: ordenar(ds), ft: ft, hds: hds,
+        ftVto: vencimiento(ft, hoy), hdsVto: vencimiento(hds, hoy),
+        nFt: de('FT').length, nHds: de('HDS').length };
+    });
+  }
+
+  function resumenImp(fs) {
+    var r = { arts: fs.length, conFT: 0, conHDS: 0, completos: 0, vencidos: 0, pronto: 0, docs: 0 };
+    fs.forEach(function (f) {
+      if (f.ft) r.conFT++;
+      if (f.hds) r.conHDS++;
+      if (f.ft && f.hds) r.completos++;
+      if (f.ftVto === 'vencido' || f.hdsVto === 'vencido') r.vencidos++;
+      else if (f.ftVto === 'pronto' || f.hdsVto === 'pronto') r.pronto++;
+      r.docs += f.docs.length;
+    });
+    // Cobertura = de todos los papeles que tendría que haber (FT + HDS
+    // por artículo), cuántos están
+    r.cobertura = r.arts ? Math.round((r.conFT + r.conHDS) * 100 / (2 * r.arts)) : 0;
+    return r;
+  }
+
+  return {
     AVISO_DIAS: AVISO_DIAS, BUCKET: 'calidad-mp',
     norm: norm, hoyISO: hoyISO, vencimiento: vencimiento, fechaDe: fechaDe,
-    ordenar: ordenar, cargar: cargar, filas: filas, resumen: resumen
+    ordenar: ordenar, cargar: cargar, filas: filas, resumen: resumen,
+    palabras: palabras, detectarTipo: detectarTipo, emparejar: emparejar,
+    filasImp: filasImp, resumenImp: resumenImp
   };
-})();
+});

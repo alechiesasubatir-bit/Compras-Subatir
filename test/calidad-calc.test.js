@@ -57,23 +57,51 @@ test('emparejar: sin coincidencia devuelve null', () => {
   assert.strictEqual(id('FT 2024.pdf'), null);
 });
 
-test('filasImp: el vigente es el último y cuenta vencimientos', () => {
+test('filasImp: el vigente es el último cargado y la cobertura cuenta FT + HDS', () => {
   const docs = [
     { id: 1, mp_articulo_id: 5, tipo: 'FT', fecha_doc: '2025-01-01', created_at: '2025-01-02' },
     { id: 2, mp_articulo_id: 5, tipo: 'FT', fecha_doc: '2026-03-01', created_at: '2026-03-02' },
+    // una HDS con fecha de vencimiento vieja: ya no significa nada
     { id: 3, mp_articulo_id: 5, tipo: 'HDS', vence: '2026-01-01', created_at: '2025-06-01' },
     { id: 4, inventario_id: 9, tipo: 'FT', created_at: '2026-01-01' } // de Stock: no cuenta
   ];
-  const fs = CalidadMP.filasImp(ARTS, docs, new Date('2026-09-29T12:00:00'));
+  const fs = CalidadMP.filasImp(ARTS, docs);
   const b = fs.find((f) => f.art.id === 5);
   assert.strictEqual(b.ft.id, 2);
-  assert.strictEqual(b.nFt, 2);
-  assert.strictEqual(b.hdsVto, 'vencido');
+  assert.strictEqual(b.hds.id, 3);
+  assert.strictEqual('hdsVto' in b, false);
   const r = CalidadMP.resumenImp(fs);
   assert.strictEqual(r.arts, 7);
   assert.strictEqual(r.completos, 1);
-  assert.strictEqual(r.vencidos, 1);
   assert.strictEqual(r.docs, 3);
   // 2 papeles de 14 posibles
   assert.strictEqual(r.cobertura, 14);
+});
+
+test('aReemplazar: FT/HDS nueva borra la anterior del mismo artículo importado', () => {
+  const docs = [
+    { id: 1, mp_articulo_id: 5, tipo: 'FT' },
+    { id: 2, mp_articulo_id: 5, tipo: 'HDS' },   // otro tipo: queda
+    { id: 3, mp_articulo_id: 6, tipo: 'FT' },    // otro artículo: queda
+    { id: 9, mp_articulo_id: 5, tipo: 'FT' }     // la nueva
+  ];
+  const ids = CalidadMP.aReemplazar(docs, docs[3]).map((d) => d.id);
+  assert.deepStrictEqual(ids, [1]);
+});
+
+test('aReemplazar: en Stock va por MP y proveedor, sin importar acentos ni mayúsculas', () => {
+  const nuevo = { id: 10, inventario_id: 7, tipo: 'HDS', proveedor: 'Química S.A.' };
+  const docs = [
+    { id: 1, inventario_id: 7, tipo: 'HDS', proveedor: 'QUIMICA S.A.' },   // se va
+    { id: 2, inventario_id: 7, tipo: 'HDS', proveedor: 'Nortesur S.A.' },  // otro proveedor: queda
+    { id: 3, inventario_id: 8, tipo: 'HDS', proveedor: 'Química S.A.' },   // otra MP: queda
+    nuevo
+  ];
+  assert.deepStrictEqual(CalidadMP.aReemplazar(docs, nuevo).map((d) => d.id), [1]);
+});
+
+test('aReemplazar: COA y otros documentos no se reemplazan', () => {
+  const docs = [{ id: 1, inventario_id: 7, tipo: 'COA', proveedor: 'X' }];
+  assert.deepStrictEqual(CalidadMP.aReemplazar(docs, { id: 2, inventario_id: 7, tipo: 'COA', proveedor: 'X' }), []);
+  assert.deepStrictEqual(CalidadMP.aReemplazar(docs, { id: 3, inventario_id: 7, tipo: 'OTRO', proveedor: 'X' }), []);
 });

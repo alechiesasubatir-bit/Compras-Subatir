@@ -10,8 +10,9 @@
 //   · Una MP puede tener varios proveedores, y cada proveedor su propia
 //     FT, HDS y COA. Por eso la unidad es MP × proveedor: una fila por
 //     cada proveedor que figura en la ficha o en algún documento.
-//   · FT y HDS: el último cargado de cada tipo es el que vale. Si tiene
-//     fecha de vencimiento, avisa 30 días antes.
+//   · FT y HDS: NO vencen y no guardan versiones (29/09/2026, pedido del
+//     usuario): cuando llega documentación nueva se carga y REEMPLAZA a la
+//     anterior, que se borra. aReemplazar() dice cuáles se van.
 //   · COA: se guardan todos; se muestra el último. No se reclama.
 //   · OTRO: cualquier otro documento del producto, con un nombre
 //     (titulo). Con proveedor va en la fila de ese proveedor; sin
@@ -31,24 +32,12 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var AVISO_DIAS = 30;
-
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function hoyISO() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
 
   function norm(s) {
     if (typeof SubatirApp !== 'undefined' && SubatirApp.match && SubatirApp.match.norm) return SubatirApp.match.norm(String(s || ''));
     return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
-  }
-
-  // Estado de vencimiento de una FT/HDS: '' (vale o no tiene fecha),
-  // 'pronto' (vence en 30 días o menos) o 'vencido'.
-  function vencimiento(doc, hoy) {
-    if (!doc || !doc.vence) return '';
-    hoy = hoy || new Date(); var h = new Date(hoy); h.setHours(0, 0, 0, 0);
-    var d = new Date(doc.vence + 'T00:00:00');
-    var dias = Math.round((d - h) / 86400000);
-    return dias < 0 ? 'vencido' : (dias <= AVISO_DIAS ? 'pronto' : '');
   }
 
   // Fecha con la que se ordena un documento. Los COA viejos traen sólo
@@ -90,7 +79,7 @@
    * mayúsculas ni acentos. Una MP sin proveedor ni documentos queda en
    * una fila con el proveedor vacío.
    */
-  function filas(datos, hoy) {
+  function filas(datos) {
     var porArt = {};
     datos.docs.forEach(function (d) {
       if (d.inventario_id == null) return;
@@ -120,7 +109,7 @@
         var ft = ultimo(de('FT')), hds = ultimo(de('HDS')), coas = de('COA');
         out.push({
           key: m.id + '|' + k, mp: m, prov: g.nombre, docs: todos,
-          ft: ft, hds: hds, ftVto: vencimiento(ft, hoy), hdsVto: vencimiento(hds, hoy),
+          ft: ft, hds: hds,
           coa: ultimo(coas), nCoa: coas.length,
           otros: ordenar(de('OTRO'))
         });
@@ -130,15 +119,14 @@
   }
 
   function resumen(fs) {
-    var r = { filas: fs.length, mps: 0, sinFT: 0, sinHDS: 0, sinCOA: 0, vencidos: 0, pronto: 0 };
+    var r = { filas: fs.length, mps: 0, sinFT: 0, sinHDS: 0, sinCOA: 0, completas: 0 };
     var vistos = {};
     fs.forEach(function (f) {
       if (!vistos[f.mp.id]) { vistos[f.mp.id] = 1; r.mps++; }
       if (!f.ft) r.sinFT++;
       if (!f.hds) r.sinHDS++;
       if (!f.coa) r.sinCOA++;
-      if (f.ftVto === 'vencido' || f.hdsVto === 'vencido') r.vencidos++;
-      else if (f.ftVto === 'pronto' || f.hdsVto === 'pronto') r.pronto++;
+      if (f.ft && f.hds) r.completas++;
     });
     return r;
   }
@@ -207,7 +195,7 @@
    * Una fila por artículo importado del proveedor, con su FT y HDS
    * vigentes (el último de cada tipo, igual que en las MP de Stock).
    */
-  function filasImp(arts, docs, hoy) {
+  function filasImp(arts, docs) {
     var por = {};
     (docs || []).forEach(function (d) {
       if (d.mp_articulo_id == null) return;
@@ -218,19 +206,16 @@
       var de = function (t) { return ds.filter(function (d) { return d.tipo === t; }); };
       var ft = ultimo(de('FT')), hds = ultimo(de('HDS'));
       return { art: a, docs: ordenar(ds), ft: ft, hds: hds,
-        ftVto: vencimiento(ft, hoy), hdsVto: vencimiento(hds, hoy),
         nFt: de('FT').length, nHds: de('HDS').length };
     });
   }
 
   function resumenImp(fs) {
-    var r = { arts: fs.length, conFT: 0, conHDS: 0, completos: 0, vencidos: 0, pronto: 0, docs: 0 };
+    var r = { arts: fs.length, conFT: 0, conHDS: 0, completos: 0, docs: 0 };
     fs.forEach(function (f) {
       if (f.ft) r.conFT++;
       if (f.hds) r.conHDS++;
       if (f.ft && f.hds) r.completos++;
-      if (f.ftVto === 'vencido' || f.hdsVto === 'vencido') r.vencidos++;
-      else if (f.ftVto === 'pronto' || f.hdsVto === 'pronto') r.pronto++;
       r.docs += f.docs.length;
     });
     // Cobertura = de todos los papeles que tendría que haber (FT + HDS
@@ -239,9 +224,27 @@
     return r;
   }
 
+  /**
+   * Qué documentos borra una FT/HDS recién cargada: los otros del mismo
+   * tipo y del mismo lugar — la misma MP de Stock con el mismo proveedor
+   * (sin importar mayúsculas ni acentos), o el mismo artículo importado.
+   * COA y otros documentos no se reemplazan: devuelve [].
+   * @param {Array} docs  candidatos (leídos de la base justo antes)
+   * @param {Object} nuevo  la fila recién insertada (con id)
+   */
+  function aReemplazar(docs, nuevo) {
+    if (!nuevo || (nuevo.tipo !== 'FT' && nuevo.tipo !== 'HDS')) return [];
+    return (docs || []).filter(function (d) {
+      if (d.id === nuevo.id || d.tipo !== nuevo.tipo) return false;
+      if (nuevo.mp_articulo_id != null) return d.mp_articulo_id === nuevo.mp_articulo_id;
+      return nuevo.inventario_id != null && d.inventario_id === nuevo.inventario_id
+        && norm(d.proveedor) === norm(nuevo.proveedor);
+    });
+  }
+
   return {
-    AVISO_DIAS: AVISO_DIAS, BUCKET: 'calidad-mp',
-    norm: norm, hoyISO: hoyISO, vencimiento: vencimiento, fechaDe: fechaDe,
+    BUCKET: 'calidad-mp',
+    norm: norm, hoyISO: hoyISO, fechaDe: fechaDe, aReemplazar: aReemplazar,
     ordenar: ordenar, cargar: cargar, filas: filas, resumen: resumen,
     palabras: palabras, detectarTipo: detectarTipo, emparejar: emparejar,
     filasImp: filasImp, resumenImp: resumenImp

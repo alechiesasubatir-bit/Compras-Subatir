@@ -226,8 +226,8 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 .btn:disabled{opacity:.5;cursor:wait;transform:none}
 
 /* ═══ PROPIAS DE CALIDAD MP ═══════════════════════════════════
-   Cada celda de documento es un "chip": verde si está y vale, ámbar si
-   vence pronto, rojo si falta o venció. Tocarlo abre el archivo. */
+   Cada celda de documento es un "chip": verde si está, rojo si falta (FT/HDS),
+   gris si no se reclama (COA). Tocarlo abre el archivo. */
 .dc{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;
   font-size:10.5px;font-weight:700;white-space:nowrap;border:1px solid transparent;
   background:none;font-family:inherit;cursor:pointer;line-height:1.35;text-align:left}
@@ -419,17 +419,18 @@ tbody tr.rv{animation-duration:.4s;animation-delay:calc(var(--i,0) * 18ms)}
 .ahd b{flex:1;font-size:13px;line-height:1.3}
 .ahd .art-cod{font-size:9.5px;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.05);white-space:nowrap}
 .atiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.atiles.t3{grid-template-columns:repeat(3,1fr);gap:8px}
+.agrid.g3{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.ahd .aprov{display:block;font-size:10.5px;font-weight:500;color:var(--muted-l);margin-top:2px}
+.nprov{display:inline-block;margin-left:4px;padding:0 7px;border-radius:10px;font-size:9.5px;font-weight:700;
+  color:#fdba74;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.35);white-space:nowrap}
+.afoot .dc{max-width:62%;overflow:hidden;text-overflow:ellipsis}
 .dtile{position:relative;display:flex;flex-direction:column;gap:6px;border:none;background:none;padding:0;
   color:inherit;font:inherit;text-align:left;cursor:pointer}
 .dtile .thumb{aspect-ratio:3/4;border:1px solid var(--border);transition:border-color .2s,box-shadow .25s}
 .dtile:hover .thumb{border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(18,160,204,.15)}
 .dtile .dt-l{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:10px;font-weight:800;letter-spacing:.5px}
 .dtile .dt-l span:last-child{font-weight:600;font-family:var(--mono);font-size:9.5px;color:var(--muted-l);letter-spacing:0}
-.dtile .dt-l .c-amber,.dtile .dt-l .c-red{color:inherit}
-.dtile.v-pronto .thumb{border-color:var(--amber-b)}
-.dtile.v-pronto .dt-l span:last-child{color:#fcd34d}
-.dtile.v-vencido .thumb{border-color:var(--red-b)}
-.dtile.v-vencido .dt-l span:last-child{color:#fca5a5}
 .dtile .badge-n{position:absolute;top:6px;right:6px;z-index:2;font-family:var(--mono);font-size:9.5px;font-weight:700;
   padding:1px 6px;border-radius:8px;background:rgba(4,8,16,.8);border:1px solid var(--border-b)}
 .dtile .zoom{position:absolute;left:0;right:0;top:0;aspect-ratio:3/4;z-index:2;display:grid;place-items:center;font-size:20px;opacity:0;
@@ -467,7 +468,7 @@ tbody tr.rv{animation-duration:.4s;animation-delay:calc(var(--i,0) * 18ms)}
 .bdrop.mini p{display:none}
 .bsum{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px}
 .blist{display:flex;flex-direction:column;gap:7px}
-.brow{display:grid;grid-template-columns:42px minmax(0,1.2fr) minmax(0,1.5fr) 150px 130px 30px;gap:9px;align-items:center;
+.brow{display:grid;grid-template-columns:42px minmax(0,1.2fr) minmax(0,1.5fr) 160px 30px;gap:9px;align-items:center;
   padding:8px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.025);
   position:relative;overflow:hidden;animation:rise .35s var(--ease-o) both;animation-delay:calc(var(--i,0) * 30ms)}
 .brow .thumb{width:42px;height:54px}
@@ -497,7 +498,7 @@ tbody tr.rv{animation-duration:.4s;animation-delay:calc(var(--i,0) * 18ms)}
   .vis-side{display:none}
   .vis-pages{padding:12px}
   .brow{grid-template-columns:42px minmax(0,1fr) 30px}
-  .brow .bsel,.brow .btipo,.brow .bvto{grid-column:2/-1}
+  .brow .bsel,.brow .btipo{grid-column:2/-1}
 }
 @media (max-width:720px){
   .hero{padding:16px}
@@ -506,6 +507,7 @@ tbody tr.rv{animation-duration:.4s;animation-delay:calc(var(--i,0) * 18ms)}
   .ring b{font-size:16px}
   .ring small{bottom:18px}
   .agrid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .agrid.g3{grid-template-columns:1fr}
   .acard{padding:10px;gap:9px}
   .vis-top{padding:10px 12px;flex-wrap:wrap}
 }

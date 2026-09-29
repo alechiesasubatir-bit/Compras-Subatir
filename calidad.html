@@ -15,17 +15,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="calidad-ui.css?v=2026-09-29.1726"/>
+<link rel="stylesheet" href="calidad-ui.css?v=2026-09-29.1802"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-29.1726"/>
-<script src="supabase-config.js?v=2026-09-29.1726"></script>
-<script src="subatir-app.js?v=2026-09-29.1726"></script>
-<script src="calidad-calc.js?v=2026-09-29.1726"></script>
-<script src="calidad-ui.js?v=2026-09-29.1726"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-29.1802"/>
+<script src="supabase-config.js?v=2026-09-29.1802"></script>
+<script src="subatir-app.js?v=2026-09-29.1802"></script>
+<script src="calidad-calc.js?v=2026-09-29.1802"></script>
+<script src="calidad-ui.js?v=2026-09-29.1802"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-29.1726';
+window.APP_VER='2026-09-29.1802';
 </script>
 </head>
 <body>
@@ -41,7 +41,7 @@ window.APP_VER='2026-09-29.1726';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-29.1726"></script>
+  <script src="nav.js?v=2026-09-29.1802"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -84,11 +84,11 @@ window.APP_VER='2026-09-29.1726';
       <div class="kpi-num c-teal" id="k-coa">—</div>
       <div class="kpi-sub">MP × proveedor</div>
     </div>
-    <div class="glass kpi kpi-crit clic rv" style="--i:4" data-f="VTO" onclick="kpiFiltro(this)">
-      <div class="kpi-icon">⏳</div>
-      <div class="kpi-label">FT / HDS vencidas</div>
-      <div class="kpi-num c-red" id="k-vto">—</div>
-      <div class="kpi-sub" id="k-vto-sub">+ por vencer en 30 días</div>
+    <div class="glass kpi kpi-optimo clic rv" style="--i:4" data-f="OK" onclick="kpiFiltro(this)">
+      <div class="kpi-icon">✓</div>
+      <div class="kpi-label">Completas</div>
+      <div class="kpi-num c-green" id="k-ok">—</div>
+      <div class="kpi-sub">con FT y HDS</div>
     </div>
   </div>
 
@@ -98,6 +98,10 @@ window.APP_VER='2026-09-29.1726';
       <h2>🧪 <em>Documentos de Materias Primas</em></h2>
       <div class="sec-actions">
         <span class="badge b-info" id="tbl-cnt">—</span>
+        <div class="seg" role="group" aria-label="Vista">
+          <button id="v-grid" class="on" onclick="setVista('grid')">▦ Tarjetas</button>
+          <button id="v-list" onclick="setVista('list')">☰ Lista</button>
+        </div>
         <a class="btn-imp" href="calidad-imp.html" title="FT y hojas de seguridad de las materias primas importadas (MERO AR…)">
           <span class="bi-ico">🌎</span>
           <span>MP Importadas<small>FT y HDS por proveedor</small></span>
@@ -115,28 +119,22 @@ window.APP_VER='2026-09-29.1726';
         <option value="FT">Sin ficha técnica</option>
         <option value="HDS">Sin hoja de seguridad</option>
         <option value="COA">Sin COA cargado</option>
-        <option value="VTO">FT / HDS vencidas o por vencer</option>
+        <option value="OK">Completas (FT y HDS)</option>
       </select>
       <select class="fi" id="f-prov" onchange="render()" aria-label="Filtrar por proveedor">
         <option value="">Todos los proveedores</option>
       </select>
       <button class="btn btn-orange btn-sm" id="btn-subir" style="display:none;margin-left:auto" onclick="abrirSubir(null,'FT','')">⬆ Subir documento</button>
     </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>Materia prima</th><th>Proveedor</th>
-          <th>Ficha técnica</th><th>Hoja de seguridad</th>
-          <th>Último COA</th><th>Otros documentos</th><th></th>
-        </tr></thead>
-        <tbody id="tbody"><tr><td colspan="7" class="empty-td">Cargando…</td></tr></tbody>
-      </table>
-    </div>
+    <!-- Tarjetas o lista: la misma vista en todo Calidad MP (calidad-ui.js) -->
+    <div id="vista"><div class="agrid"><div class="empty-grid">Cargando…</div></div></div>
     <div class="muted" style="font-size:11px;margin-top:10px">
-      Una fila por materia prima y proveedor: cada proveedor tiene su propia ficha técnica, hoja de seguridad y COA.
-      Para sumar un proveedor, subí un documento a su nombre. En "Otros documentos" va cualquier otro papel del producto;
+      Una tarjeta por materia prima y proveedor: una misma MP puede comprarse a varios proveedores, y cada uno tiene su
+      propia ficha técnica, hoja de seguridad y COA (una FT u HDS nueva sólo reemplaza la de ESE proveedor).
+      Para sumar un proveedor a una MP, tocá ＋ proveedor en su tarjeta. En "Otros documentos" va cualquier otro papel del producto;
       sin proveedor, vale para todos. Los documentos los sube un administrador.
       Tocá un documento para verlo acá mismo (← → pasa al siguiente); 🗂 muestra todo lo cargado de ese proveedor.
+      Un administrador puede soltar un archivo directo sobre la ficha de una tarjeta.
     </div>
   </div>
 
@@ -165,18 +163,16 @@ window.APP_VER='2026-09-29.1726';
       </div>
       <div class="fg">
         <label for="up-prov" id="up-prov-l">Proveedor</label>
-        <input class="fi2" id="up-prov" list="dl-prov" placeholder="Proveedor que emite el documento"/>
+        <input class="fi2" id="up-prov" list="dl-prov" placeholder="Proveedor que emite el documento" oninput="upAviso()"/>
         <datalist id="dl-prov"></datalist>
       </div>
       <div id="up-coa">
         <div class="fg"><label for="up-lote">Lote (opcional)</label><input class="fi2" id="up-lote" placeholder="Nº de lote"/></div>
       </div>
       <div id="up-ft">
-        <div class="row2">
-          <div class="fg"><label for="up-rev">Revisión (opcional)</label><input class="fi2" id="up-rev" placeholder="Rev. 3"/></div>
-          <div class="fg"><label for="up-vence">Vence (opcional)</label><input type="date" class="fi2" id="up-vence"/></div>
-        </div>
+        <div class="fg"><label for="up-rev">Revisión (opcional)</label><input class="fi2" id="up-rev" placeholder="Rev. 3"/></div>
       </div>
+      <div id="up-reemp" class="glass" style="display:none;padding:9px 12px;margin-bottom:13px;border-color:var(--amber-b);color:#fcd34d;font-size:11.5px"></div>
       <div class="fg"><label for="up-fecha">Fecha del documento (opcional)</label><input type="date" class="fi2" id="up-fecha"/></div>
       <div class="fg">
         <label>Archivo · PDF o foto, hasta 20 MB</label>
@@ -259,26 +255,23 @@ function botonSubir(i, tipo){
   return '<button class="up" title="'+esc(t)+'" aria-label="'+esc(t)+'" onclick="subirFila('+i+',\''+tipo+'\')">⬆</button>';
 }
 
-function chipDoc(doc, vto, tipo, i){
-  var up = botonSubir(i, tipo);
-  if(!doc) return '<div class="cell"><span class="dc dc-red">✕ falta</span>'+up+'</div>';
-  var cls = vto === 'vencido' ? 'dc-red vto' : (vto === 'pronto' ? 'dc-amb' : 'dc-ok');
-  var det = [doc.revision,
-             doc.vence ? (vto==='vencido' ? 'venció ' : 'vence ')+fechaCorta(doc.vence)
-                       : (doc.fecha_doc ? fechaCorta(doc.fecha_doc) : '')].filter(Boolean).join(' · ');
-  return '<div class="cell"><button class="dc '+cls+'" title="Abrir '+esc(doc.nombre_archivo||'')+'" '
-    +'onclick="abrirDoc('+doc.id+')">📄 '+(vto==='vencido'?'vencida':'ver')+(det?' <small>'+esc(det)+'</small>':'')+'</button>'+up+'</div>';
-}
-
-// El COA no se reclama acá (eso lo dice el Check List de Recepción):
-// si no hay ninguno, la celda queda neutra, no en rojo.
-function celdaCOA(f, i){
-  var up = botonSubir(i, 'COA');
-  if(!f.coa) return '<div class="cell"><span class="dc dc-mut">sin cargar</span>'+up+'</div>';
-  var d = f.coa, fe = CalidadMP.fechaDe(d);
-  var det = [d.lote ? 'L. '+d.lote : '', fe ? fechaCorta(fe) : ''].filter(Boolean).join(' · ');
-  return '<div class="cell"><button class="dc dc-ok" onclick="abrirDoc('+d.id+')" title="Abrir '+esc(d.nombre_archivo||'')+'">📄 ver'
-    +(det?' <small>'+esc(det)+'</small>':'')+(f.nCoa>1?' <small>· '+f.nCoa+' en total</small>':'')+'</button>'+up+'</div>';
+// FT, HDS y COA se dibujan con calidad-ui.js (las mismas fichas y
+// celdas que MP Importadas). La clave de cada una es el índice de la
+// fila en FILAS: el proveedor es texto libre y no sirve de atributo.
+function dato(f, tipo){
+  var i = FILAS.indexOf(f), o = { tipo: tipo, clave: i, nombre: f.mp.descripcion+(f.prov?' · '+f.prov:''), can: puede() };
+  if(tipo === 'COA'){
+    // El COA no se reclama acá (eso lo dice el Check List de Recepción):
+    // si no hay ninguno queda neutro, no en rojo.
+    var d = f.coa, fe = d && CalidadMP.fechaDe(d);
+    o.doc = d; o.n = f.nCoa; o.neutro = true;
+    if(d) o.det = [d.lote ? 'L. '+d.lote : '', fe ? fechaCorta(fe) : ''].filter(Boolean).join(' · ');
+    return o;
+  }
+  var ft = tipo === 'FT';
+  o.doc = f[ft ? 'ft' : 'hds'];
+  if(o.doc && o.doc.revision) o.det = [o.doc.revision, CalidadUI.detalle(o.doc)].join(' · ');
+  return o;
 }
 
 // Otros documentos: el último a la vista (por nombre) y la cantidad;
@@ -297,14 +290,62 @@ function filaHtml(f, k){
   var m = f.mp, i = FILAS.indexOf(f);
   return '<tr'+(ANIM ? ' class="rv" style="--i:'+Math.min(k,30)+'"' : '')+'>'
     +'<td><strong>'+esc(m.descripcion||'—')+'</strong>'+(m.codigo?'<br><span class="art-cod">'+esc(m.codigo)+'</span>':'')+'</td>'
-    +'<td>'+(f.prov ? esc(f.prov) : '<span class="muted">sin proveedor</span>')+'</td>'
-    +'<td>'+chipDoc(f.ft, f.ftVto, 'FT', i)+'</td>'
-    +'<td>'+chipDoc(f.hds, f.hdsVto, 'HDS', i)+'</td>'
-    +'<td>'+celdaCOA(f, i)+'</td>'
+    +'<td><div class="cell">'+(f.prov ? esc(f.prov) : '<span class="muted">sin proveedor</span>')
+      +(NPROV[m.id] > 1 ? '<span class="nprov" title="Esta MP se compra a '+NPROV[m.id]+' proveedores">'+NPROV[m.id]+' prov.</span>' : '')
+      +(puede() ? '<button class="up" title="Cargar documentos de otro proveedor de esta MP" aria-label="Otro proveedor" onclick="otroProv('+i+')">＋</button>' : '')
+      +'</div></td>'
+    +'<td>'+CalidadUI.celda(dato(f,'FT'))+'</td>'
+    +'<td>'+CalidadUI.celda(dato(f,'HDS'))+'</td>'
+    +'<td>'+CalidadUI.celda(dato(f,'COA'))+'</td>'
     +'<td>'+celdaOtros(f, i)+'</td>'
     +'<td><button class="btn btn-ghost btn-sm" title="Todo lo cargado de este proveedor" onclick="abrirHist('+i+')">🗂 '
       +(f.docs.length||'')+'</button></td>'
     +'</tr>';
+}
+function listaHtml(rows){
+  return '<div class="tbl-wrap"><table><thead><tr>'
+    +'<th>Materia prima</th><th>Proveedor</th><th>Ficha técnica</th><th>Hoja de seguridad</th>'
+    +'<th>Último COA</th><th>Otros documentos</th><th></th></tr></thead><tbody>'
+    +(rows.map(filaHtml).join('') || '<tr><td colspan="7" class="empty-td">Sin resultados para el filtro.</td></tr>')
+    +'</tbody></table></div>';
+}
+// Tarjeta: la misma de MP Importadas, con el COA como tercera ficha y
+// abajo los otros documentos y el historial
+function cardHtml(f, k){
+  var m = f.mp, i = FILAS.indexOf(f), no = f.otros.length;
+  return '<article class="glass acard '+CalidadUI.estado(f)+(ANIM?' rv':'')+'" style="--i:'+Math.min(k,24)+'">'
+    +'<div class="ahd"><b>'+esc(m.descripcion||'—')+'<span class="aprov">🏭 '+(f.prov ? esc(f.prov) : 'sin proveedor')
+      +(NPROV[m.id] > 1 ? ' <span class="nprov" title="Esta MP se compra a '+NPROV[m.id]+' proveedores: cada uno tiene sus documentos">'
+        +NPROV[m.id]+' proveedores</span>' : '')+'</span></b>'
+      +(m.codigo?'<span class="art-cod">'+esc(m.codigo)+'</span>':'')+'</div>'
+    +'<div class="atiles t3">'+CalidadUI.tile(dato(f,'FT'))+CalidadUI.tile(dato(f,'HDS'))+CalidadUI.tile(dato(f,'COA'))+'</div>'
+    +'<div class="afoot">'
+      +(no ? '<button class="dc dc-ok" onclick="'+(no>1?'abrirHist('+i+')':'abrirDoc('+f.otros[0].id+')')+'" title="'
+          +esc(f.otros.map(function(d){ return d.titulo||d.nombre_archivo; }).join(' · '))+'">📎 '
+          +(no>1 ? no+' otros documentos' : esc(f.otros[0].titulo||'otro documento'))+'</button>'
+        : '<span>sin otros documentos</span>')
+      +(puede()?botonSubir(i,'OTRO'):'')
+      +'<span class="sp"></span>'
+      +(puede() ? '<button class="btn btn-ghost btn-sm" title="Cargar FT, HDS o COA de OTRO proveedor de esta MP" onclick="otroProv('+i+')">＋ proveedor</button>' : '')
+      +'<button class="btn btn-ghost btn-sm" title="Todo lo cargado de este proveedor" onclick="abrirHist('+i+')">🗂 '+(f.docs.length||'')+'</button>'
+    +'</div></article>';
+}
+function gridHtml(rows){
+  return '<div class="agrid g3">'+(rows.map(cardHtml).join('')
+    || '<div class="empty-grid"><big>🔎</big>Sin resultados para el filtro.</div>')+'</div>';
+}
+function setVista(v){ CalidadUI.vista.set(v); ANIM = true; render(); }
+var NPROV = {};   // id de la MP → cuántos proveedores tiene
+
+// Otro proveedor para la misma MP: se abre la subida con la MP elegida y
+// el proveedor en blanco. Al subir el primer documento aparece su tarjeta,
+// con su propia FT, HDS y COA (no toca los del otro proveedor).
+function otroProv(i){
+  var f = FILAS[i]; if(!f) return;
+  abrirSubir(f.mp.id, 'FT', '');
+  setText('up-prov-l', 'Proveedor nuevo para esta MP');
+  document.getElementById('up-prov').placeholder = 'Nombre del otro proveedor';
+  setTimeout(function(){ document.getElementById('up-prov').focus(); }, 80);
 }
 
 // ─── Filtro ─────────────────────────────────────────────────
@@ -314,7 +355,7 @@ function pasa(f, est){
   if(est === 'FT')  return !f.ft;
   if(est === 'HDS') return !f.hds;
   if(est === 'COA') return !f.coa;
-  if(est === 'VTO') return !!(f.ftVto || f.hdsVto);
+  if(est === 'OK')  return !!(f.ft && f.hds);
   return true;
 }
 function kpiFiltro(el){
@@ -327,22 +368,23 @@ var ANIM = true;
 
 function render(){
   if(!FILAS.length){
-    document.getElementById('tbody').innerHTML = CARGA === 'err'
-      ? '<tr><td colspan="7" class="empty-td" style="color:var(--amber)">⚠ No se pudieron cargar los datos. '
-        + '<button class="btn btn-ghost btn-sm" onclick="load()">↻ Reintentar</button></td></tr>'
-      : '<tr><td colspan="7" class="empty-td">'+(CARGA?'No hay materias primas en el inventario.':'Cargando…')+'</td></tr>';
+    document.getElementById('vista').innerHTML = '<div class="agrid"><div class="empty-grid">'+(CARGA === 'err'
+      ? '<span style="color:var(--amber)">⚠ No se pudieron cargar los datos.</span> '
+        + '<button class="btn btn-ghost btn-sm" onclick="load()">↻ Reintentar</button>'
+      : (CARGA?'No hay materias primas en el inventario.':'Cargando…'))+'</div></div>';
     setText('tbl-cnt','—');
-    ['k-total','k-coa','k-hds','k-ft','k-vto'].forEach(function(id){ setText(id,'—'); });
+    ['k-total','k-coa','k-hds','k-ft','k-ok'].forEach(function(id){ setText(id,'—'); });
     return;
   }
   var r = CalidadMP.resumen(FILAS);
+  NPROV = {};
+  FILAS.forEach(function(f){ if(f.prov) NPROV[f.mp.id] = (NPROV[f.mp.id] || 0) + 1; });
   CalidadUI.countUp('k-total', r.mps);
   setText('k-total-sub', r.filas+' filas MP × proveedor');
   CalidadUI.countUp('k-ft', r.sinFT);
   CalidadUI.countUp('k-hds', r.sinHDS);
   CalidadUI.countUp('k-coa', r.sinCOA);
-  CalidadUI.countUp('k-vto', r.vencidos);
-  setText('k-vto-sub', '+ '+r.pronto+' por vencer en '+CalidadMP.AVISO_DIAS+' días');
+  CalidadUI.countUp('k-ok', r.completas);
 
   var est = document.getElementById('f-est').value;
   var prov = document.getElementById('f-prov').value;
@@ -358,17 +400,31 @@ function render(){
     }
     return true;
   });
-  // Primero lo vencido, después lo incompleto; dentro, por nombre
-  var peso = function(f){ return (f.ftVto==='vencido'||f.hdsVto==='vencido') ? 0 : (!f.hds||!f.ft) ? 1 : 2; };
+  // Primero lo incompleto; dentro, por nombre. Una MP con varios
+  // proveedores va junta: pesa lo que pesa la más incompleta de sus filas.
+  var peso = function(f){ return (!f.hds||!f.ft) ? 0 : 1; }, pesoMP = {};
+  rows.forEach(function(f){ pesoMP[f.mp.id] = Math.min(pesoMP[f.mp.id] == null ? 1 : pesoMP[f.mp.id], peso(f)); });
   rows.sort(function(a,b){
-    return peso(a)-peso(b) || String(a.mp.descripcion||'').localeCompare(String(b.mp.descripcion||''), 'es')
-      || a.prov.localeCompare(b.prov, 'es');
+    return pesoMP[a.mp.id]-pesoMP[b.mp.id] || String(a.mp.descripcion||'').localeCompare(String(b.mp.descripcion||''), 'es')
+      || a.mp.id-b.mp.id || a.prov.localeCompare(b.prov, 'es');
   });
   setText('tbl-cnt', rows.length+' de '+FILAS.length);
   VISIBLES = rows;
-  document.getElementById('tbody').innerHTML =
-    rows.map(filaHtml).join('') || '<tr><td colspan="7" class="empty-td">Sin resultados para el filtro.</td></tr>';
+  var cont = document.getElementById('vista');
+  cont.innerHTML = CalidadUI.vista.get() === 'grid' ? gridHtml(rows) : listaHtml(rows);
   ANIM = false;
+  CalidadUI.miniaturas(cont, docById);
+  CalidadUI.enganchar(cont, {
+    puede: puede(),
+    abrir: abrirDoc,
+    subir: function(i, t){ subirFila(+i, t); },
+    // Soltar sobre una ficha abre el modal de esa MP, proveedor y tipo
+    // con el archivo ya elegido (uno solo: cada documento lleva sus datos)
+    soltar: function(i, t, fs){
+      subirFila(+i, t); upArchivo(fs[0]);
+      if(fs.length > 1) toast('Acá va de a un archivo: se tomó '+fs[0].name+'.', 'inf');
+    }
+  });
 }
 var VISIBLES = [];
 
@@ -416,7 +472,8 @@ function abrirSubir(inv, tipo, prov){
   document.getElementById('up-tipo').innerHTML = TIPOS_ORDEN.map(function(t){
     return '<option value="'+t+'"'+(t===tipo?' selected':'')+'>'+TIPO_TXT[t]+'</option>'; }).join('');
   document.getElementById('up-prov').value = prov || '';
-  ['up-titulo','up-lote','up-rev','up-vence','up-fecha','up-obs'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('up-prov').placeholder = 'Proveedor que emite el documento';
+  ['up-titulo','up-lote','up-rev','up-fecha','up-obs'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('up-file').value = '';
   UP = { inv: inv, file: null };
   setText('up-fname', 'Tocá para elegir el archivo, o arrastralo acá');
@@ -427,6 +484,7 @@ function abrirSubir(inv, tipo, prov){
 function upMP(){
   var inv = +document.getElementById('up-mp').value || null;
   UP.inv = inv;
+  if(document.getElementById('up-tipo').value) upAviso();
   var m = inv && mpById(inv);
   setText('up-art', m ? m.descripcion + (m.codigo ? ' · '+m.codigo : '') : 'Elegí la materia prima');
   var propios = [], otros = [], vistos = {};
@@ -452,6 +510,18 @@ function upTipo(){
   // Sólo la inicial en minúscula: toLowerCase() entero dejaba "(coa)"
   var tx = TIPO_TXT[t] || 'Documento';
   setText('up-t', 'Subir '+tx.charAt(0).toLowerCase()+tx.slice(1));
+  upAviso();
+}
+// FT y HDS no guardan versiones: si ya hay una para esa MP y ese
+// proveedor, se avisa que la nueva la reemplaza (la anterior se borra)
+function upAviso(){
+  var el = document.getElementById('up-reemp');
+  var t = document.getElementById('up-tipo').value, p = CalidadMP.norm(document.getElementById('up-prov').value);
+  var f = (t === 'FT' || t === 'HDS') && UP.inv && FILAS.filter(function(x){ return x.mp.id === UP.inv && CalidadMP.norm(x.prov) === p; })[0];
+  var d = f && f[t === 'FT' ? 'ft' : 'hds'];
+  el.style.display = d ? '' : 'none';
+  if(d) el.innerHTML = '⚠ Ya hay '+(t === 'FT' ? 'una ficha técnica' : 'una hoja de seguridad')+' cargada (<b>'+esc(d.nombre_archivo||'documento')
+    +'</b>). La nueva la <b>reemplaza</b>: la anterior se borra.';
 }
 var TIPOS_OK = ['application/pdf','image/jpeg','image/png','image/webp'];
 function upArchivo(f){
@@ -466,6 +536,10 @@ function upArchivo(f){
   ['dragenter','dragover'].forEach(function(ev){ d.addEventListener(ev, function(e){ e.preventDefault(); d.classList.add('on'); }); });
   ['dragleave','drop'].forEach(function(ev){ d.addEventListener(ev, function(e){ e.preventDefault(); d.classList.remove('on'); }); });
   d.addEventListener('drop', function(e){ upArchivo(e.dataTransfer.files && e.dataTransfer.files[0]); });
+  // Un archivo que se suelta fuera de una ficha no tiene que abrirse en
+  // la pestaña (se perdería la pantalla)
+  document.addEventListener('dragover', function(e){ e.preventDefault(); });
+  document.addEventListener('drop', function(e){ e.preventDefault(); });
 })();
 
 // Nombre seguro para la ruta del bucket: sin acentos, espacios ni símbolos
@@ -500,7 +574,6 @@ function subir(){
     mes: tipo === 'COA' ? (fecha || CalidadMP.hoyISO()).slice(0,7)+'-01' : null,
     lote: tipo === 'COA' ? val('up-lote') : null,
     revision: tipo === 'COA' ? null : val('up-rev'),
-    vence: tipo === 'COA' ? null : val('up-vence'),
     fecha_doc: fecha,
     archivo: ruta, nombre_archivo: UP.file.name, bytes: UP.file.size,
     observaciones: val('up-obs'), subido_por: quien()
@@ -519,10 +592,16 @@ function subir(){
         st.remove([ruta]);     // sin fila el archivo quedaría huérfano
         throw new Error('No se pudo registrar: '+(ins.error ? ins.error.message : 'sin permiso'));
       }
+      // FT/HDS: la nueva reemplaza a la anterior. Si borrar falla, la
+      // nueva ya quedó y es la que se ve: sólo se avisa.
+      fila.id = ins.data[0].id;
+      return CalidadUI.reemplazar(fila).catch(function(e){
+        toast('Se cargó, pero no se pudo borrar la anterior: '+(e && e.message || e), 'err'); return 0;
+      });
     });
-  }).then(function(){
+  }).then(function(n){
     fin(); cerrar('ov-up');
-    toast('✓ '+(tipo === 'OTRO' ? titulo : TIPO_TXT[tipo])+' cargado · '+m.descripcion+(prov ? ' · '+prov : ''), 'ok');
+    toast('✓ '+(tipo === 'OTRO' ? titulo : TIPO_TXT[tipo])+(n ? ' reemplazada' : ' cargado')+' · '+m.descripcion+(prov ? ' · '+prov : ''), 'ok');
     load();
   }).catch(function(e){
     fin();
@@ -551,7 +630,6 @@ function pintarHist(){
         var fe = CalidadMP.fechaDe(d);
         var det = [t === 'OTRO' && !d.proveedor ? 'vale para todos los proveedores' : '',
                    d.revision, d.lote ? 'lote '+d.lote : '', fe ? fechaCorta(fe) : '',
-                   d.vence ? 'vence '+fechaCorta(d.vence) : '',
                    'subió '+(d.subido_por||'—')+' '+fechaCorta(d.created_at)].filter(Boolean).join(' · ');
         return '<div class="hist-r"><div class="thumb" data-doc="'+d.id+'" onclick="abrirDoc('+d.id+')"></div><div class="hm"><b title="'+esc(d.nombre_archivo||'')+'">'+esc(d.titulo||d.nombre_archivo||'documento')+'</b>'
           +'<span title="'+esc(det)+'">'+esc(det)+'</span>'
@@ -597,13 +675,13 @@ function borrarDB(d){
 // ─── CSV ────────────────────────────────────────────────────
 function exportCSV(){
   if(!FILAS.length){ toast('No hay datos para exportar.', 'inf'); return; }
-  var head = ['Codigo','Materia prima','Proveedor','Ficha tecnica','FT revision','FT vence',
-              'Hoja de seguridad','HDS revision','HDS vence','Ultimo COA','COA lote','COA cargados','Otros documentos'];
-  var estDoc = function(d, v){ return !d ? 'FALTA' : (v==='vencido' ? 'VENCIDA' : (v==='pronto' ? 'POR VENCER' : 'OK')); };
+  var head = ['Codigo','Materia prima','Proveedor','Ficha tecnica','FT revision','FT archivo',
+              'Hoja de seguridad','HDS revision','HDS archivo','Ultimo COA','COA lote','COA cargados','Otros documentos'];
+  var estDoc = function(d){ return d ? 'OK' : 'FALTA'; };
   var rows = FILAS.map(function(f){
     return [f.mp.codigo, f.mp.descripcion, f.prov,
-      estDoc(f.ft, f.ftVto), f.ft && f.ft.revision, f.ft && f.ft.vence,
-      estDoc(f.hds, f.hdsVto), f.hds && f.hds.revision, f.hds && f.hds.vence,
+      estDoc(f.ft), f.ft && f.ft.revision, f.ft && f.ft.nombre_archivo,
+      estDoc(f.hds), f.hds && f.hds.revision, f.hds && f.hds.nombre_archivo,
       f.coa ? CalidadMP.fechaDe(f.coa) : '', f.coa && f.coa.lote, f.nCoa,
       f.otros.map(function(d){ return d.titulo || d.nombre_archivo; }).join(' | ')];
   });
@@ -636,6 +714,7 @@ window.addEventListener('DOMContentLoaded', function(){
   SubatirApp.ready.then(function(p){
     PERFIL = p || {};
     ES_ADMIN = PERFIL.role === 'admin';
+    CalidadUI.vista.pintar();
     load();
     if(SubatirApp.live) SubatirApp.live(['mp_documentos','inventario'], load);
   });

@@ -77,6 +77,9 @@
 
   function primeraHoja(src, ancho) {
     return pdfjs().then(function (lib) {
+      // Para la miniatura alcanza con la primera hoja: sin esto pdf.js
+      // baja el PDF entero (hay fichas de varios MB) y la cola se arrastra
+      if (typeof src === 'string') src = { url: src, disableAutoFetch: true, disableStream: true };
       return lib.getDocument(src).promise.then(function (pdf) {
         return pdf.getPage(1).then(function (pg) {
           var v = pg.getViewport({ scale: 1 });
@@ -93,11 +96,32 @@
     });
   }
 
+  // Las miniaturas de PDF quedan guardadas en el equipo: un documento no
+  // cambia nunca con el mismo id (reemplazarlo es borrar y cargar otro),
+  // así que la segunda vez aparecen al instante. Si el almacenamiento se
+  // llena o no está, se sigue sin guardar.
+  var LS_MINI = 'calidadMP.mini.';
+  function miniGuardada(id) { try { return localStorage.getItem(LS_MINI + id); } catch (e) { return null; } }
+  function guardarMini(id, url) {
+    try { localStorage.setItem(LS_MINI + id, url); }
+    catch (e) {   // lleno: se vacían las miniaturas guardadas y se reintenta una vez
+      try {
+        Object.keys(localStorage).forEach(function (k) { if (k.indexOf(LS_MINI) === 0) localStorage.removeItem(k); });
+        localStorage.setItem(LS_MINI + id, url);
+      } catch (e2) { }
+    }
+  }
+  function borrarMini(id) { delete _mini[id]; try { localStorage.removeItem(LS_MINI + id); } catch (e) { } }
+
   var _mini = {};   // id del documento → Promise<url de la imagen>
   function miniDoc(doc) {
     if (!_mini[doc.id]) {
-      _mini[doc.id] = encolar(function () {
-        return firmada(doc).then(function (url) { return esImagen(doc) ? url : primeraHoja(url, 280); });
+      var g = !esImagen(doc) && miniGuardada(doc.id);
+      _mini[doc.id] = g ? Promise.resolve(g) : encolar(function () {
+        return firmada(doc).then(function (url) {
+          if (esImagen(doc)) return url;   // la foto se muestra tal cual (la URL firmada vence: no se guarda)
+          return primeraHoja(url, 280).then(function (img) { guardarMini(doc.id, img); return img; });
+        });
       });
       _mini[doc.id].catch(function () { delete _mini[doc.id]; });
     }
@@ -313,7 +337,6 @@
       ['Proveedor', d.proveedor || 'todos'],
       ['Revisión', d.revision], ['Lote', d.lote],
       ['Fecha', fe ? fechaCorta(fe) : ''],
-      ['Vence', d.vence ? fechaCorta(d.vence) : ''],
       ['Archivo', d.nombre_archivo],
       ['Tamaño', d.bytes ? (d.bytes / 1024 / 1024).toFixed(2) + ' MB' : ''],
       ['Subió', (d.subido_por || '—') + ' · ' + fechaCorta(d.created_at)],
@@ -351,10 +374,136 @@
     };
   }
 
+  // ── Tarjetas y lista: una sola forma para todo Calidad MP ───
+  // Las dos pantallas (MP de Stock y MP importadas) dibujan cada
+  // documento con estas funciones, así una ficha se ve y se toca igual
+  // en las dos. Cada página decide qué hace al tocar (en(): abrir,
+  // subir, soltar) y qué "clave" identifica a su fila.
+
+  // Vista (tarjetas o lista): una para todo el módulo. Siempre arranca
+  // en Tarjetas (pedido del usuario); si se elige Lista, dura mientras
+  // la pestaña esté abierta y se pasa de una pantalla a la otra.
+  var SS_VISTA = 'calidadMP.vista';
+  try { localStorage.removeItem(SS_VISTA); } catch (e) { }   // la guardaba la versión anterior
+  var vista = {
+    get: function () { try { return sessionStorage.getItem(SS_VISTA) === 'list' ? 'list' : 'grid'; } catch (e) { return 'grid'; } },
+    set: function (v) { try { sessionStorage.setItem(SS_VISTA, v); } catch (e) { } vista.pintar(); },
+    // Enciende el botón que corresponde en el selector (#v-grid / #v-list)
+    pintar: function () {
+      var v = vista.get(), g = document.getElementById('v-grid'), l = document.getElementById('v-list');
+      if (g) g.classList.toggle('on', v === 'grid');
+      if (l) l.classList.toggle('on', v === 'list');
+    }
+  };
+
+  // Color de la tarjeta: verde con FT y HDS, rojo sin ninguna, ámbar con
+  // una sola. FT y HDS no vencen; el COA no cuenta: no se reclama.
+  function estado(f) {
+    if (f.ft && f.hds) return 'ok';
+    return (!f.ft && !f.hds) ? 'bad' : 'mid';
+  }
+  function detalle(doc) {
+    if (!doc) return 'falta';
+    return fechaCorta(doc.fecha_doc || doc.mes || doc.created_at);
+  }
+
+  /**
+   * Una ficha de la tarjeta.
+   * @param {Object} o { doc, tipo:'FT'|'HDS'|'COA', clave, nombre (para el
+   *   lector de pantalla), n (versiones), det (texto de abajo), can (puede subir),
+   *   neutro (vacío no es "falta": el COA) }
+   */
+  function tile(o) {
+    var doc = o.doc, can = !!o.can, t = TIPO[o.tipo] || o.tipo;
+    var cls = 'dtile' + (can ? ' can' : '') + (!doc && !can ? ' nada' : '');
+    var body = doc
+      ? thumbHtml(doc) + '<span class="zoom" aria-hidden="true">🔍</span>'
+        + (o.n > 1 ? '<span class="badge-n" title="' + o.n + ' cargados">×' + o.n + '</span>' : '')  // COA: se guardan todos
+      : '<div class="dempty">' + (can ? '<big>＋</big>Subir ' + o.tipo + '<small>o soltá el archivo</small>'
+        : '<big>—</big>Sin ' + o.tipo) + '</div>';
+    var tt = (doc ? 'Ver ' : can ? 'Subir ' : 'Sin ') + t.toLowerCase();
+    var det = o.det != null ? o.det : (doc ? detalle(doc) : (o.neutro ? 'sin cargar' : 'falta'));
+    return '<button class="' + cls + '" data-k="' + esc(o.clave) + '" data-t="' + o.tipo + '" data-d="' + (doc ? doc.id : '') + '"'
+      + ' title="' + esc(tt) + '" aria-label="' + esc(tt + (o.nombre ? ' · ' + o.nombre : '')) + '"'
+      + (!doc && !can ? ' tabindex="-1"' : '') + '>'
+      + body + '<div class="dt-l"><span>' + o.tipo + '</span><span>' + esc(det) + '</span></div></button>';
+  }
+
+  // Botón chico para subir (una versión nueva o la primera)
+  function botonSubir(clave, tipo) {
+    var t = 'Subir ' + (TIPO[tipo] || tipo).toLowerCase();
+    return '<button class="up" data-k="' + esc(clave) + '" data-up="' + tipo + '" title="' + esc(t) + '" aria-label="' + esc(t) + '">⬆</button>';
+  }
+
+  /** Celda de la vista lista: miniatura + chip, con los mismos datos que tile() */
+  function celda(o) {
+    var up = o.can ? botonSubir(o.clave, o.tipo) : '';
+    if (!o.doc) return '<div class="cell">' + (o.neutro ? '<span class="dc dc-mut">sin cargar</span>'
+      : '<span class="dc dc-red">✕ falta</span>') + up + '</div>';
+    var det = o.det != null ? o.det : detalle(o.doc);
+    return '<div class="cell lchip">' + thumbHtml(o.doc)
+      + '<button class="dc dc-ok" data-open="' + o.doc.id + '" title="Ver ' + esc(o.doc.nombre_archivo || '') + '">📄 ver'
+      + (det ? ' <small>' + esc(det) + '</small>' : '')
+      + (o.n > 1 ? ' <small>· ' + o.n + '</small>' : '') + '</button>' + up + '</div>';
+  }
+
+  /**
+   * Engancha fichas, chips y miniaturas de un contenedor.
+   * @param {Object} en { abrir(idDoc), subir(clave, tipo), soltar(clave, tipo, files), puede:bool }
+   */
+  function enganchar(cont, en) {
+    cont.querySelectorAll('.dtile[data-k]').forEach(function (el) {
+      var k = el.getAttribute('data-k'), t = el.getAttribute('data-t'), d = +el.getAttribute('data-d');
+      el.onclick = function () { if (d) en.abrir(d); else if (en.puede) en.subir(k, t); };
+      if (!en.puede) return;
+      el.addEventListener('dragover', function (e) { e.preventDefault(); e.stopPropagation(); el.classList.add('drag'); });
+      el.addEventListener('dragleave', function () { el.classList.remove('drag'); });
+      el.addEventListener('drop', function (e) {
+        e.preventDefault(); e.stopPropagation(); el.classList.remove('drag');
+        var fs = e.dataTransfer && e.dataTransfer.files;
+        if (fs && fs.length) en.soltar(k, t, fs);
+      });
+    });
+    cont.querySelectorAll('[data-up]').forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); en.subir(b.getAttribute('data-k'), b.getAttribute('data-up')); };
+    });
+    cont.querySelectorAll('[data-open]').forEach(function (b) { b.onclick = function () { en.abrir(+b.getAttribute('data-open')); }; });
+    cont.querySelectorAll('.lchip .thumb').forEach(function (th) { th.onclick = function () { en.abrir(+th.getAttribute('data-doc')); }; });
+  }
+
+  // ── FT / HDS nueva: reemplaza a la anterior ─────────────────
+  // FT y HDS no guardan versiones: cuando se carga una nueva, la
+  // anterior del mismo lugar (MP + proveedor, o artículo importado) se
+  // borra, fila y archivo. Se hace DESPUÉS de insertar la nueva: si algo
+  // falla a mitad, lo peor que queda es una de más, nunca ninguna.
+  // Qué se borra lo decide CalidadMP.aReemplazar (con tests).
+  // @returns Promise<number> cuántas se reemplazaron
+  function reemplazar(nuevo) {
+    if (nuevo.tipo !== 'FT' && nuevo.tipo !== 'HDS') return Promise.resolve(0);
+    var q = SB.from('mp_documentos').select('id,tipo,inventario_id,mp_articulo_id,proveedor,archivo').eq('tipo', nuevo.tipo);
+    q = nuevo.mp_articulo_id != null ? q.eq('mp_articulo_id', nuevo.mp_articulo_id) : q.eq('inventario_id', nuevo.inventario_id);
+    return q.then(function (r) {
+      if (r.error) throw new Error(r.error.message);
+      var viejos = CalidadMP.aReemplazar(r.data || [], nuevo);
+      if (!viejos.length) return 0;
+      var ids = viejos.map(function (d) { return d.id; });
+      return SB.from('mp_documentos').delete().in('id', ids).select('id').then(function (del) {
+        if (del.error) throw new Error(del.error.message);
+        var ok = (del.data || []).map(function (d) { return d.id; });
+        var arch = viejos.filter(function (d) { return ok.indexOf(d.id) >= 0; }).map(function (d) { return d.archivo; });
+        ok.forEach(borrarMini);
+        if (arch.length) SB.storage.from(BUCKET).remove(arch);
+        return ok.length;
+      });
+    });
+  }
+
   window.CalidadUI = {
     esc: esc, esImagen: esImagen, firmada: firmada, pestana: pestana, bajar: bajar,
     miniaturas: miniaturas, miniArchivo: miniArchivo, pintar: pintar, thumbHtml: thumbHtml,
     countUp: countUp, visor: { abrir: abrirVisor, cerrar: cerrarVisor },
-    olvidar: function (id) { delete _mini[id]; }
+    vista: vista, estado: estado, detalle: detalle, tile: tile, celda: celda,
+    botonSubir: botonSubir, enganchar: enganchar, reemplazar: reemplazar,
+    olvidar: borrarMini
   };
 })();

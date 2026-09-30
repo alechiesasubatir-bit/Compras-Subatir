@@ -45,7 +45,7 @@
   // Módulos que no son para cualquiera: hasta que gateNav diga lo
   // contrario no se dibujan. Mostrarlos y esconderlos después haría
   // parpadear accesos que la persona no tiene.
-  var RESERVADOS = { deposito: 1, informes: 1, usuarios: 1 };
+  var RESERVADOS = { deposito: 1, calidad: 1, informes: 1, usuarios: 1 };
 
   function pagina() {
     return (location.pathname.split('/').pop() || 'index.html').toLowerCase();

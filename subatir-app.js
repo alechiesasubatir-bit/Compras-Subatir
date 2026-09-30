@@ -29,10 +29,17 @@
     'informes.html': 'informes',
     'usuarios.html': 'usuarios'
   };
-  // Módulos visibles/accesibles para cualquier usuario autenticado
-  // Calidad MP: ver los documentos es para todos (subir, según el tipo,
-  // lo deciden las políticas de la base).
-  var OPEN_MODULES = ['dashboard', 'calidad'];
+  // Módulos visibles/accesibles para cualquier usuario autenticado.
+  // Calidad MP era abierto hasta el 30/09/2026; ahora se asigna por usuario
+  // en Usuarios, como el resto (subir sigue siendo sólo del admin: eso lo
+  // deciden las políticas de la base).
+  var OPEN_MODULES = ['dashboard'];
+
+  // Módulos de CONSULTA: tenerlos no abre el resto de Compras. Calidad MP
+  // es un archivo de documentos; darle ese permiso a un operario no puede
+  // sacarlo de su pantalla, ni a alguien que sólo tiene Calidad llevarlo
+  // al dashboard, que muestra importes.
+  var MODULOS_CONSULTA = ['calidad'];
 
   // Pantallas de celular de la app de Depósitos: viven en /deposito, con
   // su propio guard, y no abren nada de Compras. No cuentan para decidir
@@ -58,9 +65,22 @@
   // otros módulos).
   function isOperario(profile) {
     if (!profile || profile.role !== 'user') return false;
-    var mods = modulosCompras(profile);
+    var mods = modulosPlenos(profile);
     return mods.length > 0 && mods.every(function (m) { return m === 'recepcion'; });
   }
+
+  // Los módulos de Compras sin contar los de consulta.
+  function modulosPlenos(profile) {
+    return modulosCompras(profile).filter(function (m) { return MODULOS_CONSULTA.indexOf(m) < 0; });
+  }
+
+  // Quien sólo tiene módulos de consulta (hoy: sólo Calidad MP) queda en
+  // esas pantallas.
+  function soloConsulta(profile) {
+    return !!profile && profile.role === 'user' &&
+      modulosCompras(profile).length > 0 && modulosPlenos(profile).length === 0;
+  }
+  var PAGINAS_CALIDAD = ['calidad.html', 'calidad-imp.html'];
 
   // Quien sólo tiene módulos del depósito no entra a Compras: el dashboard
   // está abierto a cualquier autenticado y muestra importes. Devuelve a
@@ -216,7 +236,8 @@
         // El operario de recepción solo puede estar en recepcion.html, y
         // en Calidad MP, a consultar hojas de seguridad y fichas técnicas
         // (sólo lectura: subir es del admin; no hay costos ahí).
-        if (isOperario(profile) && page !== 'recepcion.html' && page !== 'calidad.html' && page !== 'calidad-imp.html') { location.replace('recepcion.html'); return; }
+        if (isOperario(profile) && page !== 'recepcion.html' && PAGINAS_CALIDAD.indexOf(page) < 0) { location.replace('recepcion.html'); return; }
+        if (soloConsulta(profile) && PAGINAS_CALIDAD.indexOf(page) < 0) { location.replace('calidad.html'); return; }
         var mod = currentModule();
         if (!canAccess(mod, profile)) { location.replace(isOperario(profile) ? 'recepcion.html' : ('index.html?denegado=' + mod)); return; }
         gateNav(profile);
@@ -247,7 +268,8 @@
         page: currentPage(),
         can: function (k) {
           // El operario de recepción no sale de su pantalla: menú de uno.
-          if (operario) return k === 'recepcion' || k === 'calidad';
+          if (operario) return k === 'recepcion' || (k === 'calidad' && canAccess('calidad', profile));
+          if (soloConsulta(profile)) return k === 'calidad' || (k === 'deposito' && vaAlDeposito);
           if (k === 'deposito') return vaAlDeposito;
           if (k === 'usuarios') return profile.role === 'admin';
           return canAccess(k, profile);

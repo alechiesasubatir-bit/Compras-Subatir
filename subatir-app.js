@@ -41,16 +41,21 @@
   // al dashboard, que muestra importes.
   var MODULOS_CONSULTA = ['calidad'];
 
-  // Pantallas de celular de la app de Depósitos: viven en /deposito, con
-  // su propio guard, y no abren nada de Compras. No cuentan para decidir
-  // quién es operario: un operario de recepción que además pide mercadería
-  // sigue siendo operario acá.
-  var MODULOS_DEPOSITO = ['solicitante', 'recorrido'];
+  // Módulos de la app de Depósitos: viven en /deposito, con su propio
+  // guard, y no abren nada de Compras. No cuentan para decidir quién es
+  // operario: un operario de recepción que además pide mercadería sigue
+  // siendo operario acá. TIENE QUE SER LA MISMA LISTA que MODULOS_DEPOSITO
+  // en deposito/deposito-app.js: hasta el 30/09/2026 acá faltaban
+  // recepcion_deposito e importacion, y el operador logístico (sólo
+  // "Recepción en destino") caía en el dashboard de Compras viendo importes.
+  var MODULOS_DEPOSITO = ['solicitante', 'recorrido', 'recepcion_deposito', 'importacion'];
 
   // Dónde vive cada pantalla de celular del depósito, para poder mandar
   // a su casa a quien no tiene nada que hacer en Compras. El orden importa:
   // el primero que tenga es el que se usa.
-  var CASA_DEPOSITO = [['recorrido', 'deposito/recorrido.html'],
+  var CASA_DEPOSITO = [['importacion', 'deposito/index.html'],
+                       ['recorrido', 'deposito/recorrido.html'],
+                       ['recepcion_deposito', 'deposito/recorrido.html'],
                        ['solicitante', 'deposito/solicitar.html']];
 
   // Los módulos del usuario que abren algo de ESTA app.
@@ -87,7 +92,8 @@
   // dónde mandarlo, o null si Compras sí es su lugar.
   function casaDeposito(profile) {
     if (!profile || profile.role === 'admin') return null;
-    if (modulosCompras(profile).length > 0) return null;
+    // Calidad MP no alcanza para quedarse en Compras: es de consulta.
+    if (modulosPlenos(profile).length > 0) return null;
     var mods = profile.modules || [];
     for (var i = 0; i < CASA_DEPOSITO.length; i++) {
       if (mods.indexOf(CASA_DEPOSITO[i][0]) >= 0) return CASA_DEPOSITO[i][1];
@@ -228,7 +234,9 @@
         // app de Depósitos va derecho ahí, y si no tiene nada asignado se
         // cierra la sesión (dejarlo pasar sería mostrarle el dashboard).
         var casa = casaDeposito(profile);
-        if (casa) { location.replace(casa); return; }
+        // Si además tiene Calidad MP, a esas páginas puede entrar (link directo)
+        var aCalidad = PAGINAS_CALIDAD.indexOf(page) >= 0 && canAccess('calidad', profile);
+        if (casa && !aCalidad) { location.replace(casa); return; }
         if (profile.role !== 'admin' && modulosCompras(profile).length === 0) {
           SB.auth.signOut().then(function () { location.replace('login.html?sinacceso=1'); });
           return;
@@ -268,7 +276,8 @@
         page: currentPage(),
         can: function (k) {
           // El operario de recepción no sale de su pantalla: menú de uno.
-          if (operario) return k === 'recepcion' || (k === 'calidad' && canAccess('calidad', profile));
+          if (operario) return k === 'recepcion' || (k === 'calidad' && canAccess('calidad', profile)) ||
+                               (k === 'deposito' && vaAlDeposito);
           if (soloConsulta(profile)) return k === 'calidad' || (k === 'deposito' && vaAlDeposito);
           if (k === 'deposito') return vaAlDeposito;
           if (k === 'usuarios') return profile.role === 'admin';

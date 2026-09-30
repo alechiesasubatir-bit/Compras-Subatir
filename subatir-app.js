@@ -26,6 +26,7 @@
     'cloro.html': 'cloro',
     'calidad.html': 'calidad',
     'calidad-imp.html': 'calidad',
+    'informes.html': 'informes',
     'usuarios.html': 'usuarios'
   };
   // Módulos visibles/accesibles para cualquier usuario autenticado
@@ -325,7 +326,9 @@
     return _ready.then(function () {
       var jobs = Object.keys(MAPS).map(function (k) {
         var def = MAPS[k];
-        return SB.from(def.table).select('*').then(function (r) {
+        // Todas las filas: con el corte de 1000 de Supabase, Pedidos y
+        // Stock hubieran mostrado de menos sin avisar (ver SB.todo).
+        return SB.todo(function () { return SB.from(def.table).select('*'); }).then(function (r) {
           return { def: def, rows: (r.data || []).map(function (row) { return rowToHeader(def, row); }), error: r.error };
         });
       });
@@ -389,10 +392,11 @@
     });
   }
   function addPedidoLegacy(params) {
-    return SB.from('pedidos').select('n_orden').then(function (r) {
+    return SB.todo(function () { return SB.from('pedidos').select('id,n_orden'); }).then(function (r) {
+      if (r.error) return { error: 'No se pudo calcular el número de orden: ' + r.error.message };
       var max = 500;
       (r.data || []).forEach(function (x) { var n = parseInt(x.n_orden, 10); if (!isNaN(n) && n > max) max = n; });
-      var cant = parseFloat(params.get('cantidad')) || 0, prec = parseFloat(params.get('precio')) || 0;
+      var cant =parseFloat(params.get('cantidad')) || 0, prec = parseFloat(params.get('precio')) || 0;
       var desc = params.get('descripcion') || null;
       var siva = cant * prec, civa = siva * ivaMult(desc);
       var ins = {
@@ -416,7 +420,10 @@
     var items;
     try { items = JSON.parse(params.get('items') || '[]'); } catch (e) { return Promise.resolve({ error: 'items inválido' }); }
     if (!Array.isArray(items) || !items.length) return Promise.resolve({ error: 'Sin productos para la orden' });
-    return SB.from('pedidos').select('n_orden').then(function (r) {
+    // El número nuevo sale del máximo de TODAS las OC: leyendo sólo las
+    // primeras 1000 filas se podía repetir un número ya usado.
+    return SB.todo(function () { return SB.from('pedidos').select('id,n_orden'); }).then(function (r) {
+      if (r.error) return { error: 'No se pudo calcular el número de orden: ' + r.error.message };
       var max = 500;
       (r.data || []).forEach(function (x) { var n = parseInt(x.n_orden, 10); if (!isNaN(n) && n > max) max = n; });
       var orden = String(max + 1);
@@ -563,7 +570,7 @@
   var CAT_EXT = { 'Materias Primas': 'MP', 'Envases': 'ENV', 'Consumibles': 'CON' };
 
   function categorias() {
-    return SB.from('inventario').select('descripcion,ext_id').then(function (r) {
+    return SB.todo(function () { return SB.from('inventario').select('id,descripcion,ext_id'); }).then(function (r) {
       var map = {};
       (r.data || []).forEach(function (x) {
         var c = EXT_CAT[x.ext_id];
@@ -581,7 +588,7 @@
     var ext = categoria ? CAT_EXT[categoria] : null;
     if (categoria && !ext) return Promise.resolve({ error: 'Categoría desconocida: ' + categoria });
     var objetivo = _catNorm(producto);
-    return SB.from('inventario').select('id,descripcion').then(function (r) {
+    return SB.todo(function () { return SB.from('inventario').select('id,descripcion'); }).then(function (r) {
       if (r.error) return { error: r.error.message };
       var fila = (r.data || []).find(function (x) { return _catNorm(x.descripcion) === objetivo; });
       if (!fila) {
@@ -595,7 +602,7 @@
 
   // ── Entregas parciales de recepción ────────────────────────
   function getEntregas() {
-    return SB.from('entregas').select('*').then(function (r) { return r.data || []; }, function () { return []; });
+    return SB.todo(function () { return SB.from('entregas').select('*'); }).then(function (r) { return r.data || []; }, function () { return []; });
   }
   function addEntrega(row) {
     return SB.from('entregas').insert(row).select('id').single()
@@ -644,9 +651,10 @@
   //  (Ojo: Supabase no rechaza ante un error de permisos — lo devuelve
   //  en r.error con r.data en null. Por eso se mira r.error a mano.)
   function getArtProveedor(invIds) {
-    var q = SB.from('art_proveedor').select('*');
-    if (invIds && invIds.length) q = q.in('inventario_id', invIds);
-    return q.then(function (r) {
+    return SB.todo(function () {
+      var q = SB.from('art_proveedor').select('*');
+      return invIds && invIds.length ? q.in('inventario_id', invIds) : q;
+    }).then(function (r) {
       if (r.error) throw new Error(r.error.message);
       if (!r.data) throw new Error('La base no devolvió las fichas de reposición.');
       return r.data;
@@ -1464,7 +1472,7 @@
     function invalidar() { _cache = null; }
     function fichas() {
       if (_cache) return Promise.resolve(_cache);
-      return SB.from('inventario').select('id,codigo,descripcion,inventario,unidad')
+      return SB.todo(function () { return SB.from('inventario').select('id,codigo,descripcion,inventario,unidad'); })
         .then(function (r) { _cache = r.data || []; return _cache; });
     }
     function fichaDe(desc) {
@@ -2394,6 +2402,12 @@
     live: live,
     xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH, cat: CAT,
     transito: transito, llegada: LLEGADA,
+    // Filas crudas de la base -> formato de hoja, el que esperan transito() y
+    // los módulos. Informes lee la base paginada y lo necesita para transito().
+    aHoja: function (sheetKey, rows) {
+      var def = SHEETKEY[sheetKey];
+      return def ? (rows || []).map(function (r) { return rowToHeader(def, r); }) : [];
+    },
     logout: function () { return SB.auth.signOut().then(function () { location.replace('login.html'); }); },
     canAccess: canAccess, currentModule: currentModule
   };

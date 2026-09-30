@@ -417,13 +417,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-29.1802"/>
-<script src="supabase-config.js?v=2026-09-29.1802"></script>
-<script src="subatir-app.js?v=2026-09-29.1802"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-30.1000"/>
+<script src="supabase-config.js?v=2026-09-30.1000"></script>
+<script src="subatir-app.js?v=2026-09-30.1000"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-29.1802';
+window.APP_VER='2026-09-30.1000';
 </script>
 </head>
 <body>
@@ -435,7 +435,7 @@ window.APP_VER='2026-09-29.1802';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-29.1802"></script>
+  <script src="nav.js?v=2026-09-30.1000"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -893,7 +893,7 @@ window.APP_VER='2026-09-29.1802';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="cloro-calc.js?v=2026-09-29.1802"></script>
+<script src="cloro-calc.js?v=2026-09-30.1000"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
@@ -1115,9 +1115,9 @@ function cargar(){
     SB.from('cl_temporadas').select('*').order('fecha_ini',{ascending:false}),
     SB.from('cl_materias').select('*').order('nombre'),
     SB.from('cl_productos').select('*').order('orden'),
-    SB.from('inventario')
+    SB.todo(function(){ return SB.from('inventario')
       .select('id,codigo,descripcion,unidad,inventario,updated_at')
-      .eq('ext_id','MP'),
+      .eq('ext_id','MP'); }),
     // Lo que está pedido y no llegó NO sale de inventario.pendiente_entrega:
     // esa columna es herencia del Sheet viejo, no la escribe nadie y está
     // vacía en 145 de 158 artículos. Peor: los 13 valores que tiene son
@@ -1157,11 +1157,13 @@ function cargarTemporada(){
   var prev = temporadaPrevia(t), prev2 = prev ? temporadaPrevia(prev) : null;
   var ids = [t.id]; if(prev) ids.push(prev.id); if(prev2) ids.push(prev2.id);
   return Promise.all([
-    SB.from('cl_ventas').select('temporada_id,producto_id,semana,unidades').in('temporada_id', ids),
-    SB.from('cl_envasado').select('*').eq('temporada_id', t.id),
+    // Tres temporadas de ventas semanales ya son ~950 filas: sin paginar,
+    // pasadas las 1000 la previsión hubiera usado un histórico cortado.
+    SB.todo(function(){ return SB.from('cl_ventas').select('temporada_id,producto_id,semana,unidades').in('temporada_id', ids); }),
+    SB.todo(function(){ return SB.from('cl_envasado').select('*').eq('temporada_id', t.id); }),
     SB.from('cl_stock_inicial').select('*').eq('temporada_id', t.id),
     SB.from('cl_parametros').select('*').eq('temporada_id', t.id).limit(1),
-    SB.from('cl_ajustes').select('*').eq('temporada_id', t.id).order('fecha')
+    SB.todo(function(){ return SB.from('cl_ajustes').select('*').eq('temporada_id', t.id).order('fecha'); })
   ]).then(function(r){
     var e=r.slice(0,4).find(function(x){ return x.error; });
     if(e){ falta(e.error); return; }
@@ -2336,7 +2338,7 @@ function cargarPDF(){
     // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
     // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
     // El literal va PARTIDO a propósito: bump-version.ps1 busca
-    // `oc-pdf.js?v=2026-09-29.1802'oc-pdf.js?v=2026-09-29.1802'+APP_VER.
+    // `oc-pdf.js?v=2026-09-30.1000'oc-pdf.js?v=2026-09-30.1000'+APP_VER.
     // Partido, el patrón no aparece y la versión la pone APP_VER sola.
     .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js'+'?v='+APP_VER); })
     // El logo se precarga solo y es asíncrono. Sin esperarlo, el primer

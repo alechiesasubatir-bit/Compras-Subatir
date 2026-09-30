@@ -480,6 +480,18 @@ label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text
 .confirm-msg{font-size:14px;line-height:1.7;margin-bottom:4px}
 .confirm-warn{font-size:12px;color:var(--warn);margin-top:8px}
 
+/* Precio de la OC vs lista de precios */
+.pc-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:46vh;overflow:auto}
+.pc-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;cursor:pointer;
+  padding:9px 12px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid var(--border)}
+.pc-row.on{border-color:rgba(249,115,22,.4);background:rgba(249,115,22,.06)}
+.pc-art{font-size:13px;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.pc-prov{display:block;font-size:11px;color:var(--muted);font-weight:500}
+.pc-cmp{font-family:'IBM Plex Mono',monospace;font-size:12px;white-space:nowrap;text-align:right}
+.pc-old{color:var(--muted);text-decoration:line-through}
+.pc-new{color:var(--orange-l);font-weight:700}
+@media(max-width:560px){.pc-row{grid-template-columns:auto 1fr}.pc-cmp{grid-column:2;text-align:left}}
+
 /* ═══ TOAST ══════════════════════════════════════════════════ */
 #toast-container{position:fixed;bottom:24px;right:24px;z-index:999;
   display:flex;flex-direction:column;gap:8px;pointer-events:none;}
@@ -526,14 +538,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="oc-pdf.js?v=2026-09-29.1802"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-29.1802"/>
-<script src="supabase-config.js?v=2026-09-29.1802"></script>
-<script src="subatir-app.js?v=2026-09-29.1802"></script>
+<script src="oc-pdf.js?v=2026-09-30.1000"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-30.1000"/>
+<script src="supabase-config.js?v=2026-09-30.1000"></script>
+<script src="subatir-app.js?v=2026-09-30.1000"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-29.1802';
+window.APP_VER='2026-09-30.1000';
 </script>
 </head>
 <body>
@@ -549,7 +561,7 @@ window.APP_VER='2026-09-29.1802';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-29.1802"></script>
+  <script src="nav.js?v=2026-09-30.1000"></script>
   <div class="header-right">
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
@@ -1042,6 +1054,28 @@ window.APP_VER='2026-09-29.1802';
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('confirm-overlay')">Cancelar</button>
       <button class="btn btn-danger" onclick="doDelete()">🗑 Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL: EL PRECIO DE LA ORDEN NO ES EL DE LA LISTA
+     Se abre al guardar una OC (nueva o editada) cuando alguna línea va a
+     un precio distinto del cargado en Precios para ese proveedor.
+════════════════════════════════════════════════ -->
+<div class="overlay" id="precio-overlay">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title">💲 ¿Actualizar la lista de precios?</div>
+      <button class="modal-close" onclick="closeModal('precio-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-msg" style="font-size:13px">La orden lleva un precio distinto al de <b>Precios</b>. Tildá los que querés que queden como precio nuevo de ese artículo para ese proveedor.</p>
+      <div id="pc-list" class="pc-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="precioDecidir(false)">Sólo la orden</button>
+      <button class="btn btn-orange btn-sm" onclick="precioDecidir(true)">Actualizar también en Precios</button>
     </div>
   </div>
 </div>
@@ -1748,13 +1782,103 @@ function saveEdit(){
     'Conforme':      document.getElementById('ed-conforme').checked ? 'SI' : '',
     'Observaciones': document.getElementById('ed-obs').value
   };
-  toast('Guardando…','info');
-  apiWrite({ action:'updateRow', sheetKey:'pedidos', row: row.__row, fields: JSON.stringify(fields) }, function(d){
-    if(!d) return;
-    closeModal('edit-overlay');
-    toast('OC #' + (row[K.orden]||'') + ' actualizada ✓', 'ok');
-    load();
+  // Sólo se pregunta por la lista si en esta edición se tocó el precio o
+  // la moneda: corregir la fecha de una OC vieja no tiene que ofrecer
+  // pisar la lista con el precio de hace meses.
+  var precioTocado = prec !== pNum(row[K.precio]) || (mon==='U$S') !== (ocMoneda(row)==='USD');
+  var cambios = precioTocado ? preciosDistintos(prov, [{desc:desc, prec:prec, moneda:mon}]) : [];
+  preguntarPrecios(cambios, function(elegidos){
+    toast('Guardando…','info');
+    apiWrite({ action:'updateRow', sheetKey:'pedidos', row: row.__row, fields: JSON.stringify(fields) }, function(d){
+      if(!d) return;
+      closeModal('edit-overlay');
+      toast('OC #' + (row[K.orden]||'') + ' actualizada ✓', 'ok');
+      aplicarPrecios(elegidos).then(load);
+    });
   });
+}
+
+// ── Precio de la OC → lista de precios ────────────────────────
+// Cuando una línea sale a un precio distinto del que figura en Precios
+// para ese artículo × proveedor, se ofrece actualizar la lista. Sólo se
+// comparan filas que ya existen: dar de alta un precio nuevo es el
+// camino de "Registrar artículo nuevo".
+function preciosDistintos(prov, lines){
+  if(!RAW_PREC.length || !prov) return [];
+  // Sin el módulo Precios la base rechaza la escritura: no tiene sentido preguntar
+  if(!SubatirApp.canAccess('precios', SubatirApp.getProfile())) return [];
+  var pk=Object.keys(RAW_PREC[0]);
+  var PA=fk(pk,['ARTICULO','Artículo','ARTÍCULO','Descripción','DESCRIPCION','Producto']);
+  var PP=fk(pk,['PROVEEDOR','Proveedor']);
+  var PU=fk(pk,['PRECIO S/IVA U$S','U$S','USD','PRECIO USD','PRECIO U$S']);
+  var PS=fk(pk,['PRECIO S/IVA $','PRECIO $','PESOS','UYU']);
+  var nprov=normP(prov), out=[];
+  lines.forEach(function(l){
+    if(!(l.prec>0)) return;
+    var filas=RAW_PREC.filter(function(r){
+      return r.__row!=null && normP(r[PP])===nprov && normP(r[PA])===normP(l.desc);
+    });
+    if(!filas.length) return;
+    var r=filas[0], usd=pNum(r[PU]), pso=pNum(r[PS]);
+    var enPesos = l.moneda==='$';
+    // Igual precio en la misma moneda: nada que cambiar
+    if((enPesos ? pso : usd) === l.prec && !((enPesos ? usd : pso) > 0)) return;
+    out.push({
+      prov:String(r[PP]).trim(), art:String(r[PA]).trim(), prec:l.prec, moneda:enPesos?'$':'U$S',
+      antes: usd>0 ? fmtUSDp(usd) : (pso>0 ? fmtPSOp(pso) : 'sin precio'),
+      ahora: enPesos ? fmtPSOp(l.prec) : fmtUSDp(l.prec),
+      ids: filas.map(function(f){ return f.__row; }), on:true
+    });
+  });
+  return out;
+}
+
+var PRECIO_CAMBIOS = [], PRECIO_CB = null;
+
+// Si no hay diferencias sigue de largo; si las hay, pregunta y después
+// sigue con los cambios tildados (o ninguno). Cerrar con ✕ no guarda nada.
+function preguntarPrecios(cambios, seguir){
+  if(!cambios.length){ seguir([]); return; }
+  PRECIO_CAMBIOS = cambios; PRECIO_CB = seguir;
+  renderPrecioCambios();
+  openModal('precio-overlay');
+}
+
+function renderPrecioCambios(){
+  document.getElementById('pc-list').innerHTML = PRECIO_CAMBIOS.map(function(c, i){
+    return '<label class="pc-row'+(c.on?' on':'')+'">'+
+      '<input type="checkbox"'+(c.on?' checked':'')+' onchange="PRECIO_CAMBIOS['+i+'].on=this.checked;renderPrecioCambios()">'+
+      '<span class="pc-art">'+esc(c.art)+'<span class="pc-prov">'+esc(c.prov)+'</span></span>'+
+      '<span class="pc-cmp"><span class="pc-old">'+esc(c.antes)+'</span> → <span class="pc-new">'+esc(c.ahora)+'</span></span>'+
+    '</label>';
+  }).join('');
+}
+
+function precioDecidir(actualizar){
+  var cb = PRECIO_CB, elegidos = actualizar ? PRECIO_CAMBIOS.filter(function(c){ return c.on; }) : [];
+  PRECIO_CB = null; PRECIO_CAMBIOS = [];
+  closeModal('precio-overlay');
+  if(cb) cb(elegidos);
+}
+
+// Escribe el precio nuevo en la moneda de la orden y vacía la otra: la
+// lista toma U$S antes que $, y dejar el dólar viejo taparía el precio en pesos.
+function aplicarPrecios(cambios){
+  if(!cambios || !cambios.length) return Promise.resolve();
+  var d=new Date(), hoy=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  var ops=[];
+  cambios.forEach(function(c){
+    var f={'FECHA ACTUALIZADO':hoy, 'PRECIO S/IVA U$S':'', 'PRECIO S/IVA $':''};
+    f[c.moneda==='$' ? 'PRECIO S/IVA $' : 'PRECIO S/IVA U$S'] = c.prec;
+    c.ids.forEach(function(id){
+      ops.push(SubatirApp.write({action:'updateRow', sheetKey:'precios', row:id, fields:JSON.stringify(f)}));
+    });
+  });
+  return Promise.all(ops).then(function(res){
+    var err=res.filter(function(r){ return r && r.error; })[0];
+    if(err) toast('La orden se guardó, pero la lista de precios no: '+err.error,'err');
+    else toast(cambios.length+' precio'+(cambios.length===1?'':'s')+' actualizado'+(cambios.length===1?'':'s')+' en Precios ✓','ok');
+  }, function(e){ toast('La orden se guardó, pero la lista de precios no: '+(e && e.message || e),'err'); });
 }
 
 // ── Modal: nuevo pedido ───────────────────────────────────────
@@ -1995,7 +2119,7 @@ function anTokens(s){
 }
 function anInv(){
   if(INV_SET) return Promise.resolve(INV_SET);
-  return SB.from('inventario').select('descripcion').then(function(r){
+  return SB.todo(function(){ return SB.from('inventario').select('descripcion'); }).then(function(r){
     INV_SET={}; INV_LISTA=[];
     (r.data||[]).forEach(function(x){ INV_SET[anNorm(x.descripcion)]=true; INV_LISTA.push(x.descripcion); });
     return INV_SET;
@@ -2189,6 +2313,12 @@ function saveNew(){
 
   if(!lines.length){ toast('Tildá al menos un producto o cargá uno manualmente.','err'); return; }
 
+  // Los precios salen prellenados de la lista: si alguno quedó distinto
+  // es porque se lo cambió, y se ofrece llevar ese cambio a Precios.
+  preguntarPrecios(preciosDistintos(prov, lines), function(elegidos){ crearOC(prov, lines, elegidos); });
+}
+
+function crearOC(prov, lines, preciosElegidos){
   var fecha  = document.getElementById('nw-fecha').value;
   var obs    = document.getElementById('nw-obs').value.trim();
   // Opcional: si no se sabe cuánto va a demorar, la columna Est. Llegada
@@ -2214,7 +2344,7 @@ function saveNew(){
     toast('Orden #'+orden+' creada con '+lines.length+' producto'+(lines.length===1?'':'s')+' ✓', 'ok');
     // PDF de la OC con el N° de orden definitivo que asignó la base de datos
     buildDocPdf({ orden:orden, fecha:fecha, proveedor:prov, obs:obs, lines:lines }, 'compra');
-    load();
+    aplicarPrecios(preciosElegidos).then(load);
     });
   });
 }

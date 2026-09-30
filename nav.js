@@ -17,33 +17,35 @@
 (function () {
   'use strict';
 
-  // Orden fijo: sigue el recorrido real de una compra —
-  // se pide, se recibe, se guarda, se paga, y después los laterales.
+  // Orden fijo, el que pidió el usuario: primero el circuito de compra
+  // (pedir, recibir, guardar, pagar), después los módulos laterales.
   var ITEMS = [
     { k: 'dashboard',    href: 'index.html',          ico: '⬡',  txt: 'Dashboard' },
     { k: 'pedidos',      href: 'pedidos.html',        ico: '📦', txt: 'Pedidos' },
     { k: 'recepcion',    href: 'recepcion.html',      ico: '📥', txt: 'Recepción' },
     { k: 'stock',        href: 'stock.html',          ico: '📊', txt: 'Stock' },
-    { k: 'stock',        href: 'reposicion.html',     ico: '🔁', txt: 'Reposición',
-      title: 'Cargar de una sentada la configuración de reposición: demora, lote y compras pactadas' },
     { k: 'precios',      href: 'precios.html',        ico: '💲', txt: 'Precios' },
     { k: 'proveedores',  href: 'proveedores.html',    ico: '🏭', txt: 'Proveedores' },
     { k: 'varios',       href: 'varios.html',         ico: '🧾', txt: 'Pedidos Varios' },
+    { k: 'deposito',     href: 'deposito/index.html', ico: '🏢', txt: 'Depósitos',
+      title: 'Ir a la app de Control de Stock de Depósitos' },
+    { k: 'stock',        href: 'reposicion.html',     ico: '🔁', txt: 'Reposición',
+      title: 'Cargar de una sentada la configuración de reposición: demora, lote y compras pactadas' },
     { k: 'mp_importacion', href: 'mp-importacion.html', ico: '🧪', txt: 'MP Importación',
       title: 'Previsión y control de compra de materia prima importada' },
     { k: 'cloro', href: 'cloro.html', ico: '💧', txt: 'Previsión Cloro',
       title: 'Previsión de envasado y compra de materia prima de la línea de piscinas' },
     { k: 'calidad', href: 'calidad.html', ico: '🔬', txt: 'Calidad MP', sub: ['calidad-imp.html'],
       title: 'Fichas técnicas, hojas de seguridad y COA de las materias primas' },
-    { k: 'deposito',     href: 'deposito/index.html', ico: '🏢', txt: 'Depósitos',
-      title: 'Ir a la app de Control de Stock de Depósitos' },
+    { k: 'informes',     href: 'informes.html',       ico: '📑', txt: 'Informes',
+      title: 'Informes entre fechas de Pedidos, Stock, Precios, Proveedores, MP Importación, Cloro y Depósitos' },
     { k: 'usuarios',     href: 'usuarios.html',       ico: '👥', txt: 'Usuarios' }
   ];
 
   // Módulos que no son para cualquiera: hasta que gateNav diga lo
   // contrario no se dibujan. Mostrarlos y esconderlos después haría
   // parpadear accesos que la persona no tiene.
-  var RESERVADOS = { deposito: 1, usuarios: 1 };
+  var RESERVADOS = { deposito: 1, informes: 1, usuarios: 1 };
 
   function pagina() {
     return (location.pathname.split('/').pop() || 'index.html').toLowerCase();

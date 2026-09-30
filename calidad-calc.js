@@ -61,8 +61,8 @@
    */
   function cargar(SB) {
     return Promise.all([
-      SB.from('inventario').select('id,codigo,descripcion,proveedor,ext_id').eq('ext_id', 'MP'),
-      SB.from('mp_documentos').select('*')
+      SB.todo(function () { return SB.from('inventario').select('id,codigo,descripcion,proveedor,ext_id').eq('ext_id', 'MP'); }),
+      SB.todo(function () { return SB.from('mp_documentos').select('*'); })
     ]).then(function (r) {
       if (r[0].error) throw new Error(r[0].error.message);
       return {

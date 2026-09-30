@@ -41,6 +41,13 @@
     return Math.floor((dia0 - base.getTime()) / SEMANA) + 1;
   }
 
+  // Lo inverso de semanaDe: el lunes con que arranca la semana `semana`
+  // de la temporada. Lo usa Informes para ubicar las ventas (que se
+  // guardan por semana) dentro de un rango de fechas.
+  function fechaDeSemana(semana, fechaIni) {
+    return new Date(lunesInicio(fechaIni).getTime() + (semana - 1) * SEMANA);
+  }
+
   function semanasDeTemporada(fechaIni, fechaFin) {
     return semanaDe(fechaFin, fechaIni);
   }
@@ -325,6 +332,7 @@
     lunesInicio: lunesInicio,
     semanaDe: semanaDe,
     semanasDeTemporada: semanasDeTemporada,
+    fechaDeSemana: fechaDeSemana,
     suavizar: suavizar,
     crecimiento: crecimiento,
     prever: prever,

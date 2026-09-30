@@ -354,13 +354,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-29.1802"/>
-<script src="supabase-config.js?v=2026-09-29.1802"></script>
-<script src="subatir-app.js?v=2026-09-29.1802"></script>
+<link rel="stylesheet" href="nav.css?v=2026-09-30.1000"/>
+<script src="supabase-config.js?v=2026-09-30.1000"></script>
+<script src="subatir-app.js?v=2026-09-30.1000"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-29.1802';
+window.APP_VER='2026-09-30.1000';
 </script>
 </head>
 <body>
@@ -372,7 +372,7 @@ window.APP_VER='2026-09-29.1802';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-29.1802"></script>
+  <script src="nav.js?v=2026-09-30.1000"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -735,7 +735,7 @@ window.APP_VER='2026-09-29.1802';
      pantalla, porque sólo hace falta al apretar el botón. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="mp-oc-pdf.js?v=2026-09-29.1802"></script>
+<script src="mp-oc-pdf.js?v=2026-09-30.1000"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -919,16 +919,16 @@ function cargarProveedor(){
   return Promise.all([
     SB.from('mp_articulos').select('*').eq('proveedor_id',CUR_PROV).order('orden'),
     SB.from('mp_parametros').select('*').eq('proveedor_id',CUR_PROV).limit(1),
-    SB.from('mp_corridas').select('*').eq('proveedor_id',CUR_PROV).order('fecha',{ascending:false}).order('id',{ascending:false}),
+    SB.todo(function(){ return SB.from('mp_corridas').select('*').eq('proveedor_id',CUR_PROV).order('fecha',{ascending:false}).order('id',{ascending:false}); }),
     // Si todavía no se corrió mp_ofertas.sql, la consulta falla y se
     // absorbe: la pantalla sigue andando sin ofertas.
-    SB.from('mp_ofertas').select('*').eq('proveedor_id',CUR_PROV).order('mes',{ascending:false})
+    SB.todo(function(){ return SB.from('mp_ofertas').select('*').eq('proveedor_id',CUR_PROV).order('mes',{ascending:false}); })
       .then(function(r){ return r.error ? {data:[],error:null} : r; },
             function(){ return {data:[],error:null}; }),
     SB.from('mp_productos').select('*').eq('proveedor_id',CUR_PROV).order('nombre')
       .then(function(r){ return r.error ? {data:[],error:null} : r; },
             function(){ return {data:[],error:null}; }),
-    SB.from('mp_producto_esencias').select('*')
+    SB.todo(function(){ return SB.from('mp_producto_esencias').select('*'); })
       .then(function(r){ return r.error ? {data:[],error:null} : r; },
             function(){ return {data:[],error:null}; })
   ]).then(function(r){
@@ -953,7 +953,7 @@ function cargarProveedor(){
 function cargarCorrida(){
   PEND={};
   if(!CUR_CORR){ DATOS={}; pintarTodo(); return Promise.resolve(); }
-  return SB.from('mp_datos').select('*').eq('corrida_id',CUR_CORR).then(function(r){
+  return SB.todo(function(){ return SB.from('mp_datos').select('*').eq('corrida_id',CUR_CORR); }).then(function(r){
     if(r.error){ falta(r.error); return; }
     DATOS={}; (r.data||[]).forEach(function(d){ DATOS[d.articulo_id]=d; });
     pintarTodo();

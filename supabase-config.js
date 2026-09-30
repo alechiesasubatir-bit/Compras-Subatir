@@ -16,6 +16,44 @@ window.SB = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_AN
 });
 
 // ------------------------------------------------------------
+//  Leer TODAS las filas de una consulta
+//
+//  Supabase devuelve como mucho 1000 filas por consulta y NO avisa
+//  cuando corta: la pantalla suma de menos y parece que anda. Con 788
+//  lineas de OC y 950 semanas de venta de cloro (30/09/2026) estabamos
+//  a punto de pasarlo. Esto pide de a 1000 hasta que vuelve una pagina
+//  incompleta.
+//
+//  Uso:  SB.todo(function () { return SB.from('x').select('*').eq(...).order(...); })
+//        -> Promise<{ data, error }>, lo mismo que una consulta comun.
+//
+//  - Se pasa una FUNCION que arma la consulta porque cada pagina
+//    necesita una consulta nueva: un builder de Supabase no se reusa.
+//  - Se agrega order('id') al final como desempate. Sin un orden unico
+//    dos paginas pueden repetir o saltearse filas. El orden que ya
+//    traiga la consulta sigue mandando. Para una tabla sin columna id:
+//    SB.todo(fabrica, { sinId: true }) (y que la consulta ya ordene).
+//  - Si una pagina falla, devuelve el error y data null: una lista a
+//    medias es peor que ninguna, porque no se nota.
+//  - PASO tiene que ser igual al "Max rows" del proyecto (API settings
+//    de Supabase, 1000 por defecto). Si alguien lo baja, bajarlo aca.
+// ------------------------------------------------------------
+window.SB.todo = function (fabrica, opts) {
+  var PASO = 1000, sinId = !!(opts && opts.sinId), filas = [];
+  function pagina(desde) {
+    var q = fabrica();
+    if (!sinId) q = q.order('id', { ascending: true });
+    return q.range(desde, desde + PASO - 1).then(function (r) {
+      if (r.error) return { data: null, error: r.error };
+      var lote = r.data || [];
+      filas = filas.concat(lote);
+      return lote.length === PASO ? pagina(desde + PASO) : { data: filas, error: null };
+    });
+  }
+  return pagina(0);
+};
+
+// ------------------------------------------------------------
 //  Sin zoom con los dedos
 //
 //  En el deposito se opera con guantes y el telefono en una mano: el

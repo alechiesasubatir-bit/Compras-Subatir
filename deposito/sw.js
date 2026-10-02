@@ -25,7 +25,7 @@
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
-self.APP_VER = '2026-09-30.1657';
+self.APP_VER = '2026-10-02.1018';
 var CACHE = 'deposito-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.

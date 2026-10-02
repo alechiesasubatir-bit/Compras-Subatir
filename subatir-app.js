@@ -467,7 +467,8 @@
       var demora = LLEGADA.dias(params.get('demora')) || null;
       var rows = items.map(function (it) {
         var cant = parseFloat(it.cantidad) || 0, prec = parseFloat(it.precio) || 0;
-        var siva = cant * prec, civa = siva * ivaMult(it.descripcion);
+        var tasa = ivaElegida(it.iva);
+        var siva = cant * prec, civa = siva * (tasa != null ? 1 + tasa : ivaMult(it.descripcion));
         var row = {
           n_orden: orden, fecha: fecha, proveedor: prov, descripcion: it.descripcion || null,
           cantidad: cant, precio_un: prec, moneda: it.moneda || null,
@@ -583,6 +584,26 @@
   function ivaMult(descripcion) { return 1 + ivaTasa(descripcion); }
   // Monto de IVA de una línea
   function ivaMonto(descripcion, sIva) { return (parseFloat(sIva) || 0) * ivaTasa(descripcion); }
+
+  // Las tres tasas que se pueden elegir al crear una OC: básica, mínima y
+  // exento. La tasa elegida no tiene columna propia: queda implícita en
+  // c_iva / s_iva de cada línea, y de ahí se recupera para reimprimir o
+  // editar sin pisarla con la del catálogo.
+  var IVA_TASAS = [0.22, 0.10, 0];
+  function ivaDeLinea(sIva, cIva, descripcion) {
+    var s = parseFloat(sIva) || 0, c = parseFloat(cIva);
+    if (!(s > 0) || isNaN(c)) return ivaTasa(descripcion);
+    var r = c / s - 1, best = IVA_TASAS[0];
+    IVA_TASAS.forEach(function (t) { if (Math.abs(r - t) < Math.abs(r - best)) best = t; });
+    return best;
+  }
+  // Tasa válida elegida por el usuario, o null si no vino ninguna
+  function ivaElegida(v) {
+    if (v === '' || v == null) return null;
+    var t = parseFloat(v);
+    if (t > 1) t = t / 100;
+    return IVA_TASAS.indexOf(t) >= 0 ? t : null;
+  }
 
   // ── Categorías de productos (Envases / Consumibles / Materias Primas) ──
   function _catNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase().replace(/\s+/g, ' '); }
@@ -2426,7 +2447,7 @@
     updateRow: updateRow, addRow: addRow, deleteRow: deleteRow,
     legacyFetch: legacyFetch, write: write,
     categorias: categorias, setCategoria: setCategoria,
-    ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto,
+    ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto, ivaDeLinea: ivaDeLinea, IVA_TASAS: IVA_TASAS,
     getEntregas: getEntregas, addEntrega: addEntrega, updateEntrega: updateEntrega, deleteEntrega: deleteEntrega,
     getArtProveedor: getArtProveedor, saveArtProveedor: saveArtProveedor, deleteArtProveedor: deleteArtProveedor,
     PL06: PL06, operador: OPER, stock: STOCK,

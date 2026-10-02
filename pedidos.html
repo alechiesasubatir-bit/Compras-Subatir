@@ -538,14 +538,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="oc-pdf.js?v=2026-09-30.1657"></script>
-<link rel="stylesheet" href="nav.css?v=2026-09-30.1657"/>
-<script src="supabase-config.js?v=2026-09-30.1657"></script>
-<script src="subatir-app.js?v=2026-09-30.1657"></script>
+<script src="oc-pdf.js?v=2026-10-02.1018"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-02.1018"/>
+<script src="supabase-config.js?v=2026-10-02.1018"></script>
+<script src="subatir-app.js?v=2026-10-02.1018"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-09-30.1657';
+window.APP_VER='2026-10-02.1018';
 </script>
 </head>
 <body>
@@ -561,7 +561,7 @@ window.APP_VER='2026-09-30.1657';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-09-30.1657"></script>
+  <script src="nav.js?v=2026-10-02.1018"></script>
   <div class="header-right">
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
@@ -775,6 +775,14 @@ window.APP_VER='2026-09-30.1657';
             <select class="form-input" id="ed-moneda" onchange="calcEditTotals()">
               <option value="U$S">U$S (Dólares)</option>
               <option value="$">$ (Pesos UY)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>IVA</label>
+            <select class="form-input" id="ed-iva" onchange="calcEditTotals()">
+              <option value="22">22 % · Básica</option>
+              <option value="10">10 % · Mínima</option>
+              <option value="0">0 % · Exento</option>
             </select>
           </div>
           <div class="form-group" style="justify-content:flex-end">
@@ -1020,6 +1028,15 @@ window.APP_VER='2026-09-30.1657';
           <input type="number" class="form-input" id="nw-precio" min="0" step="any" placeholder="0" oninput="calcIVA()"/>
         </div>
         <div class="form-group span2">
+          <label>IVA de la orden</label>
+          <select class="form-input" id="nw-iva" onchange="calcIVA()" style="max-width:240px">
+            <option value="22" selected>22 % · Básica</option>
+            <option value="10">10 % · Mínima</option>
+            <option value="0">0 % · Exento</option>
+          </select>
+          <div id="nw-iva-aviso" style="display:none;font-size:12px;color:var(--orange-l,#fb923c);margin-top:6px"></div>
+        </div>
+        <div class="form-group span2">
           <div class="calc-preview" id="calc-preview">
             <div class="calc-item"><span>Subtotal s/IVA</span><strong id="calc-siva">—</strong></div>
             <div class="calc-item"><span id="calc-civa-lbl">Total c/IVA</span><strong id="calc-civa">—</strong></div>
@@ -1115,6 +1132,10 @@ var CURRENT_ROW  = null; // fila abierta en modal
 // subatir-app.js para no repetir la excepción en cada módulo.
 function ivaTasa(desc){ return (window.SubatirApp && SubatirApp.ivaTasa) ? SubatirApp.ivaTasa(desc) : 0.22; }
 function ivaMult(desc){ return 1 + ivaTasa(desc); }
+// Tasa elegida en un <select> de IVA (22 / 10 / 0) como fracción
+function ivaSel(id){ var el=document.getElementById(id); var v=el?parseFloat(el.value):22; return isNaN(v)?0.22:v/100; }
+// Tasa con la que quedó guardada una línea (sale de c/IVA ÷ s/IVA)
+function ivaDeRow(r){ return SubatirApp.ivaDeLinea(pNum(r[K.siva]), pNum(r[K.civa]), r[K.desc]); }
 
 // Columnas detectadas dinámicamente
 var K = {};
@@ -1703,6 +1724,7 @@ function toggleEditForm(){
     document.getElementById('ed-cant').value   = pNum(row[K.cantidad]) || '';
     document.getElementById('ed-precio').value = pNum(row[K.precio]) || '';
     document.getElementById('ed-moneda').value = (ocMoneda(row)==='USD' ? 'U$S' : '$');
+    document.getElementById('ed-iva').value    = String(Math.round(ivaDeRow(row)*100));
     document.getElementById('ed-demora').value  = SubatirApp.llegada.dias(row[K.demora]) || '';
     calcEditTotals();
     calcEdLlegada();
@@ -1730,8 +1752,7 @@ function calcEditTotals(){
   var cant = pNum(document.getElementById('ed-cant').value);
   var prec = pNum(document.getElementById('ed-precio').value);
   var mon  = document.getElementById('ed-moneda').value;
-  var desc = document.getElementById('ed-desc').value;
-  var tasa = ivaTasa(desc);
+  var tasa = ivaSel('ed-iva');
   var siva = cant*prec, civa = siva*(1+tasa);
   var f = (mon==='U$S') ? fmtUSD : fmtPSO;
   document.getElementById('ed-calc').innerHTML = 's/IVA <b>'+f(siva,2)+'</b> · c/IVA <b>'+f(civa,2)+'</b>'
@@ -1758,7 +1779,7 @@ function saveEdit(){
   var cant  = pNum(document.getElementById('ed-cant').value);
   var prec  = pNum(document.getElementById('ed-precio').value);
   var mon   = document.getElementById('ed-moneda').value === 'U$S' ? 'U$S' : '$';
-  var siva  = +(cant*prec).toFixed(2), civa = +(siva*ivaMult(desc)).toFixed(2);
+  var siva  = +(cant*prec).toFixed(2), civa = +(siva*(1+ivaSel('ed-iva'))).toFixed(2);
   // Si la fecha quedó vacía y lo guardado era un "NO APLICA" de antes, se
   // respeta tal cual. Editar el precio de una OC no tiene por qué reescribir
   // en silencio un dato de calidad que alguien cargó a mano.
@@ -2249,17 +2270,19 @@ function saveArtNew(){
   });
 }
 
-function openNewModal(){ openModal('new-overlay'); populateNewProvSelect(''); populateProdDatalist(null); updateProvInfo(''); showOCHint(''); PICK_STATE=[]; document.getElementById('nw-picker').style.display='none'; NW_MONEDA='U$S'; updateCurrencyUI(); calcIVA(); }
+function openNewModal(){ openModal('new-overlay'); populateNewProvSelect(''); populateProdDatalist(null); updateProvInfo(''); showOCHint(''); PICK_STATE=[]; document.getElementById('nw-picker').style.display='none'; NW_MONEDA='U$S'; updateCurrencyUI(); document.getElementById('nw-iva').value='22'; calcIVA(); }
 
 function calcIVA(){
   // Suma todas las líneas (picker tildado + producto manual), agrupadas por moneda.
-  // El IVA se acumula por línea porque la tasa depende del artículo: una OC
-  // puede mezclar 22% y 10%, y ahí multiplicar el subtotal daría mal.
-  var siva={'U$S':0,'$':0}, civa={'U$S':0,'$':0}, tasas={};
+  // La tasa la elige el usuario para toda la orden (22% por defecto).
+  var siva={'U$S':0,'$':0}, civa={'U$S':0,'$':0}, t=ivaSel('nw-iva'), otra=[];
   var sumar=function(desc,cant,prec,moneda){
     if(!(cant>0)||!(prec>0)) return;
-    var m=moneda==='$'?'$':'U$S', neto=cant*prec, t=ivaTasa(desc);
-    siva[m]+=neto; civa[m]+=neto*(1+t); tasas[Math.round(t*100)]=true;
+    var m=moneda==='$'?'$':'U$S', neto=cant*prec;
+    siva[m]+=neto; civa[m]+=neto*(1+t);
+    // El catálogo sabe que algunos artículos (Sal fina yodada) van al 10%:
+    // no se impone, pero se avisa si la orden va a otra tasa.
+    if(ivaTasa(desc)!==t) otra.push(desc);
   };
   pickedItems().forEach(function(l){ sumar(l.desc,l.cant,l.prec,l.moneda); });
   sumar(document.getElementById('nw-desc').value,
@@ -2277,11 +2300,12 @@ function calcIVA(){
   document.getElementById('calc-siva').textContent = parts(siva);
   document.getElementById('calc-civa').textContent = parts(civa);
 
-  // El rótulo dice qué tasa(s) se aplicaron, así el 10% no pasa desapercibido
   var lbl=document.getElementById('calc-civa-lbl');
-  if(lbl){
-    var ts=Object.keys(tasas).sort(function(a,b){return b-a;});
-    lbl.textContent = 'Total c/IVA'+(ts.length?' ('+ts.join('% + ')+'%)':'');
+  if(lbl) lbl.textContent = 'Total c/IVA ('+Math.round(t*100)+'%)';
+  var aviso=document.getElementById('nw-iva-aviso');
+  if(aviso){
+    aviso.style.display = otra.length ? 'block' : 'none';
+    aviso.textContent = otra.length ? '⚠ Normalmente va con IVA '+Math.round(ivaTasa(otra[0])*100)+'%: '+otra.join(', ') : '';
   }
 }
 
@@ -2324,15 +2348,17 @@ function crearOC(prov, lines, preciosElegidos){
   // Opcional: si no se sabe cuánto va a demorar, la columna Est. Llegada
   // queda en "—" y se puede completar después desde ✏ Editar.
   var demora = SubatirApp.llegada.dias(document.getElementById('nw-demora').value);
+  var iva    = ivaSel('nw-iva');
+  lines.forEach(function(l){ l.iva = iva; });
   // Cada línea se ata a su ficha de inventario ANTES de crear la orden.
   // Con el id adentro, el tránsito y la suma al recibir dejan de depender
   // de que el nombre siga escribiéndose igual dentro de tres meses.
   toast('Creando orden…','info');
   Promise.all(lines.map(function(l){
     return SubatirApp.match.fichaDe(l.desc).then(function(res){
-      return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda,
+      return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda, iva:iva,
               inventario_id: (res && res.ficha) ? res.ficha.id : null};
-    }, function(){ return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda}; });
+    }, function(){ return {descripcion:l.desc, cantidad:l.cant, precio:l.prec, moneda:l.moneda, iva:iva}; });
   })).then(function(items){
     var sinFicha = items.filter(function(it){ return !it.inventario_id; }).length;
     if(sinFicha) console.warn('[OC] '+sinFicha+' línea(s) sin ficha: se resolverán por nombre');
@@ -2367,6 +2393,7 @@ function clearNewForm(){
   calcNwLlegada();
   document.getElementById('calc-siva').textContent = '—';
   document.getElementById('calc-civa').textContent = '—';
+  document.getElementById('nw-iva').value = '22';
   NW_MONEDA='U$S'; updateCurrencyUI();
   updateProvInfo(''); showOCHint('');
   PICK_STATE=[]; document.getElementById('nw-picker').style.display='none';
@@ -2945,7 +2972,7 @@ function ocLinesOf(orden){
   if(!rows.length) return null;
   var first = rows[0];
   return { orden:orden, fecha:first[K.fecha], proveedor:first[K.proveedor], obs:first[K.obs],
-    lines: rows.map(function(r){ return { desc:String(r[K.desc]||''), cant:pNum(r[K.cantidad]), prec:pNum(r[K.precio]), moneda: ocMoneda(r)==='USD'?'U$S':'$' }; }) };
+    lines: rows.map(function(r){ return { desc:String(r[K.desc]||''), cant:pNum(r[K.cantidad]), prec:pNum(r[K.precio]), moneda: ocMoneda(r)==='USD'?'U$S':'$', iva: ivaDeRow(r) }; }) };
 }
 function pdfForOrder(orden){ var oc=ocLinesOf(orden); if(!oc){ toast('No se encontró la orden','err'); return; } buildDocPdf(oc,'compra'); }
 function receptionForOrder(orden){ var oc=ocLinesOf(orden); if(!oc){ toast('No se encontró la orden','err'); return; } buildDocPdf(oc,'recepcion'); }

@@ -234,15 +234,15 @@ td.txt-l{min-width:220px}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-06.1405"/>
-<script src="supabase-config.js?v=2026-10-06.1405"></script>
-<script src="subatir-app.js?v=2026-10-06.1405"></script>
-<script src="cloro-calc.js?v=2026-10-06.1405"></script>
-<script src="informes-calc.js?v=2026-10-06.1405"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-06.1407"/>
+<script src="supabase-config.js?v=2026-10-06.1407"></script>
+<script src="subatir-app.js?v=2026-10-06.1407"></script>
+<script src="cloro-calc.js?v=2026-10-06.1407"></script>
+<script src="informes-calc.js?v=2026-10-06.1407"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-06.1405';
+window.APP_VER='2026-10-06.1407';
 </script>
 </head>
 <body>
@@ -258,7 +258,7 @@ window.APP_VER='2026-10-06.1405';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-06.1405"></script>
+  <script src="nav.js?v=2026-10-06.1407"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="cargar(true)">⟳ Actualizar</button>
@@ -936,8 +936,13 @@ function leerPrefs(){ try { return JSON.parse(localStorage.getItem(PREF_KEY) || 
 // ─── Carga ────────────────────────────────────────────────────────
 // Todas las filas (SB.todo en supabase-config.js pide de a 1000):
 // sin eso, pasadas las 1000 líneas de OC el informe sumaría de menos.
+// Las vistas que no tienen columna id dicen por cuál ordenar: sin un
+// orden estable, la paginación de SB.todo podría repetir o saltear filas.
+var ORDEN = { imp_infra_traza:'item_id' };
 function todo(tabla){
-  return SB.todo(function(){ return SB.from(tabla).select('*'); }).then(function(r){
+  var col = ORDEN[tabla];
+  return SB.todo(function(){ var q = SB.from(tabla).select('*'); return col ? q.order(col, { ascending:true }) : q; },
+                 col ? { sinId:true } : null).then(function(r){
     if(r.error) throw new Error(tabla+': '+r.error.message);
     return r.data;
   });

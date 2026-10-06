@@ -741,9 +741,36 @@
       return !f.deposito || s.origen === f.deposito || s.destino === f.deposito;
     }).map(function (s) {
       return {
-        id: s.id, fecha: s.created_at, solicitante: s.solicitante || '', origen: s.origen || '', destino: s.destino || '',
+        id: s.id, fecha: s.created_at, solicitante: s.solicitante || '', origen: s.origen || '',
+        destino: s.destino || (s.sucursal ? 'Sucursal ' + s.sucursal : ''),
         estado: s.estado || '', operario: s.operario || '', entregada: s.entregada_at || '',
         horas: s.entregada_at ? r2(horasEntre(s.created_at, s.entregada_at)) : null
+      };
+    }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+  }
+
+  // Infraestructura: un renglón por artículo movido, sin pallet (vista
+  // imp_infra_traza). La fecha que cuenta es la del despacho, que es
+  // cuando salió del stock; lo pedido y no despachado entra por la
+  // fecha del pedido para que no quede afuera de ningún período.
+  function infraestructura(d, f) {
+    var prov = {};
+    (d.impArticulos || []).forEach(function (a) { prov[a.id] = a.proveedor; });
+    return (d.impInfra || []).filter(function (x) {
+      if (x.estado === 'CANCELADO') return false;
+      if (!provOk(prov[x.articulo_id], f)) return false;
+      // La búsqueda también encuentra por quién pidió, motivo o sucursal
+      if (!textoOk([x.articulo, x.codigo, x.responsable, x.motivo, x.destino, x.solicitante], f)) return false;
+      if (!enRango(x.despachado_at || x.pedido_at, f)) return false;
+      return !f.deposito || x.origen === f.deposito || x.destino === f.deposito;
+    }).map(function (x) {
+      return {
+        fecha: x.despachado_at || x.pedido_at, pedido: x.solicitud_id, articulo: x.articulo || '', codigo: x.codigo || '',
+        unidades: num(x.unidades), origen: x.origen || '',
+        destino: (x.destino_tipo === 'Sucursal' ? 'Sucursal ' : '') + (x.destino || ''),
+        responsable: x.responsable || '', motivo: x.motivo || '',
+        despacho: x.despachado_by || '', recibio: x.recibido_by || '', recibido: x.recibido_at || '',
+        estado: x.estado === 'PEDIDO' ? 'Pedido' : x.estado === 'ENVIADO' ? 'En camino' : 'Entregado'
       };
     }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
   }
@@ -790,6 +817,6 @@
     stock: stock, criticos: criticos,
     mp: mp, mpEvolucion: mpEvolucion,
     cloro: cloro, cloroPorMateria: cloroPorMateria,
-    depositos: depositos, stockDepositos: stockDepositos
+    depositos: depositos, stockDepositos: stockDepositos, infraestructura: infraestructura
   };
 });

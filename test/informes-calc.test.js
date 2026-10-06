@@ -250,3 +250,25 @@ test('cumplimiento: una recepcion anterior a la OC es fecha mal cargada y no ent
   assert.strictEqual(x.aTiempo, 1);
   assert.strictEqual(x.tarde, 0);
 });
+
+test('infraestructura: fecha de despacho, sucursal rotulada, cancelados fuera, filtros', () => {
+  const d = {
+    impArticulos: [{ id: 128, proveedor: 'Rack' }, { id: 129, proveedor: 'Otro' }],
+    impInfra: [
+      { solicitud_id: 36, pedido_at: '2026-08-27T12:00:00', despachado_at: '2026-09-02T16:27:00', articulo: 'Chapa', codigo: '490079',
+        unidades: 2, origen: 'Furriol', destino: 'Artigas', destino_tipo: 'Depósito', motivo: 'Fabrica Diego', estado: 'ENTREGADO', articulo_id: 128 },
+      { solicitud_id: 50, pedido_at: '2026-10-06T10:00:00', despachado_at: null, articulo: 'Parante', codigo: '490078',
+        unidades: 4, origen: 'Furriol', destino: 'Centro', destino_tipo: 'Sucursal', responsable: 'Ana', motivo: 'gondola', estado: 'PEDIDO', articulo_id: 129 },
+      { solicitud_id: 51, pedido_at: '2026-10-06T10:00:00', estado: 'CANCELADO', articulo_id: 129 }
+    ]
+  };
+  const todo = I.infraestructura(d, {});
+  assert.deepStrictEqual(todo.map((x) => [x.pedido, x.destino, x.estado]),
+    [[50, 'Sucursal Centro', 'Pedido'], [36, 'Artigas', 'Entregado']]);
+  // Cuenta la fecha de despacho, no la del pedido
+  assert.strictEqual(I.infraestructura(d, { desde: '2026-08-25', hasta: '2026-08-31' }).length, 0);
+  assert.strictEqual(I.infraestructura(d, { desde: '2026-09-01', hasta: '2026-09-05' }).length, 1);
+  assert.strictEqual(I.infraestructura(d, { prov: 'Rack' }).length, 1);
+  assert.strictEqual(I.infraestructura(d, { q: 'diego' })[0].pedido, 36);
+  assert.strictEqual(I.infraestructura(d, { deposito: 'Centro' })[0].pedido, 50);
+});

@@ -234,15 +234,15 @@ td.txt-l{min-width:220px}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-02.1018"/>
-<script src="supabase-config.js?v=2026-10-02.1018"></script>
-<script src="subatir-app.js?v=2026-10-02.1018"></script>
-<script src="cloro-calc.js?v=2026-10-02.1018"></script>
-<script src="informes-calc.js?v=2026-10-02.1018"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-06.1405"/>
+<script src="supabase-config.js?v=2026-10-06.1405"></script>
+<script src="subatir-app.js?v=2026-10-06.1405"></script>
+<script src="cloro-calc.js?v=2026-10-06.1405"></script>
+<script src="informes-calc.js?v=2026-10-06.1405"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-02.1018';
+window.APP_VER='2026-10-06.1405';
 </script>
 </head>
 <body>
@@ -258,7 +258,7 @@ window.APP_VER='2026-10-02.1018';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-02.1018"></script>
+  <script src="nav.js?v=2026-10-06.1405"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="cargar(true)">⟳ Actualizar</button>
@@ -374,7 +374,7 @@ var REPORTES = [
   { k:'cloro', ico:'💧', c:'56,189,248', t:'Previsión Cloro', d:'Ventas y envasado del período contra el año anterior', mod:'cloro',
     vistas:[['producto','Por producto'],['materia','Por materia prima']] },
   { k:'depositos', ico:'🏢', c:'96,165,250', t:'Depósitos', d:'Movimientos, traslados de pallets, solicitudes y stock actual', mod:'importacion',
-    vistas:[['movimientos','Movimientos'],['transferencias','Traslados de pallets'],['solicitudes','Solicitudes'],['stock','Stock actual']], dep:true }
+    vistas:[['movimientos','Movimientos'],['transferencias','Traslados de pallets'],['solicitudes','Solicitudes'],['infra','Infraestructura'],['stock','Stock actual']], dep:true }
 ];
 function rep(k){ return REPORTES.filter(function(r){ return r.k===k; })[0]; }
 function puede(r){
@@ -416,7 +416,8 @@ function fHoras(h){
 }
 var PILL = {
   'COMPLETA':'p-ok','PARCIAL':'p-am','PENDIENTE':'p-rd','OK':'p-ok','BAJO MÍNIMO':'p-am','SIN STOCK':'p-rd',
-  'ENTREGADA':'p-ok','CERRADA':'p-ok','EN CURSO':'p-am','CANCELADA':'p-nt','CONSUMIDO':'p-nt','ESTACIONADO':'p-ok','EN TRANSITO':'p-am'
+  'ENTREGADA':'p-ok','CERRADA':'p-ok','EN CURSO':'p-am','CANCELADA':'p-nt','CONSUMIDO':'p-nt','ESTACIONADO':'p-ok','EN TRANSITO':'p-am',
+  'Entregado':'p-ok','En camino':'p-am','Pedido':'p-rd'
 };
 function fPill(v){ return v ? '<span class="pill '+(PILL[v]||'p-nt')+'">'+esc(v)+'</span>' : '—'; }
 
@@ -652,6 +653,13 @@ function construir(){
         C('operario','Atendió','txt',{w:16}), C('entregada','Entregada','fh',{w:16}), C('horas','Demora','horas',{w:10}) ];
       out.filas = dp.solicitudes;
       out.sub = 'Solicitudes de mercadería creadas en el período. Demora = de pedida a entregada.';
+    } else if(V==='infra'){
+      out.cols = [ C('fecha','Salió','fh',{w:16}), C('pedido','Pedido','num',{w:7}), C('articulo','Artículo','txt',{w:30,l:1}),
+        C('codigo','Código','txt',{w:9}), C('unidades','Unidades','cant',{w:9,tot:1}), C('origen','Origen','txt',{w:10}),
+        C('destino','Destino','txt',{w:16}), C('responsable','Pidió','txt',{w:16}), C('motivo','Motivo','txt',{w:26,l:1}),
+        C('despacho','Despachó','txt',{w:14}), C('recibio','Recibió','txt',{w:14}), C('estado','Estado','pill',{w:11}) ];
+      out.filas = I.infraestructura(D, f);
+      out.sub = 'Estanterías y demás infraestructura que salió sin pallet, artículo por artículo. Fecha = despacho (o pedido, si todavía no salió).';
     } else {
       var sd = I.stockDepositos(D, f);
       out.cols = [ C('articulo','Artículo','txt',{w:34,l:1}), C('codigo','Código','txt',{w:10}), C('tipo','Tipo','txt',{w:12}) ]
@@ -940,7 +948,8 @@ var TABLAS = {
   varios:'pedidos_varios', variosItems:'pedidos_varios_items',
   mpProveedores:'mp_proveedores', mpArticulos:'mp_articulos', mpCorridas:'mp_corridas', mpDatos:'mp_datos',
   clTemporadas:'cl_temporadas', clProductos:'cl_productos', clMaterias:'cl_materias', clVentas:'cl_ventas', clEnvasado:'cl_envasado',
-  impArticulos:'imp_articulos', impMovimientos:'imp_movimientos', impPallets:'imp_pallets', impSolicitudes:'imp_solicitudes', impStock:'imp_stock'
+  impArticulos:'imp_articulos', impMovimientos:'imp_movimientos', impPallets:'imp_pallets', impSolicitudes:'imp_solicitudes', impStock:'imp_stock',
+  impInfra:'imp_infra_traza'
 };
 
 function cargar(avisar){

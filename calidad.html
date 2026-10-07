@@ -285,7 +285,11 @@ function llenarProveedores(){
 
 // ─── Celdas ─────────────────────────────────────────────────
 function fechaCorta(iso){ if(!iso) return ''; var p=String(iso).slice(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0].slice(2); }
-function puede(){ return ES_ADMIN && !!DATOS && !DATOS.falta; }
+// Subir: admin o quien tenga el permiso de Calidad MP (07/10/2026,
+// migracion/calidad_subir_permiso.sql). Borrar a mano sigue siendo
+// sólo del admin; el reemplazo de FT/HDS va por mp_doc_reemplazar().
+function puede(){ return (ES_ADMIN || SubatirApp.canAccess('calidad', PERFIL)) && !!DATOS && !DATOS.falta; }
+function puedeBorrar(){ return ES_ADMIN && !!DATOS && !DATOS.falta; }
 // El índice de la fila viaja en el onclick: el proveedor es texto libre
 // y meterlo entre comillas en el HTML se rompe con un apóstrofe.
 function botonSubir(i, tipo){
@@ -491,7 +495,7 @@ function abrirDoc(id){
           && (x.tipo !== 'OTRO' || CalidadMP.norm(y.titulo) === CalidadMP.norm(x.titulo));
       }));
     },
-    puedeBorrar: puede(),
+    puedeBorrar: puedeBorrar(),
     onBorrar: borrarDB
   });
 }
@@ -741,7 +745,7 @@ function pintarHist(){
           +'<span title="'+esc(det)+'">'+esc(det)+'</span>'
           +(d.observaciones?'<span>'+esc(d.observaciones)+'</span>':'')+'</div>'
           +'<button class="btn btn-teal btn-sm" onclick="abrirDoc('+d.id+')">Ver</button>'
-          +(puede()?'<button class="btn btn-ghost btn-sm" id="del-'+d.id+'" title="Borrar" aria-label="Borrar" onclick="borrarDoc('+d.id+')">🗑</button>':'')
+          +(puedeBorrar()?'<button class="btn btn-ghost btn-sm" id="del-'+d.id+'" title="Borrar" aria-label="Borrar" onclick="borrarDoc('+d.id+')">🗑</button>':'')
           +'</div>';
       }).join('') : '<div class="hist-empty">Nada cargado.</div>')
       +'</div>';

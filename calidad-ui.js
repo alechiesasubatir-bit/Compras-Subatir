@@ -487,6 +487,23 @@
       var viejos = CalidadMP.aReemplazar(r.data || [], nuevo);
       if (!viejos.length) return 0;
       var ids = viejos.map(function (d) { return d.id; });
+      // Por la función de la base: así también reemplaza quien sube sin
+      // ser admin (calidad_subir_permiso.sql), sin darle "borrar" en general
+      if (nuevo.id != null) {
+        return SB.rpc('mp_doc_reemplazar', { p_nuevo: nuevo.id, p_viejos: ids }).then(function (r) {
+          if (r.error && (r.error.code === 'PGRST202' || /could not find the function/i.test(r.error.message || ''))) return borrarDirecto(ids, viejos);
+          if (r.error) throw new Error(r.error.message);
+          var arch = r.data || [];
+          viejos.filter(function (d) { return arch.indexOf(d.archivo) >= 0; }).forEach(function (d) { borrarMini(d.id); });
+          if (arch.length) SB.storage.from(BUCKET).remove(arch);
+          return arch.length;
+        });
+      }
+      return borrarDirecto(ids, viejos);
+    });
+  }
+  // Sin la función en la base (SQL sin correr): como antes, sólo anda para el admin
+  function borrarDirecto(ids, viejos) {
       return SB.from('mp_documentos').delete().in('id', ids).select('id').then(function (del) {
         if (del.error) throw new Error(del.error.message);
         var ok = (del.data || []).map(function (d) { return d.id; });
@@ -495,7 +512,6 @@
         if (arch.length) SB.storage.from(BUCKET).remove(arch);
         return ok.length;
       });
-    });
   }
 
   window.CalidadUI = {

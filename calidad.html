@@ -15,18 +15,27 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="calidad-ui.css?v=2026-10-07.1635"/>
+<link rel="stylesheet" href="calidad-ui.css?v=2026-10-07.1647"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-07.1635"/>
-<script src="supabase-config.js?v=2026-10-07.1635"></script>
-<script src="subatir-app.js?v=2026-10-07.1635"></script>
-<script src="calidad-calc.js?v=2026-10-07.1635"></script>
-<script src="calidad-ui.js?v=2026-10-07.1635"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-07.1647"/>
+<script src="supabase-config.js?v=2026-10-07.1647"></script>
+<script src="subatir-app.js?v=2026-10-07.1647"></script>
+<script src="calidad-calc.js?v=2026-10-07.1647"></script>
+<script src="calidad-ui.js?v=2026-10-07.1647"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-07.1635';
+window.APP_VER='2026-10-07.1647';
 </script>
+<style>
+/* Sacar foto (07/10/2026) */
+.up-src{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.up-src .btn{flex:1;justify-content:center}
+.up-prev{display:block;max-width:100%;max-height:180px;margin:10px auto 0;border-radius:8px;
+  border:1px solid var(--border-b);object-fit:contain}
+.cam-m{max-width:720px}
+#cam-v{width:100%;max-height:62vh;border-radius:10px;background:#000;display:block;object-fit:contain}
+</style>
 </head>
 <body>
 
@@ -41,7 +50,7 @@ window.APP_VER='2026-10-07.1635';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-07.1635"></script>
+  <script src="nav.js?v=2026-10-07.1647"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -125,6 +134,8 @@ window.APP_VER='2026-10-07.1635';
         <option value="">Todos los proveedores</option>
       </select>
       <button class="btn btn-orange btn-sm" id="btn-subir" style="display:none;margin-left:auto" onclick="abrirSubir(null,'FT','')">⬆ Subir documento</button>
+      <button class="btn btn-teal btn-sm" id="btn-foto" style="display:none" onclick="fotoNueva()"
+              title="Sacar una foto del documento con la cámara (por defecto, certificado de análisis)">📷 Sacar foto</button>
     </div>
     <!-- Tarjetas o lista: la misma vista en todo Calidad MP (calidad-ui.js) -->
     <div id="vista"><div class="agrid"><div class="empty-grid">Cargando…</div></div></div>
@@ -180,13 +191,37 @@ window.APP_VER='2026-10-07.1635';
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
           <span id="up-fname">Tocá para elegir el archivo, o arrastralo acá</span>
         </div>
+        <div class="up-src">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('up-file').click()">📁 Elegir archivo</button>
+          <button type="button" class="btn btn-teal btn-sm" onclick="tomarFoto()">📷 Sacar foto</button>
+        </div>
         <input type="file" id="up-file" accept="application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="upArchivo(this.files[0])"/>
+        <!-- capture: en el celular abre directo la cámara trasera -->
+        <input type="file" id="up-cam" accept="image/*" capture="environment" style="display:none" onchange="upFoto(this.files[0]);this.value=''"/>
       </div>
       <div class="fg"><label for="up-obs">Observaciones (opcional)</label><input class="fi2" id="up-obs"/></div>
     </div>
     <div class="modal-ftr">
       <button class="btn btn-ghost" onclick="cerrar('ov-up')">Cancelar</button>
       <button class="btn btn-orange" id="up-ok" onclick="subir()">⬆ Subir</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CÁMARA (PC): webcam dentro de la página ══════════════ -->
+<!-- En el celular no se usa: la cámara nativa (input capture) saca mejor
+     un papel —enfoque, flash, resolución completa— que un video. -->
+<div class="overlay" id="ov-cam" onclick="if(event.target===this)cerrarCam()">
+  <div class="modal cam-m" role="dialog" aria-modal="true" aria-labelledby="cam-t">
+    <div class="modal-hdr">
+      <div><div class="modal-title" id="cam-t">Sacar foto del documento</div>
+        <div class="modal-sub">Encuadrá la hoja entera y que se lea el texto</div></div>
+      <button class="modal-x" aria-label="Cerrar" onclick="cerrarCam()">✕</button>
+    </div>
+    <div class="modal-body"><video id="cam-v" autoplay playsinline muted></video></div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="cerrarCam()">Cancelar</button>
+      <button class="btn btn-orange" id="cam-ok" onclick="capturar()" disabled>📷 Capturar</button>
     </div>
   </div>
 </div>
@@ -224,6 +259,7 @@ function load(){
     setText('ts', new Date().toLocaleTimeString('es-UY'));
     llenarProveedores();
     document.getElementById('btn-subir').style.display = puede() ? '' : 'none';
+    document.getElementById('btn-foto').style.display = puede() ? '' : 'none';
     render();
     if(HIST) pintarHist();
   }, function(e){
@@ -475,7 +511,8 @@ function abrirSubir(inv, tipo, prov){
   document.getElementById('up-prov').placeholder = 'Proveedor que emite el documento';
   ['up-titulo','up-lote','up-rev','up-fecha','up-obs'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('up-file').value = '';
-  UP = { inv: inv, file: null };
+  if(UP.prev) URL.revokeObjectURL(UP.prev);
+  UP = { inv: inv, file: null, prev: null };
   setText('up-fname', 'Tocá para elegir el archivo, o arrastralo acá');
   upMP(); upTipo();
   abrir('ov-up');
@@ -529,7 +566,73 @@ function upArchivo(f){
   if(TIPOS_OK.indexOf(f.type) < 0){ toast('Sólo PDF o foto (JPG, PNG, WEBP).', 'err'); return; }
   if(f.size > 20*1024*1024){ toast('El archivo pasa los 20 MB.', 'err'); return; }
   UP.file = f;
-  document.getElementById('up-fname').innerHTML = '📎 <b>'+esc(f.name)+'</b> · '+(f.size/1024/1024).toFixed(1)+' MB';
+  // Con foto se ve qué se va a subir: si salió movida, se repite antes de guardar
+  if(UP.prev) URL.revokeObjectURL(UP.prev);
+  UP.prev = /^image\//.test(f.type) ? URL.createObjectURL(f) : null;
+  document.getElementById('up-fname').innerHTML = '📎 <b>'+esc(f.name)+'</b> · '+(f.size/1024/1024).toFixed(1)+' MB'
+    + (UP.prev ? '<img class="up-prev" src="'+UP.prev+'" alt="Vista previa de la foto"/>' : '');
+}
+
+// ─── Sacar foto ─────────────────────────────────────────────
+//  Desde arriba (📷 Sacar foto) arranca como COA, que es lo que más se
+//  fotografía; el tipo, la MP y el proveedor se eligen en el mismo modal.
+function fotoNueva(){
+  if(!puede()) return;
+  abrirSubir(null, 'COA', '');
+  tomarFoto();
+}
+function esCelular(){ return !!(window.matchMedia && matchMedia('(pointer:coarse)').matches); }
+function tomarFoto(){
+  // El click tiene que salir en el mismo gesto del usuario: si no, el
+  // navegador no abre la cámara
+  if(esCelular() || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+    document.getElementById('up-cam').click(); return;
+  }
+  abrirCam();
+}
+// La foto se renombra: "image.jpg" de la cámara no dice nada en la lista
+function upFoto(f){
+  if(!f) return;
+  var d = new Date(), z = function(n){ return String(n).padStart(2,'0'); };
+  var tipo = f.type || 'image/jpeg';
+  var ext = tipo === 'image/png' ? 'png' : tipo === 'image/webp' ? 'webp' : 'jpg';
+  var nom = 'foto-'+d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+'-'+z(d.getHours())+z(d.getMinutes())+z(d.getSeconds())+'.'+ext;
+  upArchivo(new File([f], nom, { type: tipo }));
+}
+var CAM = null;   // stream de la webcam abierto
+function abrirCam(){
+  var v = document.getElementById('cam-v'), ok = document.getElementById('cam-ok');
+  ok.disabled = true;
+  abrir('ov-cam');
+  navigator.mediaDevices.getUserMedia({ audio: false, video: {
+    facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1440 } } })
+  .then(function(st){
+    // Si cerraron la ventana mientras pedía permiso, no queda la cámara prendida
+    if(!document.getElementById('ov-cam').classList.contains('open')){ st.getTracks().forEach(function(t){ t.stop(); }); return; }
+    CAM = st; v.srcObject = st;
+    v.onloadedmetadata = function(){ ok.disabled = false; };
+  }).catch(function(e){
+    cerrarCam();
+    toast('No se pudo abrir la cámara'+(e && e.name === 'NotAllowedError' ? ': falta dar el permiso en el navegador' : '')
+      +'. Podés elegir una foto con 📁 Elegir archivo.', 'err');
+  });
+}
+function cerrarCam(){
+  if(CAM){ CAM.getTracks().forEach(function(t){ t.stop(); }); CAM = null; }
+  document.getElementById('cam-v').srcObject = null;
+  cerrar('ov-cam');
+}
+function capturar(){
+  var v = document.getElementById('cam-v');
+  if(!v.videoWidth) return;
+  var c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  c.toBlob(function(b){
+    cerrarCam();
+    if(!b){ toast('No se pudo sacar la foto.', 'err'); return; }
+    upFoto(new File([b], 'foto.jpg', { type: 'image/jpeg' }));
+  }, 'image/jpeg', 0.92);
 }
 (function(){
   var d = document.getElementById('up-drop');
@@ -698,6 +801,7 @@ function exportCSV(){
 function abrir(id){ document.getElementById(id).classList.add('open'); }
 function cerrar(id){ document.getElementById(id).classList.remove('open'); if(id==='ov-hist') HIST = null; }
 document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && document.getElementById('ov-cam').classList.contains('open')){ cerrarCam(); return; }
   if(e.key === 'Escape') ['ov-up','ov-hist'].forEach(function(id){
     if(document.getElementById(id).classList.contains('open')) cerrar(id); });
 });

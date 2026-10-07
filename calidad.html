@@ -15,22 +15,25 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="calidad-ui.css?v=2026-10-07.1647"/>
+<link rel="stylesheet" href="calidad-ui.css?v=2026-10-07.1651"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-07.1647"/>
-<script src="supabase-config.js?v=2026-10-07.1647"></script>
-<script src="subatir-app.js?v=2026-10-07.1647"></script>
-<script src="calidad-calc.js?v=2026-10-07.1647"></script>
-<script src="calidad-ui.js?v=2026-10-07.1647"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-07.1651"/>
+<script src="supabase-config.js?v=2026-10-07.1651"></script>
+<script src="subatir-app.js?v=2026-10-07.1651"></script>
+<script src="calidad-calc.js?v=2026-10-07.1651"></script>
+<script src="calidad-ui.js?v=2026-10-07.1651"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-07.1647';
+window.APP_VER='2026-10-07.1651';
 </script>
 <style>
 /* Sacar foto (07/10/2026) */
 .up-src{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .up-src .btn{flex:1;justify-content:center}
+/* CÁMARA: el triple que un botón chico (.btn-sm 4×10 px, 10 px de letra) */
+.btn-cam{padding:12px 30px;font-size:30px;font-weight:800;letter-spacing:1px;line-height:1.1;border-radius:12px}
+.up-src .btn-cam{font-size:22px;padding:12px 18px}
 .up-prev{display:block;max-width:100%;max-height:180px;margin:10px auto 0;border-radius:8px;
   border:1px solid var(--border-b);object-fit:contain}
 .cam-m{max-width:720px}
@@ -50,7 +53,7 @@ window.APP_VER='2026-10-07.1647';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-07.1647"></script>
+  <script src="nav.js?v=2026-10-07.1651"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -134,8 +137,8 @@ window.APP_VER='2026-10-07.1647';
         <option value="">Todos los proveedores</option>
       </select>
       <button class="btn btn-orange btn-sm" id="btn-subir" style="display:none;margin-left:auto" onclick="abrirSubir(null,'FT','')">⬆ Subir documento</button>
-      <button class="btn btn-teal btn-sm" id="btn-foto" style="display:none" onclick="fotoNueva()"
-              title="Sacar una foto del documento con la cámara (por defecto, certificado de análisis)">📷 Sacar foto</button>
+      <button class="btn btn-teal btn-cam" id="btn-foto" style="display:none" onclick="fotoNueva()"
+              title="Sacar una foto del documento con la cámara (por defecto, certificado de análisis)">📷 CÁMARA</button>
     </div>
     <!-- Tarjetas o lista: la misma vista en todo Calidad MP (calidad-ui.js) -->
     <div id="vista"><div class="agrid"><div class="empty-grid">Cargando…</div></div></div>
@@ -193,7 +196,7 @@ window.APP_VER='2026-10-07.1647';
         </div>
         <div class="up-src">
           <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('up-file').click()">📁 Elegir archivo</button>
-          <button type="button" class="btn btn-teal btn-sm" onclick="tomarFoto()">📷 Sacar foto</button>
+          <button type="button" class="btn btn-teal btn-cam" onclick="tomarFoto()">📷 CÁMARA</button>
         </div>
         <input type="file" id="up-file" accept="application/pdf,image/jpeg,image/png,image/webp" style="display:none" onchange="upArchivo(this.files[0])"/>
         <!-- capture: en el celular abre directo la cámara trasera -->

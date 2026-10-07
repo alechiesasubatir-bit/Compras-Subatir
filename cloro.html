@@ -134,7 +134,9 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .cod{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
 /* Barra de horizonte (atajo de Configuración) */
 .hz{display:flex;flex-direction:column;gap:3px;min-width:190px}
-#f-temp{min-width:150px}   /* con la barra al lado, el nombre de la temporada quedaba en "202" */
+/* Con la barra al lado, la temporada se encogía a "202". El mínimo va en
+   el contenedor: puesto en el select, el select desbordaba sobre "Semana". */
+.ctx > .ctx-g:first-child{min-width:150px}
 .hz .ctx-l small{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}
 .hz-r{display:flex;align-items:center;gap:9px}
 .hz-r b{font-family:var(--mono);font-size:12px;color:var(--teal-l);min-width:46px}
@@ -143,8 +145,7 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 /* Avance de la temporada: envasado vs. lo vendido en el histórico */
 .av{margin-top:5px;max-width:270px}
 .av-t{height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}
-.av-f{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--teal-l))}
-.av-f.lleno{background:linear-gradient(90deg,#15803d,var(--green))}
+.av-f{height:100%;border-radius:4px}
 .av-n{display:flex;justify-content:space-between;gap:8px;margin-top:2px;
   font-family:var(--mono);font-size:10px;color:var(--muted-l)}
 .av-n b{color:var(--text);font-weight:600}
@@ -433,13 +434,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-07.1556"/>
-<script src="supabase-config.js?v=2026-10-07.1556"></script>
-<script src="subatir-app.js?v=2026-10-07.1556"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-07.1626"/>
+<script src="supabase-config.js?v=2026-10-07.1626"></script>
+<script src="subatir-app.js?v=2026-10-07.1626"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-07.1556';
+window.APP_VER='2026-10-07.1626';
 </script>
 </head>
 <body>
@@ -451,7 +452,7 @@ window.APP_VER='2026-10-07.1556';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-07.1556"></script>
+  <script src="nav.js?v=2026-10-07.1626"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -518,39 +519,6 @@ window.APP_VER='2026-10-07.1556';
   <!-- ══ KPIs ═══════════════════════════════════════════════ -->
   <div class="kpis" id="kpis"></div>
 
-  <!-- ══ Gráfico: la temporada ══════════════════════════════ -->
-  <div class="card sec">
-    <div class="sec-h">
-      <div class="sec-t">
-        <div class="sec-ico">📈</div>
-        <div>
-          <div class="sec-eyebrow">Ventas por semana de temporada</div>
-          <h2>La temporada</h2>
-        </div>
-      </div>
-      <div class="sec-tools"><span class="chip" id="g-temp-chip">—</span></div>
-    </div>
-    <div class="graf" id="g-temp"></div>
-    <div class="leg" id="g-temp-leg"></div>
-  </div>
-
-  <!-- Detalle de la semana fijada con un clic en el gráfico -->
-  <div id="g-temp-det"></div>
-
-  <!-- ══ Fichas por producto ════════════════════════════════ -->
-  <div class="card sec">
-    <div class="sec-h">
-      <div class="sec-t">
-        <div class="sec-ico">🗂</div>
-        <div>
-          <div class="sec-eyebrow">Una por producto</div>
-          <h2>Fichas</h2>
-        </div>
-      </div>
-    </div>
-    <div class="fichas" id="fichas"></div>
-  </div>
-
   <!-- ══ Por producto ═══════════════════════════════════════ -->
   <div class="card sec">
     <div class="sec-h">
@@ -611,14 +579,47 @@ window.APP_VER='2026-10-07.1556';
           <tr>
             <th class="l">Materia prima</th>
             <th class="l">Productos</th>
-            <th class="out">kg del horizonte</th>
+            <th class="out" title="Lo que se prevé consumir en las semanas del horizonte, incluidas las órdenes de envasado ya cargadas.">kg del horizonte</th>
             <th>Stock</th>
-            <th>Cobertura</th>
+            <th title="kg del horizonte menos el stock del depósito. Debajo, hasta qué semana alcanza lo que hay.">Falta comprar</th>
           </tr>
         </thead>
         <tbody id="tbody-mp"></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- ══ Gráfico: la temporada ══════════════════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico">📈</div>
+        <div>
+          <div class="sec-eyebrow">Ventas por semana de temporada</div>
+          <h2>La temporada</h2>
+        </div>
+      </div>
+      <div class="sec-tools"><span class="chip" id="g-temp-chip">—</span></div>
+    </div>
+    <div class="graf" id="g-temp"></div>
+    <div class="leg" id="g-temp-leg"></div>
+  </div>
+
+  <!-- Detalle de la semana fijada con un clic en el gráfico -->
+  <div id="g-temp-det"></div>
+
+  <!-- ══ Fichas por producto ════════════════════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico">🗂</div>
+        <div>
+          <div class="sec-eyebrow">Una por producto</div>
+          <h2>Fichas</h2>
+        </div>
+      </div>
+    </div>
+    <div class="fichas" id="fichas"></div>
   </div>
 
   <!-- ══ Gráfico: materia prima por semana ══════════════════ -->
@@ -921,7 +922,7 @@ window.APP_VER='2026-10-07.1556';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="cloro-calc.js?v=2026-10-07.1556"></script>
+<script src="cloro-calc.js?v=2026-10-07.1626"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
@@ -1353,6 +1354,31 @@ function pedidoDe(inv){
 // trata como si ya estuviera en el depósito. Sirve para saber si la
 // compra que ya se hizo alcanza; no para dormir tranquilo. Por eso la
 // que se muestra grande es `base`.
+// ══ MATERIA PRIMA A COMPRAR: UNA SOLA CUENTA ═══════════════════
+//  La usan la tabla y el KPI, para que no puedan contradecirse.
+//  kg = consumo previsto en el horizonte, de la MISMA serie que la
+//  cobertura y el gráfico semanal (planConsumo): incluye las órdenes ya
+//  cargadas. Medirlo sobre el `sugerido` dejaba afuera lo programado esta
+//  semana —Metabisulfito daba 0 kg con 4.000 kg ordenados— y la fila decía
+//  "cubierto" al lado de "no alcanza ni esta semana".
+//  falta = kg − stock del depósito. Lo pedido no se descuenta: no tiene
+//  fecha de entrega; la tabla lo muestra aparte como "si llega".
+function mpAComprar(){
+  var activos=PROD.filter(function(p){ return p.activo!==false; });
+  var kgs=Cloro.kgSemanal(activos, planConsumo()).porMateria;
+  var H=Math.max(1, Math.round(num(PAR && PAR.horizonte_semanas)));
+  var out={porMateria:{}, kgTot:0, faltaTot:0};
+  MAT.forEach(function(m){
+    var serie=kgs[m.id]||[], kg=0, i;
+    for(i=SEM_ACTUAL-1; i<SEM_ACTUAL-1+H && i<serie.length; i++) kg+=num(serie[i]);
+    var inv=matInv(m);
+    var falta = inv ? kg-num(inv.inventario) : null;
+    out.porMateria[m.id]={kg:kg, falta:falta};
+    out.kgTot+=kg;
+    if(falta>0) out.faltaTot+=falta;
+  });
+  return out;
+}
 function coberturaPorMateria(){
   var planes=planConsumo();
   if(!Object.keys(planes).length) return {};
@@ -2163,7 +2189,7 @@ function pintarKPIs(){
   var demH    = fs.reduce(function(s,f){ return s+f.demandaH; },0);
   var sug={}; fs.forEach(function(f){ sug[f.prod.id]=num(f.sugerido); });
   var mp = Cloro.kgMateria(PROD.filter(function(p){ return p.activo!==false; }), sug);
-  var kgTot = Object.keys(mp.porMateria).reduce(function(s,k){ return s+mp.porMateria[k]; },0);
+  var kgTot = mpAComprar().faltaTot;     // el mismo total que la tabla
 
   var vTempTramo = fs.reduce(function(s,f){
     return s + f.vAct.slice(0,cerradas).reduce(function(a,x){ return a+num(x); },0); },0);
@@ -2187,7 +2213,7 @@ function pintarKPIs(){
            ? '<span class="c-rd">'+(mp.sinAsignar.length?mp.sinAsignar.length+' sin materia prima':'')
              +(mp.sinAsignar.length&&sinBase?' · ':'')
              +(sinBase?sinBase+' sin base de stock':'')+', afuera de esta cuenta</span>'
-         : 'todos los productos asignados');
+         : 'consumo de '+n0(PAR.horizonte_semanas)+' semanas menos el stock');
 }
 function kpi(clase, label, valor, color, sub){
   return '<div class="card kpi kpi-'+clase+'"><div class="kpi-l">'+esc(label)+'</div>'
@@ -2366,7 +2392,7 @@ function cargarPDF(){
     // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
     // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
     // El literal va PARTIDO a propósito: bump-version.ps1 busca
-    // `oc-pdf.js?v=2026-10-07.1556'oc-pdf.js?v=2026-10-07.1556'+APP_VER.
+    // `oc-pdf.js?v=2026-10-07.1626'oc-pdf.js?v=2026-10-07.1626'+APP_VER.
     // Partido, el patrón no aparece y la versión la pone APP_VER sola.
     .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js'+'?v='+APP_VER); })
     // El logo se precarga solo y es asíncrono. Sin esperarlo, el primer
@@ -2465,14 +2491,20 @@ function generarOrden(){
 // temporada anterior (las NSEM semanas del histórico, el total que muestra
 // la leyenda del gráfico). Sin histórico no hay contra qué medir: no se
 // dibuja, en vez de mostrar un 0 % que parecería un atraso.
+// Rojo al arrancar, pasa por naranja y amarillo, y recién desde el 90 %
+// salta a verde: el verde dice "esto ya está", no "va bien encaminado".
+function colorAvance(pct){
+  var h = pct>=90 ? 135 : Math.max(0, pct)/90*55;
+  return 'hsl('+h.toFixed(0)+',80%,'+(pct>=90?42:50)+'%)';
+}
 function barraAvance(f){
   var tot=f.ventasPrev, env=f.envasadoTemp;
   if(!(tot>0)) return '';
   var pct=env/tot*100;
   return '<div class="av" title="Envasado en esta temporada: '+n0(env)+' u, contra '+n0(tot)
       +' u vendidas en las '+NSEM+' semanas de la temporada anterior">'
-    +'<div class="av-t"><div class="av-f'+(pct>=100?' lleno':'')+'" style="width:'
-      +Math.min(100,pct).toFixed(1)+'%"></div></div>'
+    +'<div class="av-t"><div class="av-f" style="width:'+Math.min(100,pct).toFixed(1)+'%;'
+      +'background:'+colorAvance(pct)+'"></div></div>'
     +'<div class="av-n"><b>'+n1(pct)+'%</b><span>'+n0(env)+' / '+n0(tot)+' u</span></div></div>';
 }
 
@@ -2579,14 +2611,15 @@ function pintarMP(){
   var fs=filas();
   var sug={}; fs.forEach(function(f){ sug[f.prod.id]=num(f.sugerido); });
   var activos = PROD.filter(function(p){ return p.activo!==false; });
-  var r = Cloro.kgMateria(activos, sug);
+  var r = Cloro.kgMateria(activos, sug);   // sólo para "sin asignar"
+  var CMP = mpAComprar();
   var COB = coberturaPorMateria();
   // Sin horizonte no hay con qué decidir si una cobertura es corta, y 0
   // nunca marca nada en rojo.
   var horiz = PAR ? num(PAR.horizonte_semanas) : 0;
-  var h='', tot=0;
+  var h='', tot=0, totFalta=0;
   MAT.filter(function(m){ return m.activo!==false; }).forEach(function(m){
-    var kg = r.porMateria[m.id]||0;
+    var kg = (CMP.porMateria[m.id]||{}).kg||0;
     var prods = activos.filter(function(p){ return p.materia_id===m.id && num(p.kg_mp_por_unidad)>0; });
     if(!prods.length && !kg) return;
     tot+=kg;
@@ -2600,23 +2633,26 @@ function pintarMP(){
         +'<span class="upd">al '+fechaCorta(String(inv.updated_at).slice(0,10))
         +(ped.kg>0 ? ' · +'+n0(ped.kg)+' en camino' : '')+'</span>'
       : '<span class="calc">sin vincular</span>';
-    // El número grande es siempre el del depósito. Lo pedido va debajo y
-    // se anuncia como "si llega": no hay fecha de entrega en ningún lado,
-    // así que esa cuenta lo trata como si ya hubiera entrado.
+    // Lo que falta comprar es la misma cuenta que se lee en la fila: kg del
+    // horizonte menos el stock. Lo pedido NO se descuenta acá —no tiene
+    // fecha de entrega—; va aparte como "si llega".
     var cbTxt;
-    if(!inv)             cbTxt='<span class="calc">sin vincular</span>';
-    else if(!cob)        cbTxt='<span class="calc">—</span>';
-    else if(cob.alcanza) cbTxt='cubre la temporada';
-    else cbTxt = n0(cob.semanas)+' sem'
-        +'<span class="cob'+(cob.semanas<horiz?' bajo':'')+'">'
-        +(cob.semanas===0 ? 'no alcanza' : 'hasta la semana '+cob.hastaSemana)+'</span>';
-    // Sólo si el pedido de verdad mueve la aguja: repetir el mismo número
-    // dos veces -o aclarar que lo que ya cubre la temporada la cubre aún
-    // más- es ruido en una tabla que se lee para decidir una compra.
-    if(inv && cob && !cob.alcanza && c.conPend && c.conPend.semanas>cob.semanas){
-      cbTxt += '<span class="upd">si llega'+(ped.orden?' la OC '+esc(ped.orden):' lo pedido')+': '
-        +(c.conPend.alcanza ? 'cubre la temporada'
-          : n0(c.conPend.semanas)+' sem, hasta la '+c.conPend.hastaSemana)+'</span>';
+    if(!inv) cbTxt='<span class="calc">sin vincular</span>';
+    else {
+      var falta = CMP.porMateria[m.id].falta;
+      totFalta += Math.max(0, falta);
+      cbTxt = falta>0
+        ? '<b class="c-or">'+n0(falta)+' kg</b>'
+        : '<span class="c-gr">cubierto</span><span class="upd">sobran '+n0(-falta)+' kg</span>';
+      if(cob) cbTxt += '<span class="cob'+(cob.alcanza?' ok':(cob.semanas<horiz?' bajo':''))+'">'
+        +(cob.alcanza ? 'el stock cubre la temporada'
+          : cob.semanas===0 ? 'el stock no alcanza ni esta semana'
+          : 'el stock alcanza hasta la semana '+cob.hastaSemana)+'</span>';
+      if(falta>0 && ped.kg>0){
+        var f2 = falta - ped.kg;
+        cbTxt += '<span class="upd">si llega'+(ped.orden?' la OC '+esc(ped.orden):' lo pedido')+': '
+          +(f2>0 ? 'faltan '+n0(f2)+' kg' : 'cubierto')+'</span>';
+      }
     }
     h+='<tr><td class="l" style="font-weight:600">'+esc(matNombre(m))
       +(inv?'<span class="cod">'+esc(inv.codigo)+'</span>':'')+'</td>'
@@ -2636,7 +2672,7 @@ function pintarMP(){
   }
   if(!h) h='<tr><td colspan="5" class="empty">Todavía no hay materias primas con productos asignados.</td></tr>';
   else h+='<tr class="tot"><td class="l">TOTAL</td><td></td><td>'+n0(tot)+' kg</td>'
-        +'<td></td><td></td></tr>';
+        +'<td></td><td>'+n0(totFalta)+' kg</td></tr>';
   document.getElementById('tbody-mp').innerHTML=h;
 }
 

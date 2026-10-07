@@ -132,6 +132,22 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .tot td{background:rgba(255,255,255,.05);font-weight:700;border-top:1px solid var(--border-b)}
 .art{max-width:270px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .cod{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+/* Barra de horizonte (atajo de Configuración) */
+.hz{display:flex;flex-direction:column;gap:3px;min-width:190px}
+#f-temp{min-width:150px}   /* con la barra al lado, el nombre de la temporada quedaba en "202" */
+.hz .ctx-l small{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}
+.hz-r{display:flex;align-items:center;gap:9px}
+.hz-r b{font-family:var(--mono);font-size:12px;color:var(--teal-l);min-width:46px}
+#hz-rng{flex:1;accent-color:var(--orange);cursor:pointer;min-width:120px}
+#hz-rng:disabled{opacity:.5;cursor:wait}
+/* Avance de la temporada: envasado vs. lo vendido en el histórico */
+.av{margin-top:5px;max-width:270px}
+.av-t{height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}
+.av-f{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.av-f.lleno{background:linear-gradient(90deg,#15803d,var(--green))}
+.av-n{display:flex;justify-content:space-between;gap:8px;margin-top:2px;
+  font-family:var(--mono);font-size:10px;color:var(--muted-l)}
+.av-n b{color:var(--text);font-weight:600}
 .upd{display:block;font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:2px}
 .calc{color:var(--muted-l)}
 .sug{font-weight:700;font-size:13px;color:var(--gold)}
@@ -417,13 +433,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-06.1407"/>
-<script src="supabase-config.js?v=2026-10-06.1407"></script>
-<script src="subatir-app.js?v=2026-10-06.1407"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-07.1556"/>
+<script src="supabase-config.js?v=2026-10-07.1556"></script>
+<script src="subatir-app.js?v=2026-10-07.1556"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-06.1407';
+window.APP_VER='2026-10-07.1556';
 </script>
 </head>
 <body>
@@ -435,7 +451,7 @@ window.APP_VER='2026-10-06.1407';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-06.1407"></script>
+  <script src="nav.js?v=2026-10-07.1556"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -460,6 +476,18 @@ window.APP_VER='2026-10-06.1407';
     </div>
     <div class="ctx-sp"></div>
     <div class="sec-tools">
+      <!-- Atajo del parámetro más tocado. Es el MISMO dato que edita
+           Configuración (cl_parametros.horizonte_semanas): se recalcula
+           mientras se arrastra y se guarda al soltar. -->
+      <div class="hz" title="Horizonte: cuántas semanas cubre lo que se envasa">
+        <span class="ctx-l">Horizonte <small>semanas que cubre lo envasado</small></span>
+        <div class="hz-r">
+          <input type="range" id="hz-rng" min="1" max="36" step="1" value="1"
+                 oninput="horizMover(this)" onchange="horizGuardar(this)"
+                 aria-label="Horizonte en semanas"/>
+          <b id="hz-val">—</b>
+        </div>
+      </div>
       <button class="btn btn-sm" onclick="openConfig()"
               title="Temporadas, materias primas y parámetros">⚙ Configuración</button>
       <!-- Las dos mitades del cierre semanal van juntas porque se hacen
@@ -893,7 +921,7 @@ window.APP_VER='2026-10-06.1407';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="cloro-calc.js?v=2026-10-06.1407"></script>
+<script src="cloro-calc.js?v=2026-10-07.1556"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
@@ -1412,7 +1440,7 @@ function filas(){
 }
 
 function pintarTodo(){
-  pintarFoco();
+  pintarFoco(); pintarHorizonte();
   pintarContexto(); pintarAvisos(); pintarKPIs(); pintarTabla(); pintarMP();
   dibujarTemporada(); pintarDetalleSemana(); dibujarMPSemanal(); dibujarFichas();
 }
@@ -2338,7 +2366,7 @@ function cargarPDF(){
     // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
     // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
     // El literal va PARTIDO a propósito: bump-version.ps1 busca
-    // `oc-pdf.js?v=2026-10-06.1407'oc-pdf.js?v=2026-10-06.1407'+APP_VER.
+    // `oc-pdf.js?v=2026-10-07.1556'oc-pdf.js?v=2026-10-07.1556'+APP_VER.
     // Partido, el patrón no aparece y la versión la pone APP_VER sola.
     .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js'+'?v='+APP_VER); })
     // El logo se precarga solo y es asíncrono. Sin esperarlo, el primer
@@ -2433,6 +2461,64 @@ function generarOrden(){
   });
 }
 
+// Cuánto va envasado en la temporada contra lo que se vendió en TODA la
+// temporada anterior (las NSEM semanas del histórico, el total que muestra
+// la leyenda del gráfico). Sin histórico no hay contra qué medir: no se
+// dibuja, en vez de mostrar un 0 % que parecería un atraso.
+function barraAvance(f){
+  var tot=f.ventasPrev, env=f.envasadoTemp;
+  if(!(tot>0)) return '';
+  var pct=env/tot*100;
+  return '<div class="av" title="Envasado en esta temporada: '+n0(env)+' u, contra '+n0(tot)
+      +' u vendidas en las '+NSEM+' semanas de la temporada anterior">'
+    +'<div class="av-t"><div class="av-f'+(pct>=100?' lleno':'')+'" style="width:'
+      +Math.min(100,pct).toFixed(1)+'%"></div></div>'
+    +'<div class="av-n"><b>'+n1(pct)+'%</b><span>'+n0(env)+' / '+n0(tot)+' u</span></div></div>';
+}
+
+// ══ HORIZONTE desde la barra ══════════════════════════════════
+//  Mientras se arrastra, sólo cambia PAR en memoria y se repinta: así se
+//  ve cómo se mueven sugerido y demanda. Al soltar se guarda en
+//  cl_parametros, que es lo que abre la próxima vez (la "última
+//  configuración"). Si la base no lo acepta, vuelve al valor guardado.
+var HZ_GUARDADO=null;
+function pintarHorizonte(){
+  var r=document.getElementById('hz-rng'); if(!r || !PAR) return;
+  r.max = Math.max(1, NSEM||36);
+  r.value = PAR.horizonte_semanas;
+  document.getElementById('hz-val').textContent = n0(PAR.horizonte_semanas)+' sem';
+}
+function horizMover(el){
+  if(!PAR) return;
+  if(HZ_GUARDADO==null) HZ_GUARDADO=PAR.horizonte_semanas;
+  PAR.horizonte_semanas = parseInt(el.value,10);
+  document.getElementById('hz-val').textContent = n0(PAR.horizonte_semanas)+' sem';
+  // Sólo lo que depende del horizonte y sin animaciones: repintar todo en
+  // cada paso del arrastre relanzaría la entrada de fichas y gráficos.
+  // Al soltar, horizGuardar repinta todo.
+  pintarContexto(); pintarKPIs(); pintarTabla(); pintarMP();
+}
+function horizGuardar(el){
+  var t=temporadaActual(); if(!t || !PAR) return;
+  var v=parseInt(el.value,10), antes=HZ_GUARDADO;
+  HZ_GUARDADO=null;
+  if(antes===v) return;
+  el.disabled=true;
+  SB.from('cl_parametros').update({horizonte_semanas:v, updated_at:new Date().toISOString()})
+    .eq('temporada_id', t.id).select().then(function(r){
+      // Un update bloqueado por la RLS vuelve con CERO filas y sin error.
+      if(r.error || !r.data || !r.data.length){
+        PAR.horizonte_semanas = antes;
+        toast('No se guardó el horizonte'+(r.error?': '+r.error.message:' (¿permiso del módulo?)'),'err');
+      } else {
+        toast('Horizonte: '+v+' semanas','ok');
+      }
+    }).catch(function(e){
+      PAR.horizonte_semanas = antes;
+      toast('No se guardó el horizonte: '+((e&&e.message)||e),'err');
+    }).then(function(){ el.disabled=false; pintarTodo(); });
+}
+
 function pintarTabla(){
   // Con foco, la tabla muestra sólo ese producto: es la misma pregunta
   // -qué envasar- mirando uno solo.
@@ -2461,7 +2547,7 @@ function pintarTabla(){
     h+='<tr class="'+cls+'">'
       +'<td class="l"><div class="art">'+esc(p.nombre)
          +(f.bajaRot?'<span class="tag rot">baja rotación</span>':'')+'</div>'
-         +'<span class="cod">'+esc(p.codigo)+'</span></td>'
+         +'<span class="cod">'+esc(p.codigo)+'</span>'+barraAvance(f)+'</td>'
       +'<td class="l mp">'+(sinMP
           ? (p.materia_id==null ? 'sin asignar' : 'sin kg/unidad')+'<span class="tag nomp">no suma</span>'
           : esc(matNom[p.materia_id]||'?')+' · '+n1(p.kg_mp_por_unidad)+' kg/u')+'</td>'

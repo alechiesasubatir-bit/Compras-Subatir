@@ -234,15 +234,15 @@ td.txt-l{min-width:220px}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-07.1715"/>
-<script src="supabase-config.js?v=2026-10-07.1715"></script>
-<script src="subatir-app.js?v=2026-10-07.1715"></script>
-<script src="cloro-calc.js?v=2026-10-07.1715"></script>
-<script src="informes-calc.js?v=2026-10-07.1715"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-09.1646"/>
+<script src="supabase-config.js?v=2026-10-09.1646"></script>
+<script src="subatir-app.js?v=2026-10-09.1646"></script>
+<script src="cloro-calc.js?v=2026-10-09.1646"></script>
+<script src="informes-calc.js?v=2026-10-09.1646"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-07.1715';
+window.APP_VER='2026-10-09.1646';
 </script>
 </head>
 <body>
@@ -258,7 +258,7 @@ window.APP_VER='2026-10-07.1715';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-07.1715"></script>
+  <script src="nav.js?v=2026-10-09.1646"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="cargar(true)">⟳ Actualizar</button>
@@ -374,14 +374,16 @@ var REPORTES = [
   { k:'cloro', ico:'💧', c:'56,189,248', t:'Previsión Cloro', d:'Ventas y envasado del período contra el año anterior', mod:'cloro',
     vistas:[['producto','Por producto'],['materia','Por materia prima']] },
   { k:'depositos', ico:'🏢', c:'96,165,250', t:'Depósitos', d:'Movimientos, traslados de pallets, solicitudes y stock actual', mod:'importacion',
-    vistas:[['movimientos','Movimientos'],['transferencias','Traslados de pallets'],['solicitudes','Solicitudes'],['infra','Infraestructura'],['stock','Stock actual']], dep:true }
+    vistas:[['movimientos','Movimientos'],['transferencias','Traslados de pallets'],['solicitudes','Solicitudes'],['stock','Stock actual']], dep:true },
+  { k:'infra', ico:'🏗', c:'244,114,182', t:'Infraestructura', d:'Estanterías: stock inicial y final, salidas por destino, mes y pedido', mod:'importacion',
+    vistas:[['saldos','Stock y movimientos'],['destino','Por destino'],['mes','Por mes'],['movs','Movimientos'],['pedidos','Pedidos']], dep:true }
 ];
 function rep(k){ return REPORTES.filter(function(r){ return r.k===k; })[0]; }
 function puede(r){
   if(!PERFIL) return false;
   if(PERFIL.role==='admin') return true;
   var mods = PERFIL.modules || [];
-  if(r.k==='depositos') return ['importacion','solicitante','recorrido','recepcion_deposito'].some(function(m){ return mods.indexOf(m)>=0; });
+  if(r.k==='depositos' || r.k==='infra') return ['importacion','solicitante','recorrido','recepcion_deposito'].some(function(m){ return mods.indexOf(m)>=0; });
   return SubatirApp.canAccess(r.mod, PERFIL) || (r.alt && SubatirApp.canAccess(r.alt, PERFIL));
 }
 
@@ -417,7 +419,8 @@ function fHoras(h){
 var PILL = {
   'COMPLETA':'p-ok','PARCIAL':'p-am','PENDIENTE':'p-rd','OK':'p-ok','BAJO MÍNIMO':'p-am','SIN STOCK':'p-rd',
   'ENTREGADA':'p-ok','CERRADA':'p-ok','EN CURSO':'p-am','CANCELADA':'p-nt','CONSUMIDO':'p-nt','ESTACIONADO':'p-ok','EN TRANSITO':'p-am',
-  'Entregado':'p-ok','En camino':'p-am','Pedido':'p-rd'
+  'Entregado':'p-ok','En camino':'p-am','Pedido':'p-rd',
+  'Ingreso':'p-ok','Entrada':'p-ok','Salida':'p-am','Consumo':'p-nt','Ajuste':'p-rd'
 };
 function fPill(v){ return v ? '<span class="pill '+(PILL[v]||'p-nt')+'">'+esc(v)+'</span>' : '—'; }
 
@@ -653,13 +656,6 @@ function construir(){
         C('operario','Atendió','txt',{w:16}), C('entregada','Entregada','fh',{w:16}), C('horas','Demora','horas',{w:10}) ];
       out.filas = dp.solicitudes;
       out.sub = 'Solicitudes de mercadería creadas en el período. Demora = de pedida a entregada.';
-    } else if(V==='infra'){
-      out.cols = [ C('fecha','Salió','fh',{w:16}), C('pedido','Pedido','num',{w:7}), C('articulo','Artículo','txt',{w:30,l:1}),
-        C('codigo','Código','txt',{w:9}), C('unidades','Unidades','cant',{w:9,tot:1}), C('origen','Origen','txt',{w:10}),
-        C('destino','Destino','txt',{w:16}), C('responsable','Pidió','txt',{w:16}), C('motivo','Motivo','txt',{w:26,l:1}),
-        C('despacho','Despachó','txt',{w:14}), C('recibio','Recibió','txt',{w:14}), C('estado','Estado','pill',{w:11}) ];
-      out.filas = I.infraestructura(D, f);
-      out.sub = 'Estanterías y demás infraestructura que salió sin pallet, artículo por artículo. Fecha = despacho (o pedido, si todavía no salió).';
     } else {
       var sd = I.stockDepositos(D, f);
       out.cols = [ C('articulo','Artículo','txt',{w:34,l:1}), C('codigo','Código','txt',{w:10}), C('tipo','Tipo','txt',{w:12}) ]
@@ -669,7 +665,84 @@ function construir(){
       out.sub = 'Foto de hoy: no depende de las fechas.';
     }
   }
+
+  else if(R==='infra'){
+    construirInfra(out, f, V);
+  }
   return out;
+}
+
+// ─── Infraestructura ──────────────────────────────────────────────
+// Stock a cualquier fecha = suma de movimientos. Los KPIs son los mismos
+// en todas las vistas para que se lean juntos.
+function construirInfra(out, f, V){
+  var sal = I.infraSaldos(D, f);
+  var t = sal.reduce(function(s, x){
+    s.ini += x.inicial; s.ing += x.ingresos; s.sal += x.salidas; s.aj += x.ajustes; s.fin += x.final; s.ped += x.pedido;
+    return s;
+  }, { ini:0, ing:0, sal:0, aj:0, fin:0, ped:0 });
+  var dest = I.infraPorDestino(D, f);
+  var nPed = dest.reduce(function(s, x){ return s + x.nPedidos; }, 0);
+  var desde = f.desde ? fFecha(f.desde) : 'primer movimiento', hasta = f.hasta ? fFecha(f.hasta) : 'hoy';
+  out.kpis = [
+    { l:'Stock al inicio', v:fCant(t.ini), s:'antes del '+desde, c:'96,165,250' },
+    { l:'Ingresó', v:fCant(t.ing), s:t.aj ? 'ajustes '+(t.aj>0?'+':'')+fCant(t.aj) : 'en el período', c:'45,212,191' },
+    { l:'Salió', v:fCant(t.sal), s:fNum(nPed)+' pedido'+(nPed===1?'':'s')+' · '+fNum(dest.length)+' destino'+(dest.length===1?'':'s'), c:'251,146,60' },
+    { l:'Stock al cierre', v:fCant(t.fin), s:'al '+hasta+(t.ped ? ' · '+fCant(t.ped)+' pedido sin salir' : ''), c:'244,114,182' }
+  ];
+  // Control: con el período abierto hasta hoy, lo calculado tiene que dar lo que dice el stock
+  var hoyD = I.dia(new Date());
+  var difs = (!f.hasta || f.hasta >= hoyD) ? sal.filter(function(x){ return Math.abs(x.final - x.hoy) > 1e-9; }) : [];
+  var aviso = difs.length ? ' ⚠ En '+difs.length+' artículo'+(difs.length===1?'':'s')+' el stock calculado con los movimientos no coincide con el del sistema: revisar.' : '';
+
+  // Una columna por artículo, con el nombre corto para que entre en el encabezado
+  var arts = sal.map(function(x){ return { id:x.articulo_id, n:x.corto }; });
+  function colsArt(pref){ return arts.map(function(a){ return C(pref+a.id, a.n, 'cant', {w:14,tot:1}); }); }
+  function abrir(filas, pref){ return filas.map(function(x){ arts.forEach(function(a){ x[pref+a.id] = x.por[a.id] || 0; }); return x; }); }
+
+  if(V==='saldos'){
+    out.cols = [ C('corto','Artículo','txt',{w:28,l:1}), C('codigo','Código','txt',{w:9}),
+      C('inicial','Stock inicial','cant',{w:12,tot:1}), C('ingresos','Ingresó','cant',{w:10,tot:1}),
+      C('salidas','Salió','cant',{w:10,tot:1}), C('ajustes','Ajustes','cant',{w:9,tot:1}),
+      C('final','Stock final','cant',{w:12,tot:1}), C('nPedidos','Pedidos','num',{w:8}),   // sin total: un pedido lleva varios artículos
+      C('hoy','Stock hoy','cant',{w:11,tot:1}), C('pedido','Pedido sin salir','cant',{w:13,tot:1}),
+      C('disponible','Disponible','cant',{w:11,tot:1}) ];
+    out.filas = sal;
+    out.sub = 'Stock inicial = lo que había antes del '+desde+'; final = al '+hasta+'. Stock hoy, pedido sin salir y disponible son de hoy y no dependen de las fechas. La búsqueda filtra por artículo.'+aviso;
+  } else if(V==='destino'){
+    out.cols = [ C('destino','Destino','txt',{w:22,l:1}) ].concat(colsArt('a_'),
+      [ C('total','Total','cant',{w:10,tot:1}), C('nPedidos','Pedidos','num',{w:8,tot:1}),
+        C('responsables','Pidió','txt',{w:22}), C('primera','Primera salida','fecha',{w:12}), C('ultima','Última salida','fecha',{w:12}) ]);
+    out.filas = abrir(dest, 'a_');
+    out.sub = 'Lo que salió en el período, por sucursal o depósito de destino. Fecha = despacho. Lo pedido sin despachar y lo cancelado no cuentan.';
+  } else if(V==='mes'){
+    var MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'];
+    out.cols = [ C('mesTxt','Mes','txt',{w:12}), C('ingresos','Ingresó','cant',{w:10,tot:1}) ].concat(colsArt('s_'),
+      [ C('salidas','Total salido','cant',{w:12,tot:1}), C('ajustes','Ajustes','cant',{w:9,tot:1}), C('nPedidos','Pedidos','num',{w:8,tot:1}) ]);
+    out.filas = abrir(I.infraPorMes(D, f), 's_').map(function(x){
+      x.mesTxt = MESES[+x.mes.slice(5, 7) - 1] + ' ' + x.mes.slice(0, 4);
+      return x;
+    });
+    out.sub = 'Ingresos y salidas por mes; las salidas abiertas por artículo.';
+  } else if(V==='movs'){
+    var TXT = { INGRESO:'Ingreso', SALIDA:'Salida', ENTRADA:'Entrada', CONSUMO:'Consumo', AJUSTE:'Ajuste' };
+    var q = I.norm(f.q);
+    out.cols = [ C('fecha','Fecha','fh',{w:16}), C('tipoTxt','Movimiento','pill',{w:11}), C('corto','Artículo','txt',{w:24,l:1}),
+      C('deposito','Depósito','txt',{w:10}), C('entra','Entra','cant',{w:8,tot:1}), C('sale','Sale','cant',{w:8,tot:1}),
+      C('saldo','Saldo','cant',{w:9}), C('pedido','Pedido','num',{w:7}), C('destino','Destino','txt',{w:18}),
+      C('responsable','Pidió','txt',{w:14}), C('motivo','Motivo','txt',{w:24,l:1}), C('usuario','Usuario','txt',{w:16}) ];
+    out.filas = I.infraMovs(D, f).filter(function(m){
+      return I.enRango(m.dia, f) && (!q || [m.articulo, m.codigo, m.destino, m.responsable, m.motivo].some(function(x){ return I.norm(x).indexOf(q)>=0; }));
+    }).map(function(m){ m.tipoTxt = TXT[m.tipoMov] || m.tipoMov; return m; }).reverse();
+    out.sub = 'Cada movimiento de stock, del más nuevo al más viejo. Saldo = stock del artículo después de ese movimiento.';
+  } else {
+    out.cols = [ C('fecha','Salió','fh',{w:16}), C('pedido','Pedido','num',{w:7}), C('articulo','Artículo','txt',{w:30,l:1}),
+      C('codigo','Código','txt',{w:9}), C('unidades','Unidades','cant',{w:9,tot:1}), C('origen','Origen','txt',{w:10}),
+      C('destino','Destino','txt',{w:16}), C('responsable','Pidió','txt',{w:16}), C('motivo','Motivo','txt',{w:26,l:1}),
+      C('despacho','Despachó','txt',{w:14}), C('recibio','Recibió','txt',{w:14}), C('estado','Estado','pill',{w:11}) ];
+    out.filas = I.infraestructura(D, f);
+    out.sub = 'Pedido por pedido, artículo por artículo. Fecha = despacho (o pedido, si todavía no salió).';
+  }
 }
 
 // ─── Filtros ──────────────────────────────────────────────────────
@@ -682,7 +755,12 @@ function filtro(){
     deposito: r.dep ? val('f-dep') : ''
   };
 }
-function vistaDe(k){ var r = rep(k); return ST.vista[k] || r.vistas[0][0]; }
+// Una vista guardada que ya no existe (Infraestructura vivía dentro de
+// Depósitos) cae en la primera, en vez de romper el título.
+function vistaDe(k){
+  var r = rep(k), v = ST.vista[k];
+  return r.vistas.some(function(x){ return x[0]===v; }) ? v : r.vistas[0][0];
+}
 
 function periodo(p){
   var r = p==='todo' ? { desde:'', hasta:'' } : I.periodo(p, new Date());

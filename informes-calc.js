@@ -775,6 +775,159 @@
     }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
   }
 
+  // ═══ INFRAESTRUCTURA ══════════════════════════════════════════════
+  // Estanterías y demás: no se palletizan, salen sueltas por pedido. El
+  // stock a cualquier fecha se reconstruye sumando movimientos; hoy cuadra
+  // exacto con imp_stock (verificado 09/10/2026: 564 / 528 / 78).
+  var SIGNO_MOV = { INGRESO: 1, ENTRADA: 1, SALIDA: -1, CONSUMO: -1 };
+
+  // Cuánto movió el stock: el ajuste trae antes/después; ARMADO y
+  // UBICACION no cambian la cantidad que hay.
+  function deltaMov(m) {
+    if (m.tipo === 'AJUSTE') {
+      return m.stock_antes != null && m.stock_despues != null ? num(m.stock_despues) - num(m.stock_antes) : 0;
+    }
+    return (SIGNO_MOV[m.tipo] || 0) * num(m.unidades);
+  }
+
+  function artsInfra(d, f) {
+    var arts = {};
+    (d.impArticulos || []).forEach(function (a) {
+      if (a.tipo === 'Infraestructura' && provOk(a.proveedor, f)) arts[a.id] = a;
+    });
+    return arts;
+  }
+
+  // "Estanteria Picking Parante 2m x unidad (por unidad)" → "Parante 2m x unidad"
+  function nombreCorto(desc) {
+    var s = String(desc || '').replace(/^\s*estanter[ií]a\s+picking\s*/i, '').replace(/\s*\(.*$/, '').trim();
+    return s || String(desc || '');
+  }
+
+  // Las funciones imp_infra_* escriben "pedido #N" en la nota del movimiento
+  function pedidoDeNota(nota) {
+    var m = /pedido #(\d+)/i.exec(String(nota || ''));
+    return m ? +m[1] : null;
+  }
+
+  function destinoInfra(x) {
+    return (x.destino_tipo === 'Sucursal' ? 'Sucursal ' : '') + (x.destino || '');
+  }
+
+  // Movimientos de infraestructura con saldo corrido por artículo (y por
+  // depósito si se filtra uno). Trae TODOS los de antes del período: sin
+  // ellos el saldo inicial no se puede calcular.
+  function infraMovs(d, f) {
+    var arts = artsInfra(d, f);
+    var items = {};
+    (d.impInfra || []).forEach(function (x) { items[x.solicitud_id + '|' + x.articulo_id] = x; });
+    var lista = (d.impMovimientos || []).filter(function (m) {
+      return arts[m.articulo_id] && deltaMov(m) !== 0 && (!f.deposito || m.deposito === f.deposito);
+    }).slice().sort(function (a, b) {
+      return String(a.created_at).localeCompare(String(b.created_at)) || num(a.id) - num(b.id);
+    });
+    var saldo = {};
+    return lista.map(function (m) {
+      var a = arts[m.articulo_id], u = deltaMov(m);
+      saldo[a.id] = (saldo[a.id] || 0) + u;
+      var ped = pedidoDeNota(m.nota), it = ped != null ? items[ped + '|' + a.id] : null;
+      return {
+        fecha: m.created_at, dia: dia(m.created_at), tipoMov: m.tipo, articulo_id: a.id,
+        articulo: a.descripcion || '', corto: nombreCorto(a.descripcion), codigo: a.codigo || '',
+        deposito: m.deposito || '', entra: u > 0 ? u : 0, sale: u < 0 ? -u : 0, delta: u, saldo: saldo[a.id],
+        pedido: ped, destino: it ? destinoInfra(it) : (m.tipo === 'SALIDA' ? (m.destino || '') : ''),
+        responsable: it ? it.responsable || '' : '', motivo: it ? it.motivo || '' : '',
+        usuario: m.usuario || '', nota: m.nota || ''
+      };
+    });
+  }
+
+  function textoMovOk(x, f) {
+    return textoOk([x.articulo, x.codigo, x.destino, x.responsable, x.motivo], f);
+  }
+
+  // Stock al inicio del período, lo que entró y salió adentro, y el stock
+  // al cierre. "Hoy" sale de imp_stock: si no coincide con lo calculado,
+  // algún movimiento falta o sobra.
+  function infraSaldos(d, f) {
+    var arts = artsInfra(d, f), g = {};
+    Object.keys(arts).forEach(function (id) {
+      var a = arts[id];
+      g[id] = { articulo_id: a.id, articulo: a.descripcion || '', corto: nombreCorto(a.descripcion), codigo: a.codigo || '',
+        inicial: 0, ingresos: 0, salidas: 0, ajustes: 0, final: 0, hoy: 0, pedido: 0, pedidos: {} };
+    });
+    infraMovs(d, f).forEach(function (m) {
+      var x = g[m.articulo_id];
+      if (f.hasta && m.dia > f.hasta) return;
+      x.final += m.delta;
+      if (f.desde && m.dia < f.desde) { x.inicial += m.delta; return; }
+      if (m.tipoMov === 'AJUSTE') x.ajustes += m.delta;
+      else if (m.delta > 0) x.ingresos += m.delta;
+      else x.salidas -= m.delta;
+      if (m.pedido != null && m.tipoMov === 'SALIDA') x.pedidos[m.pedido] = 1;
+    });
+    (d.impStock || []).forEach(function (s) {
+      if (g[s.articulo_id] && (!f.deposito || s.deposito === f.deposito)) g[s.articulo_id].hoy += num(s.cantidad);
+    });
+    // Pedido y todavía sin despachar: va a salir del stock de hoy
+    (d.impInfra || []).forEach(function (x) {
+      if (g[x.articulo_id] && x.estado === 'PEDIDO' && (!f.deposito || x.origen === f.deposito)) g[x.articulo_id].pedido += num(x.unidades);
+    });
+    return Object.keys(g).map(function (k) {
+      var x = g[k];
+      x.nPedidos = Object.keys(x.pedidos).length;
+      x.disponible = x.hoy - x.pedido;
+      delete x.pedidos;
+      return x;
+    }).filter(function (x) { return textoOk([x.articulo, x.codigo], f); })
+      .sort(function (a, b) { return a.articulo.localeCompare(b.articulo); });
+  }
+
+  // Lo que salió (despachado) agrupado por destino, con una columna por artículo
+  function infraPorDestino(d, f) {
+    var arts = artsInfra(d, f), g = {};
+    (d.impInfra || []).forEach(function (x) {
+      if (!arts[x.articulo_id] || !x.despachado_at || x.estado === 'CANCELADO') return;
+      if (!enRango(x.despachado_at, f) || (f.deposito && x.origen !== f.deposito)) return;
+      if (!textoOk([x.articulo, x.codigo, x.destino, x.responsable, x.motivo], f)) return;
+      var k = destinoInfra(x);
+      var r = g[k] || (g[k] = { destino: k, tipoDestino: x.destino_tipo || '', total: 0, por: {}, pedidos: {}, responsables: {}, primera: '', ultima: '' });
+      r.por[x.articulo_id] = (r.por[x.articulo_id] || 0) + num(x.unidades);
+      r.total += num(x.unidades);
+      r.pedidos[x.solicitud_id] = 1;
+      if (x.responsable) r.responsables[x.responsable] = 1;
+      var dd = dia(x.despachado_at);
+      if (!r.primera || dd < r.primera) r.primera = dd;
+      if (dd > r.ultima) r.ultima = dd;
+    });
+    return Object.keys(g).map(function (k) {
+      var r = g[k];
+      r.nPedidos = Object.keys(r.pedidos).length;
+      r.responsables = Object.keys(r.responsables).sort().join(', ');
+      delete r.pedidos;
+      return r;
+    }).sort(function (a, b) { return b.total - a.total || a.destino.localeCompare(b.destino); });
+  }
+
+  // Entradas y salidas por mes, con las salidas abiertas por artículo
+  function infraPorMes(d, f) {
+    var g = {};
+    infraMovs(d, f).forEach(function (m) {
+      if (!enRango(m.dia, f) || !textoMovOk(m, f)) return;
+      var k = m.dia.slice(0, 7);
+      var r = g[k] || (g[k] = { mes: k, ingresos: 0, salidas: 0, ajustes: 0, por: {}, pedidos: {} });
+      if (m.tipoMov === 'AJUSTE') r.ajustes += m.delta;
+      else if (m.delta > 0) r.ingresos += m.delta;
+      else { r.salidas -= m.delta; r.por[m.articulo_id] = (r.por[m.articulo_id] || 0) - m.delta; }
+      if (m.pedido != null && m.tipoMov === 'SALIDA') r.pedidos[m.pedido] = 1;
+    });
+    return Object.keys(g).sort().map(function (k) {
+      g[k].nPedidos = Object.keys(g[k].pedidos).length;
+      delete g[k].pedidos;
+      return g[k];
+    });
+  }
+
   // Stock actual por depósito: una columna por depósito.
   function stockDepositos(d, f) {
     var arts = artsDep(d, f), deps = {}, g = {};
@@ -817,6 +970,8 @@
     stock: stock, criticos: criticos,
     mp: mp, mpEvolucion: mpEvolucion,
     cloro: cloro, cloroPorMateria: cloroPorMateria,
-    depositos: depositos, stockDepositos: stockDepositos, infraestructura: infraestructura
+    depositos: depositos, stockDepositos: stockDepositos, infraestructura: infraestructura,
+    infraMovs: infraMovs, infraSaldos: infraSaldos, infraPorDestino: infraPorDestino, infraPorMes: infraPorMes,
+    nombreCorto: nombreCorto
   };
 });

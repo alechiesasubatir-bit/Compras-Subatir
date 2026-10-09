@@ -272,3 +272,70 @@ test('infraestructura: fecha de despacho, sucursal rotulada, cancelados fuera, f
   assert.strictEqual(I.infraestructura(d, { q: 'diego' })[0].pedido, 36);
   assert.strictEqual(I.infraestructura(d, { deposito: 'Centro' })[0].pedido, 50);
 });
+
+// Infraestructura: tres artículos, carga inicial el 28/08 y salidas por pedido
+const infraDatos = () => ({
+  impArticulos: [
+    { id: 128, tipo: 'Infraestructura', codigo: '490079', descripcion: 'Estanteria Picking Chapa Estante 2m x 60cm (x unidad )', proveedor: 'Subatir' },
+    { id: 129, tipo: 'Infraestructura', codigo: '490078', descripcion: 'Estanteria Picking Parante 2m x unidad (por  unidad)', proveedor: 'Subatir' },
+    { id: 5, tipo: 'Venta', codigo: '1', descripcion: 'Tapa', proveedor: 'Subatir' }
+  ],
+  impMovimientos: [
+    { id: 1, articulo_id: 128, tipo: 'INGRESO', deposito: 'Furriol', unidades: 600, created_at: '2026-08-28T15:27:00' },
+    { id: 2, articulo_id: 129, tipo: 'INGRESO', deposito: 'Furriol', unidades: 592, created_at: '2026-08-28T15:30:00' },
+    { id: 3, articulo_id: 5, tipo: 'INGRESO', deposito: 'Furriol', unidades: 999, created_at: '2026-08-28T15:30:00' },
+    { id: 4, articulo_id: 128, tipo: 'SALIDA', deposito: 'Furriol', destino: 'Minas', unidades: 2, created_at: '2026-09-02T16:27:00', nota: 'Infraestructura · pedido #36 · sin pallet' },
+    { id: 5, articulo_id: 129, tipo: 'SALIDA', deposito: 'Furriol', destino: 'Minas', unidades: 14, created_at: '2026-09-02T16:27:00', nota: 'Infraestructura · pedido #36 · sin pallet' },
+    { id: 6, articulo_id: 129, tipo: 'UBICACION', deposito: 'Furriol', unidades: 578, created_at: '2026-09-03T10:00:00' },
+    { id: 7, articulo_id: 129, tipo: 'SALIDA', deposito: 'Furriol', destino: 'Centro', unidades: 16, created_at: '2026-10-06T12:13:00', nota: 'Infraestructura · pedido #48 · sin pallet' },
+    { id: 8, articulo_id: 128, tipo: 'AJUSTE', deposito: 'Furriol', unidades: 3, stock_antes: 598, stock_despues: 595, created_at: '2026-10-07T09:00:00' }
+  ],
+  impStock: [
+    { articulo_id: 128, deposito: 'Furriol', cantidad: 595 }, { articulo_id: 128, deposito: 'Artigas', cantidad: 0 },
+    { articulo_id: 129, deposito: 'Furriol', cantidad: 562 }
+  ],
+  impInfra: [
+    { solicitud_id: 36, articulo_id: 128, unidades: 2, origen: 'Furriol', destino: 'Minas', destino_tipo: 'Sucursal', responsable: 'Diego', motivo: 'Reforma', despachado_at: '2026-09-02T16:27:00', estado: 'ENTREGADO' },
+    { solicitud_id: 36, articulo_id: 129, unidades: 14, origen: 'Furriol', destino: 'Minas', destino_tipo: 'Sucursal', responsable: 'Diego', motivo: 'Reforma', despachado_at: '2026-09-02T16:27:00', estado: 'ENTREGADO' },
+    { solicitud_id: 48, articulo_id: 129, unidades: 16, origen: 'Furriol', destino: 'Centro', destino_tipo: 'Sucursal', responsable: 'Guillermo', motivo: 'Local', despachado_at: '2026-10-06T12:13:00', estado: 'ENTREGADO' },
+    { solicitud_id: 53, articulo_id: 128, unidades: 10, origen: 'Furriol', destino: 'Artigas', destino_tipo: 'Depósito', estado: 'PEDIDO' },
+    { solicitud_id: 54, articulo_id: 128, unidades: 7, origen: 'Furriol', destino: 'Centro', destino_tipo: 'Sucursal', despachado_at: '2026-10-08T10:00:00', estado: 'CANCELADO' }
+  ]
+});
+
+test('infra saldos: inicial antes del periodo, entradas/salidas/ajustes adentro, cierre y hoy', () => {
+  const d = infraDatos();
+  const r = I.infraSaldos(d, { desde: '2026-09-01', hasta: '2026-09-30' });
+  assert.deepStrictEqual(r.map((x) => [x.corto, x.inicial, x.ingresos, x.salidas, x.ajustes, x.final, x.nPedidos]),
+    [['Chapa Estante 2m x 60cm', 600, 0, 2, 0, 598, 1], ['Parante 2m x unidad', 592, 0, 14, 0, 578, 1]]);
+  // Sin fechas: todo es movimiento del período y el cierre tiene que dar lo que dice imp_stock
+  const t = I.infraSaldos(d, {});
+  assert.deepStrictEqual(t.map((x) => [x.inicial, x.ingresos, x.salidas, x.ajustes, x.final, x.hoy]),
+    [[0, 600, 2, -3, 595, 595], [0, 592, 30, 0, 562, 562]]);
+  // Lo pedido sin despachar descuenta del disponible; lo cancelado no
+  assert.strictEqual(t[0].pedido, 10);
+  assert.strictEqual(t[0].disponible, 585);
+  assert.strictEqual(I.infraSaldos(d, { deposito: 'Artigas' })[0].hoy, 0);
+});
+
+test('infra movimientos: saldo corrido, pedido y destino desde la nota, UBICACION fuera', () => {
+  const m = I.infraMovs(infraDatos(), {});
+  assert.strictEqual(m.length, 6);
+  const parante = m.filter((x) => x.articulo_id === 129);
+  assert.deepStrictEqual(parante.map((x) => [x.tipoMov, x.delta, x.saldo]), [['INGRESO', 592, 592], ['SALIDA', -14, 578], ['SALIDA', -16, 562]]);
+  assert.strictEqual(parante[2].pedido, 48);
+  assert.strictEqual(parante[2].destino, 'Sucursal Centro');
+  assert.strictEqual(parante[2].responsable, 'Guillermo');
+});
+
+test('infra por destino y por mes: solo lo despachado, cancelado fuera', () => {
+  const d = infraDatos();
+  const dest = I.infraPorDestino(d, {});
+  assert.deepStrictEqual(dest.map((x) => [x.destino, x.total, x.nPedidos, x.por[128] || 0, x.por[129] || 0]),
+    [['Sucursal Centro', 16, 1, 0, 16], ['Sucursal Minas', 16, 1, 2, 14]]);
+  assert.strictEqual(I.infraPorDestino(d, { desde: '2026-10-01' }).length, 1);
+  assert.strictEqual(I.infraPorDestino(d, { q: 'diego' })[0].destino, 'Sucursal Minas');
+  const mes = I.infraPorMes(d, {});
+  assert.deepStrictEqual(mes.map((x) => [x.mes, x.ingresos, x.salidas, x.ajustes, x.nPedidos]),
+    [['2026-08', 1192, 0, 0, 0], ['2026-09', 0, 16, 0, 1], ['2026-10', 0, 16, -3, 1]]);
+});

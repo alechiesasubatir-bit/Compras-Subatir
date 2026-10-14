@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <link rel="icon" href="icon-192.png"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
-<title>MP Importación — Subatir / Prolimpio</title>
+<title>Importaciones · MERO AR — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -354,13 +354,14 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-09.1646"/>
-<script src="supabase-config.js?v=2026-10-09.1646"></script>
-<script src="subatir-app.js?v=2026-10-09.1646"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-13.2232"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-13.2232"/>
+<script src="supabase-config.js?v=2026-10-13.2232"></script>
+<script src="subatir-app.js?v=2026-10-13.2232"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-09.1646';
+window.APP_VER='2026-10-13.2232';
 </script>
 </head>
 <body>
@@ -368,11 +369,11 @@ window.APP_VER='2026-10-09.1646';
 <header>
   <a class="logo" href="index.html">
     <img class="logo-icon" src="logo.jpg" alt=""/>
-    <div><h1>Subatir</h1><p>MP Importación</p></div>
+    <div><h1>Subatir</h1><p>Importaciones · MERO AR</p></div>
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-09.1646"></script>
+  <script src="nav.js?v=2026-10-13.2232"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -380,6 +381,10 @@ window.APP_VER='2026-10-09.1646';
 </header>
 
 <main>
+
+  <!-- Submódulos de Importaciones: los arma importaciones-tabs.js -->
+  <div class="imp-tabs" id="imp-tabs" data-on="mero"></div>
+  <script src="importaciones-tabs.js?v=2026-10-13.2232"></script>
 
   <!-- ══ Contexto: proveedor y corrida ══════════════════════ -->
   <div class="card ctx">
@@ -735,7 +740,8 @@ window.APP_VER='2026-10-09.1646';
      pantalla, porque sólo hace falta al apretar el botón. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="mp-oc-pdf.js?v=2026-10-09.1646"></script>
+<script src="mp-oc-pdf.js?v=2026-10-13.2232"></script>
+<script src="xlsx-lite.js?v=2026-10-13.2232"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -1881,74 +1887,8 @@ function aplicarPegado(){
 //     Si se la salteara, quedaría arrastrando el número de la corrida
 //     anterior mezclado con datos nuevos.
 //
-//  Un .xlsx es un ZIP de XML y el navegador ya sabe inflar (deflate-raw),
-//  así que no hace falta ninguna librería.
+//  El lector del .xlsx (sin librerías) vive en xlsx-lite.js.
 var XLIMP=null;
-
-function u16(dv,o){ return dv.getUint16(o,true); }
-function u32(dv,o){ return dv.getUint32(o,true); }
-
-function zipAbrir(buf){
-  var dv=new DataView(buf), n=buf.byteLength;
-  // El índice del ZIP está al final; se lo busca hacia atrás porque
-  // puede haber un comentario de largo variable después.
-  var eo=-1, lim=Math.max(0,n-66000);
-  for(var i=n-22;i>=lim;i--){ if(u32(dv,i)===0x06054b50){ eo=i; break; } }
-  if(eo<0) throw new Error('No parece un archivo .xlsx.');
-  var cnt=u16(dv,eo+10), p=u32(dv,eo+16), idx={}, td=new TextDecoder();
-  for(var k=0;k<cnt;k++){
-    if(u32(dv,p)!==0x02014b50) throw new Error('El archivo está dañado (índice del ZIP).');
-    var met=u16(dv,p+10), csz=u32(dv,p+20), fnl=u16(dv,p+28),
-        exl=u16(dv,p+30), cml=u16(dv,p+32), lho=u32(dv,p+42);
-    idx[td.decode(new Uint8Array(buf,p+46,fnl))]={met:met,csz:csz,lho:lho};
-    p += 46+fnl+exl+cml;
-  }
-  return {buf:buf, dv:dv, idx:idx};
-}
-function zipTexto(z,nombre){
-  var e=z.idx[nombre];
-  if(!e) return Promise.resolve(null);
-  var p=e.lho;
-  if(u32(z.dv,p)!==0x04034b50) return Promise.reject(new Error('El archivo está dañado.'));
-  var ini=p+30+u16(z.dv,p+26)+u16(z.dv,p+28);
-  var datos=new Uint8Array(z.buf, ini, e.csz);
-  if(e.met===0) return Promise.resolve(new TextDecoder().decode(datos));
-  if(e.met!==8) return Promise.reject(new Error('El .xlsx usa una compresión que no se puede leer acá.'));
-  return new Response(new Blob([datos]).stream()
-    .pipeThrough(new DecompressionStream('deflate-raw'))).text();
-}
-function xmlDoc(txt,que){
-  var d=new DOMParser().parseFromString(txt,'application/xml');
-  if(d.getElementsByTagName('parsererror').length) throw new Error('No se pudo leer '+que+'.');
-  return d;
-}
-// Hoja → [{n:fila, c:{A:'...', P:'...'}}]
-function xlHoja(sheetTxt, ssTxt){
-  var ss=[];
-  if(ssTxt){
-    var sd=xmlDoc(ssTxt,'los textos del Excel');
-    Array.prototype.forEach.call(sd.getElementsByTagName('si'), function(si){
-      var t=si.getElementsByTagName('t'), s='';
-      for(var i=0;i<t.length;i++) s+=t[i].textContent;
-      ss.push(s);
-    });
-  }
-  var doc=xmlDoc(sheetTxt,'la hoja del Excel'), out=[];
-  Array.prototype.forEach.call(doc.getElementsByTagName('row'), function(row){
-    var c={};
-    Array.prototype.forEach.call(row.getElementsByTagName('c'), function(cel){
-      var ref=cel.getAttribute('r')||'', col=ref.replace(/[0-9]/g,''), ty=cel.getAttribute('t'), v=null;
-      if(ty==='inlineStr'){ var it=cel.getElementsByTagName('t'); v=it.length?it[0].textContent:''; }
-      else {
-        var vv=cel.getElementsByTagName('v');
-        if(vv.length){ v = ty==='s' ? (ss[parseInt(vv[0].textContent,10)]||'') : vv[0].textContent; }
-      }
-      if(v!==null && v!=='') c[col]=v;
-    });
-    if(Object.keys(c).length) out.push({n:parseInt(row.getAttribute('r'),10)||0, c:c});
-  });
-  return out;
-}
 
 function xlNorm(s){ return String(s==null?'':s).replace(/\s+/g,' ').trim().toLowerCase(); }
 // El código MEROAR: el número que esté dentro de algún paréntesis

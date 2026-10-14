@@ -23,6 +23,7 @@
     'proveedores.html': 'proveedores',
     'varios.html': 'varios',
     'mp-importacion.html': 'mp_importacion',
+    'importaciones.html': 'mp_importacion',
     'cloro.html': 'cloro',
     'calidad.html': 'calidad',
     'calidad-imp.html': 'calidad',

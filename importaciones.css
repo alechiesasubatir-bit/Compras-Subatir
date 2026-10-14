@@ -1,0 +1,27 @@
+/* ============================================================
+   IMPORTACIONES · barra de submódulos (MERO AR / Subatir / …)
+   Colores escritos directo y no con var(): mp-importacion.html e
+   importaciones.html no tienen los mismos nombres de token.
+   ============================================================ */
+.imp-tabs{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:7px;
+  border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);
+  backdrop-filter:blur(16px)}
+.imp-tabs-l{font-family:'Manrope','Syne',sans-serif;font-size:9.5px;font-weight:800;letter-spacing:1.3px;
+  text-transform:uppercase;color:#5a6a80;padding:0 8px 0 6px}
+.imp-tab{display:flex;align-items:center;gap:9px;padding:7px 13px;border-radius:10px;
+  text-decoration:none;color:#e2e8f0;border:1px solid transparent;min-height:42px;
+  transition:background .15s,border-color .15s}
+a.imp-tab:hover{background:rgba(255,255,255,.06)}
+a.imp-tab:focus-visible{outline:2px solid rgba(27,200,255,.7);outline-offset:2px}
+.imp-tab.on{background:linear-gradient(135deg,rgba(194,88,10,.28),rgba(249,115,22,.16));
+  border-color:rgba(249,115,22,.45);box-shadow:0 4px 18px rgba(249,115,22,.12)}
+.imp-tab-i{font-size:16px;line-height:1}
+.imp-tab-t{font-family:'Manrope','Syne',sans-serif;font-size:12.5px;font-weight:800;line-height:1.15}
+.imp-tab-t small{display:block;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;color:#7a8fa8}
+.imp-tab.on .imp-tab-t small{color:#fb923c}
+.imp-tab.pronto{opacity:.45;cursor:not-allowed}
+@media (max-width:760px){
+  .imp-tabs-l{width:100%;padding-bottom:2px}
+  .imp-tab{flex:1 1 calc(50% - 7px);padding:6px 10px}
+}
+@media print{.imp-tabs{display:none!important}}

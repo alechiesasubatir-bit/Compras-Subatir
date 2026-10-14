@@ -31,14 +31,14 @@
       title: 'Ir a la app de Control de Stock de Depósitos' },
     { k: 'stock',        href: 'reposicion.html',     ico: '🔁', txt: 'Reposición',
       title: 'Cargar de una sentada la configuración de reposición: demora, lote y compras pactadas' },
-    { k: 'mp_importacion', href: 'mp-importacion.html', ico: '🧪', txt: 'MP Importación',
-      title: 'Previsión y control de compra de materia prima importada' },
+    { k: 'mp_importacion', href: 'mp-importacion.html', ico: '🚢', txt: 'Importaciones', sub: ['importaciones.html'],
+      title: 'Previsión de importaciones: MERO AR, Subatir (Consumo) y las líneas de Depósitos' },
     { k: 'cloro', href: 'cloro.html', ico: '💧', txt: 'Previsión Cloro',
       title: 'Previsión de envasado y compra de materia prima de la línea de piscinas' },
     { k: 'calidad', href: 'calidad.html', ico: '🔬', txt: 'Calidad MP', sub: ['calidad-imp.html'],
       title: 'Fichas técnicas, hojas de seguridad y COA de las materias primas' },
     { k: 'informes',     href: 'informes.html',       ico: '📑', txt: 'Informes',
-      title: 'Informes entre fechas de Pedidos, Stock, Precios, Proveedores, MP Importación, Cloro y Depósitos' },
+      title: 'Informes entre fechas de Pedidos, Stock, Precios, Proveedores, Importaciones, Cloro y Depósitos' },
     { k: 'usuarios',     href: 'usuarios.html',       ico: '👥', txt: 'Usuarios' }
   ];
 

@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#07090f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Importaciones — Subatir / Prolimpio</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* Mismos tokens que mp-importacion.html: las dos páginas son un módulo */
+:root{
+  --bg:    #07090f; --bg1:#0c1119; --bg2:#111926;
+  --teal:  #0e8aaa; --teal-l:#1bc8ff;
+  --orange:#f97316; --orange-d:#c2580a; --orange-l:#fb923c; --gold:#f5c842;
+  --glass: rgba(255,255,255,.04);
+  --border:rgba(255,255,255,.07); --border-b:rgba(255,255,255,.12);
+  --text:  #e2e8f0; --muted:#5a6a80; --muted-l:#7a8fa8;
+  --red:   #ef4444; --amber:#f59e0b; --green:#22c55e; --purple:#a78bfa;
+  --mono:  'IBM Plex Mono',monospace; --display:'Manrope',sans-serif;
+  --r:     14px; --shadow:0 8px 32px rgba(0,0,0,.45);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{color-scheme:dark}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 55% at 5% 10%,rgba(14,138,170,.12) 0%,transparent 55%),
+             radial-gradient(ellipse 60% 50% at 95% 90%,rgba(249,115,22,.09) 0%,transparent 55%)}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:13px 22px;background:rgba(7,9,15,.9);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;backdrop-filter:blur(24px)}
+.logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--text)}
+.logo-icon{width:38px;height:38px;border-radius:50%;flex-shrink:0;object-fit:cover;display:block;
+  box-shadow:0 0 0 2px rgba(249,115,22,.5),0 0 14px rgba(249,115,22,.25)}
+.logo h1{font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo p{font-size:10px;color:var(--muted-l);margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+main{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:18px 20px 40px;
+  display:flex;flex-direction:column;gap:14px}
+.card{background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);
+  border-radius:var(--r);box-shadow:var(--shadow)}
+
+/* ── Barra de contexto ─────────────────────────────────────── */
+.ctx{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 16px}
+.ctx-l{font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:1.3px;
+  text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
+.ctx-g{display:flex;flex-direction:column;min-width:0}
+.ctx-sp{flex:1}
+.inp,select.inp{background:rgba(255,255,255,.04);border:1px solid var(--border-b);border-radius:9px;
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 11px;min-height:38px}
+.inp:focus{outline:2px solid rgba(27,200,255,.5);outline-offset:1px}
+select option{background:#0c1119;color:#e2e8f0}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;
+  border:1px solid var(--border-b);background:rgba(255,255,255,.06);color:var(--text);
+  font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;
+  min-height:38px;transition:filter .15s,transform .15s}
+.btn:hover{filter:brightness(1.15)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible{outline:2px solid rgba(27,200,255,.7);outline-offset:2px}
+.btn-pri{background:linear-gradient(135deg,var(--orange-d),var(--orange));border-color:transparent;color:#fff}
+.btn-teal{background:rgba(14,138,170,.22);border-color:rgba(27,200,255,.32);color:var(--teal-l)}
+.btn-sm{padding:5px 10px;font-size:11.5px;min-height:32px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;
+  font-family:var(--mono);font-size:10.5px;font-weight:600;white-space:nowrap;
+  background:rgba(27,200,255,.12);color:var(--teal-l);border:1px solid rgba(27,200,255,.28)}
+.chip.warn{background:rgba(245,158,11,.12);color:#fcd34d;border-color:rgba(245,158,11,.3)}
+
+/* ── KPIs ─────────────────────────────────────────────────── */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:11px}
+.kpi{padding:14px 16px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;left:0;right:0;top:0;height:2px}
+.kpi-a::after{background:linear-gradient(90deg,var(--orange-d),var(--orange))}
+.kpi-b::after{background:linear-gradient(90deg,var(--teal),var(--teal-l))}
+.kpi-c::after{background:linear-gradient(90deg,var(--gold),#fff9c4)}
+.kpi-d::after{background:linear-gradient(90deg,var(--green),#4ade80)}
+.kpi-q::after{background:linear-gradient(90deg,var(--red),#fca5a5)}
+.kpi-f::after{background:linear-gradient(90deg,var(--purple),#c084fc)}
+.kpi-l{font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:1.1px;
+  text-transform:uppercase;color:var(--muted-l)}
+.kpi-v{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-1px;margin-top:5px;
+  font-variant-numeric:tabular-nums}
+.kpi-v small{font-size:13px;letter-spacing:0}
+.kpi-s{font-size:11px;color:var(--muted);margin-top:3px}
+.c-or{color:var(--orange-l)} .c-te{color:var(--teal-l)} .c-pu{color:var(--purple)}
+.c-gr{color:#4ade80} .c-go{color:var(--gold)} .c-rd{color:#fca5a5} .c-mu{color:var(--muted-l)}
+
+/* ── Paneles ──────────────────────────────────────────────── */
+.sec{padding:16px}
+.sec-h{display:flex;align-items:center;gap:11px;justify-content:space-between;flex-wrap:wrap;margin-bottom:13px}
+.sec-t{display:flex;align-items:center;gap:9px;min-width:0}
+.sec-ico{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;background:rgba(27,200,255,.13);border:1px solid rgba(27,200,255,.25);flex:none}
+.sec-eyebrow{font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--muted)}
+.sec-t h2{font-family:var(--display);font-size:15.5px;font-weight:800;letter-spacing:-.2px}
+.sec-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* ── Parámetros ───────────────────────────────────────────── */
+.pars{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:11px}
+.par{padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid var(--border)}
+.par label{display:block;font-size:11px;color:var(--muted-l);margin-bottom:6px;line-height:1.35}
+.par .row{display:flex;align-items:center;gap:7px}
+.par input{width:100%;background:rgba(27,200,255,.07);border:1px solid rgba(27,200,255,.3);
+  border-radius:8px;color:var(--teal-l);font-family:var(--mono);font-size:15px;font-weight:600;
+  padding:7px 10px;min-height:38px;text-align:right}
+.par input:disabled{background:none;border-color:transparent;color:var(--text)}
+.par input:focus{outline:2px solid rgba(27,200,255,.6);outline-offset:1px}
+.par .u{font-family:var(--mono);font-size:11px;color:var(--muted);flex:none}
+.par .ej{font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.4}
+.formula{font-size:11.5px;color:var(--muted-l);line-height:1.75;margin-top:12px;
+  padding:11px 13px;border-radius:10px;background:rgba(0,0,0,.22);border:1px solid var(--border)}
+.formula b{color:var(--teal-l);font-family:var(--mono);font-weight:600}
+
+/* ── Tabla ────────────────────────────────────────────────── */
+.twrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.16)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+thead{position:sticky;top:0;z-index:10}
+thead th{padding:9px 8px;text-align:right;white-space:nowrap;background:linear-gradient(180deg,#101a26,#0c1520);
+  color:var(--teal-l);font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.6px;
+  text-transform:uppercase;border-bottom:1px solid rgba(27,200,255,.18)}
+thead th.l{text-align:left} thead th.c{text-align:center} thead th.in{color:var(--gold)}
+tbody td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;
+  font-family:var(--mono);font-variant-numeric:tabular-nums;vertical-align:top}
+tbody td.l{text-align:left;font-family:'DM Sans',sans-serif}
+tbody td.c{text-align:center}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+.tot td{background:rgba(255,255,255,.05);font-weight:700;border-top:1px solid var(--border-b)}
+.art{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.cod{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.calc{color:var(--muted-l)}
+.sub{display:block;font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.3px;
+  color:var(--muted);margin-top:3px;white-space:nowrap}
+.sub.medio{color:var(--orange-l)} .sub.bajo{color:#fca5a5} .sub.dep{color:var(--teal-l)}
+.dato{width:86px;background:rgba(245,197,66,.08);border:1px solid rgba(245,197,66,.28);border-radius:7px;
+  color:var(--gold);font-family:var(--mono);font-size:12px;padding:5px 7px;text-align:right;min-height:32px}
+.dato:focus{outline:2px solid rgba(245,197,66,.65);outline-offset:1px}
+.dato:disabled{background:none;border-color:transparent;color:var(--text);cursor:default;opacity:1}
+.dato.stk{background:rgba(27,200,255,.08);border-color:rgba(27,200,255,.28);color:var(--teal-l)}
+.dato.tra{background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.3);color:#c4b5fd}
+.dato.conf{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.28);color:#4ade80}
+.ped{font-weight:700;font-size:13px}
+.est{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;white-space:nowrap;
+  font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:.4px}
+.est-quiebre{background:rgba(239,68,68,.18);color:#fca5a5;border:1px solid rgba(239,68,68,.45)}
+.est-urgente{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+.est-pedir{background:rgba(249,115,22,.13);color:var(--orange-l);border:1px solid rgba(249,115,22,.32)}
+.est-ok{background:rgba(34,197,94,.13);color:#4ade80;border:1px solid rgba(34,197,94,.32)}
+.est-sin{background:rgba(255,255,255,.05);color:var(--muted-l);border:1px solid var(--border-b)}
+.dif{font-family:var(--mono);font-size:10.5px}
+.dif.up{color:#4ade80} .dif.dn{color:#fca5a5}
+tr.quiebre{background:rgba(239,68,68,.07)}
+tr.quiebre td:first-child{box-shadow:inset 3px 0 0 var(--red)}
+tr.urgente td:first-child{box-shadow:inset 3px 0 0 rgba(239,68,68,.55)}
+.fch{white-space:nowrap}
+.fch.vencida{color:#fca5a5;font-weight:700}
+
+/* ── Varios ───────────────────────────────────────────────── */
+.empty{padding:34px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.65}
+.aviso{padding:11px 15px;border-radius:11px;font-size:12.5px;line-height:1.55}
+.aviso.urg{background:rgba(239,68,68,.11);border:1px solid rgba(239,68,68,.35);color:#fca5a5}
+.aviso.info{background:rgba(27,200,255,.09);border:1px solid rgba(27,200,255,.28);color:var(--teal-l)}
+.aviso.temp{background:rgba(249,115,22,.10);border:1px solid rgba(249,115,22,.32);color:var(--orange-l)}
+#avisos{display:flex;flex-direction:column;gap:8px}
+#avisos:empty{display:none}
+.ovl{position:fixed;inset:0;z-index:500;background:rgba(4,6,11,.72);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:18px}
+.ovl.open{display:flex}
+.modal{width:100%;max-width:560px;background:linear-gradient(160deg,var(--bg1),var(--bg2));
+  border:1px solid var(--border-b);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.6);
+  max-height:90vh;display:flex;flex-direction:column}
+.modal.ancho{max-width:760px}
+.modal-h{display:flex;align-items:center;justify-content:space-between;padding:17px 20px 14px;
+  border-bottom:1px solid var(--border);font-family:var(--display);font-size:15px;font-weight:800}
+.modal-b{padding:18px 20px;overflow:auto}
+.modal-f{display:flex;justify-content:flex-end;gap:9px;padding:14px 20px;border-top:1px solid var(--border);flex-wrap:wrap}
+.x{background:none;border:none;color:var(--muted-l);font-size:19px;line-height:1;cursor:pointer;
+  padding:3px 8px;border-radius:7px}
+.x:hover{color:#fff;background:rgba(255,255,255,.08)}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--muted-l);margin-bottom:6px}
+.fg .inp{width:100%}
+.hint{font-size:11.5px;color:var(--muted-l);line-height:1.6;margin-top:7px}
+
+/* ── Excel: dos ranuras ───────────────────────────────────── */
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.slots{grid-template-columns:1fr}}
+.slot{border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.02);padding:12px}
+.slot h4{font-family:var(--display);font-size:12px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.drop{border:1.5px dashed var(--border-b);border-radius:11px;padding:18px 12px;text-align:center;
+  background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .16s,background .16s}
+.drop:hover,.drop.hot{border-color:rgba(27,200,255,.5);background:rgba(27,200,255,.06)}
+.drop:focus-visible{outline:2px solid rgba(27,200,255,.7);outline-offset:2px}
+.drop-i{font-size:22px;line-height:1;margin-bottom:6px}
+.drop-t{font-family:var(--display);font-size:12.5px;font-weight:700}
+.drop-s{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5}
+.slot-res{margin-top:9px;font-size:11.5px;line-height:1.55;color:var(--muted-l)}
+.slot-res b{font-family:var(--mono);color:var(--teal-l)}
+.slot-res.err{color:#fca5a5}
+.slot-res.warn{color:#fcd34d}
+.xl-sec{margin-top:14px}
+.xl-sec h4{font-family:var(--display);font-size:11px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--muted-l);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.xl-sec h4 .n{font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:99px;
+  background:rgba(255,255,255,.08);color:var(--text)}
+.xl-lista{max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:9px}
+.xl-lista table{font-size:11.5px}
+.xl-lista th{position:sticky;top:0;background:#0f1722;color:var(--muted-l);font-family:var(--display);
+  font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:6px 9px;text-align:right}
+.xl-lista th:first-child{text-align:left}
+.xl-lista td{padding:5px 9px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);text-align:right}
+.xl-lista td:first-child{font-family:'DM Sans',sans-serif;text-align:left}
+.xl-lista .vieja{color:var(--muted)} .xl-lista .nueva{color:var(--gold);font-weight:600}
+details.xl-ign{margin-top:10px;font-size:11.5px;color:var(--muted-l)}
+details.xl-ign summary{cursor:pointer}
+details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6}
+
+.toasts{position:fixed;bottom:20px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px}
+.toast{padding:11px 15px;border-radius:10px;font-size:12.5px;font-weight:600;max-width:420px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.toast.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#86efac}
+.toast.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5}
+.toast.info{background:rgba(27,200,255,.13);border:1px solid rgba(27,200,255,.35);color:var(--teal-l)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{
+  header,.ctx .sec-tools,.toasts,.btn,.imp-tabs{display:none!important}
+  body::before{display:none}
+  body{background:#fff;color:#000}
+  .card{border-color:#ccc;box-shadow:none;background:#fff}
+  thead th{background:#eee;color:#000}
+  .twrap{overflow:visible}
+  .dato{border:none;background:none;color:#000}
+}
+@media (max-width:760px){
+  main{padding:14px 12px 30px}
+  .kpi-v{font-size:22px}
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-13.2232"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-13.2232"/>
+<script src="supabase-config.js?v=2026-10-13.2232"></script>
+<script src="subatir-app.js?v=2026-10-13.2232"></script>
+<script>
+// Version del modulo. La compara subatir-app.js contra version.json y si
+// hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
+window.APP_VER='2026-10-13.2232';
+</script>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">
+    <img class="logo-icon" src="logo.jpg" alt=""/>
+    <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
+  </a>
+  <nav></nav>
+  <script src="nav.js?v=2026-10-13.2232"></script>
+  <div class="hdr-r">
+    <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
+    <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- Submódulos: los arma importaciones-tabs.js según la línea -->
+  <div class="imp-tabs" id="imp-tabs"></div>
+  <script>
+    // La línea sale de la URL (?linea=Subatir). Se fija acá, antes de
+    // dibujar la barra, para que el submódulo correcto aparezca prendido.
+    window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
+    document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
+  </script>
+  <script src="importaciones-tabs.js?v=2026-10-13.2232"></script>
+
+  <!-- ══ Contexto: corrida ══════════════════════════════════ -->
+  <div class="card ctx">
+    <div class="ctx-g" style="flex:1;max-width:420px;min-width:220px">
+      <span class="ctx-l">Corrida (una por importación)</span>
+      <select class="inp" id="f-corr" onchange="cambioCorrida()" aria-label="Corrida"></select>
+    </div>
+    <div class="ctx-g">
+      <span class="ctx-l">Estado</span>
+      <span id="corr-estado" class="chip">—</span>
+    </div>
+    <div class="ctx-sp"></div>
+    <div class="sec-tools">
+      <button class="btn btn-sm" id="btn-cerrar" onclick="toggleCerrada()"></button>
+      <button class="btn btn-sm btn-teal" id="btn-xl" onclick="openExcel()" title="Subir los dos listados del sistema: últimos 3 meses y último año">📄 Cargar consumo</button>
+      <button class="btn btn-sm" id="btn-stk" onclick="traerStock()" title="Reemplazar el stock de la corrida por el que hoy tiene Depósitos">↻ Stock de Depósitos</button>
+      <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-sm" onclick="exportJSON()" title="Backup de la corrida con sus parámetros">⬇ JSON</button>
+      <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
+      <button class="btn btn-sm btn-pri" onclick="openNuevaCorrida()">➕ Nueva corrida</button>
+    </div>
+  </div>
+
+  <div id="avisos"></div>
+
+  <!-- ══ KPIs ═══════════════════════════════════════════════ -->
+  <div class="kpis" id="kpis"></div>
+
+  <!-- ══ Parámetros ═════════════════════════════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico">⚙</div>
+        <div><div class="sec-eyebrow">01 · Reglas</div><h2>Parámetros de la previsión</h2></div>
+      </div>
+      <div class="sec-tools">
+        <span class="chip" id="par-estado">guardados</span>
+        <button class="btn btn-sm" onclick="guardarParametros()" id="btn-par">Guardar parámetros</button>
+      </div>
+    </div>
+    <div class="pars" id="pars"></div>
+    <div class="formula" id="formula"></div>
+  </div>
+
+  <!-- ══ Tabla ══════════════════════════════════════════════ -->
+  <div class="card sec">
+    <div class="sec-h">
+      <div class="sec-t">
+        <div class="sec-ico">▦</div>
+        <div><div class="sec-eyebrow">02 · Detalle</div><h2>Previsión artículo por artículo</h2></div>
+      </div>
+      <div class="sec-tools">
+        <input class="inp" id="f-buscar" type="search" placeholder="Buscar artículo o código…"
+               oninput="pintarTabla()" aria-label="Buscar artículo" style="font-size:12px;min-height:32px;padding:5px 9px"/>
+        <select class="inp" id="f-est" onchange="pintarTabla()" aria-label="Filtrar por estado"
+                style="font-size:12px;padding:5px 9px;min-height:32px">
+          <option value="">Todos los estados</option>
+          <option value="__pedir">Hay que pedir</option>
+          <option value="quiebre">Sin stock (quiebre)</option>
+          <option value="urgente">Urgente: no llega al arribo</option>
+          <option value="pedir">Pedir en esta importación</option>
+          <option value="ok">Cubierto</option>
+          <option value="sin">Sin consumo</option>
+        </select>
+        <span class="chip" id="tbl-n">—</span>
+      </div>
+    </div>
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="l" style="min-width:230px">Artículo</th>
+            <th class="in" title="Se carga del listado: unidades consumidas en los últimos 3 meses. Abajo, el promedio por mes.">Cons. 3m</th>
+            <th class="in" title="Se carga del listado: unidades consumidas en el último año. Abajo, el promedio por mes.">Cons. año</th>
+            <th title="60% del promedio de 3 meses + 40% del promedio anual, por el crecimiento">Proyect./mes</th>
+            <th class="in" title="Foto del stock de Depósitos al armar la corrida. Abajo, cuántas semanas aguanta (con lo que viene en camino).">Stock · dura</th>
+            <th class="in" title="Lo ya pedido que todavía no llegó">En tránsito</th>
+            <th title="Lo que se consume mientras la importación viaja (lead time)">Viaje</th>
+            <th title="Proyectado × meses de cobertura">Cobertura</th>
+            <th title="Proyectado × semanas de seguridad ÷ 4,333">Seguridad</th>
+            <th title="Viaje + cobertura + seguridad">Total nec.</th>
+            <th title="Total necesario − stock − en tránsito">A pedir</th>
+            <th title="A pedir redondeado hacia arriba a cajas completas">Cajas</th>
+            <th title="Cajas × unidades por caja">Pedido</th>
+            <th class="c" title="Última fecha para pedir y que llegue antes de tocar el stock de seguridad">Pedir antes de</th>
+            <th class="c">Estado</th>
+            <th class="in" title="Lo que finalmente se pide">Confirmada</th>
+            <th class="c" title="Confirmada − pedido calculado">Dif.</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><tr><td colspan="17" class="empty">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ MODAL: nueva corrida ═══════════════════════════════ -->
+<div class="ovl" id="ovl-nueva" role="dialog" aria-modal="true" aria-labelledby="t-nueva">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-h"><span id="t-nueva">➕ Nueva corrida</span>
+      <button class="x" onclick="cerrar('ovl-nueva')" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <div class="fg"><label for="nc-nombre">Nombre *</label>
+        <input class="inp" id="nc-nombre" maxlength="60" placeholder="Ej: Importación 1 · 2027"/></div>
+      <div class="fg"><label for="nc-fecha">Fecha</label>
+        <input class="inp" id="nc-fecha" type="date"/></div>
+      <div class="fg"><label for="nc-nota">Nota</label>
+        <input class="inp" id="nc-nota" maxlength="200" placeholder="Lo que convenga recordar de esta importación"/></div>
+      <div class="hint">Arranca con el <b>stock de hoy de Depósitos</b> y una copia del consumo de la
+        corrida que estás viendo. Después subís los dos listados y queda al día.
+        La anterior queda guardada como está.</div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrar('ovl-nueva')">Cancelar</button>
+      <button class="btn btn-pri" id="btn-nc" onclick="crearCorrida()">Crear corrida</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: cargar consumo desde los dos listados ═══════ -->
+<div class="ovl" id="ovl-xl" role="dialog" aria-modal="true" aria-labelledby="t-xl">
+  <div class="modal ancho">
+    <div class="modal-h"><span id="t-xl">📄 Cargar consumo</span>
+      <button class="x" onclick="cerrar('ovl-xl')" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <div class="slots">
+        <div class="slot">
+          <h4>① Últimos 3 meses</h4>
+          <div class="drop" id="drop-3m" tabindex="0" role="button"
+               onclick="document.getElementById('file-3m').click()"
+               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('file-3m').click();}">
+            <div class="drop-i">📄</div><div class="drop-t">Elegí el .xlsx o soltalo acá</div>
+            <div class="drop-s">«Ranking por Artículo» de 3 meses</div>
+          </div>
+          <input type="file" id="file-3m" accept=".xlsx" style="display:none" onchange="xlSlot('3m',this.files[0]);this.value='';">
+          <div class="slot-res" id="res-3m"></div>
+        </div>
+        <div class="slot">
+          <h4>② Último año</h4>
+          <div class="drop" id="drop-anual" tabindex="0" role="button"
+               onclick="document.getElementById('file-anual').click()"
+               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('file-anual').click();}">
+            <div class="drop-i">📄</div><div class="drop-t">Elegí el .xlsx o soltalo acá</div>
+            <div class="drop-s">«Ranking por Artículo» de 12 meses</div>
+          </div>
+          <input type="file" id="file-anual" accept=".xlsx" style="display:none" onchange="xlSlot('anual',this.files[0]);this.value='';">
+          <div class="slot-res" id="res-anual"></div>
+        </div>
+      </div>
+      <div class="hint">Se lee el <b>código</b> (columna A), el <b>artículo</b> y la columna <b>Salidas</b>.
+        Los artículos se reconocen por el código interno que tienen en Depósitos. El período sale del
+        encabezado del propio archivo (<i>Del: … Al: …</i>). Podés subir uno solo: el otro queda como estaba.</div>
+      <div id="xl-prev"></div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrar('ovl-xl')">Cancelar</button>
+      <button class="btn btn-pri" id="btn-xl-ok" onclick="aplicarExcel()" disabled>Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script src="importaciones-calc.js?v=2026-10-13.2232"></script>
+<script src="xlsx-lite.js?v=2026-10-13.2232"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
+//  después Intex, Enjoy y Mopas)
+//
+//  Los artículos son los de imp_articulos; acá no se dan de alta.
+//  Cada importación (3 por año) es una CORRIDA con su foto de
+//  consumo y stock, para saber después con qué números se pidió.
+//  La cuenta está en importaciones-calc.js, en un solo lugar.
+// ══════════════════════════════════════════════════════════════
+var LINEAS = {
+  Subatir: { titulo:'Subatir · Consumo', desc:'artículos de consumo de la fábrica',
+             filtro:function(a){ return a.proveedor==='Subatir' && a.tipo==='Consumo'; } },
+  Intex:   { titulo:'Intex', desc:'línea piscina', filtro:function(a){ return a.proveedor==='Intex'; } },
+  Enjoy:   { titulo:'Enjoy', desc:'línea piscina', filtro:function(a){ return a.proveedor==='Enjoy'; } },
+  Mopas:   { titulo:'Mopas', desc:'mopas',         filtro:function(a){ return a.proveedor==='Mopas'; } }
+};
+if(!LINEAS[window.LINEA]) window.LINEA='Subatir';
+var LIN = LINEAS[window.LINEA];
+
+var ART=[], STOCK={}, PAR=null, CORR=[], DATOS={}, CUR_CORR=null, PEND={};
+var XL={'3m':null, anual:null};
+
+function esc(s){ return String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function num(v){ var x=parseFloat(v); return isNaN(x)?0:x; }
+function n0(v){ return Math.round(num(v)).toLocaleString('es-UY'); }
+function n1(v){ return num(v).toLocaleString('es-UY',{minimumFractionDigits:1,maximumFractionDigits:1}); }
+function toast(msg,tipo){
+  var h=document.getElementById('toasts'), d=document.createElement('div');
+  d.className='toast '+(tipo||'info'); d.textContent=msg; h.appendChild(d);
+  setTimeout(function(){ d.style.transition='opacity .35s'; d.style.opacity='0';
+    setTimeout(function(){ if(d.parentNode) d.remove(); },380); }, tipo==='err'?5200:3000);
+}
+function abrir(id){ document.getElementById(id).classList.add('open'); }
+function cerrar(id){ document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape') document.querySelectorAll('.ovl.open').forEach(function(o){ o.classList.remove('open'); });
+});
+function fechaUTC(iso){ return iso ? new Date(iso+'T00:00:00Z') : null; }
+function fmtFecha(d){ if(!d) return '—';
+  return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+String(d.getUTCFullYear()).slice(2); }
+function hoyUTC(){ var h=new Date(); return new Date(Date.UTC(h.getFullYear(),h.getMonth(),h.getDate())); }
+
+document.title = 'Importaciones · '+LIN.titulo+' — Subatir / Prolimpio';
+document.getElementById('hdr-sub').textContent = 'Importaciones · '+LIN.titulo;
+
+// ══ CARGA ═════════════════════════════════════════════════════
+SubatirApp.ready.then(function(p){ if(p) cargar(); });
+
+function cargar(){
+  return Promise.all([
+    SB.from('imp_prev_parametros').select('*').eq('linea',window.LINEA).limit(1),
+    SB.todo(function(){ return SB.from('imp_prev_corridas').select('*').eq('linea',window.LINEA)
+      .order('fecha',{ascending:false}).order('id',{ascending:false}); }),
+    SB.todo(function(){ return SB.from('imp_articulos').select('*').order('descripcion'); }),
+    SB.todo(function(){ return SB.from('imp_stock').select('articulo_id,deposito,cantidad'); })
+  ]).then(function(r){
+    var e=r.find(function(x){ return x.error; });
+    if(e){ falta(e.error); return; }
+    PAR=(r[0].data||[])[0]||null;
+    if(!PAR){ falta({message:'La línea '+window.LINEA+' no tiene parámetros cargados'}); return; }
+    CORR=r[1].data||[];
+    ART=(r[2].data||[]).filter(LIN.filtro);
+    // Stock = todos los depósitos. Artigas es fábrica y consume al
+    // llegar, así que en la práctica es lo que hay en Furriol.
+    STOCK={};
+    (r[3].data||[]).forEach(function(s){ STOCK[s.articulo_id]=(STOCK[s.articulo_id]||0)+num(s.cantidad); });
+    var sc=document.getElementById('f-corr');
+    sc.innerHTML = CORR.length
+      ? CORR.map(function(c){ return '<option value="'+c.id+'">'+esc(c.nombre)+' · '+esc(c.fecha)
+          +(c.cerrada?' · cerrada':'')+'</option>'; }).join('')
+      : '<option value="">— todavía no hay corridas —</option>';
+    CUR_CORR = CUR_CORR && CORR.some(function(x){ return x.id===CUR_CORR; }) ? CUR_CORR : (CORR[0]||{}).id||null;
+    if(CUR_CORR) sc.value=CUR_CORR;
+    return cargarCorrida();
+  }, falta);
+}
+function falta(e){
+  var m=(e&&e.message)||'';
+  document.getElementById('tbody').innerHTML='<tr><td colspan="17" class="empty">'
+    +'No se pudieron leer los datos de Importaciones.<br>'
+    +(/relation|does not exist|schema cache/i.test(m)
+      ? 'Falta correr <b>migracion/imp_prevision.sql</b> en Supabase: ahí se crean las tablas de la previsión.'
+      : esc(m))+'</td></tr>';
+  document.getElementById('kpis').innerHTML='';
+}
+function cargarCorrida(){
+  PEND={};
+  if(!CUR_CORR){ DATOS={}; pintarTodo(); return Promise.resolve(); }
+  return SB.todo(function(){ return SB.from('imp_prev_datos').select('*').eq('corrida_id',CUR_CORR); }).then(function(r){
+    if(r.error){ falta(r.error); return; }
+    DATOS={}; (r.data||[]).forEach(function(d){ DATOS[d.articulo_id]=d; });
+    pintarTodo();
+    document.getElementById('ts').textContent='Actualizado: '
+      +new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+  }, falta);
+}
+function cambioCorrida(){
+  if(Object.keys(PEND).length){ guardarPendientes(); }
+  CUR_CORR=parseInt(document.getElementById('f-corr').value,10)||null; cargarCorrida();
+}
+function corridaActual(){ return CORR.filter(function(c){ return c.id===CUR_CORR; })[0]; }
+function cerrada(){ var c=corridaActual(); return !!(c && c.cerrada); }
+
+// Una corrida cerrada se mira con los parámetros con que se pidió, no
+// con los de hoy: si no, la historia cambiaría cada vez que se toca uno.
+function parEfectivos(){
+  var c=corridaActual();
+  return (c && c.cerrada && c.parametros) ? c.parametros : PAR;
+}
+
+// ══ FILAS ═════════════════════════════════════════════════════
+var CAMPOS=['consumo_3m','consumo_anual','stock_actual','en_transito','compra_confirmada'];
+function filas(){
+  if(!PAR) return [];
+  var c=corridaActual(), fecha=fechaUTC(c&&c.fecha), p=parEfectivos();
+  // Activos + los que tengan datos en la corrida aunque se hayan dado de
+  // baja después: una corrida vieja no puede perder renglones.
+  return ART.filter(function(a){ return a.activo!==false || DATOS[a.id]; })
+    .map(function(a){
+      var d=DATOS[a.id]||{}, pe=PEND[a.id]||{}, eff={};
+      CAMPOS.forEach(function(k){ eff[k] = pe[k]!==undefined ? pe[k] : (d[k]!=null ? d[k] : (k==='compra_confirmada'?null:0)); });
+      return {art:a, d:eff, enCorrida:!!DATOS[a.id], sucia:Object.keys(pe).length>0,
+              c:ImpCalc.calcular(eff, p, {unXCaja:a.un_x_caja, fecha:fecha})};
+    });
+}
+var EST_TXT={quiebre:'Quiebre', urgente:'Urgente', pedir:'Pedir', ok:'Cubierto', sin:'Sin consumo'};
+var EST_ORD={quiebre:0, urgente:1, pedir:2, ok:3, sin:4};
+function visibles(){
+  var q=(document.getElementById('f-buscar').value||'').trim().toLowerCase();
+  var fe=document.getElementById('f-est').value;
+  return filas().filter(function(f){
+    if(fe==='__pedir'){ if(!(f.c.pedido>0)) return false; }
+    else if(fe && f.c.estado!==fe) return false;
+    if(q && (f.art.descripcion+' '+(f.art.codigo||'')).toLowerCase().indexOf(q)<0) return false;
+    return true;
+  }).sort(function(x,y){
+    return (EST_ORD[x.c.estado]-EST_ORD[y.c.estado]) || x.art.descripcion.localeCompare(y.art.descripcion);
+  });
+}
+
+function pintarTodo(){ pintarParametros(); pintarAvisos(); pintarKPIs(); pintarTabla(); pintarEstadoCorrida(); }
+
+// ══ AVISOS ════════════════════════════════════════════════════
+function pintarAvisos(){
+  var a=[];
+  if(!ART.length) a.push({t:'info', txt:'<b>Todavía no hay artículos de '+esc(LIN.titulo)+' en Depósitos.</b> '
+    +'Cuando se den de alta allá, aparecen acá solos.'});
+  else if(!CORR.length) a.push({t:'info', txt:'<b>Primer paso:</b> creá una corrida con ➕ Nueva corrida. '
+    +'Arranca con el stock de hoy de Depósitos; después subís los dos listados de consumo.'});
+  var c=corridaActual();
+  if(c && !c.cerrada){
+    var dif=filas().filter(function(f){ return f.enCorrida && Math.round(num(f.d.stock_actual))!==Math.round(STOCK[f.art.id]||0); });
+    if(dif.length) a.push({t:'temp', txt:'<b>'+dif.length+' artículo'+(dif.length===1?'':'s')
+      +'</b> tienen hoy en Depósitos un stock distinto al de esta corrida. '
+      +'Si querés trabajar con el de hoy, tocá <b>↻ Stock de Depósitos</b>.'});
+    var faltan=filas().filter(function(f){ return !f.enCorrida && f.art.activo!==false; });
+    if(faltan.length) a.push({t:'info', txt:'<b>'+faltan.length+' artículo'+(faltan.length===1?'':'s')
+      +' nuevo'+(faltan.length===1?'':'s')+'</b> en Depósitos que esta corrida todavía no tenía: '
+      +faltan.slice(0,3).map(function(f){ return esc(f.art.descripcion); }).join(' · ')
+      +(faltan.length>3?' y '+(faltan.length-3)+' más':'')+'. Se guardan al cargar datos.'});
+    if(c.origen_3m || c.origen_anual) a.push({t:'info', txt:'Consumo cargado de: '
+      +[c.origen_3m, c.origen_anual].filter(Boolean).map(esc).join(' · ')});
+  }
+  if(c && c.cerrada && c.parametros) a.push({t:'info', txt:'🔒 Corrida cerrada: se muestra con los parámetros '
+    +'con que se pidió (crecimiento '+n1(c.parametros.crecimiento_pct)+'%, '+n0(c.parametros.meses_cobertura)
+    +' meses, seguridad '+n0(c.parametros.semanas_seguridad)+' sem, lead time '+n0(c.parametros.semanas_leadtime)+' sem).'});
+  document.getElementById('avisos').innerHTML=a.map(function(x){
+    return '<div class="aviso '+x.t+'">'+x.txt+'</div>'; }).join('');
+}
+
+// ══ ESTADO DE LA CORRIDA ══════════════════════════════════════
+function pintarEstadoCorrida(){
+  var c=corridaActual(), el=document.getElementById('corr-estado'), b=document.getElementById('btn-cerrar');
+  var sucias=Object.keys(PEND).length;
+  document.getElementById('btn-xl').disabled = !c || c.cerrada;
+  document.getElementById('btn-stk').disabled = !c || c.cerrada;
+  if(!c){ el.textContent='—'; el.className='chip'; b.style.display='none'; return; }
+  if(sucias){ el.textContent=sucias+' sin guardar'; el.className='chip warn'; }
+  else { el.textContent=c.cerrada?'🔒 cerrada':'abierta'; el.className='chip'; }
+  b.style.display='';
+  b.textContent = c.cerrada ? '🔓 Reabrir' : '🔒 Cerrar';
+  b.title = c.cerrada ? 'Volver a permitir cambios en esta corrida'
+    : 'Dar la importación por pedida: queda de sólo lectura y guarda los parámetros con que se pidió';
+}
+function toggleCerrada(){
+  var c=corridaActual(); if(!c) return;
+  var nueva=!c.cerrada;
+  guardarPendientes().then(function(){
+    var upd={cerrada:nueva};
+    if(nueva){ var p={}; DEF_PAR.forEach(function(d){ p[d.k]=num(PAR[d.k]); }); upd.parametros=p; }
+    return SB.from('imp_prev_corridas').update(upd).eq('id',c.id).select();
+  }).then(function(r){
+    if(r.error){ toast('No se pudo: '+r.error.message,'err'); return; }
+    if(!r.data || !r.data.length){ toast('No se guardó: tu usuario no tiene permiso de escritura en Importaciones','err'); return; }
+    Object.assign(c, r.data[0]);
+    toast(nueva?'Corrida cerrada: queda de sólo lectura':'Corrida reabierta','ok');
+    pintarTodo();
+  });
+}
+
+// ══ PARÁMETROS ════════════════════════════════════════════════
+var DEF_PAR=[
+  {k:'crecimiento_pct',   t:'Crecimiento anual estimado',     u:'%',       step:'0.5'},
+  {k:'meses_cobertura',   t:'Meses de cobertura por compra',  u:'meses',   step:'1'},
+  {k:'semanas_seguridad', t:'Stock de seguridad',             u:'semanas', step:'1'},
+  {k:'semanas_leadtime',  t:'Lead time de importación',       u:'semanas', step:'1'}
+];
+function pintarParametros(){
+  if(!PAR) return;
+  var p=parEfectivos(), bloq=cerrada();
+  var ej={meses_cobertura:'3 importaciones por año = 4 meses',
+          semanas_leadtime:'Desde que se pide hasta que está en Depósitos',
+          semanas_seguridad:'Colchón por si la importación se atrasa'};
+  document.getElementById('pars').innerHTML=DEF_PAR.map(function(d){
+    return '<div class="par"><label for="p-'+d.k+'">'+esc(d.t)+'</label>'
+      +'<div class="row"><input id="p-'+d.k+'" type="number" step="'+d.step+'" min="0" value="'+num(p[d.k])+'"'
+      +(bloq?' disabled':'')+' oninput="tocarParametro()"/><span class="u">'+d.u+'</span></div>'
+      +(ej[d.k]?'<div class="ej">'+ej[d.k]+'</div>':'')+'</div>';
+  }).join('');
+  document.getElementById('btn-par').disabled=bloq;
+  pintarFormula();
+}
+function tocarParametro(){
+  DEF_PAR.forEach(function(d){ PAR[d.k]=num(document.getElementById('p-'+d.k).value); });
+  var e=document.getElementById('par-estado'); e.textContent='sin guardar'; e.className='chip warn';
+  pintarFormula(); pintarKPIs(); pintarTabla();
+}
+function pintarFormula(){
+  var p=parEfectivos();
+  document.getElementById('formula').innerHTML=
+    'Proyectado/mes = (<b>60%</b> del promedio de 3 meses + <b>40%</b> del promedio anual) × <b>'
+    +n1(100+num(p.crecimiento_pct))+'%</b> &nbsp;·&nbsp; '
+    +'Total necesario = proyectado × (<b>'+n0(p.semanas_leadtime)+'</b> sem de viaje + <b>'
+    +n0(p.meses_cobertura)+'</b> meses de cobertura + <b>'+n0(p.semanas_seguridad)+'</b> sem de seguridad) &nbsp;·&nbsp; '
+    +'A pedir = total − stock − en tránsito, redondeado a <b>cajas completas</b> &nbsp;·&nbsp; '
+    +'<span style="color:var(--muted)">El viaje cuenta porque mientras la importación viene en camino, el stock de hoy se sigue gastando.</span>';
+}
+function guardarParametros(){
+  var b=document.getElementById('btn-par'); b.disabled=true;
+  var p={}; DEF_PAR.forEach(function(d){ p[d.k]=num(PAR[d.k]); }); p.updated_at=new Date().toISOString();
+  SB.from('imp_prev_parametros').update(p).eq('linea',window.LINEA).select().then(function(r){
+    b.disabled=false;
+    if(r.error){ toast('No se pudieron guardar: '+r.error.message,'err'); return; }
+    if(!r.data || !r.data.length){ toast('No se guardó: tu usuario no tiene permiso de escritura en Importaciones','err'); return; }
+    var e=document.getElementById('par-estado'); e.textContent='guardados'; e.className='chip';
+    toast('Parámetros guardados','ok');
+  });
+}
+
+// ══ KPIs ══════════════════════════════════════════════════════
+function pintarKPIs(){
+  var fs=filas(), uds=0, cajas=0, aPedir=0, quie=0, urg=0, conf=0, hayConf=false, prox=null, proxArt=null;
+  fs.forEach(function(f){
+    uds+=f.c.pedido; cajas+=f.c.cajas;
+    if(f.c.pedido>0) aPedir++;
+    if(f.c.estado==='quiebre') quie++;
+    if(f.c.estado==='urgente') urg++;
+    if(f.d.compra_confirmada!=null){ hayConf=true; conf+=num(f.d.compra_confirmada); }
+    if(f.c.pedirAntes && (f.c.estado==='pedir'||f.c.estado==='urgente'||f.c.estado==='quiebre')
+       && (!prox || f.c.pedirAntes<prox)){ prox=f.c.pedirAntes; proxArt=f.art.descripcion; }
+  });
+  var vence = prox && prox<=hoyUTC();
+  document.getElementById('kpis').innerHTML=
+     kpi('a','A importar', n0(uds)+' <small>u</small>','c-or', n0(cajas)+' cajas · '+aPedir+' de '+fs.length+' artículos')
+    +kpi('q','Sin stock', n0(quie), quie?'c-rd':'c-pu', quie?'en quiebre ahora mismo':'ninguno en quiebre')
+    +kpi('c','Urgentes', n0(urg), urg?'c-go':'c-pu', 'no llegan al arribo con el colchón')
+    +kpi('f','Pedir antes de', prox?fmtFecha(prox):'—', vence?'c-rd':'c-te',
+         prox?(vence?'ya pasó · ':'')+proxArt:'nada apura')
+    +kpi('d','Confirmada', hayConf?n0(conf)+' <small>u</small>':'—','c-gr',
+         hayConf?((conf-uds)===0?'igual al cálculo':((conf-uds)>0?'+':'−')+n0(Math.abs(conf-uds))+' u vs. calculado'):'todavía sin decidir');
+}
+function kpi(cls,label,val,color,sub){
+  return '<div class="card kpi kpi-'+cls+'"><div class="kpi-l">'+esc(label)+'</div>'
+    +'<div class="kpi-v '+color+'">'+val+'</div><div class="kpi-s" title="'+esc(sub)+'" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(sub)+'</div></div>';
+}
+
+// ══ TABLA ═════════════════════════════════════════════════════
+function pintarTabla(){
+  var tb=document.getElementById('tbody');
+  if(!PAR) return;
+  if(!CUR_CORR){
+    tb.innerHTML='<tr><td colspan="17" class="empty">'+(ART.length
+      ? 'Creá la primera corrida con <b>➕ Nueva corrida</b>.'
+      : 'Todavía no hay artículos de '+esc(LIN.titulo)+' en Depósitos.')+'</td></tr>';
+    document.getElementById('tbl-n').textContent='—'; return;
+  }
+  var fs=visibles(), p=parEfectivos();
+  document.getElementById('tbl-n').textContent=fs.length+(fs.length===1?' artículo':' artículos');
+  if(!fs.length){ tb.innerHTML='<tr><td colspan="17" class="empty">Sin resultados con los filtros actuales.</td></tr>'; return; }
+  var lead=num(p.semanas_leadtime), seg=num(p.semanas_seguridad), hoy=hoyUTC();
+  var T={c3m:0,can:0,stk:0,tra:0,ped:0,caj:0,conf:0};
+  var html=fs.map(function(f){
+    var c=f.c, d=f.d, a=f.art, id=a.id, dif=num(d.compra_confirmada)-c.pedido;
+    T.c3m+=num(d.consumo_3m); T.can+=num(d.consumo_anual); T.stk+=num(d.stock_actual);
+    T.tra+=num(d.en_transito); T.ped+=c.pedido; T.caj+=c.cajas; T.conf+=num(d.compra_confirmada);
+    var vivo=STOCK[id]||0, difStk=!cerrada() && f.enCorrida && Math.round(vivo)!==Math.round(num(d.stock_actual));
+    var dura = c.estado==='sin' ? '' : (c.quiebre ? '<span class="sub bajo">🔴 QUIEBRE</span>'
+      : (c.cobertura>=999 ? '' : '<span class="sub'+(c.margen<0?' bajo':(c.cobertura<lead+seg+num(p.meses_cobertura)*4.333?' medio':''))
+        +'" title="Aguanta '+n0(c.cobertura)+' semanas con lo que hay y lo que viene">'+n0(c.cobertura)+' sem</span>'));
+    if(difStk) dura+='<span class="sub dep" title="Lo que hoy figura en Depósitos">hoy: '+n0(vivo)+'</span>';
+    var venc = c.pedirAntes && c.pedirAntes<=hoy && c.estado!=='ok';
+    return '<tr class="'+(c.estado==='quiebre'?'quiebre':(c.estado==='urgente'?'urgente':''))+'"'
+      +(f.sucia?' style="background:rgba(245,197,66,.05)"':'')+'>'
+      +'<td class="l"><div class="art" title="'+esc(a.descripcion)+'">'+esc(a.descripcion)+'</div>'
+        +'<div class="cod">'+esc(a.codigo||'sin código')+(num(a.un_x_caja)>0?' · caja '+n0(a.un_x_caja)+' u':' · sin caja')+'</div></td>'
+      +celda(id,'consumo_3m',d.consumo_3m,'','<span class="sub">'+n0(c.prom3m)+'/mes</span>')
+      +celda(id,'consumo_anual',d.consumo_anual,'','<span class="sub">'+n0(c.promAnual)+'/mes</span>')
+      +'<td title="Ponderado '+n1(c.ponderado)+' × crecimiento">'+n0(c.proyect)+'</td>'
+      +celda(id,'stock_actual',d.stock_actual,'stk',dura)
+      +celda(id,'en_transito',d.en_transito,'tra','')
+      +'<td class="calc">'+n0(c.duranteLead)+'</td>'
+      +'<td class="calc">'+n0(c.necesidad)+'</td>'
+      +'<td class="calc">'+n0(c.stockSeg)+'</td>'
+      +'<td>'+n0(c.totalNec)+'</td>'
+      +'<td class="c-or">'+n0(c.aPedir)+'</td>'
+      +'<td>'+(c.cajas?n0(c.cajas):'<span class="cod">—</span>')+'</td>'
+      +'<td class="ped c-or">'+n0(c.pedido)+'</td>'
+      +'<td class="c"><span class="fch'+(venc?' vencida':'')+'">'
+        +(c.estado==='sin'?'<span class="cod">—</span>':fmtFecha(c.pedirAntes))+'</span></td>'
+      +'<td class="c"><span class="est est-'+c.estado+'">'+EST_TXT[c.estado]+'</span></td>'
+      +celda(id,'compra_confirmada',d.compra_confirmada,'conf','')
+      +'<td class="c">'+(d.compra_confirmada==null?'<span class="cod">—</span>'
+        :(dif===0?'<span class="cod">=</span>':'<span class="dif '+(dif>0?'up':'dn')+'">'+(dif>0?'+':'−')+n0(Math.abs(dif))+'</span>'))+'</td>'
+      +'</tr>';
+  }).join('');
+  html+='<tr class="tot"><td class="l">TOTAL · '+fs.length+' artículos</td>'
+    +'<td>'+n0(T.c3m)+'</td><td>'+n0(T.can)+'</td><td></td><td>'+n0(T.stk)+'</td><td>'+n0(T.tra)+'</td>'
+    +'<td></td><td></td><td></td><td></td><td></td><td>'+n0(T.caj)+'</td><td class="ped c-or">'+n0(T.ped)+'</td>'
+    +'<td></td><td></td><td class="c-gr">'+n0(T.conf)+'</td><td></td></tr>';
+  tb.innerHTML=html;
+}
+function celda(id,campo,valor,cls,pie){
+  return '<td><input class="dato '+cls+'" type="number" step="1" min="0" inputmode="decimal" value="'+(valor==null?'':valor)+'"'
+    +' data-id="'+id+'" data-campo="'+campo+'"'+(cerrada()?' disabled':'')
+    +' oninput="editar(this)" onchange="pintarTabla()" aria-label="'+campo.replace(/_/g,' ')+'"/>'+(pie||'')+'</td>';
+}
+function editar(el){
+  var id=parseInt(el.dataset.id,10), campo=el.dataset.campo;
+  var v = el.value==='' ? (campo==='compra_confirmada'?null:0) : num(el.value);
+  (PEND[id]=PEND[id]||{})[campo]=v;
+  pintarKPIs(); pintarEstadoCorrida();
+  agendarGuardado();
+}
+// Guardado automático: todo va directo a la base, sin botón.
+var _tg=null;
+function agendarGuardado(){ clearTimeout(_tg); _tg=setTimeout(guardarPendientes, 1200); }
+function guardarPendientes(){
+  clearTimeout(_tg);
+  var ids=Object.keys(PEND);
+  if(!ids.length || !CUR_CORR) return Promise.resolve({});
+  if(cerrada()){ toast('Esta corrida está cerrada: no se puede editar','err'); PEND={}; pintarTabla(); return Promise.resolve({}); }
+  var lote=ids.map(function(id){
+    var base=DATOS[id]||{}, p=PEND[id], row={corrida_id:CUR_CORR, articulo_id:parseInt(id,10)};
+    CAMPOS.forEach(function(k){
+      row[k] = p[k]!==undefined ? p[k] : (base[k]!=null ? base[k] : (k==='compra_confirmada'?null:0));
+    });
+    // Un renglón nuevo arranca con el stock de hoy, no con cero
+    if(!DATOS[id] && p.stock_actual===undefined) row.stock_actual=STOCK[id]||0;
+    return row;
+  });
+  var enviados=PEND; PEND={};
+  return SB.from('imp_prev_datos').upsert(lote,{onConflict:'corrida_id,articulo_id'}).select().then(function(r){
+    if(r.error || !(r.data||[]).length){
+      // Se devuelven a pendientes para no perder lo tipeado
+      Object.keys(enviados).forEach(function(k){ PEND[k]=Object.assign({}, enviados[k], PEND[k]||{}); });
+      toast(r.error ? 'No se pudo guardar: '+r.error.message
+        : 'No se guardó: tu usuario no tiene permiso de escritura en Importaciones','err');
+      pintarEstadoCorrida(); return r;
+    }
+    // Si mientras tanto se cambió de corrida, la respuesta ya no es de ésta
+    r.data.forEach(function(d){ if(d.corrida_id===CUR_CORR) DATOS[d.articulo_id]=d; });
+    pintarEstadoCorrida(); pintarAvisos(); pintarTabla();
+    return r;
+  });
+}
+window.addEventListener('beforeunload', function(e){
+  if(Object.keys(PEND).length){ e.preventDefault(); e.returnValue=''; }
+});
+
+// ══ STOCK DE DEPÓSITOS ════════════════════════════════════════
+function traerStock(){
+  if(!CUR_CORR || cerrada()) return;
+  var n=0;
+  ART.forEach(function(a){
+    if(a.activo===false && !DATOS[a.id]) return;
+    var vivo=STOCK[a.id]||0, d=DATOS[a.id];
+    if(!d || Math.round(num(d.stock_actual))!==Math.round(vivo)){ (PEND[a.id]=PEND[a.id]||{}).stock_actual=vivo; n++; }
+  });
+  if(!n){ toast('El stock de la corrida ya es el de Depósitos','info'); return; }
+  guardarPendientes().then(function(r){ if(r && r.data) toast(n+' stocks actualizados desde Depósitos','ok'); });
+}
+
+// ══ NUEVA CORRIDA ═════════════════════════════════════════════
+function openNuevaCorrida(){
+  if(!ART.length){ toast('No hay artículos de '+LIN.titulo+' en Depósitos','err'); return; }
+  document.getElementById('nc-fecha').value=new Date().toISOString().slice(0,10);
+  document.getElementById('nc-nombre').value='';
+  document.getElementById('nc-nota').value='';
+  abrir('ovl-nueva');
+  setTimeout(function(){ document.getElementById('nc-nombre').focus(); },50);
+}
+function crearCorrida(){
+  var nom=(document.getElementById('nc-nombre').value||'').trim();
+  var fec=document.getElementById('nc-fecha').value;
+  var nota=(document.getElementById('nc-nota').value||'').trim();
+  if(!nom){ toast('Poné el nombre de la corrida','err'); return; }
+  var b=document.getElementById('btn-nc'); b.disabled=true;
+  guardarPendientes().then(function(){
+    return SB.from('imp_prev_corridas').insert({linea:window.LINEA, nombre:nom, fecha:fec||undefined,
+      nota:nota||null, created_by:(SubatirApp.getProfile()||{}).full_name||''}).select().single();
+  }).then(function(r){
+    if(r.error){ b.disabled=false; toast('No se pudo crear: '+r.error.message,'err'); return; }
+    var nueva=r.data;
+    // Consumo copiado de la que se estaba viendo; stock, el de hoy; lo
+    // que estaba en tránsito y la decisión arrancan de cero.
+    var filasN=ART.filter(function(a){ return a.activo!==false; }).map(function(a){
+      var d=DATOS[a.id]||{};
+      return {corrida_id:nueva.id, articulo_id:a.id, consumo_3m:num(d.consumo_3m),
+              consumo_anual:num(d.consumo_anual), stock_actual:STOCK[a.id]||0, en_transito:0, compra_confirmada:null};
+    });
+    return SB.from('imp_prev_datos').insert(filasN).then(function(r2){
+      b.disabled=false;
+      if(r2.error) toast('Corrida creada, pero no se pudieron copiar los datos: '+r2.error.message,'err');
+      else toast('Corrida «'+nom+'» creada con el stock de hoy','ok');
+      cerrar('ovl-nueva');
+      CUR_CORR=nueva.id;
+      cargar();
+    });
+  });
+}
+
+// ══ CARGAR CONSUMO DESDE LOS DOS LISTADOS ═════════════════════
+//  Mismo listado que MERO AR («Ranking por Artículo»), pero acá el match
+//  es por la columna A: imp_articulos.codigo guarda el código interno.
+//  Un artículo de la línea que no figura en el listado es consumo cero
+//  en el período (el listado sólo trae lo que se movió), y se muestra
+//  en la previsualización antes de aplicar.
+function openExcel(){
+  if(!CUR_CORR){ toast('Creá una corrida primero','err'); return; }
+  if(cerrada()){ toast('Esta corrida está cerrada','err'); return; }
+  XL={'3m':null, anual:null};
+  ['3m','anual'].forEach(function(k){ var e=document.getElementById('res-'+k); e.innerHTML=''; e.className='slot-res'; });
+  document.getElementById('xl-prev').innerHTML='';
+  document.getElementById('btn-xl-ok').disabled=true;
+  abrir('ovl-xl');
+}
+function xlSlot(k, file){
+  if(!file) return;
+  var res=document.getElementById('res-'+k);
+  res.className='slot-res';
+  if(!/\.xlsx$/i.test(file.name)){
+    res.className='slot-res err';
+    res.innerHTML='Tiene que ser un <b>.xlsx</b>. Si es .xls viejo, abrilo en Excel y guardalo como .xlsx.';
+    return;
+  }
+  res.textContent='Leyendo '+file.name+'…';
+  xlLeerArchivo(file).then(function(rows){
+    var R=xlRanking(rows);
+    if(!R.hayCab) throw new Error('No encontré la columna «Salidas». ¿Es el «Ranking por Artículo»?');
+    // Cruce por código interno; si no, el número entre paréntesis
+    var porCod={}; ART.forEach(function(a){ if(a.codigo) porCod[String(a.codigo).trim()]=a; });
+    var vals={}, ignor=[];
+    R.filas.forEach(function(f){
+      var a=porCod[f.interno];
+      if(!a){ var m=(f.desc.match(/\((\d{5,7})\)/)||[])[1]; if(m) a=porCod[m]; }
+      if(!a){ ignor.push(f); return; }
+      vals[a.id]=(vals[a.id]||0)+f.salidas;
+    });
+    var X={arch:file.name, ini:R.ini, fin:R.fin, meses:R.meses, vals:vals, ignor:ignor, n:R.filas.length,
+           encontrados:Object.keys(vals).length};
+    // Se normaliza al período nominal: 3 meses en uno, 12 en el otro
+    var nominal = k==='3m' ? 3 : 12;
+    X.factor = (R.meses && R.meses!==nominal) ? nominal/R.meses : 1;
+    var per = (R.ini&&R.fin) ? fmtFecha(new Date(Date.UTC(R.ini.getFullYear(),R.ini.getMonth(),R.ini.getDate())))+' → '
+      +fmtFecha(new Date(Date.UTC(R.fin.getFullYear(),R.fin.getMonth(),R.fin.getDate()))) : 'período no reconocido';
+    X.origen = (k==='3m'?'3m: ':'Año: ')+file.name+' ('+per+')';
+    var warn = '';
+    if(R.meses && k==='3m' && R.meses>6) warn='Este archivo abarca <b>'+R.meses+' meses</b>: parece el anual. ¿Lo pusiste en la ranura equivocada?';
+    if(R.meses && k==='anual' && R.meses<9) warn='Este archivo abarca <b>'+R.meses+' meses</b>: parece el de 3 meses. ¿Lo pusiste en la ranura equivocada?';
+    if(!X.encontrados) throw new Error('Ninguna fila coincidió con un artículo de '+LIN.titulo+'. Revisá que sea el listado correcto.');
+    XL[k]=X;
+    res.className='slot-res'+(warn?' warn':'');
+    res.innerHTML='<b>'+esc(per)+'</b>'+(R.meses?' · '+R.meses+' mes'+(R.meses===1?'':'es'):'')+'<br>'
+      +X.encontrados+' de '+ART.length+' artículos encontrados · '+X.n+' renglones'
+      +(X.factor!==1?'<br>Se lleva a '+nominal+' meses (× '+n1(X.factor)+')':'')
+      +(warn?'<br>⚠ '+warn:'');
+    pintarExcelPrev();
+  }).catch(function(e){
+    XL[k]=null; res.className='slot-res err'; res.textContent='No se pudo leer: '+(e.message||e);
+    pintarExcelPrev();
+  });
+}
+function xlNuevo(k, a){
+  var X=XL[k]; if(!X) return null;
+  return Math.round((X.vals[a.id]||0)*X.factor*100)/100;
+}
+function pintarExcelPrev(){
+  var host=document.getElementById('xl-prev');
+  if(!XL['3m'] && !XL.anual){ host.innerHTML=''; document.getElementById('btn-xl-ok').disabled=true; return; }
+  var arts=ART.filter(function(a){ return a.activo!==false; });
+  var h='<div class="xl-sec"><h4>Así queda <span class="n">'+arts.length+'</span></h4>'
+    +'<div class="xl-lista"><table><thead><tr><th>Artículo</th><th>Cons. 3m</th><th>Cons. año</th></tr></thead><tbody>';
+  var cero=0;
+  arts.forEach(function(a){
+    var d=Object.assign({}, DATOS[a.id]||{}, PEND[a.id]||{});
+    var col=function(k,campo){
+      var nv=xlNuevo(k,a); if(nv===null) return '<td class="vieja">'+n0(d[campo])+'</td>';
+      if(!nv) cero++;
+      return '<td><span class="vieja">'+n0(d[campo])+'</span> → <span class="nueva">'+n0(nv)+'</span></td>';
+    };
+    h+='<tr><td>'+esc(a.descripcion)+'</td>'+col('3m','consumo_3m')+col('anual','consumo_anual')+'</tr>';
+  });
+  h+='</tbody></table></div>';
+  if(cero) h+='<div class="hint">Los que quedan en <b>0</b> no figuran en el listado: no tuvieron salidas en el período.</div>';
+  h+='</div>';
+  ['3m','anual'].forEach(function(k){
+    var X=XL[k]; if(!X || !X.ignor.length) return;
+    h+='<details class="xl-ign"><summary>'+X.ignor.length+' renglones del listado '+(k==='3m'?'de 3 meses':'anual')
+      +' no son de '+esc(LIN.titulo)+' y se ignoran</summary><div>'
+      +X.ignor.slice(0,300).map(function(f){ return esc(f.interno)+' · '+esc(f.desc); }).join('<br>')
+      +(X.ignor.length>300?'<br>…':'')+'</div></details>';
+  });
+  host.innerHTML=h;
+  document.getElementById('btn-xl-ok').disabled=false;
+}
+function aplicarExcel(){
+  if(cerrada()) return;
+  var n=0, upd={};
+  ART.filter(function(a){ return a.activo!==false; }).forEach(function(a){
+    [['3m','consumo_3m'],['anual','consumo_anual']].forEach(function(x){
+      var v=xlNuevo(x[0],a); if(v===null) return;
+      (PEND[a.id]=PEND[a.id]||{})[x[1]]=v; n++;
+    });
+  });
+  if(XL['3m']) upd.origen_3m=XL['3m'].origen;
+  if(XL.anual) upd.origen_anual=XL.anual.origen;
+  cerrar('ovl-xl');
+  var c=corridaActual();
+  guardarPendientes().then(function(r){
+    if(!r || !r.data) return;
+    return SB.from('imp_prev_corridas').update(upd).eq('id',c.id).select().then(function(r2){
+      if(!r2.error && r2.data && r2.data[0]) Object.assign(c, r2.data[0]);
+      pintarTodo();
+      toast(n+' valores de consumo cargados y guardados','ok');
+    });
+  });
+}
+// Soltar el archivo encima de cada ranura
+['3m','anual'].forEach(function(k){
+  var z=document.getElementById('drop-'+k);
+  ['dragenter','dragover'].forEach(function(ev){ z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.add('hot'); }); });
+  ['dragleave','drop'].forEach(function(ev){ z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.remove('hot'); }); });
+  z.addEventListener('drop',function(e){ var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) xlSlot(k,f); });
+});
+
+// ══ EXPORTAR ══════════════════════════════════════════════════
+function nombreArchivo(ext){
+  var c=corridaActual();
+  return 'Importacion_'+window.LINEA+'_'+(c?c.nombre.replace(/[^\w\- ]/g,'').trim().replace(/\s+/g,'_'):'corrida')+'.'+ext;
+}
+function descargar(txt, tipo, nombre){
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([txt],{type:tipo}));
+  a.download=nombre; a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); },500);
+}
+function exportCSV(){
+  var fs=visibles();
+  if(!fs.length){ toast('No hay filas para exportar','err'); return; }
+  var q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };
+  var d1=function(v){ return String(Math.round(num(v)*10)/10).replace('.',','); };
+  var out=[['Código','Artículo','Un. x caja','Consumo 3m','Consumo año','Prom 3m','Prom año','Ponderado','Proyectado/mes',
+    'Stock','En tránsito','Semanas que dura','Viaje','Cobertura','Seguridad','Total necesario','A pedir','Cajas','Pedido',
+    'Pedir antes de','Estado','Confirmada'].map(q).join(';')];
+  fs.forEach(function(f){
+    var c=f.c, d=f.d;
+    out.push([q(f.art.codigo),q(f.art.descripcion),d1(f.art.un_x_caja),d1(d.consumo_3m),d1(d.consumo_anual),
+      d1(c.prom3m),d1(c.promAnual),d1(c.ponderado),d1(c.proyect),d1(d.stock_actual),d1(d.en_transito),
+      q(c.quiebre?'QUIEBRE':(c.cobertura>=999?'':Math.round(c.cobertura))),
+      d1(c.duranteLead),d1(c.necesidad),d1(c.stockSeg),d1(c.totalNec),d1(c.aPedir),c.cajas,c.pedido,
+      q(c.pedirAntes?fmtFecha(c.pedirAntes):''),q(EST_TXT[c.estado]),
+      d.compra_confirmada==null?'':d1(d.compra_confirmada)].join(';'));
+  });
+  descargar('﻿'+out.join('\n'),'text/csv;charset=utf-8;',nombreArchivo('csv'));
+  toast('CSV descargado','ok');
+}
+function exportJSON(){
+  var c=corridaActual();
+  if(!c){ toast('No hay corrida para respaldar','err'); return; }
+  var bk={app:'Importaciones', linea:window.LINEA, exportado:new Date().toISOString(),
+    parametros:parEfectivos(), corrida:c,
+    datos:filas().map(function(f){ return Object.assign({articulo_id:f.art.id, codigo:f.art.codigo,
+      descripcion:f.art.descripcion, un_x_caja:f.art.un_x_caja}, f.d, {calculo:f.c}); })};
+  descargar(JSON.stringify(bk,null,2),'application/json',nombreArchivo('json'));
+  toast('Backup JSON descargado','ok');
+}
+</script>
+</body>
+</html>

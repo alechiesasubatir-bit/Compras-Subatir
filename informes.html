@@ -234,15 +234,15 @@ td.txt-l{min-width:220px}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-09.1646"/>
-<script src="supabase-config.js?v=2026-10-09.1646"></script>
-<script src="subatir-app.js?v=2026-10-09.1646"></script>
-<script src="cloro-calc.js?v=2026-10-09.1646"></script>
-<script src="informes-calc.js?v=2026-10-09.1646"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-13.2232"/>
+<script src="supabase-config.js?v=2026-10-13.2232"></script>
+<script src="subatir-app.js?v=2026-10-13.2232"></script>
+<script src="cloro-calc.js?v=2026-10-13.2232"></script>
+<script src="informes-calc.js?v=2026-10-13.2232"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-09.1646';
+window.APP_VER='2026-10-13.2232';
 </script>
 </head>
 <body>
@@ -258,7 +258,7 @@ window.APP_VER='2026-10-09.1646';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-09.1646"></script>
+  <script src="nav.js?v=2026-10-13.2232"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" onclick="cargar(true)">⟳ Actualizar</button>
@@ -369,7 +369,7 @@ var REPORTES = [
     vistas:[['lista','Lista comparada'],['evolucion','Evolución de lo pagado']] },
   { k:'stock', ico:'📊', c:'167,139,250', t:'Stock', d:'Situación, cobertura, stock valorizado y lo que entró en el período', mod:'stock',
     vistas:[['situacion','Situación'],['criticos','Críticos']] },
-  { k:'mp', ico:'🧪', c:'250,204,21', t:'MP Importación', d:'Corridas de previsión: consumo, stock y compras confirmadas', mod:'mp_importacion',
+  { k:'mp', ico:'🧪', c:'250,204,21', t:'Importaciones · MERO AR', d:'Corridas de previsión: consumo, stock y compras confirmadas', mod:'mp_importacion',
     vistas:[['detalle','Por corrida'],['evolucion','Evolución por artículo']] },
   { k:'cloro', ico:'💧', c:'56,189,248', t:'Previsión Cloro', d:'Ventas y envasado del período contra el año anterior', mod:'cloro',
     vistas:[['producto','Por producto'],['materia','Por materia prima']] },

@@ -241,14 +241,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-13.2234"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-10-13.2234"/>
-<script src="supabase-config.js?v=2026-10-13.2234"></script>
-<script src="subatir-app.js?v=2026-10-13.2234"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-13.2246"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-13.2246"/>
+<script src="supabase-config.js?v=2026-10-13.2246"></script>
+<script src="subatir-app.js?v=2026-10-13.2246"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-13.2234';
+window.APP_VER='2026-10-13.2246';
 </script>
 </head>
 <body>
@@ -259,7 +259,7 @@ window.APP_VER='2026-10-13.2234';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-10-13.2234"></script>
+  <script src="nav.js?v=2026-10-13.2246"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -276,7 +276,7 @@ window.APP_VER='2026-10-13.2234';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-10-13.2234"></script>
+  <script src="importaciones-tabs.js?v=2026-10-13.2246"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -352,7 +352,7 @@ window.APP_VER='2026-10-13.2234';
             <th class="in" title="Se carga del listado: unidades consumidas en los últimos 3 meses. Abajo, el promedio por mes.">Cons. 3m</th>
             <th class="in" title="Se carga del listado: unidades consumidas en el último año. Abajo, el promedio por mes.">Cons. año</th>
             <th title="60% del promedio de 3 meses + 40% del promedio anual, por el crecimiento">Proyect./mes</th>
-            <th class="in" title="Foto del stock de Depósitos al armar la corrida. Abajo, cuántas semanas aguanta (con lo que viene en camino).">Stock · dura</th>
+            <th class="in" title="Foto del stock de Depósitos al armar la corrida. Abajo, cuántas semanas aguanta al ritmo proyectado (aparece cuando hay consumo cargado).">Stock Depósitos</th>
             <th class="in" title="Lo ya pedido que todavía no llegó">En tránsito</th>
             <th title="Lo que se consume mientras la importación viaja (lead time)">Viaje</th>
             <th title="Proyectado × meses de cobertura">Cobertura</th>
@@ -441,8 +441,8 @@ window.APP_VER='2026-10-13.2234';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-10-13.2234"></script>
-<script src="xlsx-lite.js?v=2026-10-13.2234"></script>
+<script src="importaciones-calc.js?v=2026-10-13.2246"></script>
+<script src="xlsx-lite.js?v=2026-10-13.2246"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y

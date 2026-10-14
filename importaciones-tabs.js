@@ -16,7 +16,7 @@
     { k: 'Subatir', href: 'importaciones.html?linea=Subatir',  ico: '🏭', t: 'Subatir',  s: 'Consumo' },
     { k: 'Intex',   href: 'importaciones.html?linea=Intex',    ico: '🏊', t: 'Intex',    s: 'Piscina', pronto: true },
     { k: 'Enjoy',   href: 'importaciones.html?linea=Enjoy',    ico: '☀',  t: 'Enjoy',    s: 'Piscina', pronto: true },
-    { k: 'Mopas',   href: 'importaciones.html?linea=Mopas',    ico: '🧹', t: 'Mopas',    s: 'Sin artículos', pronto: true }
+    { k: 'Mopas',   href: 'importaciones.html?linea=Mopas',    ico: '🧹', t: 'Mopas',    s: 'Venta' }
   ];
   var host = document.getElementById('imp-tabs');
   if (!host) return;

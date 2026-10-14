@@ -982,11 +982,11 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-10-14.1047"/>
-<link rel="stylesheet" href="nav.css?v=2026-10-14.1047"/>
-<script src="../supabase-config.js?v=2026-10-14.1047"></script>
-<script src="deposito-app.js?v=2026-10-14.1047"></script>
-<script src="../traslados.js?v=2026-10-14.1047"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-10-14.1200"/>
+<link rel="stylesheet" href="nav.css?v=2026-10-14.1200"/>
+<script src="../supabase-config.js?v=2026-10-14.1200"></script>
+<script src="deposito-app.js?v=2026-10-14.1200"></script>
+<script src="../traslados.js?v=2026-10-14.1200"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -995,7 +995,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-10-14.1047';
+window.APP_VER='2026-10-14.1200';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1017,7 +1017,7 @@ window.APP_VER='2026-10-14.1047';
   </a>
   <!-- El menú lo arma nav.js, que además sigue la sección a la vista -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-14.1047"></script>
+  <script src="nav.js?v=2026-10-14.1200"></script>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-liviano" onclick="toggleLiviano()"
@@ -1143,7 +1143,6 @@ window.APP_VER='2026-10-14.1047';
           <option value="">Todos los tipos</option>
           <option value="Consumo">Consumo</option>
           <option value="Venta">Venta</option>
-          <option value="Venta Piscina">Venta Piscina</option>
           <option value="Infraestructura">Infraestructura</option>
           <option value="__sin">Sin tipo</option>
         </select>
@@ -1951,8 +1950,9 @@ function zonaById(id){ return ZONAS.find(function(z){ return String(z.id)===Stri
 var CUR_ART=null, LAST_PALLET=null, CUR_PAL=null, H5=null, SCAN_BUSY=false;
 var GRID={dep:null, est:null};
 // El orden manda en las leyendas y en los desplegables de tipo.
-var TIPOS=['Consumo','Venta','Venta Piscina','Infraestructura'];
-var TIPO_COLORS={'Consumo':{bg:'rgba(27,200,255,.18)',bd:'#1bc8ff',tx:'#7dd3fc'},'Venta':{bg:'rgba(34,197,94,.18)',bd:'#22c55e',tx:'#86efac'},'Venta Piscina':{bg:'rgba(234,179,8,.18)',bd:'#eab308',tx:'#fde047'},'Infraestructura':{bg:'rgba(249,115,22,.18)',bd:'#f97316',tx:'#fdba74'},'':{bg:'rgba(100,116,139,.18)',bd:'#64748b',tx:'#cbd5e1'}};
+// Venta Piscina se unificó con Venta el 14/10/2026 (imp_tipo_venta_unico.sql)
+var TIPOS=['Consumo','Venta','Infraestructura'];
+var TIPO_COLORS={'Consumo':{bg:'rgba(27,200,255,.18)',bd:'#1bc8ff',tx:'#7dd3fc'},'Venta':{bg:'rgba(34,197,94,.18)',bd:'#22c55e',tx:'#86efac'},'Infraestructura':{bg:'rgba(249,115,22,.18)',bd:'#f97316',tx:'#fdba74'},'':{bg:'rgba(100,116,139,.18)',bd:'#64748b',tx:'#cbd5e1'}};
 // Letra del nivel, contada DESDE ABAJO: en un rack de 4 niveles la fila 4
 // (la de abajo) es "A" y la fila 1 (la de arriba) es "D". La fila sigue
 // numerándose desde arriba —es lo que guarda imp_pallets.fila y de donde
@@ -2244,7 +2244,6 @@ document.addEventListener('keydown', function(e){
 function tipoPill(t){
   if(t==='Consumo')        return '<span class="pill" style="background:rgba(27,200,255,.15);color:#7dd3fc;border:1px solid rgba(27,200,255,.3)">Consumo</span>';
   if(t==='Venta')          return '<span class="pill pill-ok">Venta</span>';
-  if(t==='Venta Piscina')  return '<span class="pill" style="background:rgba(234,179,8,.15);color:#fde047;border:1px solid rgba(234,179,8,.35)">Piscina</span>';
   if(t==='Infraestructura')return '<span class="pill" style="background:rgba(249,115,22,.15);color:#fdba74;border:1px solid rgba(249,115,22,.3)">Infra</span>';
   return '<span class="pill" style="opacity:.5">—</span>';
 }
@@ -2918,7 +2917,7 @@ function repExcel(){
 }
 var REP_XLS_TIPO={
   'Consumo':{bg:'#dff2fc',tx:'#0b5a7a'}, 'Venta':{bg:'#dff5e6',tx:'#166534'},
-  'Venta Piscina':{bg:'#fdf3cf',tx:'#8a6d00'}, 'Infraestructura':{bg:'#fde9d7',tx:'#9a4a10'},
+  'Infraestructura':{bg:'#fde9d7',tx:'#9a4a10'},
   'Sin tipo':{bg:'#eef1f4',tx:'#5b6b7a'}
 };
 function repNombre(ext){
@@ -3001,7 +3000,7 @@ function repPDF(){
 }
 var REP_PDF_TIPO={
   'Consumo':{bg:[223,242,252],tx:[11,90,122]}, 'Venta':{bg:[223,245,230],tx:[22,101,52]},
-  'Venta Piscina':{bg:[253,243,207],tx:[138,109,0]}, 'Infraestructura':{bg:[253,233,215],tx:[154,74,16]},
+  'Infraestructura':{bg:[253,233,215],tx:[154,74,16]},
   'Sin tipo':{bg:[238,241,244],tx:[91,107,122]}
 };
 // Logo circular en el PDF; si no cargó, un círculo con las iniciales

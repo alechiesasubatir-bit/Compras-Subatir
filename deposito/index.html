@@ -982,11 +982,11 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-10-13.2246"/>
-<link rel="stylesheet" href="nav.css?v=2026-10-13.2246"/>
-<script src="../supabase-config.js?v=2026-10-13.2246"></script>
-<script src="deposito-app.js?v=2026-10-13.2246"></script>
-<script src="../traslados.js?v=2026-10-13.2246"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-10-14.0915"/>
+<link rel="stylesheet" href="nav.css?v=2026-10-14.0915"/>
+<script src="../supabase-config.js?v=2026-10-14.0915"></script>
+<script src="deposito-app.js?v=2026-10-14.0915"></script>
+<script src="../traslados.js?v=2026-10-14.0915"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -995,7 +995,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-10-13.2246';
+window.APP_VER='2026-10-14.0915';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1017,7 +1017,7 @@ window.APP_VER='2026-10-13.2246';
   </a>
   <!-- El menú lo arma nav.js, que además sigue la sección a la vista -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-13.2246"></script>
+  <script src="nav.js?v=2026-10-14.0915"></script>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-liviano" onclick="toggleLiviano()"
@@ -1403,7 +1403,7 @@ window.APP_VER='2026-10-13.2246';
         </div>
         <div class="form-group">
           <label for="ar-cod">Código</label>
-          <input class="form-input" id="ar-cod" placeholder="490123"/>
+          <input class="form-input" id="ar-cod" placeholder="490123" oninput="arUpd()"/>
         </div>
         <div class="form-group span2">
           <label for="ar-desc">Descripción *</label>
@@ -3046,17 +3046,28 @@ function openArticulo(){
   arUpd();
   openModal('art-overlay');
 }
-// La base tiene unique(proveedor, descripcion): conviene avisar antes
-// de mandar, no después de que rebote.
+// La base no deja repetir ni la descripción ni el CÓDIGO dentro de un
+// proveedor (imp_codigo_unico.sql): conviene avisar antes de mandar, no
+// después de que rebote. El código repetido es el caso que ya pasó: el
+// 220210 se dio de alta dos veces con nombres distintos.
+function arCodigoDup(prov,cod){
+  if(!cod) return null;
+  return ART.filter(function(a){
+    return (a.proveedor||'').toLowerCase()===prov.toLowerCase()
+        && String(a.codigo||'').trim()===cod; })[0]||null;
+}
 function arUpd(){
   var prov=document.getElementById('ar-prov').value.trim();
   var desc=document.getElementById('ar-desc').value.trim();
+  var cod =document.getElementById('ar-cod').value.trim();
   var h=document.getElementById('ar-hint');
   if(!prov || !desc){ h.className='hint-note'; h.textContent='Proveedor y descripción son obligatorios.'; return; }
   var dup=ART.some(function(a){
     return (a.proveedor||'').toLowerCase()===prov.toLowerCase()
         && (a.descripcion||'').toLowerCase()===desc.toLowerCase(); });
-  if(dup){ h.className='hint-note hint-warn'; h.textContent='Ya existe un artículo de '+prov+' con esa descripción.'; }
+  var dc=arCodigoDup(prov,cod);
+  if(dc){ h.className='hint-note hint-warn'; h.textContent='El código '+cod+' ya es de «'+dc.descripcion+'». Si es el mismo artículo, usá ese.'; }
+  else if(dup){ h.className='hint-note hint-warn'; h.textContent='Ya existe un artículo de '+prov+' con esa descripción.'; }
   else   { h.className='hint-note'; h.textContent='Se va a crear en '+prov+', sin stock inicial.'; }
 }
 function saveArticulo(){
@@ -3067,6 +3078,8 @@ function saveArticulo(){
   var uxc =num(document.getElementById('ar-uxc').value);
   if(!prov){ toast('Poné el proveedor','err'); document.getElementById('ar-prov').focus(); return; }
   if(!desc){ toast('Poné la descripción','err'); document.getElementById('ar-desc').focus(); return; }
+  var dc=arCodigoDup(prov,cod);
+  if(dc){ toast('El código '+cod+' ya es de «'+dc.descripcion+'»','err'); document.getElementById('ar-cod').focus(); return; }
   var btn=document.getElementById('btn-save-art'); btn.disabled=true;
   toast('Creando artículo…','info');
   SB.from('imp_articulos').insert({
@@ -3076,7 +3089,8 @@ function saveArticulo(){
     btn.disabled=false;
     if(r.error){
       var m=r.error.message||'';
-      toast(/duplicate|unique/i.test(m) ? 'Ya existe un artículo de '+prov+' con esa descripción' : ('Error: '+m),'err');
+      toast(/prov_codigo_uq/i.test(m) ? 'Ya existe un artículo de '+prov+' con el código '+cod
+          : /duplicate|unique/i.test(m) ? 'Ya existe un artículo de '+prov+' con esa descripción' : ('Error: '+m),'err');
       return;
     }
     closeModal('art-overlay');

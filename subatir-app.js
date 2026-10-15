@@ -799,7 +799,11 @@
   }
 
   function reloadTo(v) {
-    location.replace(location.pathname + '?v=' + encodeURIComponent(v) + location.hash);
+    // Se conservan los demás parámetros: importaciones.html?linea=Mopas
+    // sin el ?linea= recargaba en Subatir.
+    var q = new URLSearchParams(location.search);
+    q.set('v', v);
+    location.replace(location.pathname + '?' + q.toString() + location.hash);
   }
 
   function checkVersion() {

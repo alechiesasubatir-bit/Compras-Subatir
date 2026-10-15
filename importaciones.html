@@ -149,6 +149,7 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .est-urgente{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
 .est-pedir{background:rgba(249,115,22,.13);color:var(--orange-l);border:1px solid rgba(249,115,22,.32)}
 .est-ok{background:rgba(34,197,94,.13);color:#4ade80;border:1px solid rgba(34,197,94,.32)}
+.est-excl{background:none;color:var(--muted);border:1px dashed var(--border-b)}
 .est-sin{background:rgba(255,255,255,.05);color:var(--muted-l);border:1px solid var(--border-b)}
 .dif{font-family:var(--mono);font-size:10.5px}
 .dif.up{color:#4ade80} .dif.dn{color:#fca5a5}
@@ -156,6 +157,13 @@ tr.quiebre{background:rgba(239,68,68,.07)}
 tr.quiebre td:first-child{box-shadow:inset 3px 0 0 var(--red)}
 tr.urgente td:first-child{box-shadow:inset 3px 0 0 rgba(239,68,68,.55)}
 .fch{white-space:nowrap}
+.art-w{display:flex;align-items:flex-start;gap:8px}
+.tilde{flex:none;width:17px;height:17px;margin:1px 0 0;accent-color:var(--orange);cursor:pointer}
+.tilde:disabled{cursor:default}
+tr.excl td{color:var(--muted)}
+tr.excl .art,tr.excl .dato{opacity:.5}
+tr.excl .dato:focus{opacity:1}
+th .tilde{vertical-align:middle;margin:0 8px 0 0}
 .fch.vencida{color:#fca5a5;font-weight:700}
 
 /* ── Varios ───────────────────────────────────────────────── */
@@ -241,14 +249,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-14.1200"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-10-14.1200"/>
-<script src="supabase-config.js?v=2026-10-14.1200"></script>
-<script src="subatir-app.js?v=2026-10-14.1200"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-15.1632"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-15.1632"/>
+<script src="supabase-config.js?v=2026-10-15.1632"></script>
+<script src="subatir-app.js?v=2026-10-15.1632"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-14.1200';
+window.APP_VER='2026-10-15.1632';
 </script>
 </head>
 <body>
@@ -259,7 +267,7 @@ window.APP_VER='2026-10-14.1200';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-10-14.1200"></script>
+  <script src="nav.js?v=2026-10-15.1632"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -276,7 +284,7 @@ window.APP_VER='2026-10-14.1200';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-10-14.1200"></script>
+  <script src="importaciones-tabs.js?v=2026-10-15.1632"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -340,6 +348,7 @@ window.APP_VER='2026-10-14.1200';
           <option value="pedir">Pedir en esta importación</option>
           <option value="ok">Cubierto</option>
           <option value="sin">Sin consumo</option>
+          <option value="excl" id="opt-excl" hidden>No se importa (sin tildar)</option>
         </select>
         <span class="chip" id="tbl-n">—</span>
       </div>
@@ -348,7 +357,7 @@ window.APP_VER='2026-10-14.1200';
       <table>
         <thead>
           <tr>
-            <th class="l" style="min-width:200px">Artículo</th>
+            <th class="l" style="min-width:200px" id="th-art">Artículo</th>
             <th class="in" title="Se carga del listado: unidades consumidas en los últimos 3 meses. Abajo, el promedio por mes.">Cons. 3m</th>
             <th class="in" title="Se carga del listado: unidades consumidas en el último año. Abajo, el promedio por mes.">Cons. año</th>
             <th title="60% del promedio de 3 meses + 40% del promedio anual, por el crecimiento">Proyect./mes</th>
@@ -441,8 +450,8 @@ window.APP_VER='2026-10-14.1200';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-10-14.1200"></script>
-<script src="xlsx-lite.js?v=2026-10-14.1200"></script>
+<script src="importaciones-calc.js?v=2026-10-15.1632"></script>
+<script src="xlsx-lite.js?v=2026-10-15.1632"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -456,12 +465,15 @@ window.APP_VER='2026-10-14.1200';
 var LINEAS = {
   Subatir: { titulo:'Subatir · Consumo', desc:'artículos de consumo de la fábrica',
              filtro:function(a){ return a.proveedor==='Subatir' && a.tipo==='Consumo'; } },
-  Intex:   { titulo:'Intex', desc:'línea piscina', filtro:function(a){ return a.proveedor==='Intex'; } },
-  Enjoy:   { titulo:'Enjoy', desc:'línea piscina', filtro:function(a){ return a.proveedor==='Enjoy'; } },
-  Mopas:   { titulo:'Mopas', desc:'kits y repuestos de mopa',         filtro:function(a){ return a.proveedor==='Mopas'; } }
+  Intex:   { titulo:'Intex', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Intex'; } },
+  Enjoy:   { titulo:'Enjoy', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Enjoy'; } },
+  Mopas:   { titulo:'Mopas', desc:'kits y repuestos de mopa', tildes:true, filtro:function(a){ return a.proveedor==='Mopas'; } }
 };
 if(!LINEAS[window.LINEA]) window.LINEA='Subatir';
 var LIN = LINEAS[window.LINEA];
+// En las líneas con tildes, cada artículo se marca si entra en la cuenta.
+// Se guarda por corrida (imp_prev_datos.incluir) para que una corrida
+// cerrada no cambie si después se destilda algo.
 
 var ART=[], STOCK={}, PAR=null, CORR=[], DATOS={}, CUR_CORR=null, PEND={};
 var XL={'3m':null, anual:null};
@@ -489,6 +501,11 @@ function hoyUTC(){ var h=new Date(); return new Date(Date.UTC(h.getFullYear(),h.
 
 document.title = 'Importaciones · '+LIN.titulo+' — Subatir / Prolimpio';
 document.getElementById('hdr-sub').textContent = 'Importaciones · '+LIN.titulo;
+if(LIN.tildes){
+  document.getElementById('th-art').innerHTML='<input type="checkbox" class="tilde" id="tilde-todos" onchange="tildarTodos(this)"'
+    +' title="Tildar o destildar todos los que se ven" aria-label="Tildar todos"/>Artículo';
+  document.getElementById('opt-excl').hidden=false;
+}
 
 // ══ CARGA ═════════════════════════════════════════════════════
 SubatirApp.ready.then(function(p){ if(p) cargar(); });
@@ -556,7 +573,8 @@ function parEfectivos(){
 }
 
 // ══ FILAS ═════════════════════════════════════════════════════
-var CAMPOS=['consumo_3m','consumo_anual','stock_actual','en_transito','compra_confirmada'];
+var CAMPOS=['consumo_3m','consumo_anual','stock_actual','en_transito','compra_confirmada'].concat(LIN.tildes?['incluir']:[]);
+function defCampo(k){ return k==='compra_confirmada' ? null : (k==='incluir' ? true : 0); }
 function filas(){
   if(!PAR) return [];
   var c=corridaActual(), fecha=fechaUTC(c&&c.fecha), p=parEfectivos();
@@ -565,13 +583,16 @@ function filas(){
   return ART.filter(function(a){ return a.activo!==false || DATOS[a.id]; })
     .map(function(a){
       var d=DATOS[a.id]||{}, pe=PEND[a.id]||{}, eff={};
-      CAMPOS.forEach(function(k){ eff[k] = pe[k]!==undefined ? pe[k] : (d[k]!=null ? d[k] : (k==='compra_confirmada'?null:0)); });
-      return {art:a, d:eff, enCorrida:!!DATOS[a.id], sucia:Object.keys(pe).length>0,
-              c:ImpCalc.calcular(eff, p, {unXCaja:a.un_x_caja, fecha:fecha})};
+      CAMPOS.forEach(function(k){ eff[k] = pe[k]!==undefined ? pe[k] : (d[k]!=null ? d[k] : defCampo(k)); });
+      var c=ImpCalc.calcular(eff, p, {unXCaja:a.un_x_caja, fecha:fecha});
+      var incl = !LIN.tildes || eff.incluir!==false;
+      // Sin tilde no se pide nada: se ve, pero no suma en ningún lado
+      if(!incl) c=Object.assign({}, c, {estado:'excl', pedido:0, cajas:0, aPedir:0, pedirAntes:null, quiebre:false});
+      return {art:a, d:eff, incl:incl, enCorrida:!!DATOS[a.id], sucia:Object.keys(pe).length>0, c:c};
     });
 }
-var EST_TXT={quiebre:'Quiebre', urgente:'Urgente', pedir:'Pedir', ok:'Cubierto', sin:'Sin consumo'};
-var EST_ORD={quiebre:0, urgente:1, pedir:2, ok:3, sin:4};
+var EST_TXT={quiebre:'Quiebre', urgente:'Urgente', pedir:'Pedir', ok:'Cubierto', sin:'Sin consumo', excl:'No se importa'};
+var EST_ORD={quiebre:0, urgente:1, pedir:2, ok:3, sin:4, excl:5};
 function visibles(){
   var q=(document.getElementById('f-buscar').value||'').trim().toLowerCase();
   var fe=document.getElementById('f-est').value;
@@ -605,6 +626,9 @@ function pintarAvisos(){
       +' nuevo'+(faltan.length===1?'':'s')+'</b> en Depósitos que esta corrida todavía no tenía: '
       +faltan.slice(0,3).map(function(f){ return esc(f.art.descripcion); }).join(' · ')
       +(faltan.length>3?' y '+(faltan.length-3)+' más':'')+'. Se guardan al cargar datos.'});
+    var fuera=filas().filter(function(f){ return !f.incl; }).length;
+    if(fuera) a.push({t:'info', txt:'<b>'+fuera+' artículo'+(fuera===1?'':'s')+' sin tildar</b>: '
+      +(fuera===1?'queda':'quedan')+' fuera de la cuenta de esta importación.'});
     if(c.origen_3m || c.origen_anual) a.push({t:'info', txt:'Consumo cargado de: '
       +[c.origen_3m, c.origen_anual].filter(Boolean).map(esc).join(' · ')});
   }
@@ -696,7 +720,7 @@ function guardarParametros(){
 
 // ══ KPIs ══════════════════════════════════════════════════════
 function pintarKPIs(){
-  var fs=filas(), uds=0, cajas=0, aPedir=0, quie=0, urg=0, conf=0, hayConf=false, prox=null, proxArt=null;
+  var fs=filas().filter(function(f){ return f.incl; }), uds=0, cajas=0, aPedir=0, quie=0, urg=0, conf=0, hayConf=false, prox=null, proxArt=null;
   fs.forEach(function(f){
     uds+=f.c.pedido; cajas+=f.c.cajas;
     if(f.c.pedido>0) aPedir++;
@@ -736,8 +760,11 @@ function pintarTabla(){
   if(!fs.length){ tb.innerHTML='<tr><td colspan="17" class="empty">Sin resultados con los filtros actuales.</td></tr>'; return; }
   var lead=num(p.semanas_leadtime), seg=num(p.semanas_seguridad), hoy=hoyUTC();
   var T={c3m:0,can:0,stk:0,tra:0,ped:0,caj:0,conf:0};
+  var nIncl=0;
   var html=fs.map(function(f){
     var c=f.c, d=f.d, a=f.art, id=a.id, dif=num(d.compra_confirmada)-c.pedido;
+    if(!f.incl) return filaExcluida(f);
+    nIncl++;
     T.c3m+=num(d.consumo_3m); T.can+=num(d.consumo_anual); T.stk+=num(d.stock_actual);
     T.tra+=num(d.en_transito); T.ped+=c.pedido; T.caj+=c.cajas; T.conf+=num(d.compra_confirmada);
     var vivo=STOCK[id]||0, difStk=!cerrada() && f.enCorrida && Math.round(vivo)!==Math.round(num(d.stock_actual));
@@ -748,8 +775,7 @@ function pintarTabla(){
     var venc = c.pedirAntes && c.pedirAntes<=hoy && c.estado!=='ok';
     return '<tr class="'+(c.estado==='quiebre'?'quiebre':(c.estado==='urgente'?'urgente':''))+'"'
       +(f.sucia?' style="background:rgba(245,197,66,.05)"':'')+'>'
-      +'<td class="l"><div class="art" title="'+esc(a.descripcion)+'">'+esc(a.descripcion)+'</div>'
-        +'<div class="cod">'+esc(a.codigo||'sin código')+(num(a.un_x_caja)>0?' · caja '+n0(a.un_x_caja)+' u':' · sin caja')+'</div></td>'
+      +celdaArt(f)
       +celda(id,'consumo_3m',d.consumo_3m,'','<span class="sub">'+n0(c.prom3m)+'/mes</span>')
       +celda(id,'consumo_anual',d.consumo_anual,'','<span class="sub">'+n0(c.promAnual)+'/mes</span>')
       +'<td title="Ponderado '+n1(c.ponderado)+' × crecimiento">'+n0(c.proyect)+'</td>'
@@ -770,11 +796,54 @@ function pintarTabla(){
         :(dif===0?'<span class="cod">=</span>':'<span class="dif '+(dif>0?'up':'dn')+'">'+(dif>0?'+':'−')+n0(Math.abs(dif))+'</span>'))+'</td>'
       +'</tr>';
   }).join('');
-  html+='<tr class="tot"><td class="l">TOTAL · '+fs.length+' artículos</td>'
+  html+='<tr class="tot"><td class="l">TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+(nIncl<fs.length?' tildados':'')+'</td>'
     +'<td>'+n0(T.c3m)+'</td><td>'+n0(T.can)+'</td><td></td><td>'+n0(T.stk)+'</td><td>'+n0(T.tra)+'</td>'
     +'<td></td><td></td><td></td><td></td><td></td><td>'+n0(T.caj)+'</td><td class="ped c-or">'+n0(T.ped)+'</td>'
     +'<td></td><td></td><td class="c-gr">'+n0(T.conf)+'</td><td></td></tr>';
   tb.innerHTML=html;
+  pintarTildeTodos(fs);
+}
+function celdaArt(f){
+  var a=f.art;
+  return '<td class="l"><div class="art-w">'
+    +(LIN.tildes?'<input type="checkbox" class="tilde" data-id="'+a.id+'"'+(f.incl?' checked':'')+(cerrada()?' disabled':'')
+      +' onchange="tildar(this)" title="Tildado: entra en la cuenta de esta importación"'
+      +' aria-label="Incluir '+esc(a.descripcion)+' en la cuenta"/>':'')
+    +'<div style="min-width:0"><div class="art" title="'+esc(a.descripcion)+'">'+esc(a.descripcion)+'</div>'
+    +'<div class="cod">'+esc(a.codigo||'sin código')+(num(a.un_x_caja)>0?' · caja '+n0(a.un_x_caja)+' u':' · sin caja')+'</div></div>'
+    +'</div></td>';
+}
+// Sin tilde: los datos se pueden seguir cargando, la cuenta no se muestra
+function filaExcluida(f){
+  var d=f.d, id=f.art.id, g='<td class="calc"><span class="cod">—</span></td>';
+  return '<tr class="excl">'+celdaArt(f)
+    +celda(id,'consumo_3m',d.consumo_3m,'','')+celda(id,'consumo_anual',d.consumo_anual,'','')
+    +g+celda(id,'stock_actual',d.stock_actual,'stk','')+celda(id,'en_transito',d.en_transito,'tra','')
+    +g+g+g+g+g+g+g
+    +'<td class="c"><span class="cod">—</span></td>'
+    +'<td class="c"><span class="est est-excl">'+EST_TXT.excl+'</span></td>'
+    +celda(id,'compra_confirmada',d.compra_confirmada,'conf','')
+    +'<td class="c"><span class="cod">—</span></td></tr>';
+}
+function tildar(el){
+  var id=parseInt(el.dataset.id,10);
+  (PEND[id]=PEND[id]||{}).incluir=el.checked;
+  pintarAvisos(); pintarKPIs(); pintarTabla(); pintarEstadoCorrida();
+  agendarGuardado();
+}
+// El tilde del encabezado marca o desmarca los artículos que se ven
+function tildarTodos(el){
+  if(cerrada()) return;
+  visibles().forEach(function(f){ if(f.incl!==el.checked) (PEND[f.art.id]=PEND[f.art.id]||{}).incluir=el.checked; });
+  pintarAvisos(); pintarKPIs(); pintarTabla(); pintarEstadoCorrida();
+  agendarGuardado();
+}
+function pintarTildeTodos(fs){
+  var el=document.getElementById('tilde-todos'); if(!el) return;
+  var n=fs.filter(function(f){ return f.incl; }).length;
+  el.checked = fs.length>0 && n===fs.length;
+  el.indeterminate = n>0 && n<fs.length;
+  el.disabled = cerrada() || !fs.length;
 }
 function celda(id,campo,valor,cls,pie){
   return '<td><input class="dato '+cls+'" type="number" step="1" min="0" inputmode="decimal" value="'+(valor==null?'':valor)+'"'
@@ -799,7 +868,7 @@ function guardarPendientes(){
   var lote=ids.map(function(id){
     var base=DATOS[id]||{}, p=PEND[id], row={corrida_id:CUR_CORR, articulo_id:parseInt(id,10)};
     CAMPOS.forEach(function(k){
-      row[k] = p[k]!==undefined ? p[k] : (base[k]!=null ? base[k] : (k==='compra_confirmada'?null:0));
+      row[k] = p[k]!==undefined ? p[k] : (base[k]!=null ? base[k] : defCampo(k));
     });
     // Un renglón nuevo arranca con el stock de hoy, no con cero
     if(!DATOS[id] && p.stock_actual===undefined) row.stock_actual=STOCK[id]||0;
@@ -862,8 +931,11 @@ function crearCorrida(){
     // que estaba en tránsito y la decisión arrancan de cero.
     var filasN=ART.filter(function(a){ return a.activo!==false; }).map(function(a){
       var d=DATOS[a.id]||{};
-      return {corrida_id:nueva.id, articulo_id:a.id, consumo_3m:num(d.consumo_3m),
+      var row={corrida_id:nueva.id, articulo_id:a.id, consumo_3m:num(d.consumo_3m),
               consumo_anual:num(d.consumo_anual), stock_actual:STOCK[a.id]||0, en_transito:0, compra_confirmada:null};
+      // Los tildes también se copian: lo que no se importaba, sigue sin importarse
+      if(LIN.tildes) row.incluir = d.incluir!==false;
+      return row;
     });
     return SB.from('imp_prev_datos').insert(filasN).then(function(r2){
       b.disabled=false;
@@ -1017,7 +1089,7 @@ function exportCSV(){
   var d1=function(v){ return String(Math.round(num(v)*10)/10).replace('.',','); };
   var out=[['Código','Artículo','Un. x caja','Consumo 3m','Consumo año','Prom 3m','Prom año','Ponderado','Proyectado/mes',
     'Stock','En tránsito','Semanas que dura','Viaje','Cobertura','Seguridad','Total necesario','A pedir','Cajas','Pedido',
-    'Pedir antes de','Estado','Confirmada'].map(q).join(';')];
+    'Pedir antes de','Estado','Confirmada'].concat(LIN.tildes?['Se importa']:[]).map(q).join(';')];
   fs.forEach(function(f){
     var c=f.c, d=f.d;
     out.push([q(f.art.codigo),q(f.art.descripcion),d1(f.art.un_x_caja),d1(d.consumo_3m),d1(d.consumo_anual),
@@ -1025,7 +1097,7 @@ function exportCSV(){
       q(c.quiebre?'QUIEBRE':(c.cobertura>=999?'':Math.round(c.cobertura))),
       d1(c.duranteLead),d1(c.necesidad),d1(c.stockSeg),d1(c.totalNec),d1(c.aPedir),c.cajas,c.pedido,
       q(c.pedirAntes?fmtFecha(c.pedirAntes):''),q(EST_TXT[c.estado]),
-      d.compra_confirmada==null?'':d1(d.compra_confirmada)].join(';'));
+      d.compra_confirmada==null?'':d1(d.compra_confirmada)].concat(LIN.tildes?[q(f.incl?'Sí':'No')]:[]).join(';'));
   });
   descargar('﻿'+out.join('\n'),'text/csv;charset=utf-8;',nombreArchivo('csv'));
   toast('CSV descargado','ok');

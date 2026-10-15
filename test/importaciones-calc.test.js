@@ -5,6 +5,12 @@ const { ImpCalc } = require('../importaciones-calc.js');
 const P = { crecimiento_pct: 0, meses_cobertura: 4, semanas_seguridad: 0, semanas_leadtime: 0 };
 const FECHA = new Date('2026-10-13T00:00:00Z');
 
+test('soloAnual: el proyectado es el promedio mensual del año, el trimestre no cuenta', () => {
+  const r = ImpCalc.calcular({ consumo_3m: 900, consumo_anual: 600 }, P, { soloAnual: true });
+  assert.strictEqual(r.ponderado, 50);
+  assert.strictEqual(r.necesidad, 200);
+});
+
 test('ponderado 60/40 entre el trimestre y el año', () => {
   // prom3m = 300/3 = 100; promAnual = 600/12 = 50 → 0,6×100 + 0,4×50 = 80
   const r = ImpCalc.calcular({ consumo_3m: 300, consumo_anual: 600 }, P);

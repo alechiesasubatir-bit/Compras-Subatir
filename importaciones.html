@@ -197,6 +197,8 @@ th .tilde{vertical-align:middle;margin:0 8px 0 0}
 /* ── Excel: dos ranuras ───────────────────────────────────── */
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:640px){.slots{grid-template-columns:1fr}}
+.solo-anual .c3m{display:none}
+.solo-anual .slots{grid-template-columns:1fr}
 .slot{border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.02);padding:12px}
 .slot h4{font-family:var(--display);font-size:12px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:7px}
 .drop{border:1.5px dashed var(--border-b);border-radius:11px;padding:18px 12px;text-align:center;
@@ -249,14 +251,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-15.1637"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-10-15.1637"/>
-<script src="supabase-config.js?v=2026-10-15.1637"></script>
-<script src="subatir-app.js?v=2026-10-15.1637"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-15.1653"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-15.1653"/>
+<script src="supabase-config.js?v=2026-10-15.1653"></script>
+<script src="subatir-app.js?v=2026-10-15.1653"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-15.1637';
+window.APP_VER='2026-10-15.1653';
 </script>
 </head>
 <body>
@@ -267,7 +269,7 @@ window.APP_VER='2026-10-15.1637';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-10-15.1637"></script>
+  <script src="nav.js?v=2026-10-15.1653"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -284,7 +286,7 @@ window.APP_VER='2026-10-15.1637';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-10-15.1637"></script>
+  <script src="importaciones-tabs.js?v=2026-10-15.1653"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -358,9 +360,9 @@ window.APP_VER='2026-10-15.1637';
         <thead>
           <tr>
             <th class="l" style="min-width:200px" id="th-art">Artículo</th>
-            <th class="in" title="Se carga del listado: unidades consumidas en los últimos 3 meses. Abajo, el promedio por mes.">Cons. 3m</th>
+            <th class="in c3m" title="Se carga del listado: unidades consumidas en los últimos 3 meses. Abajo, el promedio por mes.">Cons. 3m</th>
             <th class="in" title="Se carga del listado: unidades consumidas en el último año. Abajo, el promedio por mes.">Cons. año</th>
-            <th title="60% del promedio de 3 meses + 40% del promedio anual, por el crecimiento">Proyect./mes</th>
+            <th id="th-proy" title="60% del promedio de 3 meses + 40% del promedio anual, por el crecimiento">Proyect./mes</th>
             <th class="in" title="Foto del stock de Depósitos al armar la corrida. Abajo, cuántas semanas aguanta al ritmo proyectado (aparece cuando hay consumo cargado).">Stock Depósitos</th>
             <th class="in" title="Lo ya pedido que todavía no llegó">En tránsito</th>
             <th title="Lo que se consume mientras la importación viaja (lead time)">Viaje</th>
@@ -413,7 +415,7 @@ window.APP_VER='2026-10-15.1637';
       <button class="x" onclick="cerrar('ovl-xl')" aria-label="Cerrar">✕</button></div>
     <div class="modal-b">
       <div class="slots">
-        <div class="slot">
+        <div class="slot c3m">
           <h4>① Últimos 3 meses</h4>
           <div class="drop" id="drop-3m" tabindex="0" role="button"
                onclick="document.getElementById('file-3m').click()"
@@ -425,7 +427,7 @@ window.APP_VER='2026-10-15.1637';
           <div class="slot-res" id="res-3m"></div>
         </div>
         <div class="slot">
-          <h4>② Último año</h4>
+          <h4 id="t-slot-anual">② Último año</h4>
           <div class="drop" id="drop-anual" tabindex="0" role="button"
                onclick="document.getElementById('file-anual').click()"
                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('file-anual').click();}">
@@ -450,8 +452,8 @@ window.APP_VER='2026-10-15.1637';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-10-15.1637"></script>
-<script src="xlsx-lite.js?v=2026-10-15.1637"></script>
+<script src="importaciones-calc.js?v=2026-10-15.1653"></script>
+<script src="xlsx-lite.js?v=2026-10-15.1653"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -467,13 +469,15 @@ var LINEAS = {
              filtro:function(a){ return a.proveedor==='Subatir' && a.tipo==='Consumo'; } },
   Intex:   { titulo:'Intex', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Intex'; } },
   Enjoy:   { titulo:'Enjoy', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Enjoy'; } },
-  Mopas:   { titulo:'Mopas', desc:'kits y repuestos de mopa', tildes:true, filtro:function(a){ return a.proveedor==='Mopas'; } }
+  Mopas:   { titulo:'Mopas', desc:'kits y repuestos de mopa', tildes:true, soloAnual:true, filtro:function(a){ return a.proveedor==='Mopas'; } }
 };
 if(!LINEAS[window.LINEA]) window.LINEA='Subatir';
 var LIN = LINEAS[window.LINEA];
 // En las líneas con tildes, cada artículo se marca si entra en la cuenta.
 // Se guarda por corrida (imp_prev_datos.incluir) para que una corrida
 // cerrada no cambie si después se destilda algo.
+// soloAnual: se sube sólo el listado anual y se proyecta su promedio
+// mensual; el de 3 meses no va porque agarra los picos de consumo.
 
 var ART=[], STOCK={}, PAR=null, CORR=[], DATOS={}, CUR_CORR=null, PEND={};
 var XL={'3m':null, anual:null};
@@ -501,6 +505,12 @@ function hoyUTC(){ var h=new Date(); return new Date(Date.UTC(h.getFullYear(),h.
 
 document.title = 'Importaciones · '+LIN.titulo+' — Subatir / Prolimpio';
 document.getElementById('hdr-sub').textContent = 'Importaciones · '+LIN.titulo;
+if(LIN.soloAnual){
+  document.body.classList.add('solo-anual');
+  document.getElementById('th-proy').title='Promedio mensual del consumo anual, por el crecimiento';
+  document.getElementById('t-slot-anual').textContent='Consumo del último año';
+  document.getElementById('btn-xl').title='Subir el listado del sistema del último año';
+}
 if(LIN.tildes){
   document.getElementById('th-art').innerHTML='<input type="checkbox" class="tilde" id="tilde-todos" onchange="tildarTodos(this)"'
     +' title="Tildar o destildar todos los que se ven" aria-label="Tildar todos"/>Artículo';
@@ -584,7 +594,7 @@ function filas(){
     .map(function(a){
       var d=DATOS[a.id]||{}, pe=PEND[a.id]||{}, eff={};
       CAMPOS.forEach(function(k){ eff[k] = pe[k]!==undefined ? pe[k] : (d[k]!=null ? d[k] : defCampo(k)); });
-      var c=ImpCalc.calcular(eff, p, {unXCaja:a.un_x_caja, fecha:fecha});
+      var c=ImpCalc.calcular(eff, p, {unXCaja:a.un_x_caja, fecha:fecha, soloAnual:LIN.soloAnual});
       var incl = !LIN.tildes || eff.incluir!==false;
       // Sin tilde no se pide nada: se ve, pero no suma en ningún lado
       if(!incl) c=Object.assign({}, c, {estado:'excl', pedido:0, cajas:0, aPedir:0, pedirAntes:null, quiebre:false});
@@ -614,7 +624,7 @@ function pintarAvisos(){
   if(!ART.length) a.push({t:'info', txt:'<b>Todavía no hay artículos de '+esc(LIN.titulo)+' en Depósitos.</b> '
     +'Cuando se den de alta allá, aparecen acá solos.'});
   else if(!CORR.length) a.push({t:'info', txt:'<b>Primer paso:</b> creá una corrida con ➕ Nueva corrida. '
-    +'Arranca con el stock de hoy de Depósitos; después subís los dos listados de consumo.'});
+    +'Arranca con el stock de hoy de Depósitos; después subís '+(LIN.soloAnual?'el listado anual de consumo.':'los dos listados de consumo.')});
   var c=corridaActual();
   if(c && !c.cerrada){
     var dif=filas().filter(function(f){ return f.enCorrida && Math.round(num(f.d.stock_actual))!==Math.round(STOCK[f.art.id]||0); });
@@ -699,7 +709,8 @@ function tocarParametro(){
 function pintarFormula(){
   var p=parEfectivos();
   document.getElementById('formula').innerHTML=
-    'Proyectado/mes = (<b>60%</b> del promedio de 3 meses + <b>40%</b> del promedio anual) × <b>'
+    (LIN.soloAnual ? 'Proyectado/mes = promedio mensual del <b>consumo anual</b> (÷ 12) × <b>'
+      : 'Proyectado/mes = (<b>60%</b> del promedio de 3 meses + <b>40%</b> del promedio anual) × <b>')
     +n1(100+num(p.crecimiento_pct))+'%</b> &nbsp;·&nbsp; '
     +'Total necesario = proyectado × (<b>'+n0(p.semanas_leadtime)+'</b> sem de viaje + <b>'
     +n0(p.meses_cobertura)+'</b> meses de cobertura + <b>'+n0(p.semanas_seguridad)+'</b> sem de seguridad) &nbsp;·&nbsp; '
@@ -778,7 +789,7 @@ function pintarTabla(){
       +celdaArt(f)
       +celda(id,'consumo_3m',d.consumo_3m,'','<span class="sub">'+n0(c.prom3m)+'/mes</span>')
       +celda(id,'consumo_anual',d.consumo_anual,'','<span class="sub">'+n0(c.promAnual)+'/mes</span>')
-      +'<td title="Ponderado '+n1(c.ponderado)+' × crecimiento">'+n0(c.proyect)+'</td>'
+      +'<td title="'+(LIN.soloAnual?'Promedio anual ':'Ponderado ')+n1(c.ponderado)+' × crecimiento">'+n0(c.proyect)+'</td>'
       +celda(id,'stock_actual',d.stock_actual,'stk',dura)
       +celda(id,'en_transito',d.en_transito,'tra','')
       +'<td class="calc">'+n0(c.duranteLead)+'</td>'
@@ -797,7 +808,7 @@ function pintarTabla(){
       +'</tr>';
   }).join('');
   html+='<tr class="tot"><td class="l">TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+(nIncl<fs.length?' tildados':'')+'</td>'
-    +'<td>'+n0(T.c3m)+'</td><td>'+n0(T.can)+'</td><td></td><td>'+n0(T.stk)+'</td><td>'+n0(T.tra)+'</td>'
+    +'<td class="c3m">'+n0(T.c3m)+'</td><td>'+n0(T.can)+'</td><td></td><td>'+n0(T.stk)+'</td><td>'+n0(T.tra)+'</td>'
     +'<td></td><td></td><td></td><td></td><td></td><td>'+n0(T.caj)+'</td><td class="ped c-or">'+n0(T.ped)+'</td>'
     +'<td></td><td></td><td class="c-gr">'+n0(T.conf)+'</td><td></td></tr>';
   tb.innerHTML=html;
@@ -846,7 +857,7 @@ function pintarTildeTodos(fs){
   el.disabled = cerrada() || !fs.length;
 }
 function celda(id,campo,valor,cls,pie){
-  return '<td><input class="dato '+cls+'" type="number" step="1" min="0" inputmode="decimal" value="'+(valor==null?'':valor)+'"'
+  return '<td'+(campo==='consumo_3m'?' class="c3m"':'')+'><input class="dato '+cls+'" type="number" step="1" min="0" inputmode="decimal" value="'+(valor==null?'':valor)+'"'
     +' data-id="'+id+'" data-campo="'+campo+'"'+(cerrada()?' disabled':'')
     +' oninput="editar(this)" onchange="pintarTabla()" aria-label="'+campo.replace(/_/g,' ')+'"/>'+(pie||'')+'</td>';
 }
@@ -1018,14 +1029,15 @@ function pintarExcelPrev(){
   if(!XL['3m'] && !XL.anual){ host.innerHTML=''; document.getElementById('btn-xl-ok').disabled=true; return; }
   var arts=ART.filter(function(a){ return a.activo!==false; });
   var h='<div class="xl-sec"><h4>Así queda <span class="n">'+arts.length+'</span></h4>'
-    +'<div class="xl-lista"><table><thead><tr><th>Artículo</th><th>Cons. 3m</th><th>Cons. año</th></tr></thead><tbody>';
+    +'<div class="xl-lista"><table><thead><tr><th>Artículo</th><th class="c3m">Cons. 3m</th><th>Cons. año</th></tr></thead><tbody>';
   var cero=0;
   arts.forEach(function(a){
     var d=Object.assign({}, DATOS[a.id]||{}, PEND[a.id]||{});
     var col=function(k,campo){
-      var nv=xlNuevo(k,a); if(nv===null) return '<td class="vieja">'+n0(d[campo])+'</td>';
+      var cl=(k==='3m'?' c3m':'');
+      var nv=xlNuevo(k,a); if(nv===null) return '<td class="vieja'+cl+'">'+n0(d[campo])+'</td>';
       if(!nv) cero++;
-      return '<td><span class="vieja">'+n0(d[campo])+'</span> → <span class="nueva">'+n0(nv)+'</span></td>';
+      return '<td class="'+cl+'"><span class="vieja">'+n0(d[campo])+'</span> → <span class="nueva">'+n0(nv)+'</span></td>';
     };
     h+='<tr><td>'+esc(a.descripcion)+'</td>'+col('3m','consumo_3m')+col('anual','consumo_anual')+'</tr>';
   });
@@ -1087,9 +1099,11 @@ function exportCSV(){
   if(!fs.length){ toast('No hay filas para exportar','err'); return; }
   var q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };
   var d1=function(v){ return String(Math.round(num(v)*10)/10).replace('.',','); };
+  // En soloAnual no van Consumo 3m, Prom 3m ni Ponderado (es el Prom año)
+  var sinTrim=function(x,i){ return !(LIN.soloAnual && (i===3||i===5||i===7)); };
   var out=[['Código','Artículo','Un. x caja','Consumo 3m','Consumo año','Prom 3m','Prom año','Ponderado','Proyectado/mes',
     'Stock','En tránsito','Semanas que dura','Viaje','Cobertura','Seguridad','Total necesario','A pedir','Cajas','Pedido',
-    'Pedir antes de','Estado','Confirmada'].concat(LIN.tildes?['Se importa']:[]).map(q).join(';')];
+    'Pedir antes de','Estado','Confirmada'].concat(LIN.tildes?['Se importa']:[]).filter(sinTrim).map(q).join(';')];
   fs.forEach(function(f){
     var c=f.c, d=f.d;
     out.push([q(f.art.codigo),q(f.art.descripcion),d1(f.art.un_x_caja),d1(d.consumo_3m),d1(d.consumo_anual),
@@ -1097,7 +1111,7 @@ function exportCSV(){
       q(c.quiebre?'QUIEBRE':(c.cobertura>=999?'':Math.round(c.cobertura))),
       d1(c.duranteLead),d1(c.necesidad),d1(c.stockSeg),d1(c.totalNec),d1(c.aPedir),c.cajas,c.pedido,
       q(c.pedirAntes?fmtFecha(c.pedirAntes):''),q(EST_TXT[c.estado]),
-      d.compra_confirmada==null?'':d1(d.compra_confirmada)].concat(LIN.tildes?[q(f.incl?'Sí':'No')]:[]).join(';'));
+      d.compra_confirmada==null?'':d1(d.compra_confirmada)].concat(LIN.tildes?[q(f.incl?'Sí':'No')]:[]).filter(sinTrim).join(';'));
   });
   descargar('﻿'+out.join('\n'),'text/csv;charset=utf-8;',nombreArchivo('csv'));
   toast('CSV descargado','ok');

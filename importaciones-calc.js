@@ -12,6 +12,8 @@
 //    prom3m     = consumo3m / 3
 //    promAnual  = consumoAnual / 12
 //    ponderado  = 0,6 × prom3m + 0,4 × promAnual     (igual que MERO AR)
+//                 con soloAnual (Mopas): promAnual, porque el trimestre
+//                 agarra los picos de consumo y los proyecta a todo el año
 //    proyect    = ponderado × (1 + crecimiento)
 //    durante LT = proyect × (semanasLead / 4,333)
 //    necesidad  = proyect × mesesCobertura
@@ -36,7 +38,7 @@
   /**
    * @param d  {consumo_3m, consumo_anual, stock_actual, en_transito}
    * @param p  {crecimiento_pct, meses_cobertura, semanas_seguridad, semanas_leadtime}
-   * @param o  {unXCaja, fecha:Date}  fecha = la de la corrida
+   * @param o  {unXCaja, fecha:Date, soloAnual}  fecha = la de la corrida
    */
   function calcular(d, p, o) {
     o = o || {};
@@ -46,7 +48,7 @@
 
     var prom3m = c3m / 3;
     var promAnual = anual / 12;
-    var ponderado = 0.6 * prom3m + 0.4 * promAnual;
+    var ponderado = o.soloAnual ? promAnual : 0.6 * prom3m + 0.4 * promAnual;
     var proyect = ponderado * (1 + num(p.crecimiento_pct) / 100);
     var duranteLead = proyect * (lead / SEM_MES);
     var necesidad = proyect * num(p.meses_cobertura);

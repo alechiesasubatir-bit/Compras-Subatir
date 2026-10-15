@@ -92,15 +92,24 @@ function xlLeerArchivo(file){
 // renglones con código numérico en la columna del código.
 // Los números van con parseFloat: vienen crudos de máquina y a veces en
 // notación científica ("5.89E-2").
-function xlRanking(rows){
+// modo 'ventas': el "Ranking por Articulo Ventas" no trae Salidas; la
+// cantidad está bajo un encabezado "Cantidad" con "VENTAS MN" arriba.
+// Se toma la columna del grupo "Ventas…" (o una que se llame Ventas).
+// El valor sale igual en .salidas para no tocar a quien lo usa.
+function xlRanking(rows, modo){
   var norm=function(s){ return String(s==null?'':s).replace(/\s+/g,' ').trim().toLowerCase(); };
-  var cCod='A', cArt='B', cSal='P', filaCab=0, hayCab=false;
+  var cCod='A', cArt='B', cSal='P', filaCab=0, hayCab=false, colVentas=null;
+  if(modo==='ventas'){
+    for(var v=0;v<rows.length && v<20 && !colVentas;v++)
+      for(var cv in rows[v].c){ if(/^ventas\b/.test(norm(rows[v].c[cv]))){ colVentas=cv; break; } }
+  }
   for(var i=0;i<rows.length && i<20;i++){
     var c=rows[i].c, h={};
     for(var col in c){
       var t=norm(c[col]);
       if(t.indexOf('cod')===0 && t.indexOf('articulo')>0) h.cod=col;
       else if(t==='articulo') h.art=col;
+      else if(modo==='ventas'){ if(col===colVentas && (t==='cantidad' || t==='ventas')) h.sal=col; }
       else if(t==='salidas')  h.sal=col;
     }
     if(h.sal && (h.cod||h.art)){ cCod=h.cod||cCod; cArt=h.art||cArt; cSal=h.sal; filaCab=rows[i].n; hayCab=true; break; }

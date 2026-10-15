@@ -251,14 +251,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-15.1653"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-10-15.1653"/>
-<script src="supabase-config.js?v=2026-10-15.1653"></script>
-<script src="subatir-app.js?v=2026-10-15.1653"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-15.1703"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-15.1703"/>
+<script src="supabase-config.js?v=2026-10-15.1703"></script>
+<script src="subatir-app.js?v=2026-10-15.1703"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-15.1653';
+window.APP_VER='2026-10-15.1703';
 </script>
 </head>
 <body>
@@ -269,7 +269,7 @@ window.APP_VER='2026-10-15.1653';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-10-15.1653"></script>
+  <script src="nav.js?v=2026-10-15.1703"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -286,7 +286,7 @@ window.APP_VER='2026-10-15.1653';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-10-15.1653"></script>
+  <script src="importaciones-tabs.js?v=2026-10-15.1703"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -438,7 +438,7 @@ window.APP_VER='2026-10-15.1653';
           <div class="slot-res" id="res-anual"></div>
         </div>
       </div>
-      <div class="hint">Se lee el <b>código</b> (columna A), el <b>artículo</b> y la columna <b>Salidas</b>.
+      <div class="hint">Se lee el <b>código</b> (columna A), el <b>artículo</b> y la columna <b id="xl-col">Salidas</b>.
         Los artículos se reconocen por el código interno que tienen en Depósitos. El período sale del
         encabezado del propio archivo (<i>Del: … Al: …</i>). Podés subir uno solo: el otro queda como estaba.</div>
       <div id="xl-prev"></div>
@@ -452,8 +452,8 @@ window.APP_VER='2026-10-15.1653';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-10-15.1653"></script>
-<script src="xlsx-lite.js?v=2026-10-15.1653"></script>
+<script src="importaciones-calc.js?v=2026-10-15.1703"></script>
+<script src="xlsx-lite.js?v=2026-10-15.1703"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -469,7 +469,7 @@ var LINEAS = {
              filtro:function(a){ return a.proveedor==='Subatir' && a.tipo==='Consumo'; } },
   Intex:   { titulo:'Intex', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Intex'; } },
   Enjoy:   { titulo:'Enjoy', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Enjoy'; } },
-  Mopas:   { titulo:'Mopas', desc:'kits y repuestos de mopa', tildes:true, soloAnual:true, filtro:function(a){ return a.proveedor==='Mopas'; } }
+  Mopas:   { titulo:'Mopas', desc:'kits y repuestos de mopa', tildes:true, soloAnual:true, ventas:true, filtro:function(a){ return a.proveedor==='Mopas'; } }
 };
 if(!LINEAS[window.LINEA]) window.LINEA='Subatir';
 var LIN = LINEAS[window.LINEA];
@@ -478,6 +478,8 @@ var LIN = LINEAS[window.LINEA];
 // cerrada no cambie si después se destilda algo.
 // soloAnual: se sube sólo el listado anual y se proyecta su promedio
 // mensual; el de 3 meses no va porque agarra los picos de consumo.
+// ventas: el listado es el «Ranking por Articulo Ventas» y se toma la
+// cantidad vendida, no las Salidas.
 
 var ART=[], STOCK={}, PAR=null, CORR=[], DATOS={}, CUR_CORR=null, PEND={};
 var XL={'3m':null, anual:null};
@@ -509,6 +511,10 @@ if(LIN.soloAnual){
   document.body.classList.add('solo-anual');
   document.getElementById('th-proy').title='Promedio mensual del consumo anual, por el crecimiento';
   document.getElementById('t-slot-anual').textContent='Consumo del último año';
+}
+if(LIN.ventas){
+  document.getElementById('xl-col').textContent='Cantidad de Ventas';
+  document.querySelector('#drop-anual .drop-s').textContent='«Ranking por Articulo Ventas» de 12 meses';
   document.getElementById('btn-xl').title='Subir el listado del sistema del último año';
 }
 if(LIN.tildes){
@@ -985,8 +991,9 @@ function xlSlot(k, file){
   }
   res.textContent='Leyendo '+file.name+'…';
   xlLeerArchivo(file).then(function(rows){
-    var R=xlRanking(rows);
-    if(!R.hayCab) throw new Error('No encontré la columna «Salidas». ¿Es el «Ranking por Artículo»?');
+    var R=xlRanking(rows, LIN.ventas?'ventas':null);
+    if(!R.hayCab) throw new Error(LIN.ventas ? 'No encontré la cantidad de «Ventas». ¿Es el «Ranking por Articulo Ventas»?'
+      : 'No encontré la columna «Salidas». ¿Es el «Ranking por Artículo»?');
     // Cruce por código interno; si no, el número entre paréntesis
     var porCod={}; ART.forEach(function(a){ if(a.codigo) porCod[String(a.codigo).trim()]=a; });
     var vals={}, ignor=[];
@@ -1042,7 +1049,7 @@ function pintarExcelPrev(){
     h+='<tr><td>'+esc(a.descripcion)+'</td>'+col('3m','consumo_3m')+col('anual','consumo_anual')+'</tr>';
   });
   h+='</tbody></table></div>';
-  if(cero) h+='<div class="hint">Los que quedan en <b>0</b> no figuran en el listado: no tuvieron salidas en el período.</div>';
+  if(cero) h+='<div class="hint">Los que quedan en <b>0</b> no figuran en el listado: no tuvieron '+(LIN.ventas?'ventas':'salidas')+' en el período.</div>';
   h+='</div>';
   ['3m','anual'].forEach(function(k){
     var X=XL[k]; if(!X || !X.ignor.length) return;

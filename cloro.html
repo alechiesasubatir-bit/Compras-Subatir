@@ -452,13 +452,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-15.1703"/>
-<script src="supabase-config.js?v=2026-10-15.1703"></script>
-<script src="subatir-app.js?v=2026-10-15.1703"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-21.1619"/>
+<script src="supabase-config.js?v=2026-10-21.1619"></script>
+<script src="subatir-app.js?v=2026-10-21.1619"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-15.1703';
+window.APP_VER='2026-10-21.1619';
 </script>
 </head>
 <body>
@@ -470,7 +470,7 @@ window.APP_VER='2026-10-15.1703';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-15.1703"></script>
+  <script src="nav.js?v=2026-10-21.1619"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -527,7 +527,8 @@ window.APP_VER='2026-10-15.1703';
       <button class="btn btn-sm btn-pri" onclick="openGenerar()"
               title="Emitir la orden de la semana, ver las anteriores y reimprimir">🧾 Órdenes de envasado</button>
       <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
-      <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
+      <button class="btn btn-sm" onclick="pdfAvance()"
+              title="PDF con el avance de envasado de cada producto contra el total de la temporada anterior">🖨 Imprimir avance</button>
     </div>
     <!-- La semana en curso, grande: es la referencia de todo lo que se
          decide en esta pantalla (órdenes, cierre, horizonte). -->
@@ -945,7 +946,7 @@ window.APP_VER='2026-10-15.1703';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="cloro-calc.js?v=2026-10-15.1703"></script>
+<script src="cloro-calc.js?v=2026-10-21.1619"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
@@ -2419,7 +2420,7 @@ function cargarPDF(){
     // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
     // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
     // El literal va PARTIDO a propósito: bump-version.ps1 busca
-    // `oc-pdf.js?v=2026-10-15.1703'oc-pdf.js?v=2026-10-15.1703'+APP_VER.
+    // `oc-pdf.js?v=2026-10-21.1619'oc-pdf.js?v=2026-10-21.1619'+APP_VER.
     // Partido, el patrón no aparece y la versión la pone APP_VER sola.
     .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js'+'?v='+APP_VER); })
     // El logo se precarga solo y es asíncrono. Sin esperarlo, el primer
@@ -2520,9 +2521,37 @@ function generarOrden(){
 // dibuja, en vez de mostrar un 0 % que parecería un atraso.
 // Rojo al arrancar, pasa por naranja y amarillo, y recién desde el 90 %
 // salta a verde: el verde dice "esto ya está", no "va bien encaminado".
+function tonoAvance(pct){
+  return {h: pct>=90 ? 135 : Math.round(Math.max(0, pct)/90*55), s:80, l: pct>=90 ? 42 : 50};
+}
 function colorAvance(pct){
-  var h = pct>=90 ? 135 : Math.max(0, pct)/90*55;
-  return 'hsl('+h.toFixed(0)+',80%,'+(pct>=90?42:50)+'%)';
+  var t=tonoAvance(pct);
+  return 'hsl('+t.h+','+t.s+'%,'+t.l+'%)';
+}
+// El mismo tono en [r,g,b], para el PDF (jsPDF no entiende hsl).
+function colorAvanceRGB(pct){
+  var t=tonoAvance(pct), s=t.s/100, l=t.l/100;
+  var a=s*Math.min(l, 1-l);
+  function f(n){ var k=(n+t.h/30)%12; return Math.round(255*(l - a*Math.max(-1, Math.min(k-3, 9-k, 1)))); }
+  return [f(0), f(8), f(4)];
+}
+
+// El informe en papel del avance: todos los productos activos, aunque la
+// pantalla tenga un foco puesto — es el estado de la temporada entera.
+function pdfAvance(){
+  var t=temporadaActual(); if(!t) return;
+  var fs=filas();
+  if(!fs.length){ toast('No hay productos cargados en esta temporada','err'); return; }
+  cargarPDF().then(function(){
+    OCPdf.build({
+      temporada: t.nombre, semana: SEM_ACTUAL, nsem: NSEM,
+      fecha: new Date().toISOString().slice(0,10),
+      color: colorAvanceRGB,
+      lines: fs.map(function(f){
+        return {cod: f.prod.codigo||'', desc: f.prod.nombre||'', env: f.envasadoTemp, tot: f.ventasPrev};
+      })
+    }, 'avance');
+  }).catch(function(e){ toast((e&&e.message)||'No se pudo generar el PDF','err'); });
 }
 function barraAvance(f){
   var tot=f.ventasPrev, env=f.envasadoTemp;

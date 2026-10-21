@@ -146,6 +146,7 @@ window.OCPdf = (function(){
   function build(oc, mode){
     if(!window.jspdf || !window.jspdf.jsPDF){ throw new Error('No se pudo cargar el generador de PDF (revisá tu conexión).'); }
     if(mode==='envasado') return buildEnvasado(oc);
+    if(mode==='avance') return buildAvance(oc);
     var esRecep = (mode==='recepcion');
     var doc = new window.jspdf.jsPDF({unit:'pt', format:'a4', orientation:'landscape'});
     var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -362,6 +363,127 @@ window.OCPdf = (function(){
     doc.text('Generado el '+new Date().toLocaleString('es-UY'), M, H-14);
 
     doc.save('Envasado-'+oc.orden+'.pdf');
+  }
+
+  // ── AVANCE DE ENVASADO DE LA TEMPORADA (Previsión Cloro) ───
+  //  La misma barra de la columna Producto, en papel: cuánto va envasado
+  //  contra lo vendido en toda la temporada anterior. El color NO se
+  //  calcula acá: lo manda la pantalla (`color(pct)` → [r,g,b]) para que
+  //  el papel y la tabla no puedan pintar distinto el mismo porcentaje.
+  //
+  //    OCPdf.build({
+  //      temporada:'2026-2027', semana:12, nsem:36, fecha:'2026-10-21',
+  //      color:function(pct){ return [r,g,b]; },
+  //      lines:[{cod, desc, env, tot}]          // tot<=0 → sin histórico
+  //    }, 'avance');
+  function buildAvance(oc){
+    var doc = new window.jspdf.jsPDF({unit:'pt', format:'a4', orientation:'portrait'});
+    var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    var M = 36, OR=[242,101,34], BK=[20,20,20], GR=[120,120,120];
+    var lines = oc.lines||[];
+    var colorDe = oc.color || function(){ return OR; };
+    function pctDe(l){ var t=parseFloat(l.tot)||0; return t>0 ? (parseFloat(l.env)||0)/t*100 : null; }
+
+    // Total: sólo los productos con histórico. Sumar el envasado de uno
+    // sin meta inflaría el porcentaje contra una meta que no lo incluye.
+    var conH = lines.filter(function(l){ return pctDe(l)!=null; });
+    var totE = conH.reduce(function(a,l){ return a+(parseFloat(l.env)||0); }, 0);
+    var totT = conH.reduce(function(a,l){ return a+(parseFloat(l.tot)||0); }, 0);
+    var totP = totT>0 ? totE/totT*100 : null;
+
+    // Encabezado
+    drawDocLogo(doc, M+34, 66, 32);
+    var tx = M+82;
+    doc.setFont('helvetica','bold'); doc.setTextColor(BK[0],BK[1],BK[2]); doc.setFontSize(21);
+    doc.text('SUBATIR S.A.', tx, 54);
+    doc.setTextColor(OR[0],OR[1],OR[2]); doc.setFontSize(16);
+    doc.text('AVANCE DE ENVASADO', tx, 76);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(GR[0],GR[1],GR[2]);
+    doc.text('Previsión Cloro · envasado vs. temporada anterior', tx, 92);
+
+    var bw=196, bx=W-M-bw, by=30, bh=76, bottom=by+bh, midX=bx+bw/2, midY=by+bh/2;
+    doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1.1); doc.roundedRect(bx,by,bw,bh,6,6,'S');
+    doc.setLineWidth(0.8); doc.line(midX,by,midX,bottom); doc.line(bx,midY,bx+bw,midY);
+    function lbl(t,x,y){ doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(OR[0],OR[1],OR[2]); doc.text(t,x,y); }
+    function val(t,x,y,size){ doc.setFont('helvetica','bold'); doc.setFontSize(size||11); doc.setTextColor(BK[0],BK[1],BK[2]); doc.text(String(t==null||t===''?'—':t), x, y); }
+    lbl('Temporada', bx+9, by+13);  val(oc.temporada, bx+9, by+30, 11);
+    lbl('Fecha', midX+9, by+13);    val(fmtDate(oc.fecha||''), midX+9, by+30, 11);
+    lbl('Semana', bx+9, midY+13);   val(oc.semana!=null ? oc.semana+(oc.nsem?' de '+oc.nsem:'') : '—', bx+9, midY+30, 11);
+    lbl('Avance total', midX+9, midY+13);
+    if(totP!=null){ var c=colorDe(totP); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(c[0],c[1],c[2]); doc.text(fmtNum(totP,1)+'%', midX+9, midY+30); }
+    else val('—', midX+9, midY+30, 11);
+
+    // La barra, dibujada dentro de la celda: track gris y relleno del color
+    // del porcentaje, con el número a la derecha como en la pantalla.
+    function barra(cell, pct){
+      var padX=7, txtW=44, bh2=7;
+      var x=cell.x+padX, w=cell.width-2*padX-txtW, y=cell.y+cell.height/2-bh2/2;
+      doc.setFillColor(232,232,232); doc.roundedRect(x, y, w, bh2, 3, 3, 'F');
+      var fw = w*Math.min(100, Math.max(0, pct))/100;
+      if(fw>0.5){ var c=colorDe(pct); doc.setFillColor(c[0],c[1],c[2]); doc.roundedRect(x, y, Math.max(fw, bh2), bh2, 3, 3, 'F'); }
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(BK[0],BK[1],BK[2]);
+      doc.text(fmtNum(pct,1)+'%', cell.x+cell.width-padX, cell.y+cell.height/2+3.4, {align:'right'});
+    }
+
+    var body = lines.map(function(l,i){
+      var p=pctDe(l);
+      return [String(i+1), String(l.cod||'—'), String(l.desc||''), fmtNum(l.env),
+              p==null ? '—' : fmtNum(l.tot), p==null ? 'sin histórico' : ''];
+    });
+    var foot = [['', '', 'TOTAL', fmtNum(totE), totT>0?fmtNum(totT):'—', totP==null?'—':'']];
+
+    doc.autoTable({
+      startY: bottom+22, head:[['#','CÓDIGO','PRODUCTO','ENVASADO (u)','META (u)','AVANCE']],
+      body:body, foot:foot, showFoot:'lastPage',
+      theme:'grid', margin:{left:M, right:M, top:40, bottom:40},
+      styles:{fontSize:9.5, cellPadding:{top:7,bottom:7,left:6,right:6}, halign:'center', valign:'middle',
+              lineColor:[225,225,225], lineWidth:0.6, textColor:BK},
+      headStyles:{fillColor:OR, textColor:255, fontStyle:'bold', fontSize:9, lineColor:OR},
+      footStyles:{fillColor:[245,245,245], textColor:BK, fontStyle:'bold', fontSize:10},
+      alternateRowStyles:{fillColor:[252,250,248]},
+      columnStyles:{0:{cellWidth:24, textColor:GR}, 1:{cellWidth:56, fontSize:8.5},
+                    2:{halign:'left', fontStyle:'bold'}, 3:{cellWidth:70}, 4:{cellWidth:66},
+                    5:{cellWidth:150}},
+      didParseCell:function(d){
+        if(d.column.index===5 && d.section==='body' && d.cell.raw==='sin histórico'){
+          d.cell.styles.textColor=GR; d.cell.styles.fontStyle='italic'; d.cell.styles.fontSize=8.5;
+        }
+      },
+      didDrawCell:function(d){
+        if(d.column.index!==5) return;
+        if(d.section==='body'){ var p=pctDe(lines[d.row.index]); if(p!=null) barra(d.cell, p); }
+        else if(d.section==='foot' && totP!=null) barra(d.cell, totP);
+      }
+    });
+    var yy=(doc.lastAutoTable?doc.lastAutoTable.finalY:200)+16;
+    if(yy > H-90){ doc.addPage(); yy=50; }
+
+    // Referencia de colores, con las mismas muestras que usa la barra.
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(GR[0],GR[1],GR[2]);
+    doc.text('COLOR DE LA BARRA:', M, yy+8);
+    var lx=M+96;
+    [[0,'0%'],[30,'30%'],[60,'60%'],[89,'89%'],[90,'90% o más · listo']].forEach(function(s){
+      var c=colorDe(s[0]); doc.setFillColor(c[0],c[1],c[2]); doc.roundedRect(lx, yy+2, 18, 7, 3, 3, 'F');
+      doc.setFont('helvetica','normal'); doc.setTextColor(BK[0],BK[1],BK[2]); doc.text(s[1], lx+22, yy+8);
+      lx += 22 + doc.getTextWidth(s[1]) + 14;
+    });
+    var nota = 'META = unidades vendidas en '+(oc.nsem?('las '+oc.nsem+' semanas de '):'')
+      +'la temporada anterior. ENVASADO = lo cargado como envasado en esta temporada (emitido y borradores). '
+      +'Los productos sin histórico no tienen contra qué medirse y no entran en el total.';
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(GR[0],GR[1],GR[2]);
+    doc.text(doc.splitTextToSize(nota, W-2*M-10), M, yy+24);
+
+    // Pie en todas las páginas
+    var n = doc.internal.getNumberOfPages();
+    for(var i=1;i<=n;i++){
+      doc.setPage(i);
+      doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(0.6); doc.line(M, H-28, W-M, H-28);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(160,160,160);
+      doc.text('Subatir S.A. · Generado el '+new Date().toLocaleString('es-UY'), M, H-16);
+      doc.text('Página '+i+' de '+n, W-M, H-16, {align:'right'});
+    }
+
+    doc.save('Avance-Envasado-'+String(oc.temporada||'').replace(/[^\w-]+/g,'_')+'-S'+(oc.semana||'')+'.pdf');
   }
 
   // Para que la pantalla pueda esconder el boton en vez de dejar que

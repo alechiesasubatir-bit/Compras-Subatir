@@ -251,14 +251,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-21.1619"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-10-21.1619"/>
-<script src="supabase-config.js?v=2026-10-21.1619"></script>
-<script src="subatir-app.js?v=2026-10-21.1619"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-27.0908"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-27.0908"/>
+<script src="supabase-config.js?v=2026-10-27.0908"></script>
+<script src="subatir-app.js?v=2026-10-27.0908"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-21.1619';
+window.APP_VER='2026-10-27.0908';
 </script>
 </head>
 <body>
@@ -269,7 +269,7 @@ window.APP_VER='2026-10-21.1619';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-10-21.1619"></script>
+  <script src="nav.js?v=2026-10-27.0908"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -286,7 +286,7 @@ window.APP_VER='2026-10-21.1619';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-10-21.1619"></script>
+  <script src="importaciones-tabs.js?v=2026-10-27.0908"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -452,8 +452,8 @@ window.APP_VER='2026-10-21.1619';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-10-21.1619"></script>
-<script src="xlsx-lite.js?v=2026-10-21.1619"></script>
+<script src="importaciones-calc.js?v=2026-10-27.0908"></script>
+<script src="xlsx-lite.js?v=2026-10-27.0908"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -465,7 +465,7 @@ window.APP_VER='2026-10-21.1619';
 //  La cuenta está en importaciones-calc.js, en un solo lugar.
 // ══════════════════════════════════════════════════════════════
 var LINEAS = {
-  Subatir: { titulo:'Subatir · Consumo', desc:'artículos de consumo de la fábrica',
+  Subatir: { titulo:'Subatir · Consumo', desc:'artículos de consumo de la fábrica', tildes:true,
              filtro:function(a){ return a.proveedor==='Subatir' && a.tipo==='Consumo'; } },
   Intex:   { titulo:'Intex', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Intex'; } },
   Enjoy:   { titulo:'Enjoy', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Enjoy'; } },

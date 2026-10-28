@@ -251,14 +251,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-27.0908"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-10-27.0908"/>
-<script src="supabase-config.js?v=2026-10-27.0908"></script>
-<script src="subatir-app.js?v=2026-10-27.0908"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-28.1813"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-28.1813"/>
+<script src="supabase-config.js?v=2026-10-28.1813"></script>
+<script src="subatir-app.js?v=2026-10-28.1813"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-27.0908';
+window.APP_VER='2026-10-28.1813';
 </script>
 </head>
 <body>
@@ -269,7 +269,7 @@ window.APP_VER='2026-10-27.0908';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-10-27.0908"></script>
+  <script src="nav.js?v=2026-10-28.1813"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -286,7 +286,7 @@ window.APP_VER='2026-10-27.0908';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-10-27.0908"></script>
+  <script src="importaciones-tabs.js?v=2026-10-28.1813"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -303,9 +303,10 @@ window.APP_VER='2026-10-27.0908';
       <button class="btn btn-sm" id="btn-cerrar" onclick="toggleCerrada()"></button>
       <button class="btn btn-sm btn-teal" id="btn-xl" onclick="openExcel()" title="Subir los dos listados del sistema: últimos 3 meses y último año">📄 Cargar consumo</button>
       <button class="btn btn-sm" id="btn-stk" onclick="traerStock()" title="Reemplazar el stock de la corrida por el que hoy tiene Depósitos">↻ Stock de Depósitos</button>
+      <button class="btn btn-sm" id="btn-pdf" onclick="exportPDF()" title="Reporte para imprimir: logo, corrida, KPIs y la tabla, en A4 apaisado">🖨 PDF</button>
+      <button class="btn btn-sm" onclick="exportXLSX()" title="La misma tabla en Excel, con números que se pueden sumar y filtrar">⬇ Excel</button>
       <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn btn-sm" onclick="exportJSON()" title="Backup de la corrida con sus parámetros">⬇ JSON</button>
-      <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
       <button class="btn btn-sm btn-pri" onclick="openNuevaCorrida()">➕ Nueva corrida</button>
     </div>
   </div>
@@ -452,8 +453,9 @@ window.APP_VER='2026-10-27.0908';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-10-27.0908"></script>
-<script src="xlsx-lite.js?v=2026-10-27.0908"></script>
+<script src="importaciones-calc.js?v=2026-10-28.1813"></script>
+<script src="xlsx-lite.js?v=2026-10-28.1813"></script>
+<script src="importaciones-export.js?v=2026-10-28.1813"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -736,7 +738,14 @@ function guardarParametros(){
 }
 
 // ══ KPIs ══════════════════════════════════════════════════════
+// Los KPIs se calculan acá una sola vez: los pinta la pantalla y los
+// usa el reporte PDF/Excel, para que el papel no diga otra cosa.
 function pintarKPIs(){
+  document.getElementById('kpis').innerHTML=datosKPIs().map(function(k){
+    return kpi(k.cls, k.l, esc(k.v)+(k.u?' <small>'+k.u+'</small>':''), k.color, k.s);
+  }).join('');
+}
+function datosKPIs(){
   var fs=filas().filter(function(f){ return f.incl; }), uds=0, cajas=0, aPedir=0, quie=0, urg=0, conf=0, hayConf=false, prox=null, proxArt=null;
   fs.forEach(function(f){
     uds+=f.c.pedido; cajas+=f.c.cajas;
@@ -748,14 +757,15 @@ function pintarKPIs(){
        && (!prox || f.c.pedirAntes<prox)){ prox=f.c.pedirAntes; proxArt=f.art.descripcion; }
   });
   var vence = prox && prox<=hoyUTC();
-  document.getElementById('kpis').innerHTML=
-     kpi('a','A importar', n0(uds)+' <small>u</small>','c-or', n0(cajas)+' cajas · '+aPedir+' de '+fs.length+' artículos')
-    +kpi('q','Sin stock', n0(quie), quie?'c-rd':'c-pu', quie?'en quiebre ahora mismo':'ninguno en quiebre')
-    +kpi('c','Urgentes', n0(urg), urg?'c-go':'c-pu', 'no llegan al arribo con el colchón')
-    +kpi('f','Pedir antes de', prox?fmtFecha(prox):'—', vence?'c-rd':'c-te',
-         prox?(vence?'ya pasó · ':'')+proxArt:'nada apura')
-    +kpi('d','Confirmada', hayConf?n0(conf)+' <small>u</small>':'—','c-gr',
-         hayConf?((conf-uds)===0?'igual al cálculo':((conf-uds)>0?'+':'−')+n0(Math.abs(conf-uds))+' u vs. calculado'):'todavía sin decidir');
+  return [
+    {cls:'a', l:'A importar', v:n0(uds), u:'u', color:'c-or', s:n0(cajas)+' cajas · '+aPedir+' de '+fs.length+' artículos'},
+    {cls:'q', l:'Sin stock', v:n0(quie), color:quie?'c-rd':'c-pu', s:quie?'en quiebre ahora mismo':'ninguno en quiebre'},
+    {cls:'c', l:'Urgentes', v:n0(urg), color:urg?'c-go':'c-pu', s:'no llegan al arribo con el colchón'},
+    {cls:'f', l:'Pedir antes de', v:prox?fmtFecha(prox):'—', color:vence?'c-rd':'c-te',
+     s:prox?(vence?'ya pasó · ':'')+proxArt:'nada apura'},
+    {cls:'d', l:'Confirmada', v:hayConf?n0(conf):'—', u:hayConf?'u':'', color:'c-gr',
+     s:hayConf?((conf-uds)===0?'igual al cálculo':((conf-uds)>0?'+':'−')+n0(Math.abs(conf-uds))+' u vs. calculado'):'todavía sin decidir'}
+  ];
 }
 function kpi(cls,label,val,color,sub){
   return '<div class="card kpi kpi-'+cls+'"><div class="kpi-l">'+esc(label)+'</div>'
@@ -1132,6 +1142,93 @@ function exportJSON(){
       descripcion:f.art.descripcion, un_x_caja:f.art.un_x_caja}, f.d, {calculo:f.c}); })};
   descargar(JSON.stringify(bk,null,2),'application/json',nombreArchivo('json'));
   toast('Backup JSON descargado','ok');
+}
+
+// ══ REPORTE PDF / EXCEL ═══════════════════════════════════════
+//  Lo dibuja importaciones-export.js (compartido con MERO AR). Acá sólo
+//  se arma con lo que ya muestra la pantalla: mismas filas filtradas,
+//  mismos KPIs y la misma fórmula. Sirve tal cual para Intex y Enjoy.
+var EST_RGB={quiebre:[220,38,38], urgente:[217,119,6], pedir:[234,88,12], ok:[22,163,74], sin:[120,120,120], excl:[150,150,150]};
+function reporte(){
+  var c=corridaActual();
+  if(!c){ toast('No hay ninguna corrida para exportar','err'); return null; }
+  var fs=visibles();
+  if(!fs.length){ toast('No hay filas para exportar','err'); return null; }
+  var A=LIN.soloAnual;
+  var cols=[
+    {t:'Código', tipo:'c', w:10, pw:42},
+    {t:'Artículo', tipo:'txt', w:40},
+    {t:'Un. x caja', tipo:'n0', w:9, pdf:false},
+    A ? null : {t:'Cons. 3m', tipo:'n0'},
+    {t:'Cons. año', tipo:'n0'},
+    {t:'Proyect./mes', tipo:'n0'},
+    {t:'Stock', tipo:'n0'},
+    {t:'En tránsito', tipo:'n0'},
+    {t:'Semanas que dura', tipo:'c', pw:44},
+    {t:'Viaje', tipo:'n0', pdf:false},
+    {t:'Cobertura', tipo:'n0', pdf:false},
+    {t:'Seguridad', tipo:'n0', pdf:false},
+    {t:'Total nec.', tipo:'n0'},
+    {t:'A pedir', tipo:'n0'},
+    {t:'Cajas', tipo:'n0', pw:34},
+    {t:'Pedido', tipo:'n0', resalta:true, fuerte:true},
+    {t:'Pedir antes de', tipo:'c', pw:48},
+    {t:'Estado', tipo:'est', pw:56},
+    {t:'Confirmada', tipo:'n0'},
+    {t:'Dif.', tipo:'c', pw:36}
+  ];
+  var usa=cols.map(function(x){ return !!x; });
+  cols=cols.filter(Boolean);
+  // Una fila con el mismo orden que la lista completa de arriba; las
+  // columnas que no van en esta línea (Cons. 3m en Mopas) se sacan después
+  function fila(v){ return v.filter(function(x,i){ return usa[i]; }); }
+
+  var T={c3m:0,can:0,stk:0,tra:0,ped:0,caj:0,conf:0,nec:0,ap:0}, nIncl=0;
+  var out=fs.map(function(f){
+    var k=f.c, d=f.d, a=f.art;
+    if(!f.incl){
+      return {apagada:true, v:fila([a.codigo||'', a.descripcion, num(a.un_x_caja)||null,
+        num(d.consumo_3m), num(d.consumo_anual), '—', num(d.stock_actual), num(d.en_transito), '—',
+        '—','—','—','—','—','—','—','—', EST_TXT.excl, d.compra_confirmada==null?'':num(d.compra_confirmada), '—'])};
+    }
+    nIncl++;
+    T.c3m+=num(d.consumo_3m); T.can+=num(d.consumo_anual); T.stk+=num(d.stock_actual); T.tra+=num(d.en_transito);
+    T.ped+=k.pedido; T.caj+=k.cajas; T.conf+=num(d.compra_confirmada); T.nec+=k.totalNec; T.ap+=k.aPedir;
+    if(d.compra_confirmada!=null) T.hayConf=true;
+    var dif=num(d.compra_confirmada)-k.pedido;
+    return {est:EST_RGB[k.estado], v:fila([a.codigo||'', a.descripcion, num(a.un_x_caja)||null,
+      num(d.consumo_3m), num(d.consumo_anual), k.proyect, num(d.stock_actual), num(d.en_transito),
+      k.estado==='sin' ? '—' : (k.quiebre ? 'QUIEBRE' : (k.cobertura>=999 ? '—' : Math.round(k.cobertura)+' sem')),
+      k.duranteLead, k.necesidad, k.stockSeg, k.totalNec, k.aPedir, k.cajas||'', k.pedido,
+      k.estado==='sin' || !k.pedirAntes ? '—' : fmtFecha(k.pedirAntes), EST_TXT[k.estado],
+      d.compra_confirmada==null ? '' : num(d.compra_confirmada),
+      d.compra_confirmada==null ? '—' : (dif===0 ? '=' : (dif>0?'+':'-')+n0(Math.abs(dif)))])};
+  });
+  var total=fila(['', 'TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+(nIncl<fs.length?' tildados':''), null,
+    T.c3m, T.can, null, T.stk, T.tra, null, null, null, null, T.nec, T.ap, T.caj, T.ped, null, null, T.hayConf ? T.conf : null, null]);
+
+  var est=document.getElementById('f-est'), q=document.getElementById('f-buscar').value.trim();
+  var filtro=[est.value ? 'Estado: '+est.options[est.selectedIndex].text : '', q ? 'Búsqueda: «'+q+'»' : '']
+    .filter(Boolean).join(' · ');
+  return {
+    linea:LIN.titulo, corrida:c.nombre, fecha:c.fecha, estado:c.cerrada?'Cerrada':'Abierta',
+    kpis:datosKPIs().map(function(k){ return {l:k.l, v:k.v+(k.u?' '+k.u:''), s:k.s}; }),
+    nota:document.getElementById('formula').textContent,
+    filtro:filtro, cols:cols, filas:out, total:total,
+    archivo:nombreArchivo('x').replace(/\.x$/,'')
+  };
+}
+function exportPDF(){
+  var r=reporte(); if(!r) return;
+  var b=document.getElementById('btn-pdf'); b.disabled=true;
+  ImpExport.pdf(r).then(function(){ toast('PDF descargado','ok'); },
+    function(e){ toast((e&&e.message)||'No se pudo generar el PDF','err'); })
+    .then(function(){ b.disabled=false; });
+}
+function exportXLSX(){
+  var r=reporte(); if(!r) return;
+  try{ ImpExport.xlsx(r); toast('Excel descargado','ok'); }
+  catch(e){ toast((e&&e.message)||'No se pudo generar el Excel','err'); }
 }
 </script>
 </body>

@@ -354,14 +354,14 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-27.0908"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-10-27.0908"/>
-<script src="supabase-config.js?v=2026-10-27.0908"></script>
-<script src="subatir-app.js?v=2026-10-27.0908"></script>
+<link rel="stylesheet" href="nav.css?v=2026-10-28.1813"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-10-28.1813"/>
+<script src="supabase-config.js?v=2026-10-28.1813"></script>
+<script src="subatir-app.js?v=2026-10-28.1813"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-27.0908';
+window.APP_VER='2026-10-28.1813';
 </script>
 </head>
 <body>
@@ -373,7 +373,7 @@ window.APP_VER='2026-10-27.0908';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-27.0908"></script>
+  <script src="nav.js?v=2026-10-28.1813"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -384,7 +384,7 @@ window.APP_VER='2026-10-27.0908';
 
   <!-- Submódulos de Importaciones: los arma importaciones-tabs.js -->
   <div class="imp-tabs" id="imp-tabs" data-on="mero"></div>
-  <script src="importaciones-tabs.js?v=2026-10-27.0908"></script>
+  <script src="importaciones-tabs.js?v=2026-10-28.1813"></script>
 
   <!-- ══ Contexto: proveedor y corrida ══════════════════════ -->
   <div class="card ctx">
@@ -406,8 +406,9 @@ window.APP_VER='2026-10-27.0908';
       <button class="btn btn-sm" id="btn-cerrar" onclick="toggleCerrada()"></button>
       <button class="btn btn-sm" id="btn-oc" onclick="generarOC()">📄 Generar OC</button>
       <button class="btn btn-sm btn-teal" onclick="openPegar()" title="Subir el Excel del sistema o pegar una columna de números">📋 Cargar datos</button>
+      <button class="btn btn-sm" id="btn-pdf" onclick="exportPDF()" title="Reporte para imprimir: logo, corrida, KPIs y la tabla, en A4 apaisado">🖨 PDF</button>
+      <button class="btn btn-sm" onclick="exportXLSX()" title="La misma tabla en Excel, con números que se pueden sumar y filtrar">⬇ Excel</button>
       <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
-      <button class="btn btn-sm" onclick="window.print()">🖨 Imprimir</button>
       <button class="btn btn-sm btn-pri" onclick="openNuevaCorrida()">➕ Nueva corrida</button>
     </div>
   </div>
@@ -740,8 +741,9 @@ window.APP_VER='2026-10-27.0908';
      pantalla, porque sólo hace falta al apretar el botón. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="mp-oc-pdf.js?v=2026-10-27.0908"></script>
-<script src="xlsx-lite.js?v=2026-10-27.0908"></script>
+<script src="mp-oc-pdf.js?v=2026-10-28.1813"></script>
+<script src="xlsx-lite.js?v=2026-10-28.1813"></script>
+<script src="importaciones-export.js?v=2026-10-28.1813"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -1104,7 +1106,14 @@ function guardarParametros(){
 }
 
 // ══ KPIs ══════════════════════════════════════════════════════
+// Los KPIs se calculan acá una sola vez: los pinta la pantalla y los
+// usa el reporte PDF/Excel, para que el papel no diga otra cosa.
 function pintarKPIs(){
+  document.getElementById('kpis').innerHTML=datosKPIs().map(function(k){
+    return kpi(k.cls, k.l, esc(k.v)+(k.u?' <span style="font-size:14px">'+k.u+'</span>':''), k.color, k.s);
+  }).join('');
+}
+function datosKPIs(){
   var fs=filas();
   var aPedir=0, bultos=0, conf=0, aComprar=0, enRiesgo=0, quiebres=0;
   var lead=num(PAR.semanas_leadtime);
@@ -1118,15 +1127,16 @@ function pintarKPIs(){
     else if(f.c.cobertura < lead) enRiesgo++;
   });
   var dif = conf - aPedir;
-  document.getElementById('kpis').innerHTML=
-     kpi('a','A pedir (calculado)', n0(aPedir)+' <span style="font-size:14px">kg</span>','c-or', n0(bultos)+' bultos de '+n0(PAR.kg_bulto)+' kg')
-    +kpi('q','Sin stock', n0(quiebres),quiebres>0?'c-rd':'c-pu',
-        quiebres>0?'en quiebre ahora mismo':'ninguno en quiebre')
-    +kpi('c','No llegan al lead time', n0(enRiesgo),enRiesgo>0?'c-go':'c-pu',
-        'aguantan menos de '+n0(lead)+' semanas')
-    +kpi('b','Artículos a comprar', n0(aComprar),'c-te', 'de '+fs.length+' en la lista')
-    +kpi('d','Compra confirmada', n0(conf)+' <span style="font-size:14px">kg</span>','c-gr',
-        (dif===0?'igual al cálculo':(dif>0?'+':'−')+n0(Math.abs(dif))+' kg vs. calculado'));
+  return [
+    {cls:'a', l:'A pedir (calculado)', v:n0(aPedir), u:'kg', color:'c-or', s:n0(bultos)+' bultos de '+n0(PAR.kg_bulto)+' kg'},
+    {cls:'q', l:'Sin stock', v:n0(quiebres), color:quiebres>0?'c-rd':'c-pu',
+     s:quiebres>0?'en quiebre ahora mismo':'ninguno en quiebre'},
+    {cls:'c', l:'No llegan al lead time', v:n0(enRiesgo), color:enRiesgo>0?'c-go':'c-pu',
+     s:'aguantan menos de '+n0(lead)+' semanas'},
+    {cls:'b', l:'Artículos a comprar', v:n0(aComprar), color:'c-te', s:'de '+fs.length+' en la lista'},
+    {cls:'d', l:'Compra confirmada', v:n0(conf), u:'kg', color:'c-gr',
+     s:(dif===0?'igual al cálculo':(dif>0?'+':'−')+n0(Math.abs(dif))+' kg vs. calculado')}
+  ];
 }
 function kpi(cls,label,val,color,sub){
   return '<div class="card kpi kpi-'+cls+'"><div class="kpi-l">'+esc(label)+'</div>'
@@ -2230,6 +2240,80 @@ function exportCSV(){
   a.download='MP_'+(c?c.nombre.replace(/[^\w\- ]/g,'').trim().replace(/\s+/g,'_'):'corrida')+'.csv';
   a.click(); URL.revokeObjectURL(a.href);
   toast('CSV descargado','ok');
+}
+
+// ══ REPORTE PDF / EXCEL ═══════════════════════════════════════
+//  Lo dibuja importaciones-export.js, compartido con las líneas de
+//  Depósitos. Acá sólo se arma con lo que ya muestra la pantalla:
+//  mismas filas filtradas y agrupadas, mismos KPIs, misma fórmula.
+var EST_RGB={ok:[22,163,74], mod:[234,88,12], big:[220,38,38]};
+function reporte(){
+  var c=corridaActual();
+  if(!c){ toast('No hay ninguna corrida para exportar','err'); return null; }
+  var fs=visibles();
+  if(!fs.length){ toast('No hay filas para exportar','err'); return null; }
+  var cols=[
+    {t:'Artículo', tipo:'txt', w:40},
+    {t:'Código', tipo:'c', w:10, pw:44},
+    {t:'Consumo 3m (kg)', tipo:'n1'},
+    {t:'Stock (kg)', tipo:'n1'},
+    {t:'Semanas que dura', tipo:'c', pw:44},
+    {t:'Prom. 3m', tipo:'n1'},
+    {t:'Prom. anual', tipo:'n1'},
+    {t:'Ponderado', tipo:'n1', pdf:false},
+    {t:'Proyectado', tipo:'n1'},
+    {t:'Necesidad', tipo:'n1', pdf:false},
+    {t:'Stock seg.', tipo:'n1', pdf:false},
+    {t:'Total nec.', tipo:'n1'},
+    {t:'A pedir', tipo:'n1'},
+    {t:'Bultos', tipo:'n0', pw:36},
+    {t:'Pedido (kg)', tipo:'n0', resalta:true, fuerte:true},
+    {t:'Estado', tipo:'est', pw:84},
+    {t:'Confirmada (kg)', tipo:'n0'},
+    {t:'Dif.', tipo:'c', pw:36}
+  ];
+  var out=[], grupo=null, T={c3m:0,stk:0,nec:0,bul:0,ped:0,conf:0};
+  fs.forEach(function(f){
+    if(f.art.grupo!==grupo){ grupo=f.art.grupo; out.push({grupo:grupo||'Artículos'}); }
+    var k=f.c, d=f.d, dif=num(d.compra_confirmada)-k.pedido;
+    T.c3m+=num(d.consumo_3m); T.stk+=num(d.stock_actual); T.nec+=k.totalNec;
+    T.bul+=k.bultos; T.ped+=k.pedido; T.conf+=num(d.compra_confirmada);
+    if(d.compra_confirmada!=null) T.hayConf=true;
+    out.push({est:EST_RGB[k.estado], v:[
+      f.art.nombre+(k.ofertaPct>0?' (oferta +'+n0(k.ofertaPct)+'%)':''), f.art.codigo||'',
+      num(d.consumo_3m), num(d.stock_actual),
+      k.quiebre ? 'QUIEBRE' : (k.cobertura>=999 ? '—' : Math.round(k.cobertura)+' sem'),
+      k.prom3m, num(d.prom_anual), k.ponderado, k.proyect, k.necesidad, k.stockSeg, k.totalNec, k.aPedir,
+      k.bultos, k.pedido, EST_TXT[k.estado],
+      d.compra_confirmada==null ? '' : num(d.compra_confirmada),
+      d.compra_confirmada==null ? '—' : (dif===0 ? '=' : (dif>0?'+':'-')+n0(Math.abs(dif)))]});
+  });
+  var total=['TOTAL · '+fs.length+' artículos', '', T.c3m, T.stk, null, null, null, null, null, null, null,
+    T.nec, null, T.bul, T.ped, null, T.hayConf ? T.conf : null, null];
+
+  var est=document.getElementById('f-est'), q=document.getElementById('f-buscar').value.trim();
+  var filtro=[est.value ? 'Estado: '+est.options[est.selectedIndex].text : '', q ? 'Búsqueda: «'+q+'»' : '']
+    .filter(Boolean).join(' · ');
+  return {
+    linea:nombreProv(), corrida:c.nombre, fecha:c.fecha, estado:c.cerrada?'Cerrada':'Abierta',
+    kpis:datosKPIs().map(function(k){ return {l:k.l, v:k.v+(k.u?' '+k.u:''), s:k.s}; }),
+    nota:document.getElementById('formula').textContent,
+    filtro:filtro, cols:cols, filas:out, total:total,
+    archivo:'Importacion_'+nombreProv().replace(/[^\w\-]+/g,'')+'_'
+      +(c.nombre.replace(/[^\w\- ]/g,'').trim().replace(/\s+/g,'_')||'corrida')
+  };
+}
+function exportPDF(){
+  var r=reporte(); if(!r) return;
+  var b=document.getElementById('btn-pdf'); b.disabled=true;
+  ImpExport.pdf(r).then(function(){ toast('PDF descargado','ok'); },
+    function(e){ toast((e&&e.message)||'No se pudo generar el PDF','err'); })
+    .then(function(){ b.disabled=false; });
+}
+function exportXLSX(){
+  var r=reporte(); if(!r) return;
+  try{ ImpExport.xlsx(r); toast('Excel descargado','ok'); }
+  catch(e){ toast((e&&e.message)||'No se pudo generar el Excel','err'); }
 }
 </script>
 </body>

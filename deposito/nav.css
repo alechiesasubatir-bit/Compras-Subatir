@@ -102,7 +102,11 @@ nav.sbnav a[data-nav="compras"]   {--c: 27,200,255}  /* cian     */
 /* ── Celular ─────────────────────────────────────────────────
    Tira que se arrastra de costado, como ya era antes. */
 @media (max-width:760px){
-  .sbhdr{gap:10px;row-gap:9px}
+  /* ~200px de header fijo se comían un cuarto de pantalla al bajar */
+  .sbhdr{gap:10px;row-gap:9px;position:relative}
+  /* El bloque de la derecha baja a su propio renglón: con flex:0 0 auto
+     no se achicaba y corría la página hacia el costado. */
+  .sbhdr > .header-right{flex:1 1 100%;min-width:0;margin-left:0;flex-wrap:wrap;row-gap:7px}
   .sbhdr > nav.sbnav{
     display:flex;flex-wrap:nowrap;
     overflow-x:auto;overflow-y:hidden;

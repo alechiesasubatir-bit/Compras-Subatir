@@ -121,7 +121,16 @@ nav.sbnav a[data-nav="usuarios"]    {--c:129,140,248}  /* índigo   */
    10 cuadros en grilla angosta serían cinco filas comiéndose la
    pantalla. Pasa a tira que se arrastra de costado. */
 @media (max-width:760px){
-  .sbhdr{gap:10px;row-gap:9px}
+  /* En el celular el header ocupa ~200px (logo, botones, menú): fijo
+     arriba se comía un cuarto de pantalla al bajar. Acá se va con el scroll. */
+  .sbhdr{gap:10px;row-gap:9px;position:relative}
+  /* El bloque de la derecha (Actualizar, usuario, Salir) baja a su
+     propio renglón y se acomoda ahí. Con flex:0 0 auto no se achicaba
+     y empujaba la página entera 50–330px hacia el costado. */
+  .sbhdr > .hdr-r,
+  .sbhdr > .hdr-right,
+  .sbhdr > .header-right{flex:1 1 100%;min-width:0;margin-left:0;flex-wrap:wrap;row-gap:7px}
+  #sb-userbar{margin-left:auto !important}
   .sbhdr > nav.sbnav{
     display:flex;flex-wrap:nowrap;
     overflow-x:auto;overflow-y:hidden;

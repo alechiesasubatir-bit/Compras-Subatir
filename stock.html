@@ -153,6 +153,8 @@ nav{display:flex;gap:3px;flex-wrap:wrap}
 
 /* ═══ GRID PRINCIPAL ═══════════════════════════════════════════ */
 .main-grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
+/* min-width:0: si no, la tabla estira la columna en vez de deslizarse en su .tbl-wrap */
+.main-grid > *{min-width:0}
 @media(max-width:920px){.main-grid{grid-template-columns:1fr}}
 
 /* ── Section header ─────────────────────────────────────────── */
@@ -561,14 +563,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-10-28.1813"/>
-<script src="supabase-config.js?v=2026-10-28.1813"></script>
-<script src="subatir-app.js?v=2026-10-28.1813"></script>
-<script src="reposicion-calc.js?v=2026-10-28.1813"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-04.1838"/>
+<script src="supabase-config.js?v=2026-11-04.1838"></script>
+<script src="subatir-app.js?v=2026-11-04.1838"></script>
+<script src="reposicion-calc.js?v=2026-11-04.1838"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-10-28.1813';
+window.APP_VER='2026-11-04.1838';
 </script>
 </head>
 <body>
@@ -584,7 +586,7 @@ window.APP_VER='2026-10-28.1813';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-10-28.1813"></script>
+  <script src="nav.js?v=2026-11-04.1838"></script>
   <div class="hdr-right">
     <span class="ts" id="ts">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-ref" onclick="refresh()">

@@ -534,18 +534,28 @@ html{color-scheme:dark}
 select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
+/* PDF de compras */
+.cpdf-chips{display:flex;flex-wrap:wrap;gap:8px}
+.cpdf-chip{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);font-family:inherit}
+.cpdf-chip:hover{border-color:rgba(249,115,22,.5)}
+.cpdf-chip.on{background:rgba(249,115,22,.18);border-color:rgba(249,115,22,.6);color:#fdba74}
+.cpdf-prev{margin-top:16px;padding:12px 14px;border-radius:10px;font-size:12px;line-height:1.6;
+  background:rgba(14,138,170,.08);border:1px solid rgba(14,138,170,.25);color:var(--text)}
+.cpdf-prev b{font-family:'IBM Plex Mono',monospace;font-weight:500}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="oc-pdf.js?v=2026-11-04.1838"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-04.1838"/>
-<script src="supabase-config.js?v=2026-11-04.1838"></script>
-<script src="subatir-app.js?v=2026-11-04.1838"></script>
+<script src="oc-pdf.js?v=2026-11-17.1039"></script>
+<script src="compras-pdf.js?v=2026-11-17.1039"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-17.1039"/>
+<script src="supabase-config.js?v=2026-11-17.1039"></script>
+<script src="subatir-app.js?v=2026-11-17.1039"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-04.1838';
+window.APP_VER='2026-11-17.1039';
 </script>
 </head>
 <body>
@@ -561,7 +571,7 @@ window.APP_VER='2026-11-04.1838';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-04.1838"></script>
+  <script src="nav.js?v=2026-11-17.1039"></script>
   <div class="header-right">
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
@@ -641,6 +651,7 @@ window.APP_VER='2026-11-04.1838';
       <h2>📋 <span>Órdenes de Compra</span></h2>
       <div style="display:flex;gap:8px;align-items:center">
         <span class="badge badge-info" id="tbl-count">—</span>
+        <button class="btn btn-orange btn-sm" onclick="abrirComprasPdf()" title="Listado de compras de hoy o entre fechas">📄 PDF compras</button>
         <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir</button>
       </div>
@@ -1093,6 +1104,38 @@ window.APP_VER='2026-11-04.1838';
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="precioDecidir(false)">Sólo la orden</button>
       <button class="btn btn-orange btn-sm" onclick="precioDecidir(true)">Actualizar también en Precios</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL: PDF DE COMPRAS (hoy / entre fechas)
+════════════════════════════════════════════════ -->
+<div class="overlay" id="cpdf-overlay">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title">📄 PDF de compras</div>
+      <button class="modal-close" onclick="closeModal('cpdf-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="cpdf-chips">
+        <button type="button" class="cpdf-chip" data-r="hoy"    onclick="cpdfRango('hoy')">Hoy</button>
+        <button type="button" class="cpdf-chip" data-r="ayer"   onclick="cpdfRango('ayer')">Ayer</button>
+        <button type="button" class="cpdf-chip" data-r="semana" onclick="cpdfRango('semana')">Esta semana</button>
+        <button type="button" class="cpdf-chip" data-r="mes"    onclick="cpdfRango('mes')">Este mes</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+        <div class="form-group"><label>Desde</label><input type="date" class="form-input" id="cpdf-desde" oninput="cpdfPreview(true)"/></div>
+        <div class="form-group"><label>Hasta</label><input type="date" class="form-input" id="cpdf-hasta" oninput="cpdfPreview(true)"/></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;text-transform:none;letter-spacing:0;font-weight:500;font-size:12px;cursor:pointer">
+        <input type="checkbox" id="cpdf-filtros" onchange="cpdfPreview()"/> Aplicar también los filtros de la tabla (proveedor, estado, búsqueda…)
+      </label>
+      <div class="cpdf-prev" id="cpdf-prev">—</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cpdf-overlay')">Cancelar</button>
+      <button class="btn btn-orange" id="cpdf-go" onclick="generarComprasPdf()">📄 Generar PDF</button>
     </div>
   </div>
 </div>
@@ -2976,6 +3019,75 @@ function ocLinesOf(orden){
 }
 function pdfForOrder(orden){ var oc=ocLinesOf(orden); if(!oc){ toast('No se encontró la orden','err'); return; } buildDocPdf(oc,'compra'); }
 function receptionForOrder(orden){ var oc=ocLinesOf(orden); if(!oc){ toast('No se encontró la orden','err'); return; } buildDocPdf(oc,'recepcion'); }
+
+// ── PDF de compras: hoy / entre fechas ─────────────────────────
+// El dibujo vive en compras-pdf.js. Acá se arman las líneas con las
+// MISMAS funciones de la tabla (ocMoneda, lineStats, codigoDe) para que
+// el PDF no pueda decir otra cosa que la pantalla.
+function isoLocal(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function abrirComprasPdf(){
+  // Si la tabla ya está filtrada por fecha, se arranca de ese rango; si no, hoy
+  var d=document.getElementById('f-desde').value, h=document.getElementById('f-hasta').value;
+  if(d||h){
+    document.getElementById('cpdf-desde').value = d || h;
+    document.getElementById('cpdf-hasta').value = h || d;
+    cpdfPreview(true);
+  } else cpdfRango('hoy');
+  openModal('cpdf-overlay');
+}
+function cpdfRango(q){
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  var d=new Date(hoy), h=new Date(hoy);
+  if(q==='ayer'){ d.setDate(d.getDate()-1); h=new Date(d); }
+  else if(q==='semana'){ d.setDate(d.getDate()-((d.getDay()+6)%7)); }   // desde el lunes
+  else if(q==='mes'){ d.setDate(1); }
+  document.getElementById('cpdf-desde').value=isoLocal(d);
+  document.getElementById('cpdf-hasta').value=isoLocal(h);
+  cpdfPreview();
+  document.querySelectorAll('.cpdf-chip').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-r')===q); });
+}
+function cpdfLineas(){
+  var d=document.getElementById('cpdf-desde').value, h=document.getElementById('cpdf-hasta').value;
+  if(!d && !h) return {err:'Elegí al menos una fecha.'};
+  d=d||h; h=h||d;
+  if(d>h){ var t=d; d=h; h=t; }
+  var base=document.getElementById('cpdf-filtros').checked ? FILTERED : DATA_DISPLAY;
+  var rows=(base||[]).filter(function(r){ var f=String(r[K.fecha]||'').slice(0,10); return f && f>=d && f<=h; });
+  var lines=rows.map(function(r){
+    var st=lineStats(r), ents=st.entregas||[];
+    var frec = isPendiente(r) ? (ents.length ? ents[ents.length-1].fecha : '') : r[K.recepcion];
+    var siva=pNum(r[K.siva]);
+    return {
+      orden:r[K.orden], fecha:String(r[K.fecha]||'').slice(0,10), proveedor:r[K.proveedor],
+      codigo:codigoDe(r), desc:r[K.desc], cant:pNum(r[K.cantidad]),
+      moneda: ocMoneda(r)==='USD' ? 'U$S' : '$', prec:pNum(r[K.precio]),
+      siva:siva, civa: pNum(r[K.civa]) || siva*ivaMult(r[K.desc]),
+      estado:st.estado, recibido:st.recibido, frec:frec
+    };
+  });
+  return {desde:d, hasta:h, lines:lines};
+}
+function cpdfPreview(manual){
+  if(manual) document.querySelectorAll('.cpdf-chip').forEach(function(b){ b.classList.remove('on'); });
+  var el=document.getElementById('cpdf-prev'), btn=document.getElementById('cpdf-go');
+  var o=cpdfLineas();
+  if(o.err){ el.textContent=o.err; btn.disabled=true; return; }
+  if(!o.lines.length){ el.innerHTML='No hay compras entre el <b>'+fmtDate(o.desde)+'</b> y el <b>'+fmtDate(o.hasta)+'</b>.'; btn.disabled=true; return; }
+  var ocs={}, t={'$':0,'U$S':0};
+  o.lines.forEach(function(l){ ocs[l.orden]=1; t[l.moneda]+=l.civa; });
+  el.innerHTML = '<b>'+Object.keys(ocs).length+'</b> órdenes · <b>'+o.lines.length+'</b> líneas<br>'
+    + 'C/IVA: '+(t['$']?'<b>'+fmtPSO(t['$'],2)+'</b>':'')+(t['$']&&t['U$S']?' · ':'')+(t['U$S']?'<b>'+fmtUSD(t['U$S'],2)+'</b>':'');
+  btn.disabled=false;
+}
+function generarComprasPdf(){
+  var o=cpdfLineas();
+  if(o.err){ toast(o.err,'err'); return; }
+  try{
+    var n=ComprasPdf.build(o);
+    toast('PDF generado: '+n,'ok');
+    closeModal('cpdf-overlay');
+  }catch(e){ toast(e.message||'No se pudo generar el PDF','err'); }
+}
 function fmtDate(d){
   if (!d || d==='' || d==='0000-00-00') return '—';
   var p = String(d).split('-');

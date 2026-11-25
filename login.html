@@ -65,8 +65,11 @@ button.go:disabled{opacity:.6;cursor:wait;transform:none}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-11-25.1624"></script>
+<script src="supabase-config.js?v=2026-11-25.1631"></script>
 <script>
+// Volver a entrar es abrir la app de nuevo: el Dashboard vuelve a mostrar
+// el logo animado (index.html lo muestra una sola vez por sesión).
+try { sessionStorage.removeItem('sb_intro_visto'); } catch (e) {}
 var msg = document.getElementById('msg');
 function show(t, type){ msg.textContent = t; msg.className = 'msg ' + type; }
 

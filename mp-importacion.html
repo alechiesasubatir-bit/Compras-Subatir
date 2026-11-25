@@ -339,7 +339,7 @@ textarea.inp{font-family:var(--mono);font-size:12px;min-height:150px;resize:vert
 .toast.info{background:rgba(27,200,255,.13);border:1px solid rgba(27,200,255,.35);color:var(--teal-l)}
 /* ── Proforma de costos ─────────────────────────────────── */
 .modal.pf{max-width:1080px}
-.aviso.est{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.38);color:#fcd34d}
+.aviso.estim{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.38);color:#fcd34d}
 .aviso .lnk{color:inherit;text-decoration:underline;cursor:pointer;font-weight:700;background:none;border:none;font-size:inherit;padding:0}
 .pf-top{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
 .pf-top .fg{margin-bottom:0}
@@ -387,14 +387,14 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.1156"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1156"/>
-<script src="supabase-config.js?v=2026-11-25.1156"></script>
-<script src="subatir-app.js?v=2026-11-25.1156"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.1206"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1206"/>
+<script src="supabase-config.js?v=2026-11-25.1206"></script>
+<script src="subatir-app.js?v=2026-11-25.1206"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.1156';
+window.APP_VER='2026-11-25.1206';
 </script>
 </head>
 <body>
@@ -406,7 +406,7 @@ window.APP_VER='2026-11-25.1156';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-25.1156"></script>
+  <script src="nav.js?v=2026-11-25.1206"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -417,7 +417,7 @@ window.APP_VER='2026-11-25.1156';
 
   <!-- Submódulos de Importaciones: los arma importaciones-tabs.js -->
   <div class="imp-tabs" id="imp-tabs" data-on="mero"></div>
-  <script src="importaciones-tabs.js?v=2026-11-25.1156"></script>
+  <script src="importaciones-tabs.js?v=2026-11-25.1206"></script>
 
   <!-- ══ Contexto: proveedor y corrida ══════════════════════ -->
   <div class="card ctx">
@@ -817,10 +817,10 @@ window.APP_VER='2026-11-25.1156';
      pantalla, porque sólo hace falta al apretar el botón. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="mp-oc-pdf.js?v=2026-11-25.1156"></script>
-<script src="mp-costeo.js?v=2026-11-25.1156"></script>
-<script src="xlsx-lite.js?v=2026-11-25.1156"></script>
-<script src="importaciones-export.js?v=2026-11-25.1156"></script>
+<script src="mp-oc-pdf.js?v=2026-11-25.1206"></script>
+<script src="mp-costeo.js?v=2026-11-25.1206"></script>
+<script src="xlsx-lite.js?v=2026-11-25.1206"></script>
+<script src="importaciones-export.js?v=2026-11-25.1206"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -1095,7 +1095,7 @@ function pintarAvisos(){
       ? '<b>ya pasaron '+p.dias+' días</b> desde la importación ('+fechaCorta(k.fecha_impo)+'): reclamale la liquidación al despachante.'
       : 'importación del '+fechaCorta(k.fecha_impo)+', la liquidación del despachante se espera entre el <b>'
         +fechaCorta(p.desde)+'</b> y el <b>'+fechaCorta(p.hasta)+'</b>'+(p.estado==='ventana'?' — <b>ya está en plazo</b>.':'.');
-    a.push({t:p.estado==='vencido'?'urg':'est',
+    a.push({t:p.estado==='vencido'?'urg':'estim',
       txt:'💲 <b>Proforma '+esc(c.oc_numero||c.nombre)+': costos ESTIMADOS.</b> Faltan los valores reales declarados por el despachante; '
          +cuando+' <button class="lnk" onclick="abrirProforma('+c.id+')">Abrir proforma</button>'});
   });
@@ -2431,7 +2431,7 @@ function pfPintar(soloNumeros){
   var p=MPCosteo.plazo(PF.fecha, hoyISO(), esReal);
 
   var av=[];
-  if(!esReal) av.push('<div class="aviso '+(p.estado==='vencido'?'urg':'est')+'"><b>ESTIMADO — faltan los valores reales declarados por el despachante.</b> '
+  if(!esReal) av.push('<div class="aviso '+(p.estado==='vencido'?'urg':'estim')+'"><b>ESTIMADO — faltan los valores reales declarados por el despachante.</b> '
     +'Importación del '+fechaCorta(PF.fecha)+': la liquidación se espera entre el <b>'+fechaCorta(p.desde)+'</b> y el <b>'+fechaCorta(p.hasta)+'</b> (20 a 30 días)'
     +(p.estado==='vencido' ? ' — <b>ya pasaron '+p.dias+' días, reclamarla.</b>' : p.estado==='ventana' ? ' — ya está en plazo.' : ' — van '+Math.max(0,p.dias)+' días.')
     +' Cuando llegue, cargá los importes en la columna <b>Real</b> y marcala como real.</div>');

@@ -337,6 +337,39 @@ textarea.inp{font-family:var(--mono);font-size:12px;min-height:150px;resize:vert
 .toast.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#86efac}
 .toast.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5}
 .toast.info{background:rgba(27,200,255,.13);border:1px solid rgba(27,200,255,.35);color:var(--teal-l)}
+/* ── Proforma de costos ─────────────────────────────────── */
+.modal.pf{max-width:1080px}
+.aviso.est{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.38);color:#fcd34d}
+.aviso .lnk{color:inherit;text-decoration:underline;cursor:pointer;font-weight:700;background:none;border:none;font-size:inherit;padding:0}
+.pf-top{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+.pf-top .fg{margin-bottom:0}
+.pf-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+.pf-grid > *{min-width:0}
+@media (max-width:900px){.pf-grid{grid-template-columns:1fr}}
+.pf-t thead th{position:static}
+.pf-t td{padding:4px 7px}
+.pf-t .precio{width:84px}
+.pf-t .precio.falta{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.5);color:#fca5a5}
+.pf-t td.costo{color:var(--teal-l);background:rgba(14,138,170,.07)}
+.pf-box{border:1px solid var(--border-b);border-radius:12px;padding:11px 12px;background:rgba(0,0,0,.18)}
+.pf-box h4{font-family:var(--display);font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted-l);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.pf-g{width:100%;border-collapse:collapse;font-size:11.5px}
+.pf-g td{padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.04)}
+.pf-g td:first-child{text-align:left;font-family:'DM Sans',sans-serif;color:var(--muted-l)}
+.pf-g td.v{text-align:right;font-family:var(--mono);white-space:nowrap}
+.pf-g .dato{width:92px}
+.pf-g tr.t td{font-weight:700;color:var(--text);border-top:1px solid var(--border-b)}
+.pf-tot{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.pf-tot div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 11px;border-radius:9px;
+  border:1px solid var(--border-b);font-size:11px}
+.pf-tot b{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.pf-tot .big{background:linear-gradient(135deg,var(--orange-d),var(--orange));border:none;color:#fff}
+.pf-tot .big b{font-size:17px}
+.pf-tot .pet{background:rgba(14,138,170,.16);border-color:rgba(27,200,255,.3);color:var(--teal-l)}
+.btn-warn{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.4);color:#fcd34d}
+.chip.est-e{background:rgba(245,158,11,.13);color:#fcd34d;border-color:rgba(245,158,11,.4)}
+.chip.est-r{background:rgba(34,197,94,.13);color:#4ade80;border-color:rgba(34,197,94,.4)}
 html{color-scheme:dark}
 select option{background:#0c1119;color:#e2e8f0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -354,14 +387,14 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-17.1039"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-17.1039"/>
-<script src="supabase-config.js?v=2026-11-17.1039"></script>
-<script src="subatir-app.js?v=2026-11-17.1039"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.1156"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1156"/>
+<script src="supabase-config.js?v=2026-11-25.1156"></script>
+<script src="subatir-app.js?v=2026-11-25.1156"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-17.1039';
+window.APP_VER='2026-11-25.1156';
 </script>
 </head>
 <body>
@@ -373,7 +406,7 @@ window.APP_VER='2026-11-17.1039';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-17.1039"></script>
+  <script src="nav.js?v=2026-11-25.1156"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -384,7 +417,7 @@ window.APP_VER='2026-11-17.1039';
 
   <!-- Submódulos de Importaciones: los arma importaciones-tabs.js -->
   <div class="imp-tabs" id="imp-tabs" data-on="mero"></div>
-  <script src="importaciones-tabs.js?v=2026-11-17.1039"></script>
+  <script src="importaciones-tabs.js?v=2026-11-25.1156"></script>
 
   <!-- ══ Contexto: proveedor y corrida ══════════════════════ -->
   <div class="card ctx">
@@ -405,6 +438,7 @@ window.APP_VER='2026-11-17.1039';
       <button class="btn btn-sm" onclick="openConfig()" title="Próxima revisión, categorías y temporada alta">⚙ Configuración</button>
       <button class="btn btn-sm" id="btn-cerrar" onclick="toggleCerrada()"></button>
       <button class="btn btn-sm" id="btn-oc" onclick="generarOC()">📄 Generar OC</button>
+      <button class="btn btn-sm" id="btn-pf" onclick="abrirProforma()" style="display:none">💲 Proforma</button>
       <button class="btn btn-sm btn-teal" onclick="openPegar()" title="Subir el Excel del sistema o pegar una columna de números">📋 Cargar datos</button>
       <button class="btn btn-sm" id="btn-pdf" onclick="exportPDF()" title="Reporte para imprimir: logo, corrida, KPIs y la tabla, en A4 apaisado">🖨 PDF</button>
       <button class="btn btn-sm" onclick="exportXLSX()" title="La misma tabla en Excel, con números que se pueden sumar y filtrar">⬇ Excel</button>
@@ -735,15 +769,58 @@ window.APP_VER='2026-11-17.1039';
   </div>
 </div>
 
+<!-- ══ MODAL: Proforma de costos de la OC ═════════════════ -->
+<div class="ovl" id="ovl-pf" role="dialog" aria-modal="true" aria-labelledby="t-pf">
+  <div class="modal pf">
+    <div class="modal-h"><span id="t-pf">💲 Proforma</span>
+      <button class="x" onclick="cerrarProforma()" aria-label="Cerrar">✕</button></div>
+    <div class="modal-b">
+      <div id="pf-aviso"></div>
+      <div class="pf-top">
+        <div class="fg"><label for="pf-fecha">Fecha de la importación</label>
+          <input class="inp" id="pf-fecha" type="date" onchange="pfTocar()"/></div>
+        <div class="fg"><label>Estado</label><span class="chip" id="pf-estado">—</span></div>
+        <div class="ctx-sp"></div>
+        <div class="hint" id="pf-ref" style="margin:0;max-width:420px"></div>
+      </div>
+      <div class="pf-grid">
+        <div class="twrap">
+          <table class="pf-t">
+            <thead><tr>
+              <th class="l">Artículo</th><th>Cant.</th><th class="in" title="Precio FCA de esta orden, en US$">P. FCA</th>
+              <th>Importe FCA</th><th title="Precio FCA + su parte de los gastos de importación">Costo unit.</th><th>Costo total</th>
+            </tr></thead>
+            <tbody id="pf-body"></tbody>
+          </table>
+        </div>
+        <div>
+          <div class="pf-box">
+            <h4><span>Gastos de importación</span><span id="pf-gcol">US$</span></h4>
+            <table class="pf-g" id="pf-gastos"></table>
+          </div>
+          <div class="pf-tot" id="pf-tot"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="cerrarProforma()">Cerrar</button>
+      <button class="btn" id="btn-pf-real" onclick="pfToggleReal()"></button>
+      <button class="btn btn-teal" id="btn-pf-save" onclick="pfGuardar()">Guardar</button>
+      <button class="btn btn-pri" id="btn-pf-pdf" onclick="pfPDF()">🖨 PDF Proforma</button>
+    </div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
 <!-- El papel de la Orden de Compra. Se carga acá abajo, después de la
      pantalla, porque sólo hace falta al apretar el botón. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="mp-oc-pdf.js?v=2026-11-17.1039"></script>
-<script src="xlsx-lite.js?v=2026-11-17.1039"></script>
-<script src="importaciones-export.js?v=2026-11-17.1039"></script>
+<script src="mp-oc-pdf.js?v=2026-11-25.1156"></script>
+<script src="mp-costeo.js?v=2026-11-25.1156"></script>
+<script src="xlsx-lite.js?v=2026-11-25.1156"></script>
+<script src="importaciones-export.js?v=2026-11-25.1156"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -767,6 +844,8 @@ var PRODUCTOS=[], PROD_ESC=[];   // recetas guardadas: producto y sus esencias
 var OCULTOS={};          // estados apagados desde la leyenda del gráfico
 var PEND={};             // ediciones sin guardar: articulo_id -> {campo:valor}
 var PEGADO=null;
+var COSTEOS={}, COSTEOS_OK=true;   // proforma de cada OC: corrida_id -> mp_costeos
+var PF=null;                       // la proforma abierta en el modal
 
 function esc(s){ return String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -938,7 +1017,12 @@ function cargarProveedor(){
             function(){ return {data:[],error:null}; }),
     SB.todo(function(){ return SB.from('mp_producto_esencias').select('*'); })
       .then(function(r){ return r.error ? {data:[],error:null} : r; },
-            function(){ return {data:[],error:null}; })
+            function(){ return {data:[],error:null}; }),
+    // Proformas. Sin mp_costeo.sql corrido, la pantalla sigue igual y
+    // el botón avisa qué falta.
+    SB.todo(function(){ return SB.from('mp_costeos').select('*').order('corrida_id'); }, {sinId:true})
+      .then(function(r){ COSTEOS_OK=!r.error; return r.error ? {data:[],error:null} : r; },
+            function(){ COSTEOS_OK=false; return {data:[],error:null}; })
   ]).then(function(r){
     var e=r.slice(0,3).find(function(x){ return x.error; });
     if(e){ falta(e.error); return; }
@@ -948,6 +1032,8 @@ function cargarProveedor(){
     OFERTAS=r[3].data||[];
     PRODUCTOS=r[4].data||[];
     PROD_ESC=r[5].data||[];
+    var ids={}; CORR.forEach(function(c){ ids[c.id]=1; });
+    COSTEOS={}; (r[6].data||[]).forEach(function(k){ if(ids[k.corrida_id]) COSTEOS[k.corrida_id]=k; });
     if(!PAR){ falta({message:'El proveedor no tiene parámetros cargados'}); return; }
     var sc=document.getElementById('f-corr');
     sc.innerHTML=CORR.map(function(c){
@@ -998,6 +1084,21 @@ function pintarAvisos(){
       +conOf.slice(0,3).map(function(f){ return f.art.nombre.replace('Esencia ','')+' +'+n0(f.c.ofertaPct)+'%'; }).join(' · ')
       +(conOf.length>3?' y '+(conOf.length-3)+' más':'')});
   }
+  // Proformas que siguen en ESTIMADO: de TODAS las OC del proveedor, no
+  // sólo de la corrida que se está mirando. Es plata que todavía no se
+  // sabe y no puede quedar escondida detrás de un selector.
+  CORR.forEach(function(c){
+    var k=COSTEOS[c.id];
+    if(!k || k.estado==='REAL') return;
+    var p=MPCosteo.plazo(k.fecha_impo, hoyISO(), false);
+    var cuando = p.estado==='vencido'
+      ? '<b>ya pasaron '+p.dias+' días</b> desde la importación ('+fechaCorta(k.fecha_impo)+'): reclamale la liquidación al despachante.'
+      : 'importación del '+fechaCorta(k.fecha_impo)+', la liquidación del despachante se espera entre el <b>'
+        +fechaCorta(p.desde)+'</b> y el <b>'+fechaCorta(p.hasta)+'</b>'+(p.estado==='ventana'?' — <b>ya está en plazo</b>.':'.');
+    a.push({t:p.estado==='vencido'?'urg':'est',
+      txt:'💲 <b>Proforma '+esc(c.oc_numero||c.nombre)+': costos ESTIMADOS.</b> Faltan los valores reales declarados por el despachante; '
+         +cuando+' <button class="lnk" onclick="abrirProforma('+c.id+')">Abrir proforma</button>'});
+  });
   h.innerHTML = a.map(function(x){
     return '<div class="aviso '+x.t+'">'+x.txt+'</div>'; }).join('');
 }
@@ -1033,6 +1134,14 @@ function pintarEstadoCorrida(){
           : 'Emitir la orden de compra con lo que quedó confirmado en esta corrida')
       : (sucias ? 'Guardá los cambios antes de emitir la orden'
                 : 'La orden se emite con la corrida cerrada: cerrala primero');
+  }
+  var pfb=document.getElementById('btn-pf');
+  if(pfb){
+    var k=COSTEOS[c.id];
+    pfb.style.display = c.oc_numero ? '' : 'none';
+    pfb.textContent = !k ? '💲 Proforma' : (k.estado==='REAL' ? '💲 Proforma · real' : '💲 Proforma · estimada');
+    pfb.className = 'btn btn-sm' + (k && k.estado!=='REAL' ? ' btn-warn' : '');
+    pfb.title = 'Costo de la orden '+(c.oc_numero||'')+' por artículo y total';
   }
 }
 // Cerrar es lo que separa "el pedido que estoy armando" de "el pedido
@@ -2204,6 +2313,12 @@ function generarOC(){
     var kg=grupos.reduce(function(t,g){ return t+g.lines.reduce(function(s,l){ return s+l.cant; },0); },0);
     toast('Orden '+numero+' generada · '+n0(kg)+' kg','ok');
     pintarEstadoCorrida();
+    // Cada OC lleva su Proforma: la primera vez se crea sola, en
+    // ESTIMADO, y se abre para revisar precios y bajar el PDF.
+    if(!COSTEOS[c.id] && COSTEOS_OK){
+      crearCosteo(c).then(function(){ pintarAvisos(); pintarEstadoCorrida(); abrirProforma(c.id); })
+        .catch(function(e){ toast('La OC salió, pero no se pudo crear la proforma: '+((e&&e.message)||e),'err'); });
+    }
   }).catch(function(e){
     var m=(e&&e.message)||String(e);
     toast(/oc_numero|column|schema cache/i.test(m)
@@ -2211,6 +2326,249 @@ function generarOC(){
       : 'No se pudo emitir la orden: '+m, 'err');
     pintarEstadoCorrida();
   });
+}
+
+// ══ PROFORMA: costo de la OC ══════════════════════════════════
+//  Una por OC (mp_costeos, clave corrida_id). La cuenta vive en
+//  mp-costeo.js y el papel en mp-oc-pdf.js; acá sólo se junta lo que
+//  hace falta y se guarda.
+//
+//  Mientras el despachante no liquida (20 a 30 días) los gastos son
+//  ESTIMADOS sobre una referencia que se copia al crear el costeo, así
+//  la proforma no cambia sola. Al cargar los reales pasa a REAL, y ese
+//  costeo se vuelve la referencia de la próxima OC.
+function hoyISO(){ var d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+function usd(v,d){ d=d==null?2:d; return (parseFloat(v)||0).toLocaleString('es-UY',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function unidadDe(a){ return /^\s*esencia/i.test(a.nombre||'') ? 'kg' : 'un'; }
+
+// La referencia para estimar: el último costeo REAL del proveedor o,
+// si no hay, la de los parámetros (factura 293).
+function refParaNueva(){
+  var lista=CORR.map(function(c){
+    var k=COSTEOS[c.id]; if(!k) return null;
+    return {estado:k.estado, fecha_impo:k.fecha_impo, gastos_real:k.gastos_real,
+            fca_real:k.gastos_real && k.gastos_real.fca_orden, oc:c.oc_numero};
+  }).filter(Boolean);
+  return MPCosteo.referencia(lista, PAR && PAR.costeo_ref);
+}
+function crearCosteo(c){
+  var ref=refParaNueva();
+  if(!ref) return Promise.reject(new Error('no hay costeo de referencia (falta correr migracion/mp_costeo.sql)'));
+  var precios={};
+  filas().forEach(function(f){
+    if(num(f.d.compra_confirmada)>0 && f.art.precio_usd!=null) precios[f.art.id]=num(f.art.precio_usd);
+  });
+  return SB.from('mp_costeos').insert({corrida_id:c.id, fecha_impo:hoyISO(), estado:'ESTIMADO',
+      precios:precios, ref:ref, created_by:(SubatirApp.getProfile()||{}).full_name||''})
+    .select().then(function(r){
+      if(r.error) throw r.error;
+      if(!r.data || !r.data.length) throw new Error('la base no devolvió la fila (¿permisos del módulo?)');
+      COSTEOS[c.id]=r.data[0];
+      return r.data[0];
+    });
+}
+
+function abrirProforma(corrId){
+  corrId = corrId || CUR_CORR;
+  if(!COSTEOS_OK){ toast('Falta correr migracion/mp_costeo.sql en Supabase','err'); return; }
+  var c=CORR.filter(function(x){ return x.id===corrId; })[0];
+  if(!c || !c.oc_numero){ toast('La proforma sale de una corrida con OC emitida','err'); return; }
+  // Los artículos salen de los datos de ESA corrida: si se abre desde un
+  // aviso de otra, primero se cambia la pantalla a esa corrida.
+  if(corrId!==CUR_CORR){
+    if(Object.keys(PEND).length){ toast('Guardá los cambios antes de cambiar de corrida','err'); return; }
+    CUR_CORR=corrId; document.getElementById('f-corr').value=corrId;
+    cargarCorrida().then(function(){ abrirProforma(corrId); });
+    return;
+  }
+  var k=COSTEOS[c.id];
+  if(!k){
+    crearCosteo(c).then(function(){ pintarAvisos(); pintarEstadoCorrida(); abrirProforma(c.id); })
+      .catch(function(e){ toast('No se pudo crear la proforma: '+((e&&e.message)||e),'err'); });
+    return;
+  }
+  var real=k.gastos_real ? JSON.parse(JSON.stringify(k.gastos_real)) : {};
+  PF={c:c, k:k, precios:JSON.parse(JSON.stringify(k.precios||{})), real:real,
+      estado:k.estado, fecha:k.fecha_impo, sucio:false};
+  document.getElementById('t-pf').textContent='💲 Proforma · '+c.oc_numero;
+  document.getElementById('pf-fecha').value=PF.fecha;
+  pfPintar();
+  abrir('ovl-pf');
+}
+function cerrarProforma(){
+  if(PF && PF.sucio && !confirm('Hay cambios sin guardar en la proforma. ¿Cerrar igual?')) return;
+  PF=null; cerrar('ovl-pf');
+}
+
+// Las líneas de la OC: lo confirmado, agrupado igual que el papel de la OC
+function pfLineas(){
+  return filas().filter(function(f){ return num(f.d.compra_confirmada)>0; }).map(function(f){
+    var p=PF.precios[f.art.id];
+    return {id:f.art.id, desc:f.art.nombre, cod:f.art.codigo||'', grupo:f.art.grupo||'Artículos',
+            cant:num(f.d.compra_confirmada), unidad:unidadDe(f.art), precio:(p==null||p==='')?null:p};
+  });
+}
+function pfCalc(real){
+  return MPCosteo.calcular({lineas:pfLineas(), ref:PF.k.ref,
+    real: real===undefined ? (PF.estado==='REAL' ? PF.real : null) : real});
+}
+function pfTocar(){ PF.fecha=document.getElementById('pf-fecha').value||PF.fecha; PF.sucio=true; pfPintar(); }
+// "1.234,56" o "1234.56" o "0,77" → número; vacío → null.
+// Con coma, la coma es el decimal y los puntos son miles; sin coma, el
+// punto es decimal (así "0.77" no se convierte en 77).
+function leerUsd(s){
+  s=String(s==null?'':s).trim().replace(/\s|US\$|U\$S|\$/gi,'');
+  if(s==='') return null;
+  if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.');
+  var x=parseFloat(s); return isNaN(x) ? null : x;
+}
+function pfPrecio(id,el){ PF.precios[id]=leerUsd(el.value); PF.sucio=true; pfPintar(true); }
+function pfReal(k,el){ PF.real[k]=leerUsd(el.value); PF.sucio=true; pfPintar(true); }
+
+// soloNumeros: no repinta los inputs (si no, se pierde el foco al tipear)
+function pfPintar(soloNumeros){
+  var esReal=PF.estado==='REAL', calc=pfCalc(), est=pfCalc(null);
+  var p=MPCosteo.plazo(PF.fecha, hoyISO(), esReal);
+
+  var av=[];
+  if(!esReal) av.push('<div class="aviso '+(p.estado==='vencido'?'urg':'est')+'"><b>ESTIMADO — faltan los valores reales declarados por el despachante.</b> '
+    +'Importación del '+fechaCorta(PF.fecha)+': la liquidación se espera entre el <b>'+fechaCorta(p.desde)+'</b> y el <b>'+fechaCorta(p.hasta)+'</b> (20 a 30 días)'
+    +(p.estado==='vencido' ? ' — <b>ya pasaron '+p.dias+' días, reclamarla.</b>' : p.estado==='ventana' ? ' — ya está en plazo.' : ' — van '+Math.max(0,p.dias)+' días.')
+    +' Cuando llegue, cargá los importes en la columna <b>Real</b> y marcala como real.</div>');
+  if(calc.sinPrecio.length) av.push('<div class="aviso urg"><b>'+calc.sinPrecio.length+' artículo'+(calc.sinPrecio.length===1?'':'s')+' sin precio:</b> '
+    +calc.sinPrecio.map(function(l){ return esc(l.desc); }).join(', ')+'. El total está incompleto hasta cargarlos.</div>');
+  document.getElementById('pf-aviso').innerHTML=av.join('');
+  var ch=document.getElementById('pf-estado');
+  ch.textContent = esReal ? '✔ REAL' : '⏳ ESTIMADO'; ch.className='chip '+(esReal?'est-r':'est-e');
+  var ref=PF.k.ref||{};
+  document.getElementById('pf-ref').innerHTML = esReal
+    ? 'Gastos según la liquidación del despachante'+(PF.k.real_by?' · cargada por '+esc(PF.k.real_by):'')+'.'
+    : 'Estimado sobre <b>'+esc(ref.origen||'la referencia')+'</b> (FCA US$ '+usd(ref.fca)+'), escalado ×'+usd(calc.factor,4)+' al FCA de esta orden.';
+
+  // Tabla de artículos
+  if(!soloNumeros){
+    var h='';
+    calc.grupos.forEach(function(g){
+      h+='<tr class="grp"><td colspan="6">'+esc(g.titulo)+'</td></tr>';
+      g.lineas.forEach(function(l){
+        h+='<tr data-id="'+l.id+'"><td class="l"><div class="art" title="'+esc(l.desc)+'">'+esc(l.desc)+'</div><span class="cod">'+esc(l.cod)+'</span></td>'
+          +'<td>'+n0(l.cant)+' '+l.unidad+'</td>'
+          +'<td><input class="dato precio'+(l.sinPrecio?' falta':'')+'" inputmode="decimal" value="'+(l.precio==null?'':String(l.precio).replace('.',','))+'"'
+          +' onchange="pfPrecio('+l.id+',this)" aria-label="Precio FCA de '+esc(l.desc)+'"/></td>'
+          +'<td class="f-imp"></td><td class="costo f-cu"></td><td class="costo f-ct"></td></tr>';
+      });
+      h+='<tr class="tot" data-g="'+esc(g.titulo)+'"><td class="l">Subtotal '+esc(g.titulo)+'</td><td></td><td></td><td class="g-fca"></td><td></td><td class="costo g-c"></td></tr>';
+    });
+    document.getElementById('pf-body').innerHTML=h || '<tr><td colspan="6" class="empty">Esta corrida no tiene compra confirmada.</td></tr>';
+  }
+  var porId={}; calc.lineas.forEach(function(l){ porId[l.id]=l; });
+  document.querySelectorAll('#pf-body tr[data-id]').forEach(function(tr){
+    var l=porId[tr.getAttribute('data-id')]; if(!l) return;
+    tr.querySelector('.f-imp').textContent=usd(l.importe);
+    tr.querySelector('.f-cu').textContent=usd(l.costoUnit, l.costoUnit<1?4:2);
+    tr.querySelector('.f-ct').textContent=usd(l.costoTotal);
+    tr.querySelector('.precio').classList.toggle('falta', l.sinPrecio);
+  });
+  var porG={}; calc.grupos.forEach(function(g){ porG[g.titulo]=g; });
+  document.querySelectorAll('#pf-body tr[data-g]').forEach(function(tr){
+    var g=porG[tr.getAttribute('data-g')]; if(!g) return;
+    tr.querySelector('.g-fca').textContent=usd(g.fca);
+    tr.querySelector('.g-c').textContent=usd(g.costo);
+  });
+
+  // Gastos: estimado al lado de lo que declare el despachante
+  if(!soloNumeros){
+    var gh='<tr><td></td><td class="v" style="color:var(--muted)">Estimado</td><td class="v" style="color:var(--gold)">Real</td></tr>';
+    MPCosteo.CONCEPTOS.concat([{k:'iva_imp',t:'IVA importación (22%)',iva:true},{k:'iva_ant',t:'Anticipo IVA (10%)',iva:true}])
+    .forEach(function(c){
+      var v=PF.real[c.k];
+      gh+='<tr><td>'+esc(c.t)+'</td><td class="v e-'+c.k+'"></td><td class="v"><input class="dato" inputmode="decimal" value="'
+        +(v==null?'':String(v).replace('.',','))+'" placeholder="'+(c.iva?'opcional':'')+'" onchange="pfReal(\''+c.k+'\',this)" aria-label="'+esc(c.t)+' real"/></td></tr>';
+    });
+    gh+='<tr class="t"><td>Total gastos</td><td class="v e-tot"></td><td class="v r-tot"></td></tr>';
+    document.getElementById('pf-gastos').innerHTML=gh;
+  }
+  MPCosteo.CONCEPTOS.forEach(function(c){ document.querySelector('#pf-gastos .e-'+c.k).textContent=usd(est.gastos[c.k]); });
+  document.querySelector('#pf-gastos .e-iva_imp').textContent=usd(est.ivaImp);
+  document.querySelector('#pf-gastos .e-iva_ant').textContent=usd(est.ivaAnt);
+  document.querySelector('#pf-gastos .e-tot').textContent=usd(est.totGastos);
+  var rt=MPCosteo.CONCEPTOS.reduce(function(t,c){ return t+num(PF.real[c.k]); },0);
+  document.querySelector('#pf-gastos .r-tot').textContent=pfRealCompleto()?usd(rt):'—';
+  document.getElementById('pf-gcol').textContent='incidencia '+usd(calc.inc*100)+'%';
+
+  document.getElementById('pf-tot').innerHTML=
+     '<div><span>Valor FCA</span><b>US$ '+usd(calc.fca)+'</b></div>'
+    +'<div><span>Valor CIF'+(esReal?'':' estimado')+'</span><b>US$ '+usd(calc.cif)+'</b></div>'
+    +'<div><span>+ Gastos de importación</span><b>US$ '+usd(calc.totGastos)+'</b></div>'
+    +'<div class="big"><span>COSTO TOTAL '+(esReal?'REAL':'ESTIMADO')+'</span><b>US$ '+usd(calc.costo)+'</b></div>'
+    +'<div class="pet"><span>IVA + anticipo (crédito)</span><b>US$ '+usd(calc.ivaImp+calc.ivaAnt)+'</b></div>'
+    +'<div><span>Desembolso total</span><b>US$ '+usd(calc.desembolso)+'</b></div>';
+
+  var br=document.getElementById('btn-pf-real');
+  br.textContent = esReal ? '↩ Volver a estimado' : '✔ Marcar como REAL';
+  br.title = esReal ? 'Volver a usar los gastos estimados' : 'Usar los importes reales del despachante (los 7 conceptos tienen que estar cargados)';
+  document.getElementById('btn-pf-save').disabled=!PF.sucio;
+}
+function pfRealCompleto(){
+  return MPCosteo.CONCEPTOS.every(function(c){ var v=PF.real[c.k]; return v!=null && v!=='' && !isNaN(v); });
+}
+function pfToggleReal(){
+  if(PF.estado!=='REAL'){
+    if(!pfRealCompleto()){ toast('Cargá los 7 importes reales del despachante (un 0 si no hubo)','err'); return; }
+    PF.estado='REAL';
+  } else {
+    if(!confirm('¿Volver la proforma a ESTIMADO? Los importes reales quedan cargados.')) return;
+    PF.estado='ESTIMADO';
+  }
+  PF.sucio=true; pfGuardar().catch(function(){ if(PF) pfPintar(); });
+}
+function pfGuardar(){
+  if(!PF) return Promise.resolve();
+  var esReal=PF.estado==='REAL', calc=pfCalc();
+  var gr=null;
+  if(Object.keys(PF.real).some(function(k){ return PF.real[k]!=null && k!=='fca_orden'; })){
+    gr=JSON.parse(JSON.stringify(PF.real));
+    gr.fca_orden=calc.fca;   // para que sirva de referencia a la próxima OC
+  }
+  var quien=(SubatirApp.getProfile()||{}).full_name||'';
+  var upd={fecha_impo:PF.fecha, precios:PF.precios, gastos_real:gr, estado:PF.estado, updated_at:new Date().toISOString()};
+  if(esReal && PF.k.estado!=='REAL'){ upd.real_at=new Date().toISOString(); upd.real_by=quien; }
+  var b=document.getElementById('btn-pf-save'); b.disabled=true;
+  return SB.from('mp_costeos').update(upd).eq('corrida_id',PF.c.id).select().then(function(r){
+    if(r.error) throw r.error;
+    if(!r.data || !r.data.length) throw new Error('la base no devolvió la fila (¿permisos del módulo?)');
+    COSTEOS[PF.c.id]=PF.k=r.data[0];
+    // El precio de esta orden pasa a ser el último conocido del artículo
+    var cambios=ART.filter(function(a){
+      var p=PF.precios[a.id]; return p!=null && p!=='' && num(p)>0 && num(a.precio_usd)!==num(p);
+    });
+    return Promise.all(cambios.map(function(a){
+      return SB.from('mp_articulos').update({precio_usd:num(PF.precios[a.id])}).eq('id',a.id).select().then(function(x){
+        if(!x.error && x.data && x.data.length) a.precio_usd=x.data[0].precio_usd;
+      });
+    }));
+  }).then(function(){
+    PF.sucio=false;
+    toast(esReal ? 'Proforma guardada con los costos REALES' : 'Proforma guardada (estimada)','ok');
+    pfPintar(); pintarAvisos(); pintarEstadoCorrida();
+  }).catch(function(e){
+    if(PF) PF.estado=PF.k.estado;   // lo que quedó en la base
+    b.disabled=false;
+    toast('No se pudo guardar la proforma: '+((e&&e.message)||e),'err');
+    throw e;
+  });
+}
+function pfPDF(){
+  if(!window.MPOCPdf || !MPOCPdf.disponible()){ toast('No se pudo cargar el generador de PDF (revisá tu conexión)','err'); return; }
+  var paso = PF.sucio ? pfGuardar() : Promise.resolve();
+  paso.then(function(){
+    var esReal=PF.estado==='REAL';
+    MPOCPdf.proforma({
+      numero:PF.c.oc_numero, proveedor:nombreProv(), fechaImpo:PF.fecha, real:esReal,
+      plazo:MPCosteo.plazo(PF.fecha, hoyISO(), esReal), refOrigen:(PF.k.ref||{}).origen,
+      calc:pfCalc(), conceptos:MPCosteo.CONCEPTOS
+    });
+  }).catch(function(e){ toast('No se pudo generar el PDF: '+((e&&e.message)||e),'err'); });
 }
 
 // ══ EXPORTAR ══════════════════════════════════════════════════

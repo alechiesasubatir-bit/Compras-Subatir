@@ -106,28 +106,7 @@ window.MPOCPdf = (function(){
       return y;
     }
 
-    // ══ Membrete ══════════════════════════════════════════════
-    var logoH = 54, logoW = logoH * LOGO_AR;
-    dibujarLogo(doc, M, 30, logoW, logoH);
-
-    doc.setFont('helvetica','bold'); doc.setFontSize(19); txt(BK);
-    doc.text(EMPRESA.nombre, M + logoW + 14, 58);
-
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); txt(GRIS);
-    var ry = 42;
-    EMPRESA.dir.forEach(function(l){ doc.text(l, W-M, ry, {align:'right'}); ry += 11.5; });
-    doc.setFont('helvetica','bold'); txt(BK);
-    doc.text(EMPRESA.ruc, W-M, ry+4, {align:'right'});
-
-    var y = Math.max(30 + logoH, ry + 8) + 10;
-    line(OR); doc.setLineWidth(1.6); doc.line(M, y, W-M, y);
-    y += 15;
-
-    // ══ Titulo ════════════════════════════════════════════════
-    fill(OR); doc.roundedRect(M, y, W-2*M, 26, 5, 5, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(15); txt([255,255,255]);
-    doc.text('ORDEN DE COMPRA', W/2, y+18, {align:'center'});
-    y += 26 + 11;
+    var y = membrete(doc, M, 'ORDEN DE COMPRA');
 
     // ══ Datos de la orden (2 x 2) ═════════════════════════════
     var bw = W - 2*M, bh = 60, half = bw/2;
@@ -231,6 +210,240 @@ window.MPOCPdf = (function(){
     doc.save((oc.numero || 'ORDEN-DE-COMPRA') + '.pdf');
   }
 
+  // ══ Membrete + banda de titulo ════════════════════════════
+  // Compartido por la OC y la Proforma: los dos papeles salen con la
+  // misma cabecera. Devuelve la y donde sigue el contenido.
+  function membrete(doc, M, titulo, sub){
+    var W = doc.internal.pageSize.getWidth();
+    var logoH = 54, logoW = logoH * LOGO_AR;
+    dibujarLogo(doc, M, 30, logoW, logoH);
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(19); doc.setTextColor(BK[0],BK[1],BK[2]);
+    doc.text(EMPRESA.nombre, M + logoW + 14, 58);
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(GRIS[0],GRIS[1],GRIS[2]);
+    var ry = 42;
+    EMPRESA.dir.forEach(function(l){ doc.text(l, W-M, ry, {align:'right'}); ry += 11.5; });
+    doc.setFont('helvetica','bold'); doc.setTextColor(BK[0],BK[1],BK[2]);
+    doc.text(EMPRESA.ruc, W-M, ry+4, {align:'right'});
+
+    var y = Math.max(30 + logoH, ry + 8) + 10;
+    doc.setDrawColor(OR[0],OR[1],OR[2]); doc.setLineWidth(1.6); doc.line(M, y, W-M, y);
+    y += 15;
+
+    var h = sub ? 36 : 26;
+    doc.setFillColor(OR[0],OR[1],OR[2]); doc.roundedRect(M, y, W-2*M, h, 5, 5, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255,255,255);
+    doc.text(titulo, W/2, y+18, {align:'center'});
+    if(sub){
+      doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      doc.text(sub, W/2, y+30, {align:'center'});
+    }
+    return y + h + 11;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  PROFORMA — costo de la OC por artículo y total
+  //
+  //  pf = { numero, proveedor, fechaImpo, real:bool,
+  //         plazo:{desde,hasta,dias,estado}, refOrigen,
+  //         calc: MPCosteo.calcular(...), conceptos: MPCosteo.CONCEPTOS }
+  //
+  //  Mientras sea ESTIMADO lo dice tres veces —en la banda del titulo,
+  //  en un recuadro ambar arriba de la tabla y en el pie de cada hoja—
+  //  porque este papel circula y alguien va a querer usar el número
+  //  como definitivo.
+  // ══════════════════════════════════════════════════════════════
+  var AMBAR = [180,83,9], AMBAR_F = [254,243,199];
+  var PET = [13,74,90], PET_F = [232,243,246];
+
+  function fmtUsd(n, d){
+    d = d == null ? 2 : d;
+    return (parseFloat(n)||0).toLocaleString('es-UY', {minimumFractionDigits:d, maximumFractionDigits:d});
+  }
+
+  // Precio unitario: 2 decimales, hasta 4 si los tiene (frasco a 0,77 → 0,77)
+  function fmtPrecio(n){
+    return (parseFloat(n)||0).toLocaleString('es-UY', {minimumFractionDigits:2, maximumFractionDigits:4});
+  }
+
+  function proforma(pf){
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      throw new Error('No se pudo cargar el generador de PDF (revisá tu conexión).');
+    }
+    var k = pf.calc;
+    var doc = new window.jspdf.jsPDF({unit:'pt', format:'a4', orientation:'portrait'});
+    var W = doc.internal.pageSize.getWidth();
+    var H = doc.internal.pageSize.getHeight();
+    var M = 30, PIE = 30;
+    function txt(c){  doc.setTextColor(c[0],c[1],c[2]); }
+    function fill(c){ doc.setFillColor(c[0],c[1],c[2]); }
+    function line(c){ doc.setDrawColor(c[0],c[1],c[2]); }
+    function sitio(y, alto){
+      if(y + alto > H - PIE){ doc.addPage(); return M + 10; }
+      return y;
+    }
+
+    var y = membrete(doc, M, 'PROFORMA', pf.real
+      ? 'COSTOS REALES · LIQUIDACIÓN DEL DESPACHANTE'
+      : 'COSTOS ESTIMADOS · FALTAN LOS VALORES REALES DEL DESPACHANTE');
+
+    // ── Datos (4 en fila) ──
+    var bw = W - 2*M, bh = 32, q = bw/4;
+    line(OR); doc.setLineWidth(0.9); doc.roundedRect(M, y, bw, bh, 5, 5, 'S');
+    doc.setLineWidth(0.7);
+    [1,2,3].forEach(function(i){ doc.line(M+q*i, y, M+q*i, y+bh); });
+    [['OC', pf.numero], ['FECHA IMPORTACIÓN', fmtDate(pf.fechaImpo)],
+     ['PROVEEDOR · MONEDA', pf.proveedor + ' · US$'], ['ESTADO', pf.real ? 'REAL' : 'ESTIMADO']]
+    .forEach(function(c, i){
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); txt(OR);
+      doc.text(c[0], M+q*i+9, y+11);
+      doc.setFontSize(10.5); txt(i===3 && !pf.real ? AMBAR : BK);
+      doc.text(String(c[1]||'—'), M+q*i+9, y+25);
+    });
+    y += bh + 9;
+
+    // ── Aviso de estimado ──
+    if(!pf.real){
+      var p = pf.plazo || {};
+      var l1 = 'ESTIMADO — todavía faltan los valores reales declarados por el despachante.';
+      var l2 = 'Importación del ' + fmtDate(pf.fechaImpo) + '. La liquidación se espera entre el '
+             + fmtDate(p.desde) + ' y el ' + fmtDate(p.hasta) + ' (20 a 30 días)'
+             + (p.estado==='vencido' ? ' — YA PASARON ' + p.dias + ' DÍAS: RECLAMAR.' : '.');
+      var l3 = 'Gastos estimados sobre ' + (pf.refOrigen||'la referencia') + ' (incidencia '
+             + fmtUsd(k.inc*100) + '% s/FCA). No usar como costo definitivo.';
+      fill(AMBAR_F); line(AMBAR); doc.setLineWidth(0.9);
+      doc.roundedRect(M, y, bw, 44, 5, 5, 'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); txt(AMBAR);
+      doc.text(l1, M+10, y+13);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.8);
+      doc.text(l2, M+10, y+25);
+      doc.text(doc.splitTextToSize(l3, bw-20)[0], M+10, y+36);
+      y += 44 + 6;
+    }
+
+    // ── Una tabla por grupo ──
+    k.grupos.forEach(function(g){
+      y = sitio(y, 70);
+      fill(SUAVE); line(OR); doc.setLineWidth(0.8);
+      doc.roundedRect(M, y, bw, 18, 4, 4, 'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); txt(OR);
+      doc.text(String(g.titulo).toUpperCase(), M+10, y+12.5);
+      doc.text('FCA US$ ' + fmtUsd(g.fca) + '  ·  Costo ' + (pf.real?'real':'est.') + ' US$ ' + fmtUsd(g.costo),
+               W-M-10, y+12.5, {align:'right'});
+      y += 18;
+      doc.autoTable({
+        startY: y,
+        head: [['ÍTEM','DESCRIPCIÓN','CÓD.','CANT.','P. UNIT. FCA','IMPORTE FCA',
+                'COSTO UNIT.' + (pf.real?'':' EST.'), 'COSTO TOTAL' + (pf.real?'':' EST.')]],
+        body: g.lineas.map(function(l, i){
+          return [String(i+1), l.desc, l.cod || '—', fmtKg(l.cant) + ' ' + l.unidad,
+                  l.sinPrecio ? 'SIN PRECIO' : fmtPrecio(l.precio), fmtUsd(l.importe),
+                  fmtUsd(l.costoUnit, l.costoUnit < 1 ? 4 : 2), fmtUsd(l.costoTotal)];
+        }),
+        theme: 'grid',
+        margin: {left:M, right:M, top:M+10, bottom:PIE},
+        styles: {fontSize:7.6, cellPadding:1.9, valign:'middle', lineColor:LINEA, lineWidth:0.5, textColor:BK},
+        headStyles: {fillColor:[38,38,38], textColor:255, fontStyle:'bold', fontSize:7, cellPadding:4, halign:'center'},
+        alternateRowStyles: {fillColor:CEBRA},
+        columnStyles: {0:{cellWidth:26, halign:'center', textColor:GRIS},
+                       1:{halign:'left', fontStyle:'bold'},
+                       2:{cellWidth:44, halign:'center', textColor:GRIS},
+                       3:{cellWidth:52, halign:'right'},
+                       4:{cellWidth:56, halign:'right'},
+                       5:{cellWidth:62, halign:'right'},
+                       6:{cellWidth:58, halign:'right', fillColor:PET_F},
+                       7:{cellWidth:66, halign:'right', fillColor:PET_F, fontStyle:'bold'}},
+        didParseCell: function(d){
+          if(d.section==='head' && d.column.index>=6) d.cell.styles.fillColor = PET;
+          if(d.section==='body' && d.column.index===4 && d.cell.raw==='SIN PRECIO'){
+            d.cell.styles.textColor = [200,30,30]; d.cell.styles.fontStyle = 'bold';
+          }
+        }
+      });
+      y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 8;
+    });
+
+    // ── Gastos (izq) y totales (der) ──
+    var nC = pf.conceptos.length;
+    var altoG = 18 + (nC+1)*12 + 6;
+    y = sitio(y, Math.max(altoG, 5*19 + 23) + 4);
+    var gw = bw*0.52, tx = M + gw + 10, tw = bw - gw - 10;
+
+    line(OR); doc.setLineWidth(0.8); fill(SUAVE);
+    doc.roundedRect(M, y, gw, 18, 4, 4, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); txt(OR);
+    doc.text('GASTOS DE IMPORTACIÓN ' + (pf.real?'REALES':'ESTIMADOS') + ' (US$)', M+9, y+12.5);
+    var gy = y + 18 + 11;
+    pf.conceptos.forEach(function(c){
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); txt(BK);
+      doc.text(c.t, M+9, gy);
+      doc.text(fmtUsd(k.gastos[c.k]), M+gw-9, gy, {align:'right'});
+      line(LINEA); doc.setLineWidth(0.4); doc.line(M+6, gy+3.5, M+gw-6, gy+3.5);
+      gy += 12;
+    });
+    doc.setFont('helvetica','bold'); txt(BK);
+    doc.text('Total · incidencia ' + fmtUsd(k.inc*100) + '% s/FCA', M+9, gy+1);
+    doc.text(fmtUsd(k.totGastos), M+gw-9, gy+1, {align:'right'});
+    line(OR); doc.setLineWidth(0.8);
+    doc.roundedRect(M, y, gw, gy + 7 - y, 4, 4, 'S');
+
+    var filas = [
+      ['VALOR FCA', k.fca, 'n'], ['VALOR CIF' + (pf.real?'':' ESTIMADO'), k.cif, 'n'],
+      ['+ GASTOS DE IMPORTACIÓN', k.totGastos, 'n'],
+      ['COSTO TOTAL' + (pf.real?' REAL':' ESTIMADO'), k.costo, 'big'],
+      ['IVA IMPORT. 22% + ANTICIPO 10% (crédito)', k.ivaImp + k.ivaAnt, 'pet'],
+      ['DESEMBOLSO TOTAL' + (pf.real?'':' ESTIMADO'), k.desembolso, 'n']
+    ];
+    var ty = y;
+    filas.forEach(function(f){
+      var h = f[2]==='big' ? 22 : 16;
+      if(f[2]==='big'){ fill(OR); doc.roundedRect(tx, ty, tw, h, 4, 4, 'F'); }
+      else if(f[2]==='pet'){ fill(PET); doc.roundedRect(tx, ty, tw, h, 4, 4, 'F'); }
+      else { line(OR); doc.setLineWidth(0.8); doc.roundedRect(tx, ty, tw, h, 4, 4, 'S'); }
+      var claro = f[2]!=='n';
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); txt(claro ? [255,255,255] : OR);
+      doc.text(f[0], tx+8, ty + h/2 + 2.5);
+      doc.setFontSize(f[2]==='big' ? 13 : 9.5); txt(claro ? [255,255,255] : BK);
+      doc.text('US$ ' + fmtUsd(f[1]), tx+tw-8, ty + h/2 + 3.5, {align:'right'});
+      ty += h + 3;
+    });
+    y = Math.max(gy + 7, ty) + 8;
+
+    // ── Nota ──
+    var kg = 0, un = 0;
+    k.lineas.forEach(function(l){ if(l.unidad==='kg') kg += l.cant; else un += l.cant; });
+    var nota = [
+      'Cantidades: ' + fmtKg(kg) + ' kg' + (un ? ' · ' + fmtKg(un) + ' un' : '') + '.  Precios FCA de la orden en US$.',
+      pf.real
+        ? 'Gastos según liquidación del despachante. Costo unitario = precio FCA × ' + fmtUsd(1+k.inc, 4) + '.'
+        : 'Gastos estimados sobre ' + (pf.refOrigen||'la referencia') + ', escalados por valor FCA. Costo unitario estimado = precio FCA × '
+          + fmtUsd(1+k.inc, 4) + '. Se reemplaza al cargar la liquidación real.',
+      'El costo no incluye IVA de importación ni anticipo de IVA (crédito fiscal).'
+    ];
+    if(k.sinPrecio.length) nota.push('ATENCIÓN: ' + k.sinPrecio.length + ' artículo(s) sin precio — el total está incompleto.');
+    y = sitio(y, nota.length*10 + 4);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); txt(GRIS);
+    nota.forEach(function(s){
+      doc.splitTextToSize(s, bw).forEach(function(t){ doc.text(t, M, y); y += 9.5; });
+    });
+
+    // ── Pie ──
+    var n = doc.internal.getNumberOfPages();
+    var izq = EMPRESA.nombre + ' · Proforma de ' + pf.numero
+            + (pf.real ? ' · COSTOS REALES' : ' · ESTIMADO, sujeto a la liquidación del despachante')
+            + ' · Generado el ' + new Date().toLocaleString('es-UY');
+    for(var i=1; i<=n; i++){
+      doc.setPage(i);
+      doc.setFont('helvetica', pf.real ? 'normal' : 'bold'); doc.setFontSize(7.2);
+      txt(pf.real ? [155,155,155] : AMBAR);
+      doc.text(izq, M, H-18);
+      doc.setFont('helvetica','normal'); txt([155,155,155]);
+      doc.text('Página ' + i + ' de ' + n, W-M, H-18, {align:'right'});
+    }
+    doc.save('Proforma-' + String(pf.numero||'OC').replace(/^OC-/,'') + (pf.real?'':'-ESTIMADA') + '.pdf');
+  }
+
   // Recuadro de firma: la linea y las dos etiquetas de abajo.
   function firma(doc, x, y, w, titulo){
     var h = 50;
@@ -263,5 +476,5 @@ window.MPOCPdf = (function(){
   // Para que la pantalla pueda avisar antes en vez de reventar al clic.
   function disponible(){ return !!(window.jspdf && window.jspdf.jsPDF); }
 
-  return { build: build, disponible: disponible };
+  return { build: build, proforma: proforma, disponible: disponible };
 })();

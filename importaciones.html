@@ -259,14 +259,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.1534"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1534"/>
-<script src="supabase-config.js?v=2026-11-25.1534"></script>
-<script src="subatir-app.js?v=2026-11-25.1534"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.1543"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1543"/>
+<script src="supabase-config.js?v=2026-11-25.1543"></script>
+<script src="subatir-app.js?v=2026-11-25.1543"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.1534';
+window.APP_VER='2026-11-25.1543';
 </script>
 </head>
 <body>
@@ -277,7 +277,7 @@ window.APP_VER='2026-11-25.1534';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-11-25.1534"></script>
+  <script src="nav.js?v=2026-11-25.1543"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -294,7 +294,7 @@ window.APP_VER='2026-11-25.1534';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-11-25.1534"></script>
+  <script src="importaciones-tabs.js?v=2026-11-25.1543"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -461,9 +461,9 @@ window.APP_VER='2026-11-25.1534';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-11-25.1534"></script>
-<script src="xlsx-lite.js?v=2026-11-25.1534"></script>
-<script src="importaciones-export.js?v=2026-11-25.1534"></script>
+<script src="importaciones-calc.js?v=2026-11-25.1543"></script>
+<script src="xlsx-lite.js?v=2026-11-25.1543"></script>
+<script src="importaciones-export.js?v=2026-11-25.1543"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -612,6 +612,7 @@ function defCampo(k){ return k==='compra_confirmada' ? null : (k==='incluir' ? t
 function filas(){
   if(!PAR) return [];
   var c=corridaActual(), fecha=fechaUTC(c&&c.fecha), p=parEfectivos();
+  var abierta=!!(c && !c.cerrada), hoy=hoyUTC();
   // Activos + los que tengan datos en la corrida aunque se hayan dado de
   // baja después: una corrida vieja no puede perder renglones.
   return ART.filter(function(a){ return a.activo!==false || DATOS[a.id]; })
@@ -619,6 +620,12 @@ function filas(){
       var d=DATOS[a.id]||{}, pe=PEND[a.id]||{}, eff={};
       CAMPOS.forEach(function(k){ eff[k] = pe[k]!==undefined ? pe[k] : (d[k]!=null ? d[k] : defCampo(k)); });
       var c=ImpCalc.calcular(eff, p, {unXCaja:a.un_x_caja, fecha:fecha, soloAnual:LIN.soloAnual});
+      // "Pedir antes de" se calcula desde la fecha de la corrida: si esa
+      // fecha ya pasó HOY, el pedido es urgente aunque el día de la
+      // corrida no lo fuera. Sólo en corridas abiertas: una cerrada se
+      // muestra como se pidió.
+      if(abierta && c.estado==='pedir' && c.pedirAntes && c.pedirAntes<=hoy)
+        c=Object.assign({}, c, {estado:'urgente', vencioHoy:true});
       var incl = !LIN.tildes || eff.incluir!==false;
       // Sin tilde no se pide nada: se ve, pero no suma en ningún lado
       if(!incl) c=Object.assign({}, c, {estado:'excl', pedido:0, cajas:0, aPedir:0, pedirAntes:null, quiebre:false});
@@ -776,7 +783,7 @@ function datosKPIs(){
   return [
     {cls:'a', l:'A importar', v:n0(uds), u:'u', color:'c-or', s:n0(cajas)+' cajas · '+aPedir+' de '+fs.length+' artículos'},
     {cls:'q', l:'Sin stock', v:n0(quie), color:quie?'c-rd':'c-pu', s:quie?'en quiebre ahora mismo':'ninguno en quiebre'},
-    {cls:'c', l:'Urgentes', v:n0(urg), color:urg?'c-go':'c-pu', s:'no llegan al arribo con el colchón'},
+    {cls:'c', l:'Urgentes', v:n0(urg), color:urg?'c-go':'c-pu', s:'no llegan al arribo con el colchón o ya pasó la fecha'},
     {cls:'f', l:'Pedir antes de', v:prox?fmtFecha(prox):'—', color:vence?'c-rd':'c-te',
      s:prox?(vence?'ya pasó · ':'')+proxArt:'nada apura'},
     {cls:'d', l:'Confirmada', v:hayConf?n0(conf):'—', u:hayConf?'u':'', color:'c-gr',
@@ -810,6 +817,7 @@ function pintarTabla(){
     nIncl++;
     T.c3m+=num(d.consumo_3m); T.can+=num(d.consumo_anual); T.stk+=num(d.stock_actual);
     T.tra+=num(d.en_transito); T.ped+=c.pedido; T.caj+=c.cajas; T.conf+=num(d.compra_confirmada);
+    if(d.compra_confirmada!=null) T.hayConf=true;
     var vivo=STOCK[id]||0, difStk=!cerrada() && f.enCorrida && Math.round(vivo)!==Math.round(num(d.stock_actual));
     var dura = c.estado==='sin' ? '' : (c.quiebre ? '<span class="sub bajo">🔴 QUIEBRE</span>'
       : (c.cobertura>=999 ? '' : '<span class="sub'+(c.margen<0?' bajo':(c.cobertura<lead+seg+num(p.meses_cobertura)*4.333?' medio':''))
@@ -833,7 +841,7 @@ function pintarTabla(){
       +'<td class="ped c-or">'+n0(c.pedido)+'</td>'
       +'<td class="c"><span class="fch'+(venc?' vencida':'')+'">'
         +(c.estado==='sin'?'<span class="cod">—</span>':fmtFecha(c.pedirAntes))+'</span></td>'
-      +'<td class="c"><span class="est est-'+c.estado+'">'+EST_TXT[c.estado]+'</span></td>'
+      +'<td class="c"><span class="est est-'+c.estado+'"'+(c.vencioHoy?' title="La fecha para pedir ya pasó: hay que pedir ahora"':'')+'>'+EST_TXT[c.estado]+'</span></td>'
       +celda(id,'compra_confirmada',d.compra_confirmada,'conf','')
       +'<td class="c">'+(d.compra_confirmada==null?'<span class="cod">—</span>'
         :(dif===0?'<span class="cod">=</span>':'<span class="dif '+(dif>0?'up':'dn')+'">'+(dif>0?'+':'−')+n0(Math.abs(dif))+'</span>'))+'</td>'
@@ -842,7 +850,7 @@ function pintarTabla(){
   html+='<tr class="tot"><td class="l">TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+(nIncl<fs.length?' tildados':'')+'</td>'
     +'<td class="c3m">'+n0(T.c3m)+'</td><td>'+n0(T.can)+'</td><td></td><td>'+n0(T.stk)+'</td><td>'+n0(T.tra)+'</td>'
     +'<td></td><td></td><td></td><td></td><td></td><td>'+n0(T.caj)+'</td><td class="ped c-or">'+n0(T.ped)+'</td>'
-    +'<td></td><td></td><td class="c-gr">'+n0(T.conf)+'</td><td></td></tr>';
+    +'<td></td><td></td><td class="c-gr">'+(T.hayConf?n0(T.conf):'<span class="cod">—</span>')+'</td><td></td></tr>';
   tb.innerHTML=html;
   pintarTildeTodos(fs);
 }

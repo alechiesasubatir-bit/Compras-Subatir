@@ -131,7 +131,24 @@ main{position:relative;z-index:1;max-width:1600px;margin:0 auto;padding:18px 20p
 .bar-v{font-family:var(--mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
 
 /* ── Tabla ────────────────────────────────────────────────── */
-.twrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.16)}
+/* La tabla scrollea adentro de su caja (en los dos sentidos) para que el
+   encabezado quede fijo: con overflow-x solo, el sticky del thead se ata
+   a una caja que no scrollea en vertical y se va con la página. */
+/* --hdr-h: alto real del encabezado fijo de la página (con el menú
+   puede ocupar dos renglones); lo mide medirHeader(). Así, al llegar
+   al final de la página, la tabla queda entera debajo del encabezado. */
+.twrap{overflow:auto;max-height:max(320px,calc(100vh - var(--hdr-h,72px) - 56px));
+  border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.16)}
+#tabla thead th{position:sticky;top:0;z-index:10}
+/* Tilde por esencia: tildada entra en la cuenta de la corrida */
+.art-w{display:flex;align-items:flex-start;gap:8px}
+.tilde{flex:none;width:17px;height:17px;margin:1px 0 0;accent-color:var(--orange);cursor:pointer}
+.tilde:disabled{cursor:default}
+th .tilde{vertical-align:middle;margin:0 8px 0 0}
+tr.excl td{color:var(--muted)}
+tr.excl .art,tr.excl .dato{opacity:.5}
+tr.excl .dato:focus{opacity:1}
+.est-excl{background:none;color:var(--muted);border:1px dashed var(--border-b)}
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
 thead{position:sticky;top:0;z-index:10}
 thead th{padding:9px 8px;text-align:right;white-space:nowrap;background:linear-gradient(180deg,#101a26,#0c1520);
@@ -158,7 +175,7 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .dato:disabled{background:none;border-color:transparent;color:var(--text);cursor:default;opacity:1}
 .dato.stk{background:rgba(27,200,255,.08);border-color:rgba(27,200,255,.28);color:var(--teal-l)}
 .dato.conf{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.28);color:#4ade80}
-.ped{font-weight:700;font-size:13px}
+.ped{font-weight:700;font-size:13px;white-space:nowrap}
 .est{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;white-space:nowrap;
   font-family:var(--display);font-size:9.5px;font-weight:800;letter-spacing:.4px}
 .est-ok{background:rgba(34,197,94,.13);color:#4ade80;border:1px solid rgba(34,197,94,.32)}
@@ -261,6 +278,9 @@ tr.quiebre td:first-child{box-shadow:inset 3px 0 0 var(--red)}
 .of-vacio{font-size:12px;color:var(--muted);line-height:1.6;padding:11px 13px;border-radius:10px;
   background:rgba(0,0,0,.2);border:1px solid var(--border)}
 /* Marca de oferta en la tabla */
+.un-tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:20px;vertical-align:1px;
+  font-family:var(--display);font-size:8.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--teal-l);background:rgba(27,200,255,.10);border:1px solid rgba(27,200,255,.28)}
 .of-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;vertical-align:middle;
   font-family:var(--display);font-size:9px;font-weight:800;letter-spacing:.3px;
   color:var(--orange-l);background:rgba(249,115,22,.14);border:1px solid rgba(249,115,22,.34)}
@@ -387,14 +407,14 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.1206"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1206"/>
-<script src="supabase-config.js?v=2026-11-25.1206"></script>
-<script src="subatir-app.js?v=2026-11-25.1206"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.1534"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1534"/>
+<script src="supabase-config.js?v=2026-11-25.1534"></script>
+<script src="subatir-app.js?v=2026-11-25.1534"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.1206';
+window.APP_VER='2026-11-25.1534';
 </script>
 </head>
 <body>
@@ -406,7 +426,7 @@ window.APP_VER='2026-11-25.1206';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-25.1206"></script>
+  <script src="nav.js?v=2026-11-25.1534"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -417,7 +437,7 @@ window.APP_VER='2026-11-25.1206';
 
   <!-- Submódulos de Importaciones: los arma importaciones-tabs.js -->
   <div class="imp-tabs" id="imp-tabs" data-on="mero"></div>
-  <script src="importaciones-tabs.js?v=2026-11-25.1206"></script>
+  <script src="importaciones-tabs.js?v=2026-11-25.1534"></script>
 
   <!-- ══ Contexto: proveedor y corrida ══════════════════════ -->
   <div class="card ctx">
@@ -489,8 +509,8 @@ window.APP_VER='2026-11-25.1206';
         <div class="sec-tools">
           <select class="inp" id="f-bar" onchange="pintarBarras()" aria-label="Qué mostrar en el gráfico"
                   style="font-size:12px;padding:5px 9px;min-height:32px">
-            <option value="pedido">Pedido calculado (kg)</option>
-            <option value="confirmada">Compra confirmada (kg)</option>
+            <option value="pedido">Pedido calculado (kg de esencias)</option>
+            <option value="confirmada">Compra confirmada (kg de esencias)</option>
             <option value="cobertura">Semanas de stock que quedan</option>
           </select>
         </div>
@@ -519,6 +539,7 @@ window.APP_VER='2026-11-25.1206';
           <option value="big">Compra grande</option>
           <option value="mod">Compra moderada</option>
           <option value="ok">No comprar</option>
+          <option value="excl">Sin tildar (fuera de la cuenta)</option>
         </select>
         <span class="chip" id="tbl-n">—</span>
       </div>
@@ -527,9 +548,10 @@ window.APP_VER='2026-11-25.1206';
       <table id="tabla">
         <thead>
           <tr>
-            <th class="l" style="min-width:210px">Artículo</th>
-            <th class="in" title="Se ingresa: kg consumidos en los últimos 3 meses">Consumo 3m</th>
-            <th class="in" title="Se ingresa: kg en stock al momento de pedir. Abajo, cuántas semanas aguanta al ritmo proyectado.">Stock · dura</th>
+            <th class="l" style="min-width:210px"><input type="checkbox" class="tilde" id="tilde-todos" onchange="tildarTodos(this)"
+              title="Tildar o destildar todas las que se ven" aria-label="Tildar todas"/>Artículo</th>
+            <th class="in" title="Se ingresa: consumido en los últimos 3 meses (kg las esencias; unidades los frascos y las tirillas)">Consumo 3m</th>
+            <th class="in" title="Se ingresa: stock al momento de pedir (kg o unidades, según el artículo). Abajo, cuántas semanas aguanta al ritmo proyectado.">Stock · dura</th>
             <th title="Se calcula: consumo 3m ÷ 3">Prom 3m</th>
             <th class="in" title="Se ingresa: consumo anual ÷ 12">Prom año</th>
             <th title="Se calcula: 60% del prom 3m + 40% del prom año">Ponderado</th>
@@ -539,7 +561,7 @@ window.APP_VER='2026-11-25.1206';
             <th title="Se calcula: necesidad + stock de seguridad">Total nec.</th>
             <th title="Se calcula: total necesario − stock actual">A pedir</th>
             <th title="Se calcula: a pedir redondeado hacia arriba al múltiplo del bulto">Bultos</th>
-            <th title="Se calcula: bultos × kg por bulto">Pedido</th>
+            <th title="Se calcula: bultos × kg por bulto (esencias); en unidades, lo que falta redondeado al entero">Pedido</th>
             <th class="c">Estado</th>
             <th class="in" title="Se ingresa: lo que finalmente se pide">Confirmada</th>
             <th class="c" title="Diferencia entre lo confirmado y lo calculado">Dif.</th>
@@ -746,10 +768,10 @@ window.APP_VER='2026-11-25.1206';
       <div class="pg-pane" id="pane-tx">
       <div class="fg"><label for="pg-col">Qué columna estás pegando</label>
         <select class="inp" id="pg-col">
-          <option value="consumo_3m">Consumo últimos 3 meses (kg)</option>
-          <option value="stock_actual">Stock actual (kg)</option>
-          <option value="prom_anual">Promedio mensual anual (kg)</option>
-          <option value="compra_confirmada">Compra confirmada (kg)</option>
+          <option value="consumo_3m">Consumo últimos 3 meses</option>
+          <option value="stock_actual">Stock actual</option>
+          <option value="prom_anual">Promedio mensual anual</option>
+          <option value="compra_confirmada">Compra confirmada</option>
         </select></div>
       <div class="fg"><label for="pg-txt">Pegá acá</label>
         <textarea class="inp" id="pg-txt" placeholder="Un número por renglón, en el mismo orden que la tabla.&#10;&#10;36,8&#10;134,1&#10;38&#10;…"></textarea></div>
@@ -817,10 +839,10 @@ window.APP_VER='2026-11-25.1206';
      pantalla, porque sólo hace falta al apretar el botón. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="mp-oc-pdf.js?v=2026-11-25.1206"></script>
-<script src="mp-costeo.js?v=2026-11-25.1206"></script>
-<script src="xlsx-lite.js?v=2026-11-25.1206"></script>
-<script src="importaciones-export.js?v=2026-11-25.1206"></script>
+<script src="mp-oc-pdf.js?v=2026-11-25.1534"></script>
+<script src="mp-costeo.js?v=2026-11-25.1534"></script>
+<script src="xlsx-lite.js?v=2026-11-25.1534"></script>
+<script src="importaciones-export.js?v=2026-11-25.1534"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -843,6 +865,7 @@ var PROV=[], ART=[], PAR=null, CORR=[], DATOS={}, OFERTAS=[], CUR_PROV=null, CUR
 var PRODUCTOS=[], PROD_ESC=[];   // recetas guardadas: producto y sus esencias
 var OCULTOS={};          // estados apagados desde la leyenda del gráfico
 var PEND={};             // ediciones sin guardar: articulo_id -> {campo:valor}
+var TILDES_OK=true;      // existe mp_datos.incluir (migracion/mp_datos_incluir.sql)
 var PEGADO=null;
 var COSTEOS={}, COSTEOS_OK=true;   // proforma de cada OC: corrida_id -> mp_costeos
 var PF=null;                       // la proforma abierta en el modal
@@ -879,7 +902,12 @@ document.addEventListener('keydown', function(e){
 //    aPedir    = max(0, totalNec − stock)
 //    bultos    = techo(aPedir / kgBulto)
 //    pedido    = bultos × kgBulto
-function calcular(d, p){
+// Unidad de cada artículo. Las esencias van en kg (tarrinas de 30); el
+// resto (frasco plástico 120 ml, tirillas) se compra por UNIDAD. Es la
+// única fuente: cálculo, tabla, KPIs, OC, proforma y reportes la usan.
+function unidadDe(a){ return /^\s*esencia/i.test((a&&a.nombre)||'') ? 'kg' : 'un'; }
+function esKg(f){ return unidadDe(f.art)==='kg'; }
+function calcular(d, p, unidad){
   var c3m   = num(d.consumo_3m),
       stock = num(d.stock_actual),
       anual = num(d.prom_anual);
@@ -900,9 +928,11 @@ function calcular(d, p){
   var stockSeg  = proyect * (num(p.semanas_seguridad)/4.333);
   var totalNec  = necesidad + stockSeg;
   var aPedir    = Math.max(0, totalNec - stock);
-  var kg        = num(p.kg_bulto) || 1;
-  var bultos    = aPedir > 0 ? Math.ceil(aPedir/kg) : 0;
-  var pedido    = bultos * kg;
+  // En unidades no hay tarrina: se pide lo que falta, al entero.
+  var porUn     = unidad==='un';
+  var kg        = porUn ? 1 : (num(p.kg_bulto) || 1);
+  var bultos    = (!porUn && aPedir > 0) ? Math.ceil(aPedir/kg) : 0;
+  var pedido    = porUn ? Math.ceil(aPedir) : bultos * kg;
   // Cuántas SEMANAS aguanta el stock de hoy al ritmo proyectado. En
   // semanas y no en meses porque es la unidad en la que se piensa el
   // lead time de la importación, que es contra lo que hay que
@@ -912,14 +942,15 @@ function calcular(d, p){
   // Quiebre: no hay una sola unidad. No es "poco stock", es cero, y
   // por eso se marca aparte y no como una cobertura baja.
   var quiebre = stock <= 0;
-  var estado = pedido<=0 ? 'ok' : (pedido >= num(p.umbral_grande_kg) ? 'big' : 'mod');
+  // El umbral de "compra grande" está en kg: a las unidades no se aplica
+  var estado = pedido<=0 ? 'ok' : (!porUn && pedido >= num(p.umbral_grande_kg) ? 'big' : 'mod');
   return {prom3m:prom3m, ponderado:ponderado, proyect:proyect, necesidad:necesidad,
           stockSeg:stockSeg, totalNec:totalNec, aPedir:aPedir, bultos:bultos,
           pedido:pedido, cobertura:cobertura, quiebre:quiebre, estado:estado,
           ofertaPct:num(d.__ofertaPct), ofertaKg:proyect*mesesExtra};
 }
-var EST_TXT={ok:'No comprar', mod:'Compra moderada', big:'Compra grande'};
-var EST_CLS={ok:'est-ok',     mod:'est-mod',        big:'est-big'};
+var EST_TXT={ok:'No comprar', mod:'Compra moderada', big:'Compra grande', excl:'Fuera de la cuenta'};
+var EST_CLS={ok:'est-ok',     mod:'est-mod',        big:'est-big',       excl:'est-excl'};
 var EST_COL={ok:'#22c55e',    mod:'#f97316',        big:'#ef4444'};
 
 // ── Ofertas dentro de la ventana de cobertura ─────────────────
@@ -959,7 +990,12 @@ function filas(){
                  prom_anual:   p.prom_anual   !=null ? p.prom_anual   : d.prom_anual,
                  compra_confirmada: p.compra_confirmada!==undefined ? p.compra_confirmada : d.compra_confirmada,
                  __ofertaPct: ofertaPctDe(a.id)};
-      return {art:a, d:eff, c:calcular(eff, PAR), sucia:Object.keys(p).length>0};
+      var incl = p.incluir!==undefined ? p.incluir : d.incluir!==false;
+      var c = calcular(eff, PAR, unidadDe(a));
+      // Sin tilde no se pide nada: se ve y se le pueden cargar datos,
+      // pero no suma en KPIs, gráficos, OC ni proforma.
+      if(!incl) c=Object.assign({}, c, {estado:'excl', pedido:0, bultos:0, aPedir:0, quiebre:false, cobertura:999, ofertaPct:0, ofertaKg:0});
+      return {art:a, d:eff, incl:incl, c:c, sucia:Object.keys(p).length>0};
     });
 }
 function visibles(){
@@ -976,8 +1012,17 @@ function visibles(){
   });
 }
 
+// El encabezado fijo cambia de alto según el ancho (el menú se parte en
+// dos renglones): se mide para que la caja de la tabla no quede debajo.
+function medirHeader(){
+  var h=document.querySelector('header');
+  if(h) document.documentElement.style.setProperty('--hdr-h', Math.round(h.getBoundingClientRect().height)+'px');
+}
+if(window.ResizeObserver) new ResizeObserver(medirHeader).observe(document.documentElement);
+window.addEventListener('resize', medirHeader);
+
 // ══ CARGA ═════════════════════════════════════════════════════
-SubatirApp.ready.then(function(p){ if(p) cargar(); });
+SubatirApp.ready.then(function(p){ medirHeader(); if(p) cargar(); });
 
 function cargar(){
   return SB.from('mp_proveedores').select('*').eq('activo',true).order('nombre').then(function(r){
@@ -1050,6 +1095,8 @@ function cargarCorrida(){
   return SB.todo(function(){ return SB.from('mp_datos').select('*').eq('corrida_id',CUR_CORR); }).then(function(r){
     if(r.error){ falta(r.error); return; }
     DATOS={}; (r.data||[]).forEach(function(d){ DATOS[d.articulo_id]=d; });
+    // Sin la columna (SQL sin correr) no se manda: el upsert fallaría entero
+    TILDES_OK = !(r.data||[]).length || ('incluir' in r.data[0]);
     pintarTodo();
     document.getElementById('ts').textContent='Actualizado: '
       +new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
@@ -1077,13 +1124,18 @@ function pintarAvisos(){
   // Ofertas que caen dentro de la cobertura de este pedido
   var conOf=filas().filter(function(f){ return f.c.ofertaPct>0; });
   if(conOf.length){
-    var kg=conOf.reduce(function(t,f){ return t+f.c.ofertaKg; },0);
+    var kg=conOf.filter(esKg).reduce(function(t,f){ return t+f.c.ofertaKg; },0);
     a.push({t:'temp', txt:'<b>'+conOf.length+' esencia'+(conOf.length===1?'':'s')
       +' con oferta</b> en la cobertura de este pedido ('+ventanaMeses().map(nombreMes).join(', ')
       +'): suman <b>'+n0(kg)+' kg</b> a la necesidad. '
       +conOf.slice(0,3).map(function(f){ return f.art.nombre.replace('Esencia ','')+' +'+n0(f.c.ofertaPct)+'%'; }).join(' · ')
       +(conOf.length>3?' y '+(conOf.length-3)+' más':'')});
   }
+  if(!TILDES_OK) a.push({t:'urg', txt:'<b>Los tildes no se pueden guardar todavía:</b> falta correr '
+    +'<b>migracion/mp_datos_incluir.sql</b> en Supabase. Hasta entonces todas las esencias cuentan.'});
+  var fuera=filas().filter(function(f){ return !f.incl; }).length;
+  if(fuera) a.push({t:'info', txt:'<b>'+fuera+' esencia'+(fuera===1?'':'s')+' sin tildar</b>: '
+    +(fuera===1?'queda':'quedan')+' fuera de la cuenta de esta corrida (no se piden ni suman).'});
   // Proformas que siguen en ESTIMADO: de TODAS las OC del proveedor, no
   // sólo de la corrida que se está mirando. Es plata que todavía no se
   // sabe y no puede quedar escondida detrás de un selector.
@@ -1223,12 +1275,13 @@ function pintarKPIs(){
   }).join('');
 }
 function datosKPIs(){
-  var fs=filas();
-  var aPedir=0, bultos=0, conf=0, aComprar=0, enRiesgo=0, quiebres=0;
+  var fs=filas().filter(function(f){ return f.incl; });
+  var aPedir=0, bultos=0, conf=0, aComprar=0, enRiesgo=0, quiebres=0, unPed=0, unConf=0;
   var lead=num(PAR.semanas_leadtime);
   fs.forEach(function(f){
-    aPedir += f.c.pedido; bultos += f.c.bultos;
-    conf   += num(f.d.compra_confirmada);
+    // kg y unidades no se suman: las unidades van aparte, en el subtítulo
+    if(esKg(f)){ aPedir += f.c.pedido; bultos += f.c.bultos; conf += num(f.d.compra_confirmada); }
+    else { unPed += f.c.pedido; unConf += num(f.d.compra_confirmada); }
     if(f.c.pedido>0) aComprar++;
     if(f.c.quiebre) quiebres++;
     // "En riesgo": el stock no llega a cubrir el lead time. Ya está en
@@ -1237,14 +1290,15 @@ function datosKPIs(){
   });
   var dif = conf - aPedir;
   return [
-    {cls:'a', l:'A pedir (calculado)', v:n0(aPedir), u:'kg', color:'c-or', s:n0(bultos)+' bultos de '+n0(PAR.kg_bulto)+' kg'},
+    {cls:'a', l:'A pedir (calculado)', v:n0(aPedir), u:'kg', color:'c-or', s:n0(bultos)+' bultos de '+n0(PAR.kg_bulto)+' kg'
+       +(unPed?' · + '+n0(unPed)+' un':'')},
     {cls:'q', l:'Sin stock', v:n0(quiebres), color:quiebres>0?'c-rd':'c-pu',
      s:quiebres>0?'en quiebre ahora mismo':'ninguno en quiebre'},
     {cls:'c', l:'No llegan al lead time', v:n0(enRiesgo), color:enRiesgo>0?'c-go':'c-pu',
      s:'aguantan menos de '+n0(lead)+' semanas'},
     {cls:'b', l:'Artículos a comprar', v:n0(aComprar), color:'c-te', s:'de '+fs.length+' en la lista'},
     {cls:'d', l:'Compra confirmada', v:n0(conf), u:'kg', color:'c-gr',
-     s:(dif===0?'igual al cálculo':(dif>0?'+':'−')+n0(Math.abs(dif))+' kg vs. calculado')}
+     s:(dif===0?'igual al cálculo':(dif>0?'+':'−')+n0(Math.abs(dif))+' kg vs. calculado')+(unConf?' · + '+n0(unConf)+' un':'')}
   ];
 }
 function kpi(cls,label,val,color,sub){
@@ -1257,8 +1311,8 @@ function kpi(cls,label,val,color,sub){
 //  series, y los números están escritos —el color no es el único
 //  que informa.
 function pintarDonut(){
-  var fs=filas(), acc={ok:{n:0,kg:0},mod:{n:0,kg:0},big:{n:0,kg:0}};
-  fs.forEach(function(f){ acc[f.c.estado].n++; acc[f.c.estado].kg+=f.c.pedido; });
+  var fs=filas().filter(function(f){ return f.incl; }), acc={ok:{n:0,kg:0},mod:{n:0,kg:0},big:{n:0,kg:0}};
+  fs.forEach(function(f){ acc[f.c.estado].n++; if(esKg(f)) acc[f.c.estado].kg+=f.c.pedido; });
   var orden=['big','mod','ok'];
   var vivos=orden.filter(function(k){ return !OCULTOS[k]; });
   var total=vivos.reduce(function(t,k){ return t+acc[k].n; },0);
@@ -1312,7 +1366,9 @@ function toggleEstado(k){ OCULTOS[k]=!OCULTOS[k]; pintarDonut(); }
 // ══ GRÁFICO 2: barras del top ═════════════════════════════════
 function pintarBarras(){
   var modo=document.getElementById('f-bar').value;
-  var fs=filas().slice();
+  var fs=filas().filter(function(f){ return f.incl; });
+  // En kg no se mezclan unidades: 1.000 frascos aplastarían a las esencias
+  if(modo!=='cobertura') fs=fs.filter(esKg);
   var host=document.getElementById('barras');
   if(!fs.length){ host.innerHTML='<div class="empty">Todavía no hay datos en esta corrida.</div>'; return; }
 
@@ -1358,27 +1414,24 @@ function pintarBarras(){
 function pintarTabla(){
   var fs=visibles(), tb=document.getElementById('tbody');
   document.getElementById('tbl-n').textContent=fs.length+(fs.length===1?' artículo':' artículos');
-  if(!fs.length){ tb.innerHTML='<tr><td colspan="16" class="empty">Sin resultados con los filtros actuales.</td></tr>'; return; }
+  if(!fs.length){ tb.innerHTML='<tr><td colspan="16" class="empty">Sin resultados con los filtros actuales.</td></tr>'; pintarTildeTodos(fs); return; }
 
   var html='', grupo=null;
-  var T={c3m:0,stk:0,ped:0,bul:0,conf:0,nec:0};
+  var T={n:0,c3m:0,stk:0,ped:0,bul:0,conf:0,nec:0}, TU={n:0,c3m:0,stk:0,ped:0,bul:0,conf:0,nec:0}, nIncl=0;
   fs.forEach(function(f){
     if(f.art.grupo!==grupo){ grupo=f.art.grupo;
       html+='<tr class="grp"><td colspan="16">'+esc(grupo)+'</td></tr>'; }
-    var c=f.c, d=f.d, id=f.art.id;
+    if(!f.incl){ html+=filaExcluida(f); return; }
+    nIncl++;
+    var c=f.c, d=f.d, id=f.art.id, enUn=!esKg(f);
     var dif=num(d.compra_confirmada)-c.pedido;
-    T.c3m+=num(d.consumo_3m); T.stk+=num(d.stock_actual); T.ped+=c.pedido;
-    T.bul+=c.bultos; T.conf+=num(d.compra_confirmada); T.nec+=c.totalNec;
+    // Los totales van por unidad: kg con kg, unidades con unidades
+    var Tt=enUn?TU:T;
+    Tt.n++; Tt.c3m+=num(d.consumo_3m); Tt.stk+=num(d.stock_actual); Tt.ped+=c.pedido;
+    Tt.bul+=c.bultos; Tt.conf+=num(d.compra_confirmada); Tt.nec+=c.totalNec;
     html+='<tr'+(c.quiebre?' class="quiebre"':'')
       +(f.sucia?' style="background:rgba(245,197,66,.05)"':'')+'>'
-      +'<td class="l"><div class="art" title="'+esc(f.art.nombre)
-        +(f.art.categoria?' · '+(f.art.categoria==='primaria'?'Primaria: exclusiva de importación':'Secundaria: importante por volumen'):'')+'">'
-        +(f.art.categoria?'<span class="cat-d '+f.art.categoria+'"></span>':'')
-        +esc(f.art.nombre)
-        +(c.ofertaPct>0?'<span class="of-tag" title="Oferta del mes: +'+n0(c.ofertaPct)
-           +'% de consumo, que suma '+n0(c.ofertaKg)+' kg a la necesidad">🏷 +'+n0(c.ofertaPct)+'%</span>':'')
-        +'</div>'
-        +(f.art.codigo?'<div class="cod">'+esc(f.art.codigo)+'</div>':'')+'</td>'
+      +celdaArt(f)
       +celdaInput(id,'consumo_3m',d.consumo_3m,'')
       +celdaInput(id,'stock_actual',d.stock_actual,'stk',cobTxt(c))
       +'<td class="calc">'+n1(c.prom3m)+'</td>'
@@ -1389,8 +1442,8 @@ function pintarTabla(){
       +'<td class="calc">'+n1(c.stockSeg)+'</td>'
       +'<td>'+n1(c.totalNec)+'</td>'
       +'<td class="c-or">'+n1(c.aPedir)+'</td>'
-      +'<td>'+n0(c.bultos)+'</td>'
-      +'<td class="ped c-or">'+n0(c.pedido)+'</td>'
+      +'<td>'+(enUn?'<span class="cod" title="En unidades no hay tarrina">—</span>':n0(c.bultos))+'</td>'
+      +'<td class="ped c-or">'+n0(c.pedido)+(enUn?' <span class="cod">un</span>':'')+'</td>'
       +'<td class="c"><span class="est '+EST_CLS[c.estado]+'">'+EST_TXT[c.estado]+'</span></td>'
       +celdaInput(id,'compra_confirmada',d.compra_confirmada,'conf')
       +'<td class="c">'+(d.compra_confirmada==null?'<span class="cod">—</span>'
@@ -1398,12 +1451,76 @@ function pintarTabla(){
             :'<span class="dif '+(dif>0?'up':'dn')+'">'+(dif>0?'+':'−')+n0(Math.abs(dif))+'</span>'))+'</td>'
     +'</tr>';
   });
-  html+='<tr class="tot"><td class="l">TOTAL · '+fs.length+' artículos</td>'
-    +'<td>'+n1(T.c3m)+'</td><td>'+n1(T.stk)+'</td><td></td><td></td><td></td><td></td>'
-    +'<td></td><td></td><td>'+n1(T.nec)+'</td><td></td>'
-    +'<td>'+n0(T.bul)+'</td><td class="ped c-or">'+n0(T.ped)+'</td><td></td>'
-    +'<td class="c-gr">'+n0(T.conf)+'</td><td></td></tr>';
+  var filaTot=function(X,rot,enUn){
+    return '<tr class="tot"><td class="l">'+rot+'</td>'
+      +'<td>'+n1(X.c3m)+'</td><td>'+n1(X.stk)+'</td><td></td><td></td><td></td><td></td>'
+      +'<td></td><td></td><td>'+n1(X.nec)+'</td><td></td>'
+      +'<td>'+(enUn?'':n0(X.bul))+'</td><td class="ped c-or">'+n0(X.ped)+(enUn?' <span class="cod">un</span>':'')+'</td><td></td>'
+      +'<td class="c-gr">'+n0(X.conf)+'</td><td></td></tr>';
+  };
+  var tild=(nIncl<fs.length?' tildados':'');
+  if(!TU.n) html+=filaTot(T,'TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+tild,false);
+  else {
+    if(T.n) html+=filaTot(T,'TOTAL kg · '+T.n+' esencia'+(T.n===1?'':'s')+tild,false);
+    html+=filaTot(TU,'TOTAL unidades · '+TU.n+' artículo'+(TU.n===1?'':'s')+tild,true);
+  }
   tb.innerHTML=html;
+  pintarTildeTodos(fs);
+}
+// Nombre + tilde. El tilde decide si la esencia entra en la cuenta de
+// la corrida; con la corrida cerrada se ve pero no se toca.
+function celdaArt(f){
+  var c=f.c;
+  return '<td class="l"><div class="art-w">'
+    +'<input type="checkbox" class="tilde" data-id="'+f.art.id+'"'+(f.incl?' checked':'')
+      +(cerrada()||!TILDES_OK?' disabled':'')+' onchange="tildar(this)"'
+      +' title="Tildada: entra en la cuenta de esta corrida" aria-label="Tomar en cuenta '+esc(f.art.nombre)+'"/>'
+    +'<div style="min-width:0"><div class="art" title="'+esc(f.art.nombre)
+        +(f.art.categoria?' · '+(f.art.categoria==='primaria'?'Primaria: exclusiva de importación':'Secundaria: importante por volumen'):'')+'">'
+        +(f.art.categoria?'<span class="cat-d '+f.art.categoria+'"></span>':'')
+        +esc(f.art.nombre)
+        +(c.ofertaPct>0?'<span class="of-tag" title="Oferta del mes: +'+n0(c.ofertaPct)
+           +'% de consumo, que suma '+n0(c.ofertaKg)+' '+unidadDe(f.art)+' a la necesidad">🏷 +'+n0(c.ofertaPct)+'%</span>':'')
+        +(unidadDe(f.art)==='un'?'<span class="un-tag" title="Este artículo se cuenta y se pide en unidades, no en kg">unidades</span>':'')
+        +'</div>'
+        +(f.art.codigo?'<div class="cod">'+esc(f.art.codigo)+'</div>':'')
+    +'</div></div></td>';
+}
+// Sin tilde: los datos se pueden seguir cargando, la cuenta no se muestra
+function filaExcluida(f){
+  var d=f.d, id=f.art.id, g='<td class="calc"><span class="cod">—</span></td>';
+  return '<tr class="excl"'+(f.sucia?' style="background:rgba(245,197,66,.05)"':'')+'>'+celdaArt(f)
+    +celdaInput(id,'consumo_3m',d.consumo_3m,'')
+    +celdaInput(id,'stock_actual',d.stock_actual,'stk','')
+    +g+celdaInput(id,'prom_anual',d.prom_anual,'')
+    +g+g+g+g+g+g+g+g
+    +'<td class="c"><span class="est est-excl">'+EST_TXT.excl+'</span></td>'
+    +celdaInput(id,'compra_confirmada',d.compra_confirmada,'conf')
+    +'<td class="c"><span class="cod">—</span></td></tr>';
+}
+function repintarTildes(){
+  pintarAvisos(); pintarKPIs(); pintarDonut(); pintarBarras(); pintarTabla(); pintarEstadoCorrida();
+  agendarGuardado();
+}
+function tildar(el){
+  if(cerrada()) return;
+  var id=parseInt(el.dataset.id,10);
+  (PEND[id]=PEND[id]||{}).incluir=el.checked;
+  repintarTildes();
+}
+// El tilde del encabezado marca o desmarca las que se ven (respeta
+// búsqueda y filtro, igual que en Subatir · Consumo)
+function tildarTodos(el){
+  if(cerrada() || !TILDES_OK) return;
+  visibles().forEach(function(f){ if(f.incl!==el.checked) (PEND[f.art.id]=PEND[f.art.id]||{}).incluir=el.checked; });
+  repintarTildes();
+}
+function pintarTildeTodos(fs){
+  var el=document.getElementById('tilde-todos'); if(!el) return;
+  var n=fs.filter(function(f){ return f.incl; }).length;
+  el.checked = fs.length>0 && n===fs.length;
+  el.indeterminate = n>0 && n<fs.length;
+  el.disabled = cerrada() || !TILDES_OK || !fs.length;
 }
 function celdaInput(id,campo,valor,cls,pie){
   var v = valor==null ? '' : valor;
@@ -1452,14 +1569,19 @@ function guardarPendientes(){
   var lote=ids.map(function(id){
     var base=DATOS[id]||{consumo_3m:0,stock_actual:0,prom_anual:0,compra_confirmada:null};
     var p=PEND[id];
-    return {corrida_id:CUR_CORR, articulo_id:parseInt(id,10),
+    var row={corrida_id:CUR_CORR, articulo_id:parseInt(id,10),
       consumo_3m:        p.consumo_3m        !=null ? p.consumo_3m        : num(base.consumo_3m),
       stock_actual:      p.stock_actual      !=null ? p.stock_actual      : num(base.stock_actual),
       prom_anual:        p.prom_anual        !=null ? p.prom_anual        : num(base.prom_anual),
       compra_confirmada: p.compra_confirmada !==undefined ? p.compra_confirmada : base.compra_confirmada};
+    if(TILDES_OK) row.incluir = p.incluir!==undefined ? p.incluir : base.incluir!==false;
+    return row;
   });
   return SB.from('mp_datos').upsert(lote,{onConflict:'corrida_id,articulo_id'}).select().then(function(r){
-    if(r.error){ toast('No se pudo guardar: '+r.error.message,'err'); return; }
+    if(r.error){
+      if(/incluir/.test(r.error.message||'')){ TILDES_OK=false; pintarAvisos();
+        toast('Falta correr migracion/mp_datos_incluir.sql: los tildes no se guardan','err'); return; }
+      toast('No se pudo guardar: '+r.error.message,'err'); return; }
     (r.data||[]).forEach(function(d){ DATOS[d.articulo_id]=d; });
     PEND={};
     pintarEstadoCorrida(); pintarTabla();
@@ -1509,11 +1631,12 @@ function pintarConfEstado(){
   document.getElementById('cf-temp-pct').disabled=!on;
   if(!on){ ej.textContent='Apagada: el cálculo va con el crecimiento anual solo.'; return; }
   // Se recalcula todo con la temporada puesta para mostrar el impacto
-  var base=filas().reduce(function(t,f){ return t+f.c.pedido; },0);
+  var base=filas().filter(esKg).reduce(function(t,f){ return t+f.c.pedido; },0);
   var p2={}; Object.keys(PAR).forEach(function(k){ p2[k]=PAR[k]; });
   p2.temporada_alta=true; p2.temporada_alta_pct=pct;
   var con=ART.filter(function(a){return a.activo!==false;}).reduce(function(t,a){
-    var d=DATOS[a.id]||{}; return t+calcular(d,p2).pedido; },0);
+    if(unidadDe(a)!=='kg') return t;
+    var d=DATOS[a.id]||{}; return t+calcular(d,p2,'kg').pedido; },0);
   ej.innerHTML='Con +'+n0(pct)+'% el pedido pasa de <b>'+n0(base)+'</b> a <b style="color:var(--orange-l)">'
     +n0(con)+' kg</b>.';
 }
@@ -1895,9 +2018,12 @@ function crearCorrida(){
     // es que de una importación a la otra cambien pocos números.
     var copia=ART.map(function(a){
       var d=DATOS[a.id]||{};
-      return {corrida_id:nueva.id, articulo_id:a.id,
+      var row={corrida_id:nueva.id, articulo_id:a.id,
               consumo_3m:num(d.consumo_3m), stock_actual:num(d.stock_actual),
               prom_anual:num(d.prom_anual), compra_confirmada:null};
+      // Los tildes también se copian: lo que no contaba, sigue sin contar
+      if(TILDES_OK) row.incluir = d.incluir!==false;
+      return row;
     });
     return SB.from('mp_datos').insert(copia).then(function(r2){
       b.disabled=false;
@@ -2251,10 +2377,10 @@ function lineasOC(){
   var out=[], idx={};
   filas().forEach(function(f){
     var kg=num(f.d.compra_confirmada);
-    if(!(kg>0)) return;
+    if(!(kg>0) || !f.incl) return;
     var g=f.art.grupo||'Artículos';
     if(idx[g]===undefined){ idx[g]=out.length; out.push({titulo:g, lines:[]}); }
-    out[idx[g]].lines.push({desc:f.art.nombre, cod:f.art.codigo||'', cant:kg});
+    out[idx[g]].lines.push({desc:f.art.nombre, cod:f.art.codigo||'', cant:kg, unidad:unidadDe(f.art)});
   });
   return out;
 }
@@ -2310,8 +2436,9 @@ function generarOC(){
       numero:numero, fecha:c.fecha, proveedor:nombreProv(),
       condicion:'CIF Montevideo — importación', corrida:c.nombre, grupos:grupos
     });
-    var kg=grupos.reduce(function(t,g){ return t+g.lines.reduce(function(s,l){ return s+l.cant; },0); },0);
-    toast('Orden '+numero+' generada · '+n0(kg)+' kg','ok');
+    var kg=0, un=0;
+    grupos.forEach(function(g){ g.lines.forEach(function(l){ if(l.unidad==='un') un+=l.cant; else kg+=l.cant; }); });
+    toast('Orden '+numero+' generada · '+n0(kg)+' kg'+(un?' + '+n0(un)+' un':''),'ok');
     pintarEstadoCorrida();
     // Cada OC lleva su Proforma: la primera vez se crea sola, en
     // ESTIMADO, y se abre para revisar precios y bajar el PDF.
@@ -2339,7 +2466,6 @@ function generarOC(){
 //  costeo se vuelve la referencia de la próxima OC.
 function hoyISO(){ var d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
 function usd(v,d){ d=d==null?2:d; return (parseFloat(v)||0).toLocaleString('es-UY',{minimumFractionDigits:d,maximumFractionDigits:d}); }
-function unidadDe(a){ return /^\s*esencia/i.test(a.nombre||'') ? 'kg' : 'un'; }
 
 // La referencia para estimar: el último costeo REAL del proveedor o,
 // si no hay, la de los parámetros (factura 293).
@@ -2356,7 +2482,7 @@ function crearCosteo(c){
   if(!ref) return Promise.reject(new Error('no hay costeo de referencia (falta correr migracion/mp_costeo.sql)'));
   var precios={};
   filas().forEach(function(f){
-    if(num(f.d.compra_confirmada)>0 && f.art.precio_usd!=null) precios[f.art.id]=num(f.art.precio_usd);
+    if(f.incl && num(f.d.compra_confirmada)>0 && f.art.precio_usd!=null) precios[f.art.id]=num(f.art.precio_usd);
   });
   return SB.from('mp_costeos').insert({corrida_id:c.id, fecha_impo:hoyISO(), estado:'ESTIMADO',
       precios:precios, ref:ref, created_by:(SubatirApp.getProfile()||{}).full_name||''})
@@ -2402,7 +2528,7 @@ function cerrarProforma(){
 
 // Las líneas de la OC: lo confirmado, agrupado igual que el papel de la OC
 function pfLineas(){
-  return filas().filter(function(f){ return num(f.d.compra_confirmada)>0; }).map(function(f){
+  return filas().filter(function(f){ return f.incl && num(f.d.compra_confirmada)>0; }).map(function(f){
     var p=PF.precios[f.art.id];
     return {id:f.art.id, desc:f.art.nombre, cod:f.art.codigo||'', grupo:f.art.grupo||'Artículos',
             cant:num(f.d.compra_confirmada), unidad:unidadDe(f.art), precio:(p==null||p==='')?null:p};
@@ -2575,21 +2701,21 @@ function pfPDF(){
 function exportCSV(){
   var fs=visibles();
   if(!fs.length){ toast('No hay filas para exportar','err'); return; }
-  var cab=['Grupo','Artículo','Código','Consumo 3m','Stock actual','Semanas de cobertura',
+  var cab=['Grupo','Artículo','Código','Unidad','Consumo 3m','Stock actual','Semanas de cobertura',
            'Prom 3m','Prom anual','Ponderado','Proyectado','Necesidad','Stock seguridad',
-           'Total necesario','A pedir','Bultos','Pedido','Estado','Compra confirmada'];
+           'Total necesario','A pedir','Bultos','Pedido','Estado','Compra confirmada','Se toma en cuenta'];
   var q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };
   var d1=function(v){ return String(Math.round(num(v)*10)/10).replace('.',','); };
   var out=[cab.map(q).join(';')];
   fs.forEach(function(f){
     var c=f.c, d=f.d;
-    out.push([q(f.art.grupo),q(f.art.nombre),q(f.art.codigo||''),
+    out.push([q(f.art.grupo),q(f.art.nombre),q(f.art.codigo||''),q(unidadDe(f.art)),
       d1(d.consumo_3m),d1(d.stock_actual),
       q(c.quiebre?'QUIEBRE':(c.cobertura>=999?'':Math.round(c.cobertura))),
       d1(c.prom3m),d1(d.prom_anual),
       d1(c.ponderado),d1(c.proyect),d1(c.necesidad),d1(c.stockSeg),d1(c.totalNec),
       d1(c.aPedir),c.bultos,c.pedido,q(EST_TXT[c.estado]),
-      d.compra_confirmada==null?'':d1(d.compra_confirmada)].join(';'));
+      d.compra_confirmada==null?'':d1(d.compra_confirmada), q(f.incl?'Sí':'No')].join(';'));
   });
   var c=corridaActual();
   var blob=new Blob(['﻿'+out.join('\n')],{type:'text/csv;charset=utf-8;'});
@@ -2604,7 +2730,7 @@ function exportCSV(){
 //  Lo dibuja importaciones-export.js, compartido con las líneas de
 //  Depósitos. Acá sólo se arma con lo que ya muestra la pantalla:
 //  mismas filas filtradas y agrupadas, mismos KPIs, misma fórmula.
-var EST_RGB={ok:[22,163,74], mod:[234,88,12], big:[220,38,38]};
+var EST_RGB={ok:[22,163,74], mod:[234,88,12], big:[220,38,38], excl:[150,150,150]};
 function reporte(){
   var c=corridaActual();
   if(!c){ toast('No hay ninguna corrida para exportar','err'); return null; }
@@ -2613,8 +2739,9 @@ function reporte(){
   var cols=[
     {t:'Artículo', tipo:'txt', w:40},
     {t:'Código', tipo:'c', w:10, pw:44},
-    {t:'Consumo 3m (kg)', tipo:'n1'},
-    {t:'Stock (kg)', tipo:'n1'},
+    {t:'Unidad', tipo:'c', w:7, pw:30},
+    {t:'Consumo 3m', tipo:'n1'},
+    {t:'Stock', tipo:'n1'},
     {t:'Semanas que dura', tipo:'c', pw:44},
     {t:'Prom. 3m', tipo:'n1'},
     {t:'Prom. anual', tipo:'n1'},
@@ -2625,28 +2752,47 @@ function reporte(){
     {t:'Total nec.', tipo:'n1'},
     {t:'A pedir', tipo:'n1'},
     {t:'Bultos', tipo:'n0', pw:36},
-    {t:'Pedido (kg)', tipo:'n0', resalta:true, fuerte:true},
+    {t:'Pedido', tipo:'n0', resalta:true, fuerte:true},
     {t:'Estado', tipo:'est', pw:84},
-    {t:'Confirmada (kg)', tipo:'n0'},
+    {t:'Confirmada', tipo:'n0'},
     {t:'Dif.', tipo:'c', pw:36}
   ];
-  var out=[], grupo=null, T={c3m:0,stk:0,nec:0,bul:0,ped:0,conf:0};
+  // El total del papel es en kg (esencias); las unidades no se suman a
+  // los kg y van escritas en el rótulo del total.
+  var out=[], grupo=null, T={c3m:0,stk:0,nec:0,bul:0,ped:0,conf:0}, nIncl=0, nKg=0, U={ped:0,conf:0,n:0};
   fs.forEach(function(f){
     if(f.art.grupo!==grupo){ grupo=f.art.grupo; out.push({grupo:grupo||'Artículos'}); }
     var k=f.c, d=f.d, dif=num(d.compra_confirmada)-k.pedido;
-    T.c3m+=num(d.consumo_3m); T.stk+=num(d.stock_actual); T.nec+=k.totalNec;
-    T.bul+=k.bultos; T.ped+=k.pedido; T.conf+=num(d.compra_confirmada);
-    if(d.compra_confirmada!=null) T.hayConf=true;
+    // Sin tilde: va al papel apagada y sin cuenta, y no suma al total
+    if(!f.incl){
+      out.push({apagada:true, v:[f.art.nombre, f.art.codigo||'', unidadDe(f.art), num(d.consumo_3m), num(d.stock_actual), '—',
+        '—', num(d.prom_anual), '—','—','—','—','—','—','—','—', EST_TXT.excl,
+        d.compra_confirmada==null ? '' : num(d.compra_confirmada), '—']});
+      return;
+    }
+    nIncl++;
+    var enUn=!esKg(f);
+    if(enUn){ U.n++; U.ped+=k.pedido; U.conf+=num(d.compra_confirmada); }
+    else {
+      nKg++;
+      T.c3m+=num(d.consumo_3m); T.stk+=num(d.stock_actual); T.nec+=k.totalNec;
+      T.bul+=k.bultos; T.ped+=k.pedido; T.conf+=num(d.compra_confirmada);
+      if(d.compra_confirmada!=null) T.hayConf=true;
+    }
     out.push({est:EST_RGB[k.estado], v:[
-      f.art.nombre+(k.ofertaPct>0?' (oferta +'+n0(k.ofertaPct)+'%)':''), f.art.codigo||'',
+      f.art.nombre+(k.ofertaPct>0?' (oferta +'+n0(k.ofertaPct)+'%)':''), f.art.codigo||'', unidadDe(f.art),
       num(d.consumo_3m), num(d.stock_actual),
       k.quiebre ? 'QUIEBRE' : (k.cobertura>=999 ? '—' : Math.round(k.cobertura)+' sem'),
       k.prom3m, num(d.prom_anual), k.ponderado, k.proyect, k.necesidad, k.stockSeg, k.totalNec, k.aPedir,
-      k.bultos, k.pedido, EST_TXT[k.estado],
+      enUn ? '—' : k.bultos, k.pedido, EST_TXT[k.estado],
       d.compra_confirmada==null ? '' : num(d.compra_confirmada),
       d.compra_confirmada==null ? '—' : (dif===0 ? '=' : (dif>0?'+':'-')+n0(Math.abs(dif)))]});
   });
-  var total=['TOTAL · '+fs.length+' artículos', '', T.c3m, T.stk, null, null, null, null, null, null, null,
+  var rot = U.n
+    ? 'TOTAL kg · '+nKg+' esencia'+(nKg===1?'':'s')+(nIncl<fs.length?' tildadas':'')
+      +' (+ '+n0(U.ped)+' un a pedir'+(U.conf?', '+n0(U.conf)+' un confirmadas':'')+')'
+    : 'TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+(nIncl<fs.length?' tildados':'');
+  var total=[rot, '', '', T.c3m, T.stk, null, null, null, null, null, null, null,
     T.nec, null, T.bul, T.ped, null, T.hayConf ? T.conf : null, null];
 
   var est=document.getElementById('f-est'), q=document.getElementById('f-buscar').value.trim();

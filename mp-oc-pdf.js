@@ -4,7 +4,9 @@
 //  NO es el mismo papel que oc-pdf.js y por eso no lo reusa:
 //   · La OC de plaza lleva precios, IVA y totales en pesos o dolares.
 //     Esta no lleva NINGUN precio: MP Importacion no los tiene y el
-//     papel que se le manda a MERO AR sale solo con cantidades en kg.
+//     papel que se le manda a MERO AR sale solo con cantidades: kg las
+//     esencias y unidades el resto (frascos, tirillas), cada linea con
+//     su unidad (l.unidad 'kg'|'un'; sin unidad se toma kg).
 //   · Va en A4 VERTICAL y agrupada por bloque de articulos, no en una
 //     tabla unica apaisada.
 //  Meter los dos en el mismo modulo hubiera sido un archivo lleno de
@@ -134,12 +136,25 @@ window.MPOCPdf = (function(){
     y += bh + 13;
 
     // ══ Un bloque por grupo de articulos ══════════════════════
+    // kg y unidades no se suman entre si: cada uno lleva su cuenta
     var grupos = oc.grupos || [];
-    var total = 0;
+    var total = {kg:0, un:0};
+    function esUn(l){ return l.unidad === 'un'; }
+    function sumar(lines){
+      var t = {kg:0, un:0};
+      lines.forEach(function(l){ t[esUn(l) ? 'un' : 'kg'] += (parseFloat(l.cant)||0); });
+      return t;
+    }
+    function cantTxt(t){
+      var p = [];
+      if(t.kg || !t.un) p.push(fmtKg(t.kg) + ' kg');
+      if(t.un) p.push(fmtKg(t.un) + ' un');
+      return p.join(' + ');
+    }
     grupos.forEach(function(g){
       var lines = g.lines || [];
-      var kgG = lines.reduce(function(s,l){ return s + (parseFloat(l.cant)||0); }, 0);
-      total += kgG;
+      var sg = sumar(lines);
+      total.kg += sg.kg; total.un += sg.un;
 
       // El encabezado no se manda solo al pie de una pagina: se pide
       // sitio para el titulo mas la cabecera de la tabla y dos filas.
@@ -149,14 +164,14 @@ window.MPOCPdf = (function(){
       doc.setFont('helvetica','bold'); doc.setFontSize(9.5); txt(OR);
       doc.text(String(g.titulo||'').toUpperCase(), M+11, y+13);
       doc.setFontSize(9);
-      doc.text('Subtotal  ' + fmtKg(kgG) + ' kg', W-M-11, y+13, {align:'right'});
+      doc.text('Subtotal  ' + cantTxt(sg), W-M-11, y+13, {align:'right'});
       y += 19;
 
       doc.autoTable({
         startY: y,
-        head: [['ÍTEM','DESCRIPCIÓN','CÓD.','CANTIDAD (kg)']],
+        head: [['ÍTEM','DESCRIPCIÓN','CÓD.','CANTIDAD']],
         body: lines.map(function(l,i){
-          return [String(i+1), String(l.desc||''), String(l.cod||'—'), fmtKg(l.cant)];
+          return [String(i+1), String(l.desc||''), String(l.cod||'—'), fmtKg(l.cant) + (esUn(l) ? ' un' : ' kg')];
         }),
         theme: 'grid',
         margin: {left:M, right:M, top:M+10, bottom:PIE},
@@ -178,12 +193,14 @@ window.MPOCPdf = (function(){
     // la que salio este modulo tenia el SUM corto y se pedia de menos:
     // el numero del papel no puede volver a escribirse a mano.
     y = sitio(y, 34);
-    var tw = 240, tx = W - M - tw;
+    var tw = total.un ? 300 : 240, tx = W - M - tw;
     fill(OR); doc.roundedRect(tx, y, tw, 30, 5, 5, 'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(10.5); txt([255,255,255]);
     doc.text('TOTAL GENERAL', tx+14, y+19.5);
+    var totTxt = cantTxt(total);
     doc.setFontSize(13);
-    doc.text(fmtKg(total) + ' kg', tx+tw-14, y+19.5, {align:'right'});
+    while(doc.getFontSize() > 8 && doc.getTextWidth(totTxt) > tw-128) doc.setFontSize(doc.getFontSize()-0.5);
+    doc.text(totTxt, tx+tw-14, y+19.5, {align:'right'});
     y += 30 + 10;
 
     // ══ Firmas ════════════════════════════════════════════════

@@ -116,7 +116,15 @@ select option{background:#0c1119;color:#e2e8f0}
 .formula b{color:var(--teal-l);font-family:var(--mono);font-weight:600}
 
 /* ── Tabla ────────────────────────────────────────────────── */
-.twrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.16)}
+/* La tabla scrollea adentro de su caja (en los dos sentidos) para que el
+   encabezado quede fijo: con overflow-x solo, el sticky del thead se ata
+   a una caja que no scrollea en vertical y se va con la página.
+   --hdr-h: alto real del encabezado fijo de la página (el menú puede ir
+   en dos renglones); lo mide medirHeader(). Vale para todas las líneas
+   (Subatir, Mopas, Intex, Enjoy): es la misma página con ?linea=. */
+.twrap{overflow:auto;max-height:max(320px,calc(100vh - var(--hdr-h,72px) - 56px));
+  border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.16)}
+.twrap thead th{position:sticky;top:0;z-index:10}
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
 thead{position:sticky;top:0;z-index:10}
 thead th{padding:9px 6px;text-align:right;white-space:nowrap;background:linear-gradient(180deg,#101a26,#0c1520);
@@ -242,7 +250,7 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
   body{background:#fff;color:#000}
   .card{border-color:#ccc;box-shadow:none;background:#fff}
   thead th{background:#eee;color:#000}
-  .twrap{overflow:visible}
+  .twrap{overflow:visible;max-height:none}
   .dato{border:none;background:none;color:#000}
 }
 @media (max-width:760px){
@@ -251,14 +259,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.1206"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1206"/>
-<script src="supabase-config.js?v=2026-11-25.1206"></script>
-<script src="subatir-app.js?v=2026-11-25.1206"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.1534"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1534"/>
+<script src="supabase-config.js?v=2026-11-25.1534"></script>
+<script src="subatir-app.js?v=2026-11-25.1534"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.1206';
+window.APP_VER='2026-11-25.1534';
 </script>
 </head>
 <body>
@@ -269,7 +277,7 @@ window.APP_VER='2026-11-25.1206';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-11-25.1206"></script>
+  <script src="nav.js?v=2026-11-25.1534"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -286,7 +294,7 @@ window.APP_VER='2026-11-25.1206';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-11-25.1206"></script>
+  <script src="importaciones-tabs.js?v=2026-11-25.1534"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -453,9 +461,9 @@ window.APP_VER='2026-11-25.1206';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-11-25.1206"></script>
-<script src="xlsx-lite.js?v=2026-11-25.1206"></script>
-<script src="importaciones-export.js?v=2026-11-25.1206"></script>
+<script src="importaciones-calc.js?v=2026-11-25.1534"></script>
+<script src="xlsx-lite.js?v=2026-11-25.1534"></script>
+<script src="importaciones-export.js?v=2026-11-25.1534"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -526,7 +534,15 @@ if(LIN.tildes){
 }
 
 // ══ CARGA ═════════════════════════════════════════════════════
-SubatirApp.ready.then(function(p){ if(p) cargar(); });
+// El encabezado fijo cambia de alto según el ancho (el menú se parte en
+// dos renglones): se mide para que la caja de la tabla no quede debajo.
+function medirHeader(){
+  var h=document.querySelector('header');
+  if(h) document.documentElement.style.setProperty('--hdr-h', Math.round(h.getBoundingClientRect().height)+'px');
+}
+if(window.ResizeObserver) new ResizeObserver(medirHeader).observe(document.documentElement);
+window.addEventListener('resize', medirHeader);
+SubatirApp.ready.then(function(p){ medirHeader(); if(p) cargar(); });
 
 function cargar(){
   return Promise.all([

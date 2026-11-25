@@ -55,6 +55,44 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  // ── Grupos (opción A, pedida el 25/11/2026) ──────────────────
+  // Con 13 módulos la grilla de cuadros ocupaba dos renglones y el
+  // encabezado medía 171 px en cada página. Ahora arriba van pestañas
+  // de grupo y abajo una sola fila con los módulos del grupo en el que
+  // se está: el módulo de al lado sigue a un clic. El orden dentro de
+  // cada grupo es el de esta lista, no el de ITEMS.
+  var GRUPOS = [
+    { k: 'compras', t: 'Compras',       c: '251,146,60',
+      m: ['pedidos.html', 'varios.html', 'recepcion.html', 'proveedores.html', 'precios.html'] },
+    { k: 'stock',   t: 'Stock',         c: '167,139,250',
+      m: ['stock.html', 'reposicion.html', 'deposito/index.html'] },
+    { k: 'mp',      t: 'Materia prima', c: '250,204,21',
+      m: ['mp-importacion.html', 'cloro.html', 'calidad.html'] },
+    { k: 'gestion', t: 'Gestión',       c: '129,140,248',
+      m: ['informes.html', 'usuarios.html'] }
+  ];
+  // Hasta este número de módulos visibles no se agrupa: el operario de
+  // recepción ve uno o dos, y una pestaña para cada uno sería un clic
+  // de más sin ahorrar lugar.
+  var PLANO_HASTA = 5;
+
+  function porHref(h) {
+    for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].href === h) return ITEMS[i];
+    return null;
+  }
+  function esAqui(it, aqui) { return it.href === aqui || !!(it.sub && it.sub.indexOf(aqui) >= 0); }
+
+  function link(it, aqui) {
+    var on = esAqui(it, aqui);
+    return '<a class="sbnl' + (on ? ' on' : '') + '"'
+         + ' href="' + it.href + '" data-nav="' + it.k + '"'
+         + (it.title ? ' title="' + texto(it.title) + '"' : '')
+         + (it.href === aqui ? ' aria-current="page"' : '') + '>'
+         + '<span class="sbnl-i" aria-hidden="true">' + it.ico + '</span>'
+         + '<span class="sbnl-t">' + texto(it.txt) + '</span>'
+         + '</a>';
+  }
+
   /**
    * Dibuja el menú dentro del <nav> de la página.
    * @param {{can?:function(string):boolean, page?:string}} opts
@@ -71,28 +109,117 @@
 
     // El header cambia de etiqueta según la página (<header> o
     // <div class="hdr">): la clase la ponemos sobre el padre real
-    // para que nav.css agarre en las nueve por igual.
+    // para que nav.css agarre en todas por igual.
     if (nav.parentElement) nav.parentElement.classList.add('sbhdr');
-    nav.className = 'sbnav';
 
-    var html = '';
-    for (var i = 0; i < ITEMS.length; i++) {
-      var it = ITEMS[i];
-      if (!can(it.k)) continue;
-      // Una subpágina (MP Importadas) enciende el módulo del que cuelga
-      var on = it.href === aqui || (it.sub && it.sub.indexOf(aqui) >= 0);
-      html += '<a class="sbnl' + (on ? ' on' : '') + '"'
-            + ' href="' + it.href + '" data-nav="' + it.k + '"'
-            + (it.title ? ' title="' + texto(it.title) + '"' : '')
-            + (it.href === aqui ? ' aria-current="page"' : '') + '>'
-            + '<span class="sbnl-i" aria-hidden="true">' + it.ico + '</span>'
-            + '<span class="sbnl-t">' + texto(it.txt) + '</span>'
-            + '</a>';
+    var vis = ITEMS.filter(function (it) { return can(it.k); });
+    if (vis.length <= PLANO_HASTA) {
+      nav.className = 'sbnav';
+      nav.innerHTML = vis.map(function (it) { return link(it, aqui); }).join('');
+      return;
     }
-    nav.innerHTML = html;
+
+    // Cada grupo con lo que esta persona puede ver; los vacíos no van
+    var grupos = GRUPOS.map(function (g) {
+      var its = g.m.map(porHref).filter(function (it) { return it && can(it.k); });
+      return { k: g.k, t: g.t, c: g.c, its: its };
+    }).filter(function (g) { return g.its.length; });
+    var dash = porHref('index.html');
+    var verDash = dash && can(dash.k);
+
+    // El grupo abierto es el de la página actual; en el Dashboard, el primero
+    var actual = null;
+    grupos.forEach(function (g) {
+      if (g.its.some(function (it) { return esAqui(it, aqui); })) actual = g.k;
+    });
+    var abierto = actual || (grupos[0] && grupos[0].k);
+
+    nav.className = 'sbnav agrupado';
+    nav.setAttribute('aria-label', 'Módulos');
+
+    function pintar() {
+      var tabs = '';
+      if (verDash) {
+        var enDash = esAqui(dash, aqui);
+        tabs += '<a class="sbtab' + (enDash ? ' on aqui' : '') + '" href="' + dash.href + '" style="--c:27,200,255"'
+              + (enDash ? ' aria-current="page"' : '') + '><i aria-hidden="true"></i>Dashboard</a>';
+      }
+      grupos.forEach(function (g) {
+        var cls = 'sbtab' + (g.k === abierto ? ' on' : '') + (g.k === actual ? ' aqui' : '');
+        // Un grupo de un solo módulo es un acceso directo: no hay qué elegir
+        if (g.its.length === 1) {
+          var it = g.its[0];
+          tabs += '<a class="' + cls + '" href="' + it.href + '" style="--c:' + g.c + '"'
+                + ' title="' + texto(it.txt) + '"><i aria-hidden="true"></i>' + texto(g.t) + '</a>';
+        } else {
+          tabs += '<button type="button" class="' + cls + '" data-grupo="' + g.k + '" style="--c:' + g.c + '"'
+                + ' aria-expanded="' + (g.k === abierto) + '" aria-controls="sbsub"'
+                + ' title="' + texto(g.its.map(function (it) { return it.txt; }).join(' · ')) + '">'
+                + '<i aria-hidden="true"></i>' + texto(g.t) + '</button>';
+        }
+      });
+      var ga = grupos.filter(function (g) { return g.k === abierto; })[0];
+      var sub = ga ? ga.its.map(function (it) { return link(it, aqui); }).join('') : '';
+      nav.innerHTML = '<div class="sbtabs">' + tabs + '</div>'
+        + '<div class="sbsub" id="sbsub" style="--c:' + (ga ? ga.c : '27,200,255') + '">' + sub + '</div>';
+    }
+    // Tocar otra pestaña cambia la fila, sin cambiar de página
+    nav.onclick = function (e) {
+      var b = e.target.closest && e.target.closest('button[data-grupo]');
+      if (!b) return;
+      abierto = b.getAttribute('data-grupo');
+      pintar();
+      vigilar(nav);
+      var nb = nav.querySelector('button[data-grupo="' + abierto + '"]');
+      if (nb) nb.focus();
+    };
+    pintar();
+    vigilar(nav);
   }
 
-  window.SubatirNav = { render: render, items: ITEMS };
+  // Las pestañas al lado del logo sólo sirven si entran en ese renglón
+  // junto con lo demás (logo, botones de la derecha). Si no entran, el
+  // renglón se parte y quedan despegadas de su fila: se marca .baja y
+  // nav.css las devuelve a su propio renglón. Se decide sumando anchos,
+  // que no cambian al mover las pestañas, así que se puede volver a medir
+  // cada vez que algo cambie de tamaño sin entrar en un ida y vuelta.
+  function ajustar(nav) {
+    if (!nav.classList.contains('agrupado')) return;
+    var hdr = nav.parentElement, tabs = nav.querySelector('.sbtabs');
+    if (!hdr || !tabs) return;
+    if (window.innerWidth < 1200) { nav.classList.remove('baja'); return; }   // nav.css ya las apila
+    var cs = getComputedStyle(hdr);
+    var libre = hdr.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var gap = parseFloat(cs.columnGap) || 12;
+    var usado = tabs.getBoundingClientRect().width + 18 + 4, piezas = 1;
+    for (var i = 0; i < hdr.children.length; i++) {
+      var c = hdr.children[i];
+      if (c === nav || c.tagName === 'SCRIPT' || c.tagName === 'STYLE') continue;
+      var w = c.getBoundingClientRect().width;
+      if (w > 0) { usado += w; piezas++; }
+    }
+    usado += gap * (piezas - 1);
+    nav.classList.toggle('baja', usado > libre);
+  }
+  var _ro = null;
+  function vigilar(nav) {
+    ajustar(nav);
+    if (!window.ResizeObserver || !nav.parentElement) return;
+    if (!_ro) {
+      _ro = new ResizeObserver(function () { ajustar(nav); });
+      _ro.observe(nav.parentElement);
+      // El logo y los botones de la derecha crecen cuando la página termina
+      // de cargar (fuentes, el chip "17 pend. / 978 total" de Pedidos)
+      for (var i = 0; i < nav.parentElement.children.length; i++) {
+        var c = nav.parentElement.children[i];
+        if (c !== nav && c.tagName !== 'SCRIPT') _ro.observe(c);
+      }
+    }
+    var t = nav.querySelector('.sbtabs');
+    if (t) _ro.observe(t);
+  }
+
+  window.SubatirNav = { render: render, items: ITEMS, grupos: GRUPOS };
 
   // Se dibuja el menú base ya mismo. Este script va justo después
   // del </nav>, así que el <nav> existe y no se ve el salto: para

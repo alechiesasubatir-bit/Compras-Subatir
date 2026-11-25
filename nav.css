@@ -117,6 +117,69 @@ nav.sbnav a[data-nav="informes"]    {--c:251,113,133}  /* coral    */
 nav.sbnav a[data-nav="deposito"]    {--c: 96,165,250}  /* azul     */
 nav.sbnav a[data-nav="usuarios"]    {--c:129,140,248}  /* índigo   */
 
+/* ── Menú agrupado (opción A, 25/11/2026) ───────────────────
+   Pestañas de grupo arriba y, abajo, una sola fila con los módulos
+   del grupo abierto. Los cuadros son los mismos de siempre, más
+   bajos y de ancho según su texto: ya no hay grilla que llenar.
+   --c del grupo pinta la pestaña y el borde de la fila. */
+.sbhdr > nav.sbnav.agrupado{
+  display:flex;flex-direction:column;gap:0;
+  padding-top:7px;
+}
+nav.sbnav .sbtabs{display:flex;align-items:flex-end;gap:3px;min-width:0}
+nav.sbnav .sbtab{
+  --c:27,200,255;
+  display:inline-flex;align-items:center;gap:7px;flex:none;
+  padding:6px 13px 6px;margin:0;
+  border:1px solid transparent;border-bottom:none;border-radius:9px 9px 0 0;
+  background:none;color:#7f93a8;cursor:pointer;text-decoration:none;
+  font-family:'Syne','DM Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;
+  line-height:1.2;white-space:nowrap;
+  transition:color .16s,background .16s,border-color .16s;
+}
+nav.sbnav .sbtab i{width:7px;height:7px;border-radius:2px;background:rgba(var(--c),.55);flex:none}
+nav.sbnav .sbtab:hover{color:#e2e8f0;background:rgba(var(--c),.06)}
+nav.sbnav .sbtab:focus-visible{outline:2px solid rgba(var(--c),.75);outline-offset:-2px}
+/* La pestaña del grupo abierto se "pega" a la fila de abajo */
+nav.sbnav .sbtab.on{
+  color:#fff;
+  background:linear-gradient(180deg,rgba(var(--c),.16),rgba(var(--c),.10));
+  border-color:rgba(var(--c),.34);
+  position:relative;z-index:1;margin-bottom:-1px;padding-bottom:7px;
+}
+nav.sbnav .sbtab.on i,
+nav.sbnav .sbtab.aqui i{background:rgb(var(--c));box-shadow:0 0 6px rgba(var(--c),.8)}
+/* Grupo de la página actual mientras se mira otro: el punto lo delata */
+nav.sbnav .sbtab.aqui:not(.on){color:#cbd5e1}
+
+nav.sbnav .sbsub{
+  --c:27,200,255;
+  display:flex;flex-wrap:wrap;gap:6px;
+  padding:5px 6px;border-radius:0 10px 10px 10px;
+  border:1px solid rgba(var(--c),.34);
+  background:linear-gradient(180deg,rgba(var(--c),.10),rgba(var(--c),.025) 85%);
+}
+/* Los cuadros de la fila: mismos colores, más bajos y sin ancho fijo */
+nav.sbnav .sbsub a.sbnl{padding:4px 11px 4px 5px;font-size:12px;gap:7px;flex:0 0 auto}
+nav.sbnav .sbsub a.sbnl .sbnl-i{width:21px;height:21px;font-size:11.5px;border-radius:6px}
+nav.sbnav .sbsub a.sbnl.on::after{bottom:2px}
+nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* violeta claro */
+
+/* Pantalla ancha: las pestañas suben al renglón del logo, que tiene
+   lugar de sobra, y la fila de módulos queda pegada debajo. El <nav>
+   se "disuelve" (display:contents) para que sus dos partes sean
+   piezas sueltas del encabezado. Ahorra el renglón de las pestañas.
+   Si los botones de la derecha no entran (Pedidos a 1366 px), nav.js
+   le pone .baja al <nav> y las pestañas vuelven a su propio renglón:
+   si no, el renglón se parte y quedan despegadas de su fila. */
+@media (min-width:1200px){
+  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)){row-gap:0;padding-bottom:9px}
+  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)) > .logo{margin-bottom:5px}
+  .sbhdr > nav.sbnav.agrupado:not(.baja){display:contents}
+  nav.sbnav.agrupado .sbtabs{order:1;align-self:flex-end;margin-left:18px;margin-bottom:-1px}
+  nav.sbnav.agrupado .sbsub{order:3;flex:1 1 100%;min-width:0}
+}
+
 /* ── Celular ─────────────────────────────────────────────────
    10 cuadros en grilla angosta serían cinco filas comiéndose la
    pantalla. Pasa a tira que se arrastra de costado. */
@@ -138,6 +201,14 @@ nav.sbnav a[data-nav="usuarios"]    {--c:129,140,248}  /* índigo   */
     -webkit-overflow-scrolling:touch;
   }
   nav.sbnav a.sbnl{flex:0 0 auto;scroll-snap-align:start}
+  /* Agrupado: pestañas y fila se arrastran de costado cada una */
+  .sbhdr > nav.sbnav.agrupado{display:flex;flex-direction:column;overflow:visible;padding-bottom:0}
+  nav.sbnav .sbtabs,
+  nav.sbnav .sbsub{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  nav.sbnav .sbtabs::-webkit-scrollbar,
+  nav.sbnav .sbsub::-webkit-scrollbar{display:none}
+  nav.sbnav .sbtab{padding:6px 10px;font-size:10.5px}
+  nav.sbnav .sbsub{border-radius:0 0 10px 10px}
   nav.sbnav a.sbnl .sbnl-t{overflow:visible;text-overflow:clip}
   nav.sbnav::-webkit-scrollbar{height:3px}
   nav.sbnav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
@@ -147,6 +218,6 @@ nav.sbnav a[data-nav="usuarios"]    {--c:129,140,248}  /* índigo   */
 }
 
 @media (prefers-reduced-motion:reduce){
-  nav.sbnav a.sbnl{transition:none}
+  nav.sbnav a.sbnl,nav.sbnav .sbtab{transition:none}
   nav.sbnav a.sbnl:hover{transform:none}
 }

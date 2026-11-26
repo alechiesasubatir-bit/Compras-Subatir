@@ -177,10 +177,53 @@
       abierto = b.getAttribute('data-grupo');
       elegido = true;
       pintar();
+      vigilar(nav);
       var nb = nav.querySelector('button[data-grupo="' + abierto + '"]');
       if (nb) nb.focus();
     };
     pintar();
+    vigilar(nav);
+  }
+
+  // Las pestañas van en el renglón del logo y del usuario, centradas
+  // (pedido del 25/11/2026). nav.css las centra lo más posible: en el centro
+  // exacto si los dos costados entran, y corridas hacia el lado más angosto
+  // si no (Pedidos, con sus botones). Si ni así entran en el renglón, se
+  // marca .baja y pasan a su propio renglón, también centradas. Se decide sumando anchos,
+  // que no cambian al mover las pestañas: se puede volver a medir cada vez
+  // que algo cambia de tamaño sin entrar en un ida y vuelta.
+  var EN_LINEA_DESDE = 1000;   // el mismo corte que el @media de nav.css
+  function ajustar(nav) {
+    if (!nav.classList.contains('agrupado')) return;
+    var hdr = nav.parentElement, tabs = nav.querySelector('.sbtabs');
+    if (!hdr || !tabs) return;
+    if (window.innerWidth < EN_LINEA_DESDE) { nav.classList.remove('baja'); return; }
+    var cs = getComputedStyle(hdr);
+    var libre = hdr.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var gap = 16, usado = tabs.getBoundingClientRect().width + 2 * gap;
+    for (var i = 0; i < hdr.children.length; i++) {
+      var c = hdr.children[i];
+      if (c === nav || c.tagName === 'SCRIPT' || c.tagName === 'STYLE') continue;
+      usado += c.getBoundingClientRect().width;
+    }
+    nav.classList.toggle('baja', usado > libre);
+  }
+  var _ro = null;
+  function vigilar(nav) {
+    ajustar(nav);
+    if (!window.ResizeObserver || !nav.parentElement) return;
+    if (!_ro) {
+      _ro = new ResizeObserver(function () { ajustar(nav); });
+      _ro.observe(nav.parentElement);
+      // El logo y los botones de la derecha crecen cuando la página termina
+      // de cargar (fuentes, el chip "17 pend. / 978 total" de Pedidos)
+      for (var i = 0; i < nav.parentElement.children.length; i++) {
+        var c = nav.parentElement.children[i];
+        if (c !== nav && c.tagName !== 'SCRIPT') _ro.observe(c);
+      }
+    }
+    var t = nav.querySelector('.sbtabs');
+    if (t) _ro.observe(t);
   }
 
   window.SubatirNav = { render: render, items: ITEMS, grupos: GRUPOS };

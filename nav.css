@@ -169,6 +169,33 @@ nav.sbnav .sbsub a.sbnl{padding:4px 15px 4px 4px;font-size:13.5px;gap:9px;flex:0
 nav.sbnav .sbsub a.sbnl .sbnl-i{width:26px;height:26px;font-size:13.5px;border-radius:8px}
 nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* violeta claro */
 
+/* Pantalla ancha: logo a la izquierda, pestañas en el centro exacto y
+   usuario a la derecha, en un mismo renglón (25/11/2026). Grilla de tres
+   columnas: los costados se reparten el lugar en partes iguales (1fr)
+   pero nunca menos que su contenido (max-content). Si los dos entran en
+   su mitad, las pestañas quedan en el centro exacto; si un costado es más
+   ancho (los botones de Pedidos), se corren lo justo hacia el otro.
+   El <nav> se "disuelve" (display:contents) para que pestañas y fila sean
+   piezas sueltas de la grilla. La fila va en la misma columna que las
+   pestañas, debajo y con su mismo ancho: si las pestañas se corren del
+   centro, la fila se corre con ellas y se leen como un solo bloque.
+   Si ni así entra todo en el renglón, nav.js pone .baja y todo vuelve a
+   apilarse (pestañas en su renglón, también centradas). */
+@media (min-width:1000px){
+  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)){
+    display:grid;grid-template-columns:minmax(max-content,1fr) auto minmax(max-content,1fr);
+    align-items:center;column-gap:16px;row-gap:0;
+  }
+  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)) > *{grid-column:1;justify-self:start}
+  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)) > .hdr-r,
+  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)) > .hdr-right,
+  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)) > .header-right{grid-column:3;justify-self:end;margin-left:0}
+  .sbhdr > nav.sbnav.agrupado:not(.baja){display:contents}
+  nav.sbnav.agrupado:not(.baja) .sbtabs{grid-column:2;grid-row:1;justify-self:center}
+  nav.sbnav.agrupado:not(.baja) .sbtabs{width:100%;justify-content:center}
+  nav.sbnav.agrupado:not(.baja) .sbsub{grid-column:2;grid-row:2;margin-top:7px}
+}
+
 /* ── Celular ─────────────────────────────────────────────────
    10 cuadros en grilla angosta serían cinco filas comiéndose la
    pantalla. Pasa a tira que se arrastra de costado. */

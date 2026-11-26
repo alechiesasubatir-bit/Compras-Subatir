@@ -234,15 +234,15 @@ td.txt-l{min-width:220px}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.2205"/>
-<script src="supabase-config.js?v=2026-11-25.2205"></script>
-<script src="subatir-app.js?v=2026-11-25.2205"></script>
-<script src="cloro-calc.js?v=2026-11-25.2205"></script>
-<script src="informes-calc.js?v=2026-11-25.2205"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.2213"/>
+<script src="supabase-config.js?v=2026-11-25.2213"></script>
+<script src="subatir-app.js?v=2026-11-25.2213"></script>
+<script src="cloro-calc.js?v=2026-11-25.2213"></script>
+<script src="informes-calc.js?v=2026-11-25.2213"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.2205';
+window.APP_VER='2026-11-25.2213';
 </script>
 </head>
 <body>
@@ -258,9 +258,8 @@ window.APP_VER='2026-11-25.2205';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-25.2205"></script>
+  <script src="nav.js?v=2026-11-25.2213"></script>
   <div class="hdr-right">
-    <span class="ts" id="ts">—</span>
   </div>
 </header>
 
@@ -1049,7 +1048,6 @@ function cargar(avisar){
     PEND = null;
     if(errores.length) toast('Algunos datos no se pudieron leer: '+errores.join(' · '), 'err');
     else if(avisar) toast('Datos actualizados ✓','ok');
-    document.getElementById('ts').textContent = new Date().toLocaleTimeString('es-UY');
     llenarListas();
     aplicar();
   });

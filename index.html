@@ -206,7 +206,6 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
   border-color:rgba(27,200,255,.3);box-shadow:0 0 12px rgba(14,138,170,.25);
 }
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-#last-update{font-size:10px;color:var(--mut);font-family:'IBM Plex Mono',monospace}
 
 /* ── Buttons ───────────────────────────────────────────────── */
 .btn{
@@ -510,17 +509,17 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-11-25.2205"/>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.2205"/>
+<link rel="stylesheet" href="traslados.css?v=2026-11-25.2213"/>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.2213"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-11-25.2205"></script>
-<script src="subatir-app.js?v=2026-11-25.2205"></script>
-<script src="reposicion-calc.js?v=2026-11-25.2205"></script>
-<script src="traslados.js?v=2026-11-25.2205"></script>
+<script src="supabase-config.js?v=2026-11-25.2213"></script>
+<script src="subatir-app.js?v=2026-11-25.2213"></script>
+<script src="reposicion-calc.js?v=2026-11-25.2213"></script>
+<script src="traslados.js?v=2026-11-25.2213"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.2205';
+window.APP_VER='2026-11-25.2213';
 </script>
 </head>
 <body>
@@ -580,9 +579,8 @@ window.APP_VER='2026-11-25.2205';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-11-25.2205"></script>
+    <script src="nav.js?v=2026-11-25.2213"></script>
     <div class="hdr-right">
-      <span id="last-update">—</span>
     </div>
   </div>
 
@@ -1134,7 +1132,6 @@ function load(){
       // Una sola vez: montar en cada load() dejaría suscripciones duplicadas
       if(window.Traslados && !window.__TR){ window.__TR = Traslados.montar('#tr-panel'); }
       setLoading(false);
-      updateTimestamp(data.timestamp);
       scheduleRefresh();
     },
     function(err){
@@ -1158,11 +1155,6 @@ function setLoading(on){
   // a quienes la llaman.
 }
 
-function updateTimestamp(iso){
-  var d = new Date(iso);
-  document.getElementById('last-update').textContent =
-    'Actualizado: ' + d.toLocaleDateString('es-UY') + ' ' + d.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
-}
 
 function showError(html){
   document.querySelector('#tbody-pedidos').innerHTML =

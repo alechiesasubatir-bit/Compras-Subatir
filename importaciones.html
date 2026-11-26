@@ -149,6 +149,8 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .dato:disabled{background:none;border-color:transparent;color:var(--text);cursor:default;opacity:1}
 .dato.stk{background:rgba(27,200,255,.08);border-color:rgba(27,200,255,.28);color:var(--teal-l)}
 .dato.tra{background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.3);color:#c4b5fd}
+.dato.rem{background:rgba(251,146,60,.08);border-color:rgba(251,146,60,.3);color:#fdba74}
+body:not(.con-rem) .rem{display:none}
 .dato.conf{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.28);color:#4ade80}
 .ped{font-weight:700;font-size:13px}
 .est{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;white-space:nowrap;
@@ -259,14 +261,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.1631"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-25.1631"/>
-<script src="supabase-config.js?v=2026-11-25.1631"></script>
-<script src="subatir-app.js?v=2026-11-25.1631"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.2135"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-25.2135"/>
+<script src="supabase-config.js?v=2026-11-25.2135"></script>
+<script src="subatir-app.js?v=2026-11-25.2135"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.1631';
+window.APP_VER='2026-11-25.2135';
 </script>
 </head>
 <body>
@@ -277,7 +279,7 @@ window.APP_VER='2026-11-25.1631';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-11-25.1631"></script>
+  <script src="nav.js?v=2026-11-25.2135"></script>
   <div class="hdr-r">
     <span id="ts" style="font-size:10px;color:var(--muted);font-family:var(--mono)">—</span>
     <button class="btn btn-sm" onclick="cargar()">⟳ Actualizar</button>
@@ -294,7 +296,7 @@ window.APP_VER='2026-11-25.1631';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-11-25.1631"></script>
+  <script src="importaciones-tabs.js?v=2026-11-25.2135"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -373,12 +375,13 @@ window.APP_VER='2026-11-25.1631';
             <th class="in" title="Se carga del listado: unidades consumidas en el último año. Abajo, el promedio por mes.">Cons. año</th>
             <th id="th-proy" title="60% del promedio de 3 meses + 40% del promedio anual, por el crecimiento">Proyect./mes</th>
             <th class="in" title="Foto del stock de Depósitos al armar la corrida. Abajo, cuántas semanas aguanta al ritmo proyectado (aparece cuando hay consumo cargado).">Stock Depósitos</th>
+            <th class="in rem" title="Unidades que ya llegaron a la fábrica y todavía no se usaron (ej.: un pallet con varias cajas que se va gastando). Cuentan como stock de Depósitos.">Remanente Fábrica</th>
             <th class="in" title="Lo ya pedido que todavía no llegó">En tránsito</th>
             <th title="Lo que se consume mientras la importación viaja (lead time)">Viaje</th>
             <th title="Proyectado × meses de cobertura">Cobertura</th>
             <th title="Proyectado × semanas de seguridad ÷ 4,333">Seguridad</th>
             <th title="Viaje + cobertura + seguridad">Total nec.</th>
-            <th title="Total necesario − stock − en tránsito">A pedir</th>
+            <th id="th-apedir" title="Total necesario − stock − en tránsito">A pedir</th>
             <th title="A pedir redondeado hacia arriba a cajas completas">Cajas</th>
             <th title="Cajas × unidades por caja">Pedido</th>
             <th class="c" title="Última fecha para pedir y que llegue antes de tocar el stock de seguridad">Pedir antes de</th>
@@ -387,7 +390,7 @@ window.APP_VER='2026-11-25.1631';
             <th class="c" title="Confirmada − pedido calculado">Dif.</th>
           </tr>
         </thead>
-        <tbody id="tbody"><tr><td colspan="17" class="empty">Cargando…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="18" class="empty">Cargando…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -407,7 +410,7 @@ window.APP_VER='2026-11-25.1631';
       <div class="fg"><label for="nc-nota">Nota</label>
         <input class="inp" id="nc-nota" maxlength="200" placeholder="Lo que convenga recordar de esta importación"/></div>
       <div class="hint">Arranca con el <b>stock de hoy de Depósitos</b> y una copia del consumo de la
-        corrida que estás viendo. Después subís los dos listados y queda al día.
+        corrida que estás viendo<span class="rem">; el remanente en fábrica arranca en 0 y se carga a mano</span>. Después subís los dos listados y queda al día.
         La anterior queda guardada como está.</div>
     </div>
     <div class="modal-f">
@@ -461,9 +464,9 @@ window.APP_VER='2026-11-25.1631';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-11-25.1631"></script>
-<script src="xlsx-lite.js?v=2026-11-25.1631"></script>
-<script src="importaciones-export.js?v=2026-11-25.1631"></script>
+<script src="importaciones-calc.js?v=2026-11-25.2135"></script>
+<script src="xlsx-lite.js?v=2026-11-25.2135"></script>
+<script src="importaciones-export.js?v=2026-11-25.2135"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -475,7 +478,7 @@ window.APP_VER='2026-11-25.1631';
 //  La cuenta está en importaciones-calc.js, en un solo lugar.
 // ══════════════════════════════════════════════════════════════
 var LINEAS = {
-  Subatir: { titulo:'Subatir · Consumo', desc:'artículos de consumo de la fábrica', tildes:true,
+  Subatir: { titulo:'Subatir · Consumo', desc:'artículos de consumo de la fábrica', tildes:true, remanente:true,
              filtro:function(a){ return a.proveedor==='Subatir' && a.tipo==='Consumo'; } },
   Intex:   { titulo:'Intex', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Intex'; } },
   Enjoy:   { titulo:'Enjoy', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Enjoy'; } },
@@ -490,6 +493,8 @@ var LIN = LINEAS[window.LINEA];
 // mensual; el de 3 meses no va porque agarra los picos de consumo.
 // ventas: el listado es el «Ranking por Articulo Ventas» y se toma la
 // cantidad vendida, no las Salidas.
+// remanente: columna «Remanente Fábrica», lo que ya llegó a la fábrica y
+// todavía no se usó. Suma como stock de Depósitos (importaciones-calc.js).
 
 var ART=[], STOCK={}, PAR=null, CORR=[], DATOS={}, CUR_CORR=null, PEND={};
 var XL={'3m':null, anual:null};
@@ -526,6 +531,10 @@ if(LIN.ventas){
   document.getElementById('xl-col').textContent='Cantidad de Ventas';
   document.querySelector('#drop-anual .drop-s').textContent='«Ranking por Articulo Ventas» de 12 meses';
   document.getElementById('btn-xl').title='Subir el listado del sistema del último año';
+}
+if(LIN.remanente){
+  document.body.classList.add('con-rem');
+  document.getElementById('th-apedir').title='Total necesario − stock − remanente en fábrica − en tránsito';
 }
 if(LIN.tildes){
   document.getElementById('th-art').innerHTML='<input type="checkbox" class="tilde" id="tilde-todos" onchange="tildarTodos(this)"'
@@ -574,7 +583,7 @@ function cargar(){
 }
 function falta(e){
   var m=(e&&e.message)||'';
-  document.getElementById('tbody').innerHTML='<tr><td colspan="17" class="empty">'
+  document.getElementById('tbody').innerHTML='<tr><td colspan="18" class="empty">'
     +'No se pudieron leer los datos de Importaciones.<br>'
     +(/relation|does not exist|schema cache/i.test(m)
       ? 'Falta correr <b>migracion/imp_prevision.sql</b> en Supabase: ahí se crean las tablas de la previsión.'
@@ -607,7 +616,8 @@ function parEfectivos(){
 }
 
 // ══ FILAS ═════════════════════════════════════════════════════
-var CAMPOS=['consumo_3m','consumo_anual','stock_actual','en_transito','compra_confirmada'].concat(LIN.tildes?['incluir']:[]);
+var CAMPOS=['consumo_3m','consumo_anual','stock_actual','en_transito','compra_confirmada']
+  .concat(LIN.remanente?['remanente_fabrica']:[]).concat(LIN.tildes?['incluir']:[]);
 function defCampo(k){ return k==='compra_confirmada' ? null : (k==='incluir' ? true : 0); }
 function filas(){
   if(!PAR) return [];
@@ -745,7 +755,7 @@ function pintarFormula(){
     +n1(100+num(p.crecimiento_pct))+'%</b> &nbsp;·&nbsp; '
     +'Total necesario = proyectado × (<b>'+n0(p.semanas_leadtime)+'</b> sem de viaje + <b>'
     +n0(p.meses_cobertura)+'</b> meses de cobertura + <b>'+n0(p.semanas_seguridad)+'</b> sem de seguridad) &nbsp;·&nbsp; '
-    +'A pedir = total − stock − en tránsito, redondeado a <b>cajas completas</b> &nbsp;·&nbsp; '
+    +'A pedir = total − stock'+(LIN.remanente?' − remanente en fábrica':'')+' − en tránsito, redondeado a <b>cajas completas</b> &nbsp;·&nbsp; '
     +'<span style="color:var(--muted)">El viaje cuenta porque mientras la importación viene en camino, el stock de hoy se sigue gastando.</span>';
 }
 function guardarParametros(){
@@ -800,23 +810,23 @@ function pintarTabla(){
   var tb=document.getElementById('tbody');
   if(!PAR) return;
   if(!CUR_CORR){
-    tb.innerHTML='<tr><td colspan="17" class="empty">'+(ART.length
+    tb.innerHTML='<tr><td colspan="18" class="empty">'+(ART.length
       ? 'Creá la primera corrida con <b>➕ Nueva corrida</b>.'
       : 'Todavía no hay artículos de '+esc(LIN.titulo)+' en Depósitos.')+'</td></tr>';
     document.getElementById('tbl-n').textContent='—'; return;
   }
   var fs=visibles(), p=parEfectivos();
   document.getElementById('tbl-n').textContent=fs.length+(fs.length===1?' artículo':' artículos');
-  if(!fs.length){ tb.innerHTML='<tr><td colspan="17" class="empty">Sin resultados con los filtros actuales.</td></tr>'; return; }
+  if(!fs.length){ tb.innerHTML='<tr><td colspan="18" class="empty">Sin resultados con los filtros actuales.</td></tr>'; return; }
   var lead=num(p.semanas_leadtime), seg=num(p.semanas_seguridad), hoy=hoyUTC();
-  var T={c3m:0,can:0,stk:0,tra:0,ped:0,caj:0,conf:0};
+  var T={c3m:0,can:0,stk:0,rem:0,tra:0,ped:0,caj:0,conf:0};
   var nIncl=0;
   var html=fs.map(function(f){
     var c=f.c, d=f.d, a=f.art, id=a.id, dif=num(d.compra_confirmada)-c.pedido;
     if(!f.incl) return filaExcluida(f);
     nIncl++;
     T.c3m+=num(d.consumo_3m); T.can+=num(d.consumo_anual); T.stk+=num(d.stock_actual);
-    T.tra+=num(d.en_transito); T.ped+=c.pedido; T.caj+=c.cajas; T.conf+=num(d.compra_confirmada);
+    T.rem+=num(d.remanente_fabrica); T.tra+=num(d.en_transito); T.ped+=c.pedido; T.caj+=c.cajas; T.conf+=num(d.compra_confirmada);
     if(d.compra_confirmada!=null) T.hayConf=true;
     var vivo=STOCK[id]||0, difStk=!cerrada() && f.enCorrida && Math.round(vivo)!==Math.round(num(d.stock_actual));
     var dura = c.estado==='sin' ? '' : (c.quiebre ? '<span class="sub bajo">🔴 QUIEBRE</span>'
@@ -831,6 +841,7 @@ function pintarTabla(){
       +celda(id,'consumo_anual',d.consumo_anual,'','<span class="sub">'+n0(c.promAnual)+'/mes</span>')
       +'<td title="'+(LIN.soloAnual?'Promedio anual ':'Ponderado ')+n1(c.ponderado)+' × crecimiento">'+n0(c.proyect)+'</td>'
       +celda(id,'stock_actual',d.stock_actual,'stk',dura)
+      +celda(id,'remanente_fabrica',d.remanente_fabrica,'rem','')
       +celda(id,'en_transito',d.en_transito,'tra','')
       +'<td class="calc">'+n0(c.duranteLead)+'</td>'
       +'<td class="calc">'+n0(c.necesidad)+'</td>'
@@ -848,7 +859,7 @@ function pintarTabla(){
       +'</tr>';
   }).join('');
   html+='<tr class="tot"><td class="l">TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+(nIncl<fs.length?' tildados':'')+'</td>'
-    +'<td class="c3m">'+n0(T.c3m)+'</td><td>'+n0(T.can)+'</td><td></td><td>'+n0(T.stk)+'</td><td>'+n0(T.tra)+'</td>'
+    +'<td class="c3m">'+n0(T.c3m)+'</td><td>'+n0(T.can)+'</td><td></td><td>'+n0(T.stk)+'</td><td class="rem">'+n0(T.rem)+'</td><td>'+n0(T.tra)+'</td>'
     +'<td></td><td></td><td></td><td></td><td></td><td>'+n0(T.caj)+'</td><td class="ped c-or">'+n0(T.ped)+'</td>'
     +'<td></td><td></td><td class="c-gr">'+(T.hayConf?n0(T.conf):'<span class="cod">—</span>')+'</td><td></td></tr>';
   tb.innerHTML=html;
@@ -869,7 +880,8 @@ function filaExcluida(f){
   var d=f.d, id=f.art.id, g='<td class="calc"><span class="cod">—</span></td>';
   return '<tr class="excl">'+celdaArt(f)
     +celda(id,'consumo_3m',d.consumo_3m,'','')+celda(id,'consumo_anual',d.consumo_anual,'','')
-    +g+celda(id,'stock_actual',d.stock_actual,'stk','')+celda(id,'en_transito',d.en_transito,'tra','')
+    +g+celda(id,'stock_actual',d.stock_actual,'stk','')+celda(id,'remanente_fabrica',d.remanente_fabrica,'rem','')
+    +celda(id,'en_transito',d.en_transito,'tra','')
     +g+g+g+g+g+g+g
     +'<td class="c"><span class="cod">—</span></td>'
     +'<td class="c"><span class="est est-excl">'+EST_TXT.excl+'</span></td>'
@@ -897,7 +909,7 @@ function pintarTildeTodos(fs){
   el.disabled = cerrada() || !fs.length;
 }
 function celda(id,campo,valor,cls,pie){
-  return '<td'+(campo==='consumo_3m'?' class="c3m"':'')+'><input class="dato '+cls+'" type="number" step="1" min="0" inputmode="decimal" value="'+(valor==null?'':valor)+'"'
+  return '<td'+(campo==='consumo_3m'?' class="c3m"':(campo==='remanente_fabrica'?' class="rem"':''))+'><input class="dato '+cls+'" type="number" step="1" min="0" inputmode="decimal" value="'+(valor==null?'':valor)+'"'
     +' data-id="'+id+'" data-campo="'+campo+'"'+(cerrada()?' disabled':'')
     +' oninput="editar(this)" onchange="pintarTabla()" aria-label="'+campo.replace(/_/g,' ')+'"/>'+(pie||'')+'</td>';
 }
@@ -1143,16 +1155,17 @@ function exportCSV(){
   // En soloAnual no van Consumo 3m, Prom 3m ni Ponderado (es el Prom año)
   var sinTrim=function(x,i){ return !(LIN.soloAnual && (i===3||i===5||i===7)); };
   var out=[['Código','Artículo','Un. x caja','Consumo 3m','Consumo año','Prom 3m','Prom año','Ponderado','Proyectado/mes',
-    'Stock','En tránsito','Semanas que dura','Viaje','Cobertura','Seguridad','Total necesario','A pedir','Cajas','Pedido',
-    'Pedir antes de','Estado','Confirmada'].concat(LIN.tildes?['Se importa']:[]).filter(sinTrim).map(q).join(';')];
+    'Stock'].concat(LIN.remanente?['Remanente fábrica']:[]).concat(['En tránsito','Semanas que dura','Viaje','Cobertura','Seguridad','Total necesario','A pedir','Cajas','Pedido',
+    'Pedir antes de','Estado','Confirmada']).concat(LIN.tildes?['Se importa']:[]).filter(sinTrim).map(q).join(';')];
   fs.forEach(function(f){
     var c=f.c, d=f.d;
     out.push([q(f.art.codigo),q(f.art.descripcion),d1(f.art.un_x_caja),d1(d.consumo_3m),d1(d.consumo_anual),
-      d1(c.prom3m),d1(c.promAnual),d1(c.ponderado),d1(c.proyect),d1(d.stock_actual),d1(d.en_transito),
+      d1(c.prom3m),d1(c.promAnual),d1(c.ponderado),d1(c.proyect),d1(d.stock_actual)]
+      .concat(LIN.remanente?[d1(d.remanente_fabrica)]:[]).concat([d1(d.en_transito),
       q(c.quiebre?'QUIEBRE':(c.cobertura>=999?'':Math.round(c.cobertura))),
       d1(c.duranteLead),d1(c.necesidad),d1(c.stockSeg),d1(c.totalNec),d1(c.aPedir),c.cajas,c.pedido,
       q(c.pedirAntes?fmtFecha(c.pedirAntes):''),q(EST_TXT[c.estado]),
-      d.compra_confirmada==null?'':d1(d.compra_confirmada)].concat(LIN.tildes?[q(f.incl?'Sí':'No')]:[]).filter(sinTrim).join(';'));
+      d.compra_confirmada==null?'':d1(d.compra_confirmada)]).concat(LIN.tildes?[q(f.incl?'Sí':'No')]:[]).filter(sinTrim).join(';'));
   });
   descargar('﻿'+out.join('\n'),'text/csv;charset=utf-8;',nombreArchivo('csv'));
   toast('CSV descargado','ok');
@@ -1187,6 +1200,7 @@ function reporte(){
     {t:'Cons. año', tipo:'n0'},
     {t:'Proyect./mes', tipo:'n0'},
     {t:'Stock', tipo:'n0'},
+    LIN.remanente ? {t:'Remanente fábrica', tipo:'n0'} : null,
     {t:'En tránsito', tipo:'n0'},
     {t:'Semanas que dura', tipo:'c', pw:44},
     {t:'Viaje', tipo:'n0', pdf:false},
@@ -1207,21 +1221,21 @@ function reporte(){
   // columnas que no van en esta línea (Cons. 3m en Mopas) se sacan después
   function fila(v){ return v.filter(function(x,i){ return usa[i]; }); }
 
-  var T={c3m:0,can:0,stk:0,tra:0,ped:0,caj:0,conf:0,nec:0,ap:0}, nIncl=0;
+  var T={c3m:0,can:0,stk:0,rem:0,tra:0,ped:0,caj:0,conf:0,nec:0,ap:0}, nIncl=0;
   var out=fs.map(function(f){
     var k=f.c, d=f.d, a=f.art;
     if(!f.incl){
       return {apagada:true, v:fila([a.codigo||'', a.descripcion, num(a.un_x_caja)||null,
-        num(d.consumo_3m), num(d.consumo_anual), '—', num(d.stock_actual), num(d.en_transito), '—',
+        num(d.consumo_3m), num(d.consumo_anual), '—', num(d.stock_actual), num(d.remanente_fabrica), num(d.en_transito), '—',
         '—','—','—','—','—','—','—','—', EST_TXT.excl, d.compra_confirmada==null?'':num(d.compra_confirmada), '—'])};
     }
     nIncl++;
-    T.c3m+=num(d.consumo_3m); T.can+=num(d.consumo_anual); T.stk+=num(d.stock_actual); T.tra+=num(d.en_transito);
+    T.c3m+=num(d.consumo_3m); T.can+=num(d.consumo_anual); T.stk+=num(d.stock_actual); T.rem+=num(d.remanente_fabrica); T.tra+=num(d.en_transito);
     T.ped+=k.pedido; T.caj+=k.cajas; T.conf+=num(d.compra_confirmada); T.nec+=k.totalNec; T.ap+=k.aPedir;
     if(d.compra_confirmada!=null) T.hayConf=true;
     var dif=num(d.compra_confirmada)-k.pedido;
     return {est:EST_RGB[k.estado], v:fila([a.codigo||'', a.descripcion, num(a.un_x_caja)||null,
-      num(d.consumo_3m), num(d.consumo_anual), k.proyect, num(d.stock_actual), num(d.en_transito),
+      num(d.consumo_3m), num(d.consumo_anual), k.proyect, num(d.stock_actual), num(d.remanente_fabrica), num(d.en_transito),
       k.estado==='sin' ? '—' : (k.quiebre ? 'QUIEBRE' : (k.cobertura>=999 ? '—' : Math.round(k.cobertura)+' sem')),
       k.duranteLead, k.necesidad, k.stockSeg, k.totalNec, k.aPedir, k.cajas||'', k.pedido,
       k.estado==='sin' || !k.pedirAntes ? '—' : fmtFecha(k.pedirAntes), EST_TXT[k.estado],
@@ -1229,7 +1243,7 @@ function reporte(){
       d.compra_confirmada==null ? '—' : (dif===0 ? '=' : (dif>0?'+':'-')+n0(Math.abs(dif)))])};
   });
   var total=fila(['', 'TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+(nIncl<fs.length?' tildados':''), null,
-    T.c3m, T.can, null, T.stk, T.tra, null, null, null, null, T.nec, T.ap, T.caj, T.ped, null, null, T.hayConf ? T.conf : null, null]);
+    T.c3m, T.can, null, T.stk, T.rem, T.tra, null, null, null, null, T.nec, T.ap, T.caj, T.ped, null, null, T.hayConf ? T.conf : null, null]);
 
   var est=document.getElementById('f-est'), q=document.getElementById('f-buscar').value.trim();
   var filtro=[est.value ? 'Estado: '+est.options[est.selectedIndex].text : '', q ? 'Búsqueda: «'+q+'»' : '']

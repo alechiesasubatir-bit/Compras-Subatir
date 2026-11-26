@@ -19,6 +19,7 @@
 //    necesidad  = proyect × mesesCobertura
 //    stockSeg   = proyect × (semanasSeguridad / 4,333)
 //    total      = durante LT + necesidad + stockSeg
+//    stock      = stock de Depósitos + remanente en fábrica
 //    aPedir     = max(0, total − stock − enTransito)
 //    cajas      = techo(aPedir / unXCaja)     (sin caja: unidades enteras)
 //
@@ -36,14 +37,16 @@
   function num(v) { var x = parseFloat(v); return isNaN(x) ? 0 : x; }
 
   /**
-   * @param d  {consumo_3m, consumo_anual, stock_actual, en_transito}
+   * @param d  {consumo_3m, consumo_anual, stock_actual, remanente_fabrica, en_transito}
+   *           remanente_fabrica (sólo Subatir): lo que ya llegó a la fábrica
+   *           y todavía no se usó; cuenta como stock de Depósitos.
    * @param p  {crecimiento_pct, meses_cobertura, semanas_seguridad, semanas_leadtime}
    * @param o  {unXCaja, fecha:Date, soloAnual}  fecha = la de la corrida
    */
   function calcular(d, p, o) {
     o = o || {};
     var c3m = num(d.consumo_3m), anual = num(d.consumo_anual);
-    var stock = num(d.stock_actual), transito = num(d.en_transito);
+    var stock = num(d.stock_actual) + num(d.remanente_fabrica), transito = num(d.en_transito);
     var lead = num(p.semanas_leadtime), seg = num(p.semanas_seguridad);
 
     var prom3m = c3m / 3;

@@ -74,3 +74,15 @@ test('anualizar lleva un listado de 11 meses a 12', () => {
   assert.strictEqual(ImpCalc.anualizar(1200, 12), 1200);
   assert.strictEqual(ImpCalc.anualizar(1200, null), 1200);
 });
+
+test('el remanente en fábrica suma como stock de Depósitos', () => {
+  // necesidad 400; 100 en Depósitos + 1500 en fábrica = 1600 → no se pide
+  const r = ImpCalc.calcular({ consumo_3m: 300, consumo_anual: 1200, stock_actual: 100, remanente_fabrica: 1500 }, P);
+  assert.strictEqual(r.disponible, 1600);
+  assert.strictEqual(r.pedido, 0);
+  assert.strictEqual(r.estado, 'ok');
+  // sin nada en Depósitos pero con remanente no es quiebre
+  const q = ImpCalc.calcular({ consumo_3m: 300, consumo_anual: 1200, stock_actual: 0, remanente_fabrica: 150 }, P, { unXCaja: 100 });
+  assert.strictEqual(q.quiebre, false);
+  assert.strictEqual(q.pedido, 300);
+});

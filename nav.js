@@ -67,7 +67,11 @@
     { k: 'stock',   t: 'Stock',         c: '167,139,250',
       m: ['stock.html', 'reposicion.html', 'deposito/index.html'] },
     { k: 'mp',      t: 'Materia prima', c: '250,204,21',
-      m: ['mp-importacion.html', 'cloro.html', 'calidad.html'] },
+      m: ['cloro.html', 'calidad.html'] },
+    // Importaciones va en su propia pestaña (pedido 25/11/2026). Con un solo
+    // módulo la pestaña es un acceso directo: un clic y se está adentro.
+    { k: 'imp',     t: 'Importaciones', c: '45,212,191',
+      m: ['mp-importacion.html'] },
     { k: 'gestion', t: 'Gestión',       c: '129,140,248',
       m: ['informes.html', 'usuarios.html'] }
   ];

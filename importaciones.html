@@ -261,14 +261,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.2318"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-25.2318"/>
-<script src="supabase-config.js?v=2026-11-25.2318"></script>
-<script src="subatir-app.js?v=2026-11-25.2318"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.0923"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-26.0923"/>
+<script src="supabase-config.js?v=2026-11-26.0923"></script>
+<script src="subatir-app.js?v=2026-11-26.0923"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.2318';
+window.APP_VER='2026-11-26.0923';
 </script>
 </head>
 <body>
@@ -279,7 +279,7 @@ window.APP_VER='2026-11-25.2318';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-11-25.2318"></script>
+  <script src="nav.js?v=2026-11-26.0923"></script>
   <div class="hdr-r">
   </div>
 </header>
@@ -294,7 +294,7 @@ window.APP_VER='2026-11-25.2318';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-11-25.2318"></script>
+  <script src="importaciones-tabs.js?v=2026-11-26.0923"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -462,9 +462,9 @@ window.APP_VER='2026-11-25.2318';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-11-25.2318"></script>
-<script src="xlsx-lite.js?v=2026-11-25.2318"></script>
-<script src="importaciones-export.js?v=2026-11-25.2318"></script>
+<script src="importaciones-calc.js?v=2026-11-26.0923"></script>
+<script src="xlsx-lite.js?v=2026-11-26.0923"></script>
+<script src="importaciones-export.js?v=2026-11-26.0923"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -502,6 +502,10 @@ function esc(s){ return String(s==null?'':s)
 function num(v){ var x=parseFloat(v); return isNaN(x)?0:x; }
 function n0(v){ return Math.round(num(v)).toLocaleString('es-UY'); }
 function n1(v){ return num(v).toLocaleString('es-UY',{minimumFractionDigits:1,maximumFractionDigits:1}); }
+// Semanas → meses (4,333 sem/mes, el mismo factor que usa el cálculo)
+function aMeses(sem){ return Math.round(num(sem)/4.333*10)/10; }
+function semMeses(sem){ var m=aMeses(sem);
+  return n0(sem)+' sem / '+m.toLocaleString('es-UY',{maximumFractionDigits:1})+(m===1?' mes':' meses'); }
 function toast(msg,tipo){
   var h=document.getElementById('toasts'), d=document.createElement('div');
   d.className='toast '+(tipo||'info'); d.textContent=msg; h.appendChild(d);
@@ -827,7 +831,7 @@ function pintarTabla(){
     var vivo=STOCK[id]||0, difStk=!cerrada() && f.enCorrida && Math.round(vivo)!==Math.round(num(d.stock_actual));
     var dura = c.estado==='sin' ? '' : (c.quiebre ? '<span class="sub bajo">🔴 QUIEBRE</span>'
       : (c.cobertura>=999 ? '' : '<span class="sub'+(c.margen<0?' bajo':(c.cobertura<lead+seg+num(p.meses_cobertura)*4.333?' medio':''))
-        +'" title="Aguanta '+n0(c.cobertura)+' semanas con lo que hay y lo que viene">'+n0(c.cobertura)+' sem</span>'));
+        +'" title="Aguanta '+semMeses(c.cobertura)+' con lo que hay y lo que viene">'+semMeses(c.cobertura)+'</span>'));
     if(difStk) dura+='<span class="sub dep" title="Lo que hoy figura en Depósitos">hoy: '+n0(vivo)+'</span>';
     var venc = c.pedirAntes && c.pedirAntes<=hoy && c.estado!=='ok';
     return '<tr class="'+(c.estado==='quiebre'?'quiebre':(c.estado==='urgente'?'urgente':''))+'"'
@@ -1151,7 +1155,7 @@ function exportCSV(){
   // En soloAnual no van Consumo 3m, Prom 3m ni Ponderado (es el Prom año)
   var sinTrim=function(x,i){ return !(LIN.soloAnual && (i===3||i===5||i===7)); };
   var out=[['Código','Artículo','Un. x caja','Consumo 3m','Consumo año','Prom 3m','Prom año','Ponderado','Proyectado/mes',
-    'Stock'].concat(LIN.remanente?['Remanente fábrica']:[]).concat(['En tránsito','Semanas que dura','Viaje','Cobertura','Seguridad','Total necesario','A pedir','Cajas','Pedido',
+    'Stock'].concat(LIN.remanente?['Remanente fábrica']:[]).concat(['En tránsito','Semanas que dura','Meses que dura','Viaje','Cobertura','Seguridad','Total necesario','A pedir','Cajas','Pedido',
     'Pedir antes de','Estado','Confirmada']).concat(LIN.tildes?['Se importa']:[]).filter(sinTrim).map(q).join(';')];
   fs.forEach(function(f){
     var c=f.c, d=f.d;
@@ -1159,6 +1163,7 @@ function exportCSV(){
       d1(c.prom3m),d1(c.promAnual),d1(c.ponderado),d1(c.proyect),d1(d.stock_actual)]
       .concat(LIN.remanente?[d1(d.remanente_fabrica)]:[]).concat([d1(d.en_transito),
       q(c.quiebre?'QUIEBRE':(c.cobertura>=999?'':Math.round(c.cobertura))),
+      q(c.quiebre||c.cobertura>=999?'':String(aMeses(c.cobertura)).replace('.',',')),
       d1(c.duranteLead),d1(c.necesidad),d1(c.stockSeg),d1(c.totalNec),d1(c.aPedir),c.cajas,c.pedido,
       q(c.pedirAntes?fmtFecha(c.pedirAntes):''),q(EST_TXT[c.estado]),
       d.compra_confirmada==null?'':d1(d.compra_confirmada)]).concat(LIN.tildes?[q(f.incl?'Sí':'No')]:[]).filter(sinTrim).join(';'));
@@ -1198,7 +1203,7 @@ function reporte(){
     {t:'Stock', tipo:'n0'},
     LIN.remanente ? {t:'Remanente fábrica', tipo:'n0'} : null,
     {t:'En tránsito', tipo:'n0'},
-    {t:'Semanas que dura', tipo:'c', pw:44},
+    {t:'Cuánto dura', tipo:'c', pw:66},
     {t:'Viaje', tipo:'n0', pdf:false},
     {t:'Cobertura', tipo:'n0', pdf:false},
     {t:'Seguridad', tipo:'n0', pdf:false},
@@ -1232,7 +1237,7 @@ function reporte(){
     var dif=num(d.compra_confirmada)-k.pedido;
     return {est:EST_RGB[k.estado], v:fila([a.codigo||'', a.descripcion, num(a.un_x_caja)||null,
       num(d.consumo_3m), num(d.consumo_anual), k.proyect, num(d.stock_actual), num(d.remanente_fabrica), num(d.en_transito),
-      k.estado==='sin' ? '—' : (k.quiebre ? 'QUIEBRE' : (k.cobertura>=999 ? '—' : Math.round(k.cobertura)+' sem')),
+      k.estado==='sin' ? '—' : (k.quiebre ? 'QUIEBRE' : (k.cobertura>=999 ? '—' : semMeses(k.cobertura))),
       k.duranteLead, k.necesidad, k.stockSeg, k.totalNec, k.aPedir, k.cajas||'', k.pedido,
       k.estado==='sin' || !k.pedirAntes ? '—' : fmtFecha(k.pedirAntes), EST_TXT[k.estado],
       d.compra_confirmada==null ? '' : num(d.compra_confirmada),

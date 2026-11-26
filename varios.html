@@ -412,14 +412,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="oc-pdf.js?v=2026-11-26.1544"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1544"/>
-<script src="supabase-config.js?v=2026-11-26.1544"></script>
-<script src="subatir-app.js?v=2026-11-26.1544"></script>
+<script src="oc-pdf.js?v=2026-11-26.1551"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1551"/>
+<script src="supabase-config.js?v=2026-11-26.1551"></script>
+<script src="subatir-app.js?v=2026-11-26.1551"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1544';
+window.APP_VER='2026-11-26.1551';
 </script>
 </head>
 <body>
@@ -435,7 +435,7 @@ window.APP_VER='2026-11-26.1544';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1544"></script>
+  <script src="nav.js?v=2026-11-26.1551"></script>
   <div class="header-right">
     <!-- Quién opera, en cuentas compartidas. Lo pinta SubatirApp.operador -->
     <span id="oper-chip"></span>
@@ -646,7 +646,7 @@ window.APP_VER='2026-11-26.1544';
           <input type="date" class="form-input" id="rc-fecha"/>
         </div>
         <div class="form-group">
-          <label>Total final</label>
+          <label>Total final (con IVA)</label>
           <input type="number" class="form-input" id="rc-total" min="0" step="0.01" placeholder="Si ahora se sabe"/>
         </div>
         <div class="form-group span2">
@@ -711,7 +711,9 @@ function fmtDate(d){
   var p=String(d).split('-');
   return (p.length===3&&p[0].length===4) ? p[2]+'/'+p[1]+'/'+p[0] : String(d);
 }
-function hoy(){ return new Date().toISOString().slice(0,10); }
+// Hoy en la hora de la PC: toISOString() da la fecha UTC, que después de
+// las 21 h en Uruguay ya es "mañana" (mismo arreglo que RecepcionCalc.hoyLocal)
+function hoy(){ var d=new Date(), p=function(n){ return (n<10?'0':'')+n; }; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
 function whoName(){
   if(window.SubatirApp && SubatirApp.operador) return SubatirApp.operador.nombre();
   var p=SubatirApp.getProfile();
@@ -1142,7 +1144,10 @@ function guardar(){
     var pid = CUR ? CUR.id : r.data.id;
     // Los renglones se reescriben enteros: son pocos y así no hay que
     // llevar la cuenta de cuál se editó, cuál se borró y cuál es nuevo.
-    return SB.from('pedidos_varios_items').delete().eq('pedido_id',pid).then(function(){
+    return SB.from('pedidos_varios_items').delete().eq('pedido_id',pid).then(function(rd){
+      // Si no se pudieron borrar los renglones viejos, insertar los nuevos
+      // los duplicaría: se corta acá y el pedido queda como estaba.
+      if(rd && rd.error) return rd;
       return SB.from('pedidos_varios_items').insert(items.map(function(i){
         return {pedido_id:pid, articulo:i.articulo, cantidad:i.cantidad, precio:i.precio, orden:i.orden};
       }));
@@ -1230,8 +1235,14 @@ function recibir(){
     obs_recepcion:document.getElementById('rc-obs').value.trim()||null
   };
   // Si acá se supo el importe, se guarda; si sigue vacío, se deja vacío
+  // Con el total nuevo se rehacen el neto y el IVA con la tasa del pedido.
+  // Antes quedaban los viejos (o vacíos) e Informes, que suma el neto,
+  // tomaba el total con IVA como si fuera neto (pedido 1: $ 6.652).
   var t=num(document.getElementById('rc-total').value);
-  if(t!=null) patch.total=t;
+  if(t!=null && t!==num(CUR.total)){
+    var tasa=num(CUR.iva_tasa)||0, r2=function(v){ return Math.round(v*100)/100; };
+    patch.total=t; patch.subtotal=r2(t/(1+tasa/100)); patch.iva_monto=r2(t-patch.subtotal);
+  }
   var btn=document.getElementById('rc-save'); btn.disabled=true;
   SB.from('pedidos_varios').update(patch).eq('id',CUR.id).then(function(r){
     btn.disabled=false;

@@ -137,6 +137,8 @@ tbody td.l{text-align:left;font-family:'DM Sans',sans-serif}
 tbody td.c{text-align:center}
 tbody tr:hover{background:rgba(255,255,255,.025)}
 .tot td{background:rgba(255,255,255,.05);font-weight:700;border-top:1px solid var(--border-b)}
+tr.grp td{background:rgba(249,115,22,.08);color:var(--orange-l,#fb923c);font-weight:800;font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;padding:7px 10px;border-top:1px solid var(--border-b)}
 .art{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .cod{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
 .calc{color:var(--muted-l)}
@@ -261,14 +263,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1646"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-26.1646"/>
-<script src="supabase-config.js?v=2026-11-26.1646"></script>
-<script src="subatir-app.js?v=2026-11-26.1646"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1656"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-26.1656"/>
+<script src="supabase-config.js?v=2026-11-26.1656"></script>
+<script src="subatir-app.js?v=2026-11-26.1656"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1646';
+window.APP_VER='2026-11-26.1656';
 </script>
 </head>
 <body>
@@ -279,7 +281,7 @@ window.APP_VER='2026-11-26.1646';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1646"></script>
+  <script src="nav.js?v=2026-11-26.1656"></script>
   <div class="hdr-r">
   </div>
 </header>
@@ -294,7 +296,7 @@ window.APP_VER='2026-11-26.1646';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-11-26.1646"></script>
+  <script src="importaciones-tabs.js?v=2026-11-26.1656"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -462,9 +464,9 @@ window.APP_VER='2026-11-26.1646';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-11-26.1646"></script>
-<script src="xlsx-lite.js?v=2026-11-26.1646"></script>
-<script src="importaciones-export.js?v=2026-11-26.1646"></script>
+<script src="importaciones-calc.js?v=2026-11-26.1656"></script>
+<script src="xlsx-lite.js?v=2026-11-26.1656"></script>
+<script src="importaciones-export.js?v=2026-11-26.1656"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -475,15 +477,27 @@ window.APP_VER='2026-11-26.1646';
 //  consumo y stock, para saber después con qué números se pidió.
 //  La cuenta está en importaciones-calc.js, en un solo lugar.
 // ══════════════════════════════════════════════════════════════
+var SUBATIR_VENTA = ['490187','490188','490189','490198','490190','490191','490192','490193',
+                     '490207','490208','490209','490210'];
 var LINEAS = {
-  Subatir: { titulo:'Subatir · Consumo', desc:'artículos de consumo de la fábrica', tildes:true, remanente:true,
-             filtro:function(a){ return a.proveedor==='Subatir' && a.tipo==='Consumo'; } },
+  // Subatir: Consumo (fábrica) y, debajo, los artículos de Venta que se
+  // importan con la misma corrida (pedido del usuario 26/11/2026). Los de
+  // Venta van por código: no todos los Subatir · Venta se importan acá
+  // (los Equipos Aromatizadores PRL Fun quedaron afuera).
+  Subatir: { titulo:'Subatir · Consumo y Venta', desc:'consumo de la fábrica y artículos de venta', tildes:true, remanente:true,
+             grupos:['Consumo','Venta'],
+             filtro:function(a){ return a.proveedor==='Subatir' && (a.tipo==='Consumo'
+               || (a.tipo==='Venta' && SUBATIR_VENTA.indexOf(String(a.codigo||''))>=0)); } },
   Intex:   { titulo:'Intex', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Intex'; } },
   Enjoy:   { titulo:'Enjoy', desc:'línea piscina', tildes:true, filtro:function(a){ return a.proveedor==='Enjoy'; } },
   Mopas:   { titulo:'Mopas', desc:'kits y repuestos de mopa', tildes:true, soloAnual:true, ventas:true, filtro:function(a){ return a.proveedor==='Mopas'; } }
 };
 if(!LINEAS[window.LINEA]) window.LINEA='Subatir';
 var LIN = LINEAS[window.LINEA];
+// Grupo de un artículo en las líneas que tienen más de uno (Subatir):
+// el tipo de Depósitos. Orden de los bloques = orden de LIN.grupos.
+function grupoDe(a){ return LIN.grupos ? (a.tipo||'') : ''; }
+function ordGrupo(a){ var i=LIN.grupos ? LIN.grupos.indexOf(grupoDe(a)) : 0; return i<0 ? 99 : i; }
 // En las líneas con tildes, cada artículo se marca si entra en la cuenta.
 // Se guarda por corrida (imp_prev_datos.incluir) para que una corrida
 // cerrada no cambie si después se destilda algo.
@@ -625,8 +639,12 @@ function filas(){
   var c=corridaActual(), fecha=fechaUTC(c&&c.fecha), p=parEfectivos();
   var abierta=!!(c && !c.cerrada), hoy=hoyUTC();
   // Activos + los que tengan datos en la corrida aunque se hayan dado de
-  // baja después: una corrida vieja no puede perder renglones.
-  return ART.filter(function(a){ return a.activo!==false || DATOS[a.id]; })
+  // baja después: una corrida vieja no puede perder renglones. Y una
+  // corrida CERRADA tampoco gana renglones: sólo muestra los artículos que
+  // tenía (al sumar los de Venta el 26/11/2026, aparecían vacíos en las
+  // corridas viejas y cambiaban sus cuentas de artículos).
+  var cerr=!!(c && c.cerrada);
+  return ART.filter(function(a){ return DATOS[a.id] || (!cerr && a.activo!==false); })
     .map(function(a){
       var d=DATOS[a.id]||{}, pe=PEND[a.id]||{}, eff={};
       CAMPOS.forEach(function(k){ eff[k] = pe[k]!==undefined ? pe[k] : (d[k]!=null ? d[k] : defCampo(k)); });
@@ -654,7 +672,8 @@ function visibles(){
     if(q && (f.art.descripcion+' '+(f.art.codigo||'')).toLowerCase().indexOf(q)<0) return false;
     return true;
   }).sort(function(x,y){
-    return (EST_ORD[x.c.estado]-EST_ORD[y.c.estado]) || x.art.descripcion.localeCompare(y.art.descripcion);
+    return (ordGrupo(x.art)-ordGrupo(y.art))
+      || (EST_ORD[x.c.estado]-EST_ORD[y.c.estado]) || x.art.descripcion.localeCompare(y.art.descripcion);
   });
 }
 
@@ -821,10 +840,13 @@ function pintarTabla(){
   if(!fs.length){ tb.innerHTML='<tr><td colspan="18" class="empty">Sin resultados con los filtros actuales.</td></tr>'; return; }
   var lead=num(p.semanas_leadtime), seg=num(p.semanas_seguridad), hoy=hoyUTC();
   var T={c3m:0,can:0,stk:0,rem:0,tra:0,ped:0,caj:0,conf:0};
-  var nIncl=0;
+  var nIncl=0, grpAnt=null;
   var html=fs.map(function(f){
     var c=f.c, d=f.d, a=f.art, id=a.id, dif=num(d.compra_confirmada)-c.pedido;
-    if(!f.incl) return filaExcluida(f);
+    // Encabezado de bloque (Consumo / Venta) cuando cambia el grupo
+    var cab='';
+    if(LIN.grupos && grupoDe(a)!==grpAnt){ grpAnt=grupoDe(a); cab=filaGrupo(grpAnt); }
+    if(!f.incl) return cab+filaExcluida(f);
     nIncl++;
     T.c3m+=num(d.consumo_3m); T.can+=num(d.consumo_anual); T.stk+=num(d.stock_actual);
     T.rem+=num(d.remanente_fabrica); T.tra+=num(d.en_transito); T.ped+=c.pedido; T.caj+=c.cajas; T.conf+=num(d.compra_confirmada);
@@ -835,7 +857,7 @@ function pintarTabla(){
         +'" title="Aguanta '+semMeses(c.cobertura)+' con lo que hay y lo que viene">'+semMeses(c.cobertura)+'</span>'));
     if(difStk) dura+='<span class="sub dep" title="Lo que hoy figura en Depósitos">hoy: '+n0(vivo)+'</span>';
     var venc = c.pedirAntes && c.pedirAntes<=hoy && c.estado!=='ok';
-    return '<tr class="'+(c.estado==='quiebre'?'quiebre':(c.estado==='urgente'?'urgente':''))+'"'
+    return cab+'<tr class="'+(c.estado==='quiebre'?'quiebre':(c.estado==='urgente'?'urgente':''))+'"'
       +(f.sucia?' style="background:rgba(245,197,66,.05)"':'')+'>'
       +celdaArt(f)
       +celda(id,'consumo_3m',d.consumo_3m,'','<span class="sub">'+n0(c.prom3m)+'/mes</span>')
@@ -865,6 +887,9 @@ function pintarTabla(){
     +'<td></td><td></td><td class="c-gr">'+(T.hayConf?n0(T.conf):'<span class="cod">—</span>')+'</td><td></td></tr>';
   tb.innerHTML=html;
   pintarTildeTodos(fs);
+}
+function filaGrupo(g){
+  return '<tr class="grp"><td class="l" colspan="18">'+esc(g||'Sin tipo')+'</td></tr>';
 }
 function celdaArt(f){
   var a=f.art;
@@ -1160,7 +1185,7 @@ function exportCSV(){
   var sinTrim=function(x,i){ return !(LIN.soloAnual && (i===3||i===5||i===7)); };
   var out=[['Código','Artículo','Un. x caja','Consumo 3m','Consumo año','Prom 3m','Prom año','Ponderado','Proyectado/mes',
     'Stock'].concat(LIN.remanente?['Remanente fábrica']:[]).concat(['En tránsito','Semanas que dura','Meses que dura','Viaje','Cobertura','Seguridad','Total necesario','A pedir','Cajas','Pedido',
-    'Pedir antes de','Estado','Confirmada']).concat(LIN.tildes?['Se importa']:[]).filter(sinTrim).map(q).join(';')];
+    'Pedir antes de','Estado','Confirmada']).concat(LIN.tildes?['Se importa']:[]).concat(LIN.grupos?['Grupo']:[]).filter(sinTrim).map(q).join(';')];
   fs.forEach(function(f){
     var c=f.c, d=f.d;
     out.push([q(f.art.codigo),q(f.art.descripcion),d1(f.art.un_x_caja),d1(d.consumo_3m),d1(d.consumo_anual),
@@ -1170,7 +1195,7 @@ function exportCSV(){
       q(c.quiebre||c.cobertura>=999?'':String(aMeses(c.cobertura)).replace('.',',')),
       d1(c.duranteLead),d1(c.necesidad),d1(c.stockSeg),d1(c.totalNec),d1(c.aPedir),c.cajas,c.pedido,
       q(c.pedirAntes?fmtFecha(c.pedirAntes):''),q(EST_TXT[c.estado]),
-      d.compra_confirmada==null?'':d1(d.compra_confirmada)]).concat(LIN.tildes?[q(f.incl?'Sí':'No')]:[]).filter(sinTrim).join(';'));
+      d.compra_confirmada==null?'':d1(d.compra_confirmada)]).concat(LIN.tildes?[q(f.incl?'Sí':'No')]:[]).concat(LIN.grupos?[q(grupoDe(f.art))]:[]).filter(sinTrim).join(';'));
   });
   descargar('﻿'+out.join('\n'),'text/csv;charset=utf-8;',nombreArchivo('csv'));
   toast('CSV descargado','ok');
@@ -1227,7 +1252,12 @@ function reporte(){
   function fila(v){ return v.filter(function(x,i){ return usa[i]; }); }
 
   var T={c3m:0,can:0,stk:0,rem:0,tra:0,ped:0,caj:0,conf:0,nec:0,ap:0}, nIncl=0;
-  var out=fs.map(function(f){
+  var out=[], grpAnt=null;
+  fs.forEach(function(f){
+    if(LIN.grupos && grupoDe(f.art)!==grpAnt){ grpAnt=grupoDe(f.art); out.push({grupo:grpAnt||'Sin tipo'}); }
+    out.push(filaRep(f));
+  });
+  function filaRep(f){
     var k=f.c, d=f.d, a=f.art;
     if(!f.incl){
       return {apagada:true, v:fila([a.codigo||'', a.descripcion, num(a.un_x_caja)||null,
@@ -1246,7 +1276,7 @@ function reporte(){
       k.estado==='sin' || !k.pedirAntes ? '—' : fmtFecha(k.pedirAntes), EST_TXT[k.estado],
       d.compra_confirmada==null ? '' : num(d.compra_confirmada),
       d.compra_confirmada==null ? '—' : (dif===0 ? '=' : (dif>0?'+':'-')+n0(Math.abs(dif)))])};
-  });
+  }
   var total=fila(['', 'TOTAL · '+nIncl+' artículo'+(nIncl===1?'':'s')+(nIncl<fs.length?' tildados':''), null,
     T.c3m, T.can, null, T.stk, T.rem, T.tra, null, null, null, null, T.nec, T.ap, T.caj, T.ped, null, null, T.hayConf ? T.conf : null, null]);
 

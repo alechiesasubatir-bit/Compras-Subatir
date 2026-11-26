@@ -13,7 +13,7 @@
   'use strict';
   var TABS = [
     { k: 'mero',    href: 'mp-importacion.html',               ico: '🧪', t: 'MERO AR',  s: 'Esencias' },
-    { k: 'Subatir', href: 'importaciones.html?linea=Subatir',  ico: '🏭', t: 'Subatir',  s: 'Consumo' },
+    { k: 'Subatir', href: 'importaciones.html?linea=Subatir',  ico: '🏭', t: 'Subatir',  s: 'Consumo y Venta' },
     { k: 'Intex',   href: 'importaciones.html?linea=Intex',    ico: '🏊', t: 'Intex',    s: 'Piscina', pronto: true },
     { k: 'Enjoy',   href: 'importaciones.html?linea=Enjoy',    ico: '☀',  t: 'Enjoy',    s: 'Piscina', pronto: true },
     { k: 'Mopas',   href: 'importaciones.html?linea=Mopas',    ico: '🧹', t: 'Mopas',    s: 'Venta' }

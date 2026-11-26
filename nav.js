@@ -32,7 +32,7 @@
     { k: 'stock',        href: 'reposicion.html',     ico: '🔁', txt: 'Previsión de Reposición',
       title: 'Cargar de una sentada la configuración de reposición: demora, lote y compras pactadas' },
     { k: 'mp_importacion', href: 'mp-importacion.html', ico: '🚢', txt: 'Importaciones', sub: ['importaciones.html'],
-      title: 'Previsión de importaciones: MERO AR, Subatir (Consumo) y las líneas de Depósitos' },
+      title: 'Previsión de importaciones: MERO AR, Subatir (Consumo y Venta) y las líneas de Depósitos' },
     { k: 'cloro', href: 'cloro.html', ico: '💧', txt: 'Previsión Cloro',
       title: 'Previsión de envasado y compra de materia prima de la línea de piscinas' },
     { k: 'calidad', href: 'calidad.html', ico: '🔬', txt: 'Calidad MP', sub: ['calidad-imp.html'],

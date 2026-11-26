@@ -107,7 +107,7 @@ nav.sbnav a[data-nav="precios"]     {--c:250,204, 21}  /* dorado   */
 nav.sbnav a[data-nav="proveedores"] {--c: 45,212,191}  /* turquesa */
 nav.sbnav a[data-nav="contingencia"]{--c:248,113,113}  /* rojo     */
 nav.sbnav a[data-nav="varios"]      {--c:244,114,182}  /* rosa     */
-nav.sbnav a[data-nav="mp_importacion"]{--c:250,204,21}  /* dorado   */
+nav.sbnav a[data-nav="mp_importacion"]{--c:45,212,191}  /* verde agua, el de su pestaña */
 nav.sbnav a[data-nav="cloro"]{--c:56,189,248}           /* celeste piscina */
 nav.sbnav a[data-nav="calidad"]{--c:163,230, 53}          /* lima laboratorio */
 nav.sbnav a[data-nav="informes"]    {--c:251,113,133}  /* coral    */
@@ -129,7 +129,7 @@ nav.sbnav a[data-nav="usuarios"]    {--c:129,140,248}  /* índigo   */
    tenue y el grupo abierto casi no se distinguía. */
 nav.sbnav .sbtabs{
   display:inline-flex;align-items:center;gap:4px;min-width:0;max-width:100%;
-  align-self:flex-start;padding:3px;border-radius:13px;
+  align-self:center;padding:3px;border-radius:13px;
   background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
 }
@@ -155,35 +155,19 @@ nav.sbnav .sbtab.on i{background:#0b0f17;opacity:1}
 nav.sbnav .sbtab.aqui:not(.on){color:#e2e8f0}
 nav.sbnav .sbtab.aqui:not(.on) i{opacity:1;box-shadow:0 0 8px rgba(var(--c),.9)}
 
-/* La fila del grupo abierto: lleva su color en el borde izquierdo y un
-   degradé que se apaga hacia la derecha. */
+/* La fila del grupo abierto, centrada bajo las pestañas (25/11/2026):
+   el color del grupo se enciende en el medio y se apaga a los costados. */
 nav.sbnav .sbsub{
   --c:27,200,255;
-  display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;
+  display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-top:8px;
   padding:5px 6px;border-radius:14px;
-  border:1px solid rgba(var(--c),.22);
-  background:linear-gradient(90deg,rgba(var(--c),.13),rgba(var(--c),.03) 60%,transparent);
-  box-shadow:inset 3px 0 0 rgb(var(--c));
+  border:1px solid rgba(var(--c),.20);
+  background:linear-gradient(90deg,rgba(var(--c),.03),rgba(var(--c),.14) 50%,rgba(var(--c),.03));
 }
 /* Los cuadros de la fila: más grandes que antes, ancho según su texto */
 nav.sbnav .sbsub a.sbnl{padding:4px 15px 4px 4px;font-size:13.5px;gap:9px;flex:0 0 auto;border-radius:11px}
 nav.sbnav .sbsub a.sbnl .sbnl-i{width:26px;height:26px;font-size:13.5px;border-radius:8px}
 nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* violeta claro */
-
-/* Pantalla ancha: las pestañas suben al renglón del logo, que tiene
-   lugar de sobra, y la fila de módulos queda pegada debajo. El <nav>
-   se "disuelve" (display:contents) para que sus dos partes sean
-   piezas sueltas del encabezado. Ahorra el renglón de las pestañas.
-   Si los botones de la derecha no entran (Pedidos a 1366 px), nav.js
-   le pone .baja al <nav> y las pestañas vuelven a su propio renglón:
-   si no, el renglón se parte y quedan despegadas de su fila. */
-@media (min-width:1200px){
-  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)){row-gap:0;padding-bottom:9px}
-
-  .sbhdr > nav.sbnav.agrupado:not(.baja){display:contents}
-  nav.sbnav.agrupado:not(.baja) .sbtabs{order:1;align-self:center;margin-left:18px}
-  nav.sbnav.agrupado .sbsub{order:3;flex:1 1 100%;min-width:0}
-}
 
 /* ── Celular ─────────────────────────────────────────────────
    10 cuadros en grilla angosta serían cinco filas comiéndose la
@@ -192,7 +176,7 @@ nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* viole
   /* En el celular el header ocupa ~200px (logo, botones, menú): fijo
      arriba se comía un cuarto de pantalla al bajar. Acá se va con el scroll. */
   .sbhdr{gap:10px;row-gap:9px;position:relative}
-  /* El bloque de la derecha (Actualizar, usuario, Salir) baja a su
+  /* El bloque de la derecha (usuario, Salir) baja a su
      propio renglón y se acomoda ahí. Con flex:0 0 auto no se achicaba
      y empujaba la página entera 50–330px hacia el costado. */
   .sbhdr > .hdr-r,
@@ -212,7 +196,10 @@ nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* viole
   nav.sbnav .sbsub{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   nav.sbnav .sbtabs::-webkit-scrollbar,
   nav.sbnav .sbsub::-webkit-scrollbar{display:none}
-  nav.sbnav .sbtabs{display:flex}
+  /* Centrado no: lo que no entra se arrastra, y centrado cortaría el
+     comienzo de la tira sin forma de llegar a él */
+  nav.sbnav .sbtabs{display:flex;align-self:stretch}
+  nav.sbnav .sbsub{justify-content:flex-start}
   nav.sbnav .sbtab{padding:7px 12px;font-size:12px}
   nav.sbnav .sbsub a.sbnl{font-size:13px}
   nav.sbnav a.sbnl .sbnl-t{overflow:visible;text-overflow:clip}

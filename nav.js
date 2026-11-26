@@ -137,6 +137,9 @@
       if (g.its.some(function (it) { return esAqui(it, aqui); })) actual = g.k;
     });
     var abierto = actual || (grupos[0] && grupos[0].k);
+    // En el Dashboard la fila muestra el primer grupo, pero su pestaña no se
+    // enciende hasta que la persona la elige: si no, quedaban dos encendidas.
+    var elegido = !!actual;
 
     nav.className = 'sbnav agrupado';
     nav.setAttribute('aria-label', 'Módulos');
@@ -149,7 +152,7 @@
               + (enDash ? ' aria-current="page"' : '') + '><i aria-hidden="true"></i>Dashboard</a>';
       }
       grupos.forEach(function (g) {
-        var cls = 'sbtab' + (g.k === abierto ? ' on' : '') + (g.k === actual ? ' aqui' : '');
+        var cls = 'sbtab' + (g.k === abierto && elegido ? ' on' : '') + (g.k === actual ? ' aqui' : '');
         // Un grupo de un solo módulo es un acceso directo: no hay qué elegir
         if (g.its.length === 1) {
           var it = g.its[0];
@@ -172,55 +175,12 @@
       var b = e.target.closest && e.target.closest('button[data-grupo]');
       if (!b) return;
       abierto = b.getAttribute('data-grupo');
+      elegido = true;
       pintar();
-      vigilar(nav);
       var nb = nav.querySelector('button[data-grupo="' + abierto + '"]');
       if (nb) nb.focus();
     };
     pintar();
-    vigilar(nav);
-  }
-
-  // Las pestañas al lado del logo sólo sirven si entran en ese renglón
-  // junto con lo demás (logo, botones de la derecha). Si no entran, el
-  // renglón se parte y quedan despegadas de su fila: se marca .baja y
-  // nav.css las devuelve a su propio renglón. Se decide sumando anchos,
-  // que no cambian al mover las pestañas, así que se puede volver a medir
-  // cada vez que algo cambie de tamaño sin entrar en un ida y vuelta.
-  function ajustar(nav) {
-    if (!nav.classList.contains('agrupado')) return;
-    var hdr = nav.parentElement, tabs = nav.querySelector('.sbtabs');
-    if (!hdr || !tabs) return;
-    if (window.innerWidth < 1200) { nav.classList.remove('baja'); return; }   // nav.css ya las apila
-    var cs = getComputedStyle(hdr);
-    var libre = hdr.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    var gap = parseFloat(cs.columnGap) || 12;
-    var usado = tabs.getBoundingClientRect().width + 18 + 4, piezas = 1;
-    for (var i = 0; i < hdr.children.length; i++) {
-      var c = hdr.children[i];
-      if (c === nav || c.tagName === 'SCRIPT' || c.tagName === 'STYLE') continue;
-      var w = c.getBoundingClientRect().width;
-      if (w > 0) { usado += w; piezas++; }
-    }
-    usado += gap * (piezas - 1);
-    nav.classList.toggle('baja', usado > libre);
-  }
-  var _ro = null;
-  function vigilar(nav) {
-    ajustar(nav);
-    if (!window.ResizeObserver || !nav.parentElement) return;
-    if (!_ro) {
-      _ro = new ResizeObserver(function () { ajustar(nav); });
-      _ro.observe(nav.parentElement);
-      // El logo y los botones de la derecha crecen cuando la página termina
-      // de cargar (fuentes, el chip "17 pend. / 978 total" de Pedidos)
-      for (var i = 0; i < nav.parentElement.children.length; i++) {
-        var c = nav.parentElement.children[i];
-        if (c !== nav && c.tagName !== 'SCRIPT') _ro.observe(c);
-      }
-    }
-    var t = nav.querySelector('.sbtabs');
-    if (t) _ro.observe(t);
   }
 
   window.SubatirNav = { render: render, items: ITEMS, grupos: GRUPOS };

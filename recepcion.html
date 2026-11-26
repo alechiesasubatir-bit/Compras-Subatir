@@ -493,13 +493,13 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-25.2159"/>
-<script src="supabase-config.js?v=2026-11-25.2159"></script>
-<script src="subatir-app.js?v=2026-11-25.2159"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-25.2205"/>
+<script src="supabase-config.js?v=2026-11-25.2205"></script>
+<script src="subatir-app.js?v=2026-11-25.2205"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-25.2159';
+window.APP_VER='2026-11-25.2205';
 </script>
 </head>
 <body>
@@ -515,16 +515,12 @@ window.APP_VER='2026-11-25.2159';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-25.2159"></script>
+  <script src="nav.js?v=2026-11-25.2205"></script>
   <div class="header-right">
     <!-- Quién opera, en cuentas compartidas. Lo pinta SubatirApp.operador -->
     <span id="oper-chip"></span>
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
-    <button class="btn btn-ghost btn-sm" onclick="refresh()" id="btn-refresh">
-      <span id="spin-icon" style="display:none" class="spin"></span>
-      <span id="refresh-label">⟳ Actualizar</span>
-    </button>
   </div>
 </header>
 
@@ -945,8 +941,9 @@ function load(){
 function refresh(){ load(); }
 
 function setLoading(on){
-  document.getElementById('spin-icon').style.display   = on ? 'inline-block' : 'none';
-  document.getElementById('refresh-label').textContent = on ? 'Cargando…' : '⟳ Actualizar';
+  // El botón ⟳ Actualizar del encabezado se sacó el 25/11/2026 (para
+  // traer datos nuevos se recarga la página). Queda para no tocar
+  // a quienes la llaman.
 }
 
 // ── Detección de columnas ─────────────────────────────────────

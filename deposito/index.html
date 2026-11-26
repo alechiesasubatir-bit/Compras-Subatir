@@ -982,11 +982,11 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-11-26.1520"/>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1520"/>
-<script src="../supabase-config.js?v=2026-11-26.1520"></script>
-<script src="deposito-app.js?v=2026-11-26.1520"></script>
-<script src="../traslados.js?v=2026-11-26.1520"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-11-26.1523"/>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1523"/>
+<script src="../supabase-config.js?v=2026-11-26.1523"></script>
+<script src="deposito-app.js?v=2026-11-26.1523"></script>
+<script src="../traslados.js?v=2026-11-26.1523"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -995,7 +995,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-11-26.1520';
+window.APP_VER='2026-11-26.1523';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1017,7 +1017,7 @@ window.APP_VER='2026-11-26.1520';
   </a>
   <!-- El menú lo arma nav.js, que además sigue la sección a la vista -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1520"></script>
+  <script src="nav.js?v=2026-11-26.1523"></script>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-liviano" onclick="toggleLiviano()"
@@ -1953,19 +1953,19 @@ var GRID={dep:null, est:null};
 // Venta Piscina se unificó con Venta el 14/10/2026 (imp_tipo_venta_unico.sql)
 var TIPOS=['Consumo','Venta','Infraestructura'];
 var TIPO_COLORS={'Consumo':{bg:'rgba(27,200,255,.18)',bd:'#1bc8ff',tx:'#7dd3fc'},'Venta':{bg:'rgba(34,197,94,.18)',bd:'#22c55e',tx:'#86efac'},'Infraestructura':{bg:'rgba(249,115,22,.18)',bd:'#f97316',tx:'#fdba74'},'':{bg:'rgba(100,116,139,.18)',bd:'#64748b',tx:'#cbd5e1'}};
-// Letra del nivel, contada DESDE ABAJO: en un rack de 4 niveles la fila 4
-// (la de abajo) es "A" y la fila 1 (la de arriba) es "D". La fila sigue
-// numerándose desde arriba —es lo que guarda imp_pallets.fila y de donde
-// sale la altura en el 3D—, así que la letra depende de cuántos niveles
-// tiene ESE rack y hay que pasárselos. Sin niveles no se puede invertir:
-// se cae al criterio viejo en vez de inventar una letra.
-function letterOf(f, filas){
-  var n=+f||0;
-  if(filas>0) n=filas-n+1;
-  return String.fromCharCode(64+n);
-}
-function filasDe(estId){ var e=estById(estId); return e?e.filas:0; }
-function coordOf(p){ return p.fila&&p.columna ? (letterOf(p.fila, filasDe(p.estanteria_id))+p.columna) : '—'; }
+// ── Numeración de lugares (desde el 26/11/2026, imp_v26_numeracion.sql) ──
+// La estantería va con letra ("Estantería A") y cada lugar de pallet con un
+// número corrido que arranca ABAJO A LA IZQUIERDA, sigue hacia la derecha y
+// sube nivel por nivel: en un rack de 4 niveles × 10 lugares, abajo es 1–10
+// y arriba 31–40. Se lee "A-12". La fila guardada sigue contándose desde
+// arriba (fila 1 = nivel de arriba), por eso hace falta el tamaño del rack.
+// La MISMA cuenta está en imp_pos_num() (SQL) y en recorrido.html: si se
+// toca una, se tocan las tres.
+function posNum(e,f,c){ return e ? (e.filas-f)*posCount(e)+(+c) : +c; }
+function estCorto(e){ return String(e&&e.nombre||'Est?').replace(/^\s*estanter[ií]a\s+/i,''); }
+function lugarTxt(estId,f,c){ var e=estById(estId); return (e&&f&&c) ? estCorto(e)+'-'+posNum(e,f,c) : '—'; }
+function nivelTxt(f,filas){ return 'N'+(filas-f+1); }   // nivel contado desde abajo, sólo como guía visual
+function coordOf(p){ return p.fila&&p.columna ? lugarTxt(p.estanteria_id,p.fila,p.columna) : '—'; }
 function tipoColor(t){ return TIPO_COLORS[t||'']||TIPO_COLORS['']; }
 
 function whoName(){ var p=(window.SubatirApp&&SubatirApp.getProfile)?SubatirApp.getProfile():null; return p?(p.full_name||(p.email||'').split('@')[0]||'Admin'):'Admin'; }
@@ -2311,7 +2311,7 @@ function subDePallet(p){
 function palLoc(p){
   if(p.zona_id){ var z=zonaById(p.zona_id); return (p.deposito||'')+' · '+(z?z.nombre:'Zona?'); }
   var s=subDePallet(p), sn=s?(' · '+s.nombre):'';
-  if(p.estanteria_id){ var e=estById(p.estanteria_id); return (p.deposito||'')+sn+' · '+(e?e.nombre:'Est?')+' · '+coordOf(p); }
+  if(p.estanteria_id){ var e=estById(p.estanteria_id); return (p.deposito||'')+sn+' · '+coordOf(p); }
   if(p.estado==='EN_TRANSITO') return (p.origen||'')+' → '+(p.destino||'')+' (en tránsito)';
   // Sin ranura pero con área asignada ya no es un "no se sabe dónde"
   if(s) return (p.deposito||'—')+' · '+s.nombre+' (en piso)';
@@ -2343,8 +2343,8 @@ function palOrden(a,b){
   if(ga===0){
     var ea=(estById(a.estanteria_id)||{}).nombre||'', eb=(estById(b.estanteria_id)||{}).nombre||'';
     if(ea!==eb) return ea.localeCompare(eb,'es');
-    if(a.fila!==b.fila) return num(a.fila)-num(b.fila);
-    return num(a.columna)-num(b.columna);
+    var e=estById(a.estanteria_id);               // mismo rack: por número de lugar
+    return posNum(e,num(a.fila),num(a.columna))-posNum(e,num(b.fila),num(b.columna));
   }
   return new Date(b.created_at||0)-new Date(a.created_at||0);
 }
@@ -2617,21 +2617,23 @@ function gridHtmlFor(e){
     +'<div style="font-family:\'Manrope\',sans-serif;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--teal-l);margin-bottom:8px">'+esc(e.nombre)+' <span style="color:var(--muted-l);font-weight:600;text-transform:none;letter-spacing:0">· '+e.filas+' niveles × '+e.columnas+' bahías × '+POS_PER_BAY+' = '+(e.filas*posCount(e))+' pos.</span></div>';
   html+='<div style="display:grid;grid-template-columns:34px repeat('+EC+',minmax(88px,1fr));gap:8px;min-width:'+(40+EC*96)+'px">';
   html+='<div></div>';
-  for(var c=1;c<=EC;c++) html+='<div style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted-l);font-weight:700;'+baySep(c)+'">'+c+((c-1)%POS_PER_BAY===0?' <span style="color:var(--orange-l);font-size:9px">B'+bayOf(c)+'</span>':'')+'</div>';
+  // Encabezado: sólo la bahía. Los números de columna se sacaron para que
+  // no se confundan con el número de lugar, que va dentro de cada celda.
+  for(var c=1;c<=EC;c++) html+='<div style="text-align:center;font-family:var(--mono);font-size:9px;color:var(--orange-l);font-weight:700;'+baySep(c)+'">'+((c-1)%POS_PER_BAY===0?'bahía '+bayOf(c):'')+'</div>';
   for(var f=1;f<=e.filas;f++){
-    html+='<div style="display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--muted-l);font-weight:700">'+letterOf(f,e.filas)+'</div>';
+    html+='<div style="display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--muted-l);font-weight:700">'+nivelTxt(f,e.filas)+'</div>';
     for(var c2=1;c2<=EC;c2++){
-      var p=palAt(estId,f,c2);
+      var p=palAt(estId,f,c2), lug=lugarTxt(estId,f,c2);
       if(p){
         var a=artById(p.articulo_id), col=tipoColor(a?a.tipo:'');
         if(p.estado==='ABIERTO') col={bg:'rgba(249,115,22,.14)',bd:'#f97316',tx:'#fdba74'};
-        html+='<div role="button" tabindex="0" aria-label="'+esc('Posición '+letterOf(f,e.filas)+c2+', ocupada por '+(a?a.descripcion:'pallet')+', '+fmtNum(p.unidades)+' unidades. Abrir detalle.')+'" data-drag-pallet="'+p.id+'" data-est="'+estId+'" data-slot="'+f+'-'+c2+'" onclick="openPalletDetail('+p.id+')" title="'+esc((a?a.descripcion:'')+' — '+fmtNum(p.unidades)+' u. · arrastrá para reubicar')+'" style="'+baySep(c2)+'touch-action:none;cursor:grab;min-height:80px;border-radius:11px;padding:8px;background:'+col.bg+';border:1px '+(p.estado==='ABIERTO'?'dashed':'solid')+' '+col.bd+';display:flex;flex-direction:column;gap:3px">'
-          +'<div style="font-family:var(--mono);font-size:10px;font-weight:700;color:'+col.tx+'">'+letterOf(f,e.filas)+c2+' · '+(p.estado==='ABIERTO'?'🟠':'📦')+'</div>'
+        html+='<div role="button" tabindex="0" aria-label="'+esc('Lugar '+lug+', ocupado por'+(a?a.descripcion:'pallet')+', '+fmtNum(p.unidades)+' unidades. Abrir detalle.')+'" data-drag-pallet="'+p.id+'" data-est="'+estId+'" data-slot="'+f+'-'+c2+'" onclick="openPalletDetail('+p.id+')" title="'+esc((a?a.descripcion:'')+' — '+fmtNum(p.unidades)+' u. · arrastrá para reubicar')+'" style="'+baySep(c2)+'touch-action:none;cursor:grab;min-height:80px;border-radius:11px;padding:8px;background:'+col.bg+';border:1px '+(p.estado==='ABIERTO'?'dashed':'solid')+' '+col.bd+';display:flex;flex-direction:column;gap:3px">'
+          +'<div style="font-family:var(--mono);font-size:10px;font-weight:700;color:'+col.tx+'">'+lug+' · '+(p.estado==='ABIERTO'?'🟠':'📦')+'</div>'
           +'<div style="font-size:11px;line-height:1.25;color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(a?a.descripcion:('#'+p.articulo_id))+'</div>'
           +'<div style="margin-top:auto;font-family:var(--mono);font-size:11px;color:'+col.tx+'">'+fmtNum(p.unidades)+' u.</div>'
         +'</div>';
       } else {
-        html+='<div role="button" tabindex="0" aria-label="'+esc('Ranura libre '+letterOf(f,e.filas)+c2+' en '+e.nombre+'. Armar pallet acá.')+'" data-est="'+estId+'" data-slot="'+f+'-'+c2+'" onclick="openPallet({estId:'+estId+',fila:'+f+',col:'+c2+'})" title="Ranura libre '+letterOf(f,e.filas)+c2+' — '+esc(e.nombre)+'" style="'+baySep(c2)+'cursor:pointer;min-height:80px;border-radius:11px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:12px">'+letterOf(f,e.filas)+c2+'</div>';
+        html+='<div role="button" tabindex="0" aria-label="'+esc('Lugar libre '+lug+'. Armar pallet acá.')+'" data-est="'+estId+'" data-slot="'+f+'-'+c2+'" onclick="openPallet({estId:'+estId+',fila:'+f+',col:'+c2+'})" title="Lugar libre '+lug+'" style="'+baySep(c2)+'cursor:pointer;min-height:80px;border-radius:11px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:12px">'+lug+'</div>';
       }
     }
   }
@@ -3255,7 +3257,7 @@ function trList(){
     var a=artById(p.articulo_id);
     // Sólo la ranura: el depósito ya lo dice el desplegable "Desde"
     var e=p.estanteria_id?estById(p.estanteria_id):null;
-    var ub=e ? (e.nombre+' · '+coordOf(p)) : 'sin ranura';
+    var ub=e ? coordOf(p) : 'sin ranura';
     return '<label class="tr-row'+(TR_SEL[p.id]?' on':'')+'" data-pid="'+p.id+'">'
       +'<input type="checkbox" '+(TR_SEL[p.id]?'checked':'')+' onchange="trPick('+p.id+',this.checked)"/>'
       +'<div class="tr-main">'
@@ -3317,7 +3319,7 @@ function ultRanuraHTML(p){
     return o.id!==p.id && String(o.estanteria_id)===String(e.id)
         && o.fila===p.ult_fila && o.columna===p.ult_columna;
   });
-  var donde=esc(e.nombre)+' · '+letterOf(p.ult_fila,e.filas)+p.ult_columna;
+  var donde=esc(lugarTxt(e.id,p.ult_fila,p.ult_columna));
   return libre
     ? '<div class="dock-ult">📍 estaba en <b>'+donde+'</b></div>'
     : '<div class="dock-ult ocup">📍 estaba en '+donde+' (ocupada)</div>';
@@ -3473,7 +3475,7 @@ function palletToSlot(pid, estId, fila, col){
     toast('Moviendo pallet…','info');
     SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}).then(function(r){
       if(r.error||(r.data&&r.data.ok===false)){ toast('Error: '+(r.error?r.error.message:r.data.error),'err'); load(); return; }
-      limpiarArea(pid).then(function(){ vibrate(); toast('📦 Pallet en '+letterOf(fila,filasDe(estId))+col,'ok'); load(); });
+      limpiarArea(pid).then(function(){ vibrate(); toast('📦 Pallet en '+lugarTxt(estId,fila,col),'ok'); load(); });
     });
   } else if(String(tgt.id)!==String(pid)){
     if(dragged.estanteria_id==null){ toast('Esa posición está ocupada — soltalo en una libre','err'); return; }
@@ -3481,7 +3483,7 @@ function palletToSlot(pid, estId, fila, col){
     SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:null,p_fila:null,p_col:null,p_user:who})
       .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:pid,p_est:+estId,p_fila:fila,p_col:col,p_user:who}); })
       .then(function(){ return SB.rpc('imp_pallet_ubicar',{p_pallet:tgt.id,p_est:+estId,p_fila:fF,p_col:fC,p_user:who}); })
-      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); load(); return; } Promise.all([limpiarArea(pid), limpiarArea(tgt.id)]).then(function(){ vibrate(); toast('🔄 '+letterOf(fF,filasDe(estId))+fC+' ⇄ '+letterOf(fila,filasDe(estId))+col,'ok'); load(); }); });
+      .then(function(r){ if(r.error){ toast('Error al intercambiar: '+r.error.message,'err'); load(); return; } Promise.all([limpiarArea(pid), limpiarArea(tgt.id)]).then(function(){ vibrate(); toast('🔄 '+lugarTxt(estId,fF,fC)+' ⇄ '+lugarTxt(estId,fila,col),'ok'); load(); }); });
   }
 }
 function dndSetHover(t){
@@ -3847,13 +3849,12 @@ function buildOneRack(e, ox, pz, rot){
     var edge=new THREE.LineSegments(padEdges, M.slotEdge); edge.position.copy(mk.position); mk.userData.edge=edge;
     grp.add(mk); grp.add(edge); R3D.slotTargets.push(mk);
     R3D.slotByKey[e.id+'-'+f2+'-'+c2]=mk;
-  }
-  // Número de posición al pie de cada columna. El sprite mira siempre a la
-  // cámara, así que desde cualquier pasillo el 1 se lee sobre la columna 1:
-  // la orientación deja de ser algo que haya que deducir.
-  for(var c3=1;c3<=C*POS_PER_BAY;c3++){
-    var np=numSprite(String(c3));
-    if(np){ np.position.set(slotX(c3,C), 0.42, 0); grp.add(np); }
+    // Número de lugar sobre cada ranura (el mismo de la grilla: 1 abajo a
+    // la izquierda). El sprite mira siempre a la cámara, así que se lee
+    // desde cualquier pasillo. Se oculta junto con la ranura cuando hay
+    // un pallet encima (ver rackPallets).
+    var np=numSprite(String(posNum(e,f2,c2)));
+    if(np){ np.position.set(x2, y2+0.55, 0); grp.add(np); mk.userData.num=np; }
   }
 }
 // Etiqueta chica para los números de posición (la de labelSprite es un
@@ -3901,7 +3902,7 @@ function syncPallets3D(){
   clearGroup(R3D.palGroup);                    // por si quedó algo del modelo viejo
   var ests=depEsts(); if(!ests.length) return; var byId={}; ests.forEach(function(e){ byId[e.id]=e; });
   // mostrar todos los footprints; se ocultan los que quedan ocupados
-  if(R3D.slotByKey) Object.keys(R3D.slotByKey).forEach(function(k){ var m=R3D.slotByKey[k]; m.visible=true; if(m.userData.edge) m.userData.edge.visible=true; });
+  if(R3D.slotByKey) Object.keys(R3D.slotByKey).forEach(function(k){ var m=R3D.slotByKey[k]; m.visible=true; if(m.userData.edge) m.userData.edge.visible=true; if(m.userData.num) m.userData.num.visible=true; });
   PALLETS.filter(function(p){ return byId[p.estanteria_id]; }).forEach(function(p){
     var xf=R3D.rackXf[p.estanteria_id]; if(!xf) return;   // rack sin ubicar en el plano
     var e=byId[p.estanteria_id];
@@ -3911,7 +3912,7 @@ function syncPallets3D(){
     g.userData={pid:p.id, estId:p.estanteria_id, fila:p.fila, col:p.columna};
     g.traverse(function(o){ if(o.isMesh){ o.userData.pid=p.id; o.userData.estId=p.estanteria_id; o.userData.fila=p.fila; o.userData.col=p.columna; } });
     xf.palHost.add(g); R3D.palTargets.push(g);
-    var mk=R3D.slotByKey[p.estanteria_id+'-'+p.fila+'-'+p.columna]; if(mk){ mk.visible=false; if(mk.userData.edge) mk.userData.edge.visible=false; }
+    var mk=R3D.slotByKey[p.estanteria_id+'-'+p.fila+'-'+p.columna]; if(mk){ mk.visible=false; if(mk.userData.edge) mk.userData.edge.visible=false; if(mk.userData.num) mk.userData.num.visible=false; }
   });
 }
 function rackNDC(e){ var r=R3D.renderer.domElement.getBoundingClientRect();
@@ -4340,18 +4341,18 @@ function plSlots(){
       +' <span>'+esc(e.deposito+(sd?(' · '+sd.nombre):''))+' · '+e.filas+'×'+EC+'</span></div>'
       +'<div class="mini-grid" style="grid-template-columns:13px repeat('+EC+',minmax(14px,1fr))">';
     for(var f=1;f<=e.filas;f++){
-      h+='<span class="mini-row-l">'+letterOf(f,e.filas)+'</span>';
+      h+='<span class="mini-row-l" style="font-size:8px">'+nivelTxt(f,e.filas)+'</span>';
       for(var c=1;c<=EC;c++){
-        var pal=palAt(e.id,f,c);
+        var pal=palAt(e.id,f,c), lug=lugarTxt(e.id,f,c);
         if(pal){
           var a=artById(pal.articulo_id), col=tipoColor(a?a.tipo:'');
           if(pal.estado==='ABIERTO') col={bg:'rgba(249,115,22,.3)',bd:'#f97316'};
           h+='<span class="mini-slot busy" style="background:'+col.bg+';border:1px solid '+col.bd+'"'
-            +' title="'+esc(letterOf(f,e.filas)+c+' · ocupada · '+(a?a.descripcion:'pallet'))+'"></span>';
+            +' title="'+esc(lug+' · ocupado · '+(a?a.descripcion:'pallet'))+'"></span>';
         } else {
           h+='<span class="mini-slot free" data-est="'+e.id+'" data-f="'+f+'" data-c="'+c+'"'
-            +' role="button" tabindex="0" title="'+esc(letterOf(f,e.filas)+c+' · libre')+'"'
-            +' aria-label="'+esc('Ranura libre '+letterOf(f,e.filas)+c+' en '+e.nombre)+'"></span>';
+            +' role="button" tabindex="0" title="'+esc(lug+' · libre')+'"'
+            +' aria-label="'+esc('Lugar libre '+lug)+'"></span>';
         }
       }
     }
@@ -4380,7 +4381,7 @@ function plPickSlot(estId, f, c){
   var el=document.querySelector('#pl-mini .mini-slot[data-est="'+estId+'"][data-f="'+f+'"][data-c="'+c+'"]');
   if(el) el.classList.add('sel');
   var e=estById(estId);
-  out.textContent='📍 '+(e?e.nombre:'')+' · '+letterOf(f,e?e.filas:0)+c;
+  out.textContent='📍 Lugar '+lugarTxt(estId,f,c)+(e?(' · '+e.deposito):'');
   out.className='mini-pick on';
   plDisp();   // la ranura puede cambiar el depósito, y con él el disponible
 }
@@ -4446,7 +4447,7 @@ function savePallet(){
     if(!e){ toast('Estantería inválida','err'); return; }
     if(palAt(estId,fila,col)){ toast('Esa ranura ya está ocupada','err'); plSlots(); return; }
     dep=e.deposito;
-    donde='en '+letterOf(fila,e.filas)+col;
+    donde='en '+lugarTxt(estId,fila,col);
   } else {
     // Sin ubicar: sólo hace falta el depósito; se acomoda después
     dep=document.getElementById('pl-dep').value;
@@ -4623,10 +4624,10 @@ function pdHist(pid){
     host.innerHTML=rows.map(function(m){
       var f=m.created_at?new Date(m.created_at).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
       var ico=MOV_ICO[m.tipo]||'•', cls=MOV_CLS[m.tipo]||'';
-      var det='';
-      if(m.ubicacion_de&&m.ubicacion_a) det=esc(m.ubicacion_de)+' → '+esc(m.ubicacion_a);
-      else if(m.ubicacion_a)            det=(m.deposito?esc(m.deposito)+' · ':'')+esc(m.ubicacion_a);
-      else if(m.ubicacion_de)           det='desde '+esc(m.ubicacion_de)+(m.destino?(' → '+esc(m.destino)):'');
+      var det='', ude=ubicHist(m.ubicacion_de), ua=ubicHist(m.ubicacion_a);
+      if(m.ubicacion_de&&m.ubicacion_a) det=ude+' → '+ua;
+      else if(m.ubicacion_a)            det=(m.deposito?esc(m.deposito)+' · ':'')+ua;
+      else if(m.ubicacion_de)           det='desde '+ude+(m.destino?(' → '+esc(m.destino)):'');
       else if(m.origen&&m.destino)      det=esc(m.origen)+' → '+esc(m.destino);
       else if(m.deposito)               det=esc(m.deposito);
       if(m.nota) det+=(det?' · ':'')+esc(m.nota);   // remito, proveedor…
@@ -4643,6 +4644,16 @@ function pdHist(pid){
 var MOV_ICO={INGRESO:'📥',ARMADO:'🏷',REAPERTURA:'✏',RECEPCION:'📥',UBICACION:'📍',SALIDA:'🚚',ENTRADA:'✅',CONSUMO:'🔥',TRANSFER:'🔁',AJUSTE:'✏'};
 var MOV_CLS={INGRESO:'h-ok',ARMADO:'h-loc',REAPERTURA:'h-tr',RECEPCION:'h-ok',UBICACION:'h-loc',SALIDA:'h-out',ENTRADA:'h-ok',CONSUMO:'h-use',TRANSFER:'h-tr',AJUSTE:'h-tr'};
 function pdShowQR(){ if(CUR_PAL) showQR(CUR_PAL); }
+// La bitácora guarda el texto tal como se dijo en su momento y no se
+// reescribe (igual criterio que en imp_v12). Lo anterior al 26/11/2026
+// viene como "Estantería 1 · C3": se marca para que nadie lo tome como
+// un lugar de hoy.
+function ubicHist(t){
+  if(!t) return '';
+  return /^Estanter[ií]a \d+ · [A-Z]\d+$/.test(t)
+    ? esc(t)+' <span style="color:var(--muted);font-size:10px">(numeración vieja)</span>'
+    : esc(t);
+}
 // Reabrir para corregir: el QR impreso lleva las cantidades, así que
 // cambiar los números exige cerrarlo de nuevo y reimprimir la etiqueta.
 function pdReabrir(){
@@ -5297,11 +5308,14 @@ function cfgFreeName(base){
   while(used[base+' '+n]) n++;
   return base+' '+n;
 }
+// Estanterías con letra (A, B, C… por depósito): la nueva toma la primera
+// libre. Pasada la Z sigue AA, AB… para no repetir nunca un nombre.
 function cfgFreeRackName(){
-  var n=1, used={};
+  var used={};
   cfgRacks().forEach(function(r){ used[r.nombre]=1; });
-  while(used['Estantería '+n]) n++;
-  return 'Estantería '+n;
+  function letras(n){ var s=''; while(n>0){ var m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; }
+  var n=1; while(used['Estantería '+letras(n)]) n++;
+  return 'Estantería '+letras(n);
 }
 // El sub-depósito que contiene enteramente al rack (y que admite racks)
 function cfgRackHome(r){

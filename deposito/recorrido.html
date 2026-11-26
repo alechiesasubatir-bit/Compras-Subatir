@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>Recorrido — Subatir / Prolimpio</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="movil.css?v=2026-11-26.1520"/>
+<link rel="stylesheet" href="movil.css?v=2026-11-26.1523"/>
 <style>
 /* Propio del recorrido: el paso, el lector y la grilla de ranuras */
 .paso{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;margin-bottom:8px;
@@ -198,12 +198,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="../supabase-config.js?v=2026-11-26.1520"></script>
-<script src="deposito-app.js?v=2026-11-26.1520"></script>
+<script src="../supabase-config.js?v=2026-11-26.1523"></script>
+<script src="deposito-app.js?v=2026-11-26.1523"></script>
 <script>
 // Version de la pantalla. La compara deposito-app.js contra version.json;
 // si hay una nueva avisa y recarga. bump-version.ps1 escribe las dos juntas.
-window.APP_VER='2026-11-26.1520';
+window.APP_VER='2026-11-26.1523';
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -242,9 +242,15 @@ function toast(msg,tipo){
 }
 function vibrar(){ try{ navigator.vibrate && navigator.vibrate(14); }catch(e){} }
 
-// Letra del nivel contada desde abajo: A abajo, D arriba (ver imp_v12).
-function letra(fila, filas){ var n=+fila||0; if(filas>0) n=filas-n+1;
-  return String.fromCharCode(64+n); }
+// Numeración de lugares (desde 26/11/2026, imp_v26_numeracion.sql):
+// estantería con letra y lugar con número corrido que arranca ABAJO A LA
+// IZQUIERDA, sigue a la derecha y sube. Se lee "A-12". La fila guardada
+// cuenta desde arriba (fila 1 = nivel de arriba). Misma cuenta que
+// posNum() en index.html e imp_pos_num() en la base.
+function posNum(e,f,c){ return (e.filas-f)*e.columnas*2+(+c); }   // 2 lugares por bahía
+function estCorto(e){ return String(e&&e.nombre||'Est?').replace(/^\s*estanter[ií]a\s+/i,''); }
+function lugarTxt(e,f,c){ return estCorto(e)+'-'+posNum(e,f,c); }
+function nivelTxt(f,filas){ return 'N'+(filas-f+1); }
 function estById(id){ return EST.find(function(e){ return String(e.id)===String(id); }); }
 function subById(id){ return SUB.find(function(s){ return String(s.id)===String(id); }); }
 function artById(id){ return ART.find(function(a){ return String(a.id)===String(id); }); }
@@ -252,7 +258,7 @@ function ubicOf(p){
   if(!p.estanteria_id) return 'sin ubicar';
   var e=estById(p.estanteria_id); if(!e) return 'sin ubicar';
   var s=subById(e.subdeposito_id);
-  return (s?s.nombre+' · ':'')+e.nombre+' · '+letra(p.fila,e.filas)+p.columna;
+  return (s?s.nombre+' · ':'')+lugarTxt(e,p.fila,p.columna);
 }
 // Clave de orden del recorrido: primero por sub-depósito, después por
 // estantería y por posición. Así se camina el galpón una sola vez en vez
@@ -503,7 +509,7 @@ function planoHTML(p, n){
   var g='';
   for(var f=1; f<=e.filas; f++){
     g+='<div class="m2d-row" style="grid-template-columns:16px repeat('+cols+',1fr)">'
-      +'<span class="m2d-lv">'+letra(f,e.filas)+'</span>';
+      +'<span class="m2d-lv">'+nivelTxt(f,e.filas)+'</span>';
     for(var c=1; c<=cols; c++){
       var esta=(f===p.fila && c===p.columna);
       g+='<span class="m-cell'+(esta?' target':(OCUP[e.id+'-'+f+'-'+c]?' occ':''))+'"'
@@ -514,8 +520,7 @@ function planoHTML(p, n){
 
   return '<span class="mini-wrap">'
     +'<span class="m2d">'+g+'</span>'
-    +'<span class="mini-cap">'+esc(e.nombre)+' · nivel '+letra(p.fila,e.filas)
-      +' · posición '+p.columna+'</span>'
+    +'<span class="mini-cap">'+esc(e.nombre)+' · lugar <b>'+esc(lugarTxt(e,p.fila,p.columna))+'</b></span>'
   +'</span>';
 }
 
@@ -819,19 +824,20 @@ function ranuras(){
       if(suq){
         h += suq.libre
           ? '<button type="button" class="sug" onclick="pickRanura('+suq.f+','+suq.c+')">'
-            +'📍 Volver a su lugar: <b>'+letra(suq.f,e.filas)+suq.c+'</b></button>'
-          : '<div class="sug ocupada">📍 Estaba en <b>'+letra(suq.f,e.filas)+suq.c+'</b>, '
+            +'📍 Volver a su lugar: <b>'+lugarTxt(e,suq.f,suq.c)+'</b></button>'
+          : '<div class="sug ocupada">📍 Estaba en <b>'+lugarTxt(e,suq.f,suq.c)+'</b>, '
             +'pero ahora está ocupada. Elegí otra.</div>';
       }
       h+='<div class="ranuras" style="grid-template-columns:18px repeat('+cols+',1fr)">';
       for(var f=1; f<=e.filas; f++){
-        h+='<span class="ran-l">'+letra(f,e.filas)+'</span>';
+        h+='<span class="ran-l">'+nivelTxt(f,e.filas)+'</span>';
         for(var c=1; c<=cols; c++){
           var libre=!ocup[f+'-'+c], sel=(U_SLOT&&U_SLOT.f===f&&U_SLOT.c===c);
           var era=(suq&&suq.libre&&suq.f===f&&suq.c===c);
+          // En el botón va sólo el número: la estantería ya está elegida arriba
           h+='<button type="button" class="ran'+(sel?' on':'')+(era?' era':'')+'" '+(libre?'':'disabled')
-            +' onclick="pickRanura('+f+','+c+')" aria-label="'+(libre?'Ranura libre ':'Ocupada ')
-            +letra(f,e.filas)+c+(era?'. Acá estaba antes':'')+'">'+(libre?(letra(f,e.filas)+c):'·')+'</button>';
+            +' onclick="pickRanura('+f+','+c+')" aria-label="'+(libre?'Lugar libre ':'Ocupado ')
+            +lugarTxt(e,f,c)+(era?'. Acá estaba antes':'')+'">'+(libre?posNum(e,f,c):'·')+'</button>';
         }
       }
       h+='</div>';
@@ -851,7 +857,7 @@ function guardar(){
       if(r.error||(r.data&&r.data.ok===false)){
         toast('Error: '+(r.error?r.error.message:r.data.error),'err'); return; }
       var e=estById(est);
-      toast('📦 Guardado en '+e.nombre+' '+letra(U_SLOT.f,e.filas)+U_SLOT.c,'ok');
+      toast('📦 Guardado en '+lugarTxt(e,U_SLOT.f,U_SLOT.c),'ok');
       LLEGO=null; U_SLOT=null; cargar(); verRec();
     });
 }

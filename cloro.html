@@ -452,13 +452,13 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1551"/>
-<script src="supabase-config.js?v=2026-11-26.1551"></script>
-<script src="subatir-app.js?v=2026-11-26.1551"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1556"/>
+<script src="supabase-config.js?v=2026-11-26.1556"></script>
+<script src="subatir-app.js?v=2026-11-26.1556"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1551';
+window.APP_VER='2026-11-26.1556';
 </script>
 </head>
 <body>
@@ -470,7 +470,7 @@ window.APP_VER='2026-11-26.1551';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1551"></script>
+  <script src="nav.js?v=2026-11-26.1556"></script>
   <div class="hdr-r">
   </div>
 </header>
@@ -721,7 +721,7 @@ window.APP_VER='2026-11-26.1551';
         <div class="cf-add">
           <div class="fg" style="grid-column:span 2"><label>Vincular un artículo del inventario</label>
             <select class="inp" id="nm-inv"></select></div>
-          <div class="fg"><button class="btn" style="width:100%" onclick="crearMateria()">➕ Agregar</button></div>
+          <div class="fg"><button class="btn" id="btn-nm" style="width:100%" onclick="crearMateria()">➕ Agregar</button></div>
         </div>
       </div>
 
@@ -944,7 +944,7 @@ window.APP_VER='2026-11-26.1551';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="cloro-calc.js?v=2026-11-26.1551"></script>
+<script src="cloro-calc.js?v=2026-11-26.1556"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  PREVISIÓN CLORO — envasado y compra de MP de la línea de piscinas
@@ -1083,11 +1083,11 @@ function finUltimaCerrada(t){
 // devuelve la última: el módulo pasa a ser una foto de lo que pasó, no
 // una previsión de lo que viene, y la pantalla lo avisa.
 function semanaHoy(t){
-  var w = Cloro.semanaDe(new Date(), dIni(t));
+  var w = Cloro.semanaDe(hoyUTC(), dIni(t));
   return Math.min(Math.max(w,1), NSEM);
 }
 function temporadaTerminada(t){
-  return Cloro.semanaDe(new Date(), dIni(t)) > NSEM;
+  return Cloro.semanaDe(hoyUTC(), dIni(t)) > NSEM;
 }
 
 // ¿Hay con qué calcular el stock DE ESTE PRODUCTO? Sin stock inicial ni
@@ -1122,7 +1122,7 @@ function semanaDelConteo(prodId){
   return Math.min(Math.max(Cloro.semanaDe(new Date(f+'T00:00:00Z'), dIni(t)), 1), NSEM);
 }
 function temporadaNoArranco(t){
-  return Cloro.semanaDe(new Date(), dIni(t)) < 1;
+  return Cloro.semanaDe(hoyUTC(), dIni(t)) < 1;
 }
 
 // ══ CARGA ═════════════════════════════════════════════════════
@@ -2177,6 +2177,11 @@ function fechaCorta(iso){
   var p=String(iso).split('-');
   return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
 }
+// Hoy (el día de la PC) a medianoche UTC, que es como semanaDe cuenta los
+// días. Con new Date() a secas tomaba el día UTC: el domingo después de
+// las 21 h ya era lunes y la pantalla pasaba a la semana siguiente (la
+// semana "actual", la última cerrada y el aviso de ventas atrasadas).
+function hoyUTC(){ return new Date(hoyISO()+'T00:00:00Z'); }
 function hoyISO(){
   var d=new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
@@ -2416,7 +2421,7 @@ function cargarPDF(){
     // bump-version.ps1 no la ve —sólo reescribe los ?v= que están en el
     // HTML— y sin esto el navegador podría servir un oc-pdf.js viejo.
     // El literal va PARTIDO a propósito: bump-version.ps1 busca
-    // `oc-pdf.js?v=2026-11-26.1551'oc-pdf.js?v=2026-11-26.1551'+APP_VER.
+    // `oc-pdf.js?v=2026-11-26.1556'oc-pdf.js?v=2026-11-26.1556'+APP_VER.
     // Partido, el patrón no aparece y la versión la pone APP_VER sola.
     .then(function(){ return window.OCPdf ? null : uno('oc-pdf.js'+'?v='+APP_VER); })
     // El logo se precarga solo y es asíncrono. Sin esperarlo, el primer
@@ -2541,7 +2546,7 @@ function pdfAvance(){
   cargarPDF().then(function(){
     OCPdf.build({
       temporada: t.nombre, semana: SEM_ACTUAL, nsem: NSEM,
-      fecha: new Date().toISOString().slice(0,10),
+      fecha: hoyISO(),
       color: colorAvanceRGB,
       lines: fs.map(function(f){
         return {cod: f.prod.codigo||'', desc: f.prod.nombre||'', env: f.envasadoTemp, tot: f.ventasPrev};
@@ -3077,7 +3082,9 @@ function crearMateria(){
   if(!id){ toast('Elegí un artículo del inventario','err'); return; }
   var inv=INV.filter(function(x){ return x.id===id; })[0];
   if(!inv){ toast('Ese artículo ya no está en el inventario','err'); return; }
+  var b=document.getElementById('btn-nm'); if(b.disabled) return; b.disabled=true;
   SB.from('cl_materias').insert({nombre:inv.descripcion, inventario_id:id}).select().then(function(r){
+    b.disabled=false;
     if(r.error) throw r.error;
     if(!r.data || !r.data.length) throw new Error('la base no devolvió la fila (¿permiso del módulo?)');
     MAT.push(r.data[0]);
@@ -3085,6 +3092,7 @@ function crearMateria(){
     toast('Materia prima vinculada','ok');
     pintarConfig(); pintarTodo();
   }).catch(function(e){
+    b.disabled=false;
     toast('No se pudo vincular: '+((e&&e.message)||e),'err');
   });
 }
@@ -3588,7 +3596,7 @@ function prepararEnvasado(){
     .map(function(p){ return '<option value="'+p.id+'">'+esc(p.nombre)+'</option>'; }).join('');
   // Default: hoy, pero acotado a la temporada. Con una temporada pasada,
   // "hoy" caería afuera y la orden se rechazaría sin que se entienda.
-  var hoy=new Date().toISOString().slice(0,10);
+  var hoy=hoyISO();      // la fecha UTC, de noche, cargaba la orden en el día siguiente
   document.getElementById('ev-fecha').value =
     (hoy < t.fecha_ini) ? t.fecha_ini : (hoy > t.fecha_fin ? t.fecha_fin : hoy);
   document.getElementById('ev-fecha').min = t.fecha_ini;

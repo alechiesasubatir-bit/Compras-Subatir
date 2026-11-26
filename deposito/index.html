@@ -982,11 +982,11 @@ select.cfg-inp{font-family:inherit}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="../traslados.css?v=2026-11-26.1611"/>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1611"/>
-<script src="../supabase-config.js?v=2026-11-26.1611"></script>
-<script src="deposito-app.js?v=2026-11-26.1611"></script>
-<script src="../traslados.js?v=2026-11-26.1611"></script>
+<link rel="stylesheet" href="../traslados.css?v=2026-11-26.1635"/>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1635"/>
+<script src="../supabase-config.js?v=2026-11-26.1635"></script>
+<script src="deposito-app.js?v=2026-11-26.1635"></script>
+<script src="../traslados.js?v=2026-11-26.1635"></script>
 <script>
 // ── Versión de la app ────────────────────────────────────────
 //  Toda la app vive dentro de este HTML, así que versionar los
@@ -995,7 +995,7 @@ select.cfg-inp{font-family:inherit}
 //  caché, y si hay una versión nueva la pestaña se recarga sola.
 //  Hace falta porque los operarios dejan la pestaña abierta todo
 //  el día y nunca llegarían a ver un deploy.
-window.APP_VER='2026-11-26.1611';
+window.APP_VER='2026-11-26.1635';
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1017,7 +1017,7 @@ window.APP_VER='2026-11-26.1611';
   </a>
   <!-- El menú lo arma nav.js, que además sigue la sección a la vista -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1611"></script>
+  <script src="nav.js?v=2026-11-26.1635"></script>
   <div class="header-right">
     <span id="last-update" style="font-size:11px;color:var(--muted)">—</span>
     <button class="btn btn-ghost btn-sm" id="btn-liviano" onclick="toggleLiviano()"
@@ -2467,9 +2467,13 @@ function mapaModo(){
 //  se pregunta de verdad ("qué entró la semana pasada", "cuánta botella
 //  verde llegó"). Arranca en el último mes.
 var FAB_F={desde:'', hasta:'', q:''};
+// Fechas en el día de la PC: toISOString() da la UTC, que después de las
+// 21 h ya es mañana (el rango arrancaba un día corrido y la importación
+// nueva quedaba con fecha del día siguiente).
+function diaLocal(d){ var p=function(n){ return (n<10?'0':'')+n; }; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
 function fabFechaDef(dias){
   var d=new Date(); d.setDate(d.getDate()-(dias||30));
-  return d.toISOString().slice(0,10);
+  return diaLocal(d);
 }
 function onFabFiltro(){
   FAB_F.desde=(document.getElementById('fab-desde')||{}).value||'';
@@ -4124,7 +4128,7 @@ function openTandas(){
       +'<b>migracion/imp_v23.sql</b> en Supabase: ahí se crea la tabla y se marca como '
       +'<b>Stock inicial</b> todo lo que ya está armado.</div>';
   }
-  document.getElementById('tn-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('tn-fecha').value = diaLocal(new Date());
   document.getElementById('tn-nombre').value = '';
   document.getElementById('tn-nota').value = '';
   renderTandas();

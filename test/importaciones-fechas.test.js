@@ -44,3 +44,9 @@ test('líneas de Depósitos: hoyISO es el día de la PC', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'importaciones.html'), 'utf8');
   assert.doesNotMatch(funcion(src, 'openNuevaCorrida'), /toISOString/);
 });
+
+test('Depósitos: el rango del historial y la importación nueva usan el día de la PC', () => {
+  const { ctx } = contexto('deposito/index.html', ['diaLocal', 'fabFechaDef'], NOCHE);
+  assert.strictEqual(ctx.diaLocal(new ctx.Date()), '2026-11-30');
+  assert.strictEqual(ctx.fabFechaDef(30), '2026-10-31');
+});

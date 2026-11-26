@@ -563,14 +563,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1320"/>
-<script src="supabase-config.js?v=2026-11-26.1320"></script>
-<script src="subatir-app.js?v=2026-11-26.1320"></script>
-<script src="reposicion-calc.js?v=2026-11-26.1320"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1520"/>
+<script src="supabase-config.js?v=2026-11-26.1520"></script>
+<script src="subatir-app.js?v=2026-11-26.1520"></script>
+<script src="reposicion-calc.js?v=2026-11-26.1520"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1320';
+window.APP_VER='2026-11-26.1520';
 </script>
 </head>
 <body>
@@ -586,7 +586,7 @@ window.APP_VER='2026-11-26.1320';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1320"></script>
+  <script src="nav.js?v=2026-11-26.1520"></script>
   <div class="hdr-right">
     <button class="btn btn-orange btn-sm" onclick="openConteo()">📋 Control de Stock</button>
     <button class="btn btn-teal btn-sm" onclick="openNewArt()">➕ Nuevo artículo</button>
@@ -1465,32 +1465,14 @@ function fichaDe(invId, proveedor){
 function recalcItem(m){
   var stock = +m.stock||0, minimo = +m.minimo||0, consumo = +m.consumo||0, pend = +m.pendiente||0;
 
-  // Cobertura = (stock + en tránsito) / consumo mensual
-  // null cuando consumo=0 (sin dato), para distinguir de cobertura real = 0
-  m.cobertura = (consumo > 0) ? (stock + pend) / consumo : null;
-
-  // % para barra visual (respecto a 6 meses como referencia)
-  m.pct = minimo > 0
-    ? Math.min(100, (stock / (minimo * 2)) * 100)
-    : (m.cobertura !== null ? Math.min(100, (m.cobertura / 6) * 100) : 0);
-
-  // Estado: PRIORIZA stock vs mínimo. La bandera SOLICITAR (heredada del
-  // Sheet) NO puede sobrescribir un mínimo válido; solo se usa como respaldo
-  // cuando no hay mínimo ni consumo para comparar.
-  var sol = String(m._sol||'').toUpperCase();
-  if(minimo > 0){
-    if(stock <= minimo)             m.estado='CRITICO';
-    else if(stock <= minimo*1.5)    m.estado='MEDIO';
-    else                            m.estado='OPTIMO';
-  } else if(m.cobertura !== null){
-    if(m.cobertura < 1)             m.estado='CRITICO';
-    else if(m.cobertura < 2)        m.estado='MEDIO';
-    else                            m.estado='OPTIMO';
-  } else if(sol.indexOf('SOLICITAR')>=0){
-    m.estado='CRITICO';
-  } else {
-    m.estado='OPTIMO';
-  }
+  // Semáforo, cobertura ((stock + tránsito) / consumo, null sin consumo) y
+  // % de la barra: la regla vive en SubatirApp.estadoStock, la misma que
+  // usa el Dashboard. SOLICITAR (heredada del Sheet) sólo cuenta cuando no
+  // hay mínimo ni consumo para comparar.
+  var es = SubatirApp.estadoStock({ stock:stock, minimo:minimo, consumo:consumo, pendiente:pend, solicitar:m._sol });
+  m.cobertura = es.cobertura;
+  m.pct       = es.pct;
+  m.estado    = es.estado;
 
   // La reposición NO toca m.estado: es una señal aparte que convive con
   // el semáforo de siempre. El armado del objeto vive en desdeFila, que

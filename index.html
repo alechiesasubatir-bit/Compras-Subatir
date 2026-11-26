@@ -509,17 +509,18 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-11-26.1320"/>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1320"/>
+<link rel="stylesheet" href="traslados.css?v=2026-11-26.1520"/>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1520"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-11-26.1320"></script>
-<script src="subatir-app.js?v=2026-11-26.1320"></script>
-<script src="reposicion-calc.js?v=2026-11-26.1320"></script>
-<script src="traslados.js?v=2026-11-26.1320"></script>
+<script src="supabase-config.js?v=2026-11-26.1520"></script>
+<script src="subatir-app.js?v=2026-11-26.1520"></script>
+<script src="recepcion-calc.js?v=2026-11-26.1520"></script>
+<script src="reposicion-calc.js?v=2026-11-26.1520"></script>
+<script src="traslados.js?v=2026-11-26.1520"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1320';
+window.APP_VER='2026-11-26.1520';
 </script>
 </head>
 <body>
@@ -579,7 +580,7 @@ window.APP_VER='2026-11-26.1320';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-11-26.1320"></script>
+    <script src="nav.js?v=2026-11-26.1520"></script>
     <div class="hdr-right">
     </div>
   </div>
@@ -642,7 +643,7 @@ window.APP_VER='2026-11-26.1320';
         <div class="kpi-value" id="kpi-pending">—</div>
         <div class="kpi-sub" id="kpi-pending-sub">sin fecha de recepción</div>
       </div>
-      <div class="card kpi kpi-critical" title="Artículos del inventario marcados como 'SOLICITAR' o con estado crítico en la hoja de stock. Requieren reposición urgente.">
+      <div class="card kpi kpi-critical" title="Artículos con stock en o por debajo del mínimo (o con menos de un mes de cobertura si no tienen mínimo). Es el mismo semáforo rojo del módulo Stock.">
         <div class="kpi-icon">🔴</div>
         <div class="kpi-label">Stock Crítico</div>
         <div class="kpi-value" id="kpi-critical">—</div>
@@ -1214,10 +1215,11 @@ function findKey(keys, candidates){
 }
 
 // ── Helpers ────────────────────────────────────────────────────
+// Un solo lector de números para toda la app (SubatirApp.num)
 function pNum(v){
   if (v === '' || v === null || v === undefined) return 0;
-  var s = String(v).replace(/[^\d,.-]/g,'').replace(',','.');
-  return parseFloat(s) || 0;
+  var n = SubatirApp.num(v);
+  return isFinite(n) ? n : 0;
 }
 function isEmpty(v){ return v === '' || v === null || v === undefined; }
 function fmtUSD(n){ return 'U$S ' + n.toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
@@ -1241,14 +1243,16 @@ function isPendiente(row){
 // El COA se le pide solo a las materias primas, y solo cuando ya llego:
 // contando todo, el KPI marcaba decenas de lineas que nadie iba a resolver
 function esMP(row){ return SubatirApp.cat.esMP(row['ID Inventario'], row[KEYS.desc]); }
-function faltaCOA(row){
-  if(isPendiente(row) || !esMP(row)) return false;
-  var cv = String(row[KEYS.coa]||'').trim().toUpperCase();
-  return ['SI','S','SÍ','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(cv) < 0;
+// COA, lote y check list que faltan, y el estado de la línea: la regla
+// vive en recepcion-calc.js y es la misma de Recepción y Pedidos. El
+// Dashboard tenía su copia (sólo líneas completas, lote de la línea) y
+// podía no coincidir con esas dos pantallas.
+function statsDe(row){
+  return RecepcionCalc.lineStats(row.__row, row[KEYS.cantidad], row[KEYS.recepcion], ENTREGAS_POR_PEDIDO[row.__row] || []);
 }
-function faltaLote(row){
-  return !isPendiente(row) && esMP(row) && isEmpty(row[KEYS.lote]);
-}
+function faltaCOA(row){  return RecepcionCalc.faltaCoa(esMP(row), statsDe(row), row[KEYS.coa]); }
+function faltaLote(row){ return RecepcionCalc.faltaLote(esMP(row), statsDe(row), row[KEYS.lote]); }
+function coaOk(row){ return RecepcionCalc.coaOk(row[KEYS.coa]); }
 // Falta el check list PL-06: materia prima, ya llego, y alguna entrega sin
 // checklist. Solo desde que el PL-06 existe (11/08/2026): reclamar lo
 // anterior seria pedir algo que nadie pudo haber hecho.
@@ -1283,15 +1287,7 @@ function fracPendiente(row){
 // La lista cruda, para SubatirApp.transito: necesita el array, no el
 // agrupado por pedido que usa el aviso de check list.
 var ENTREGAS = [];
-var PL06_DESDE = '2026-08-11';
-function faltaChecklist(row){
-  if(isPendiente(row) || !esMP(row)) return false;
-  var ents = ENTREGAS_POR_PEDIDO[row.__row] || [];
-  if(!ents.length) return false;
-  return ents.some(function(e){
-    return String(e.fecha||'') >= PL06_DESDE && !e.checklist;
-  });
-}
+function faltaChecklist(row){ return RecepcionCalc.faltaChecklist(esMP(row), statsDe(row)); }
 
 // Accesos directos a lo que hay que resolver. Los avisos ya parpadean en
 // la tabla, pero entre cientos de filas hay que poder aislarlos.
@@ -1321,17 +1317,19 @@ function refreshBotonesCalidad(){
     if(!n){ if(cfg[3]==='COA'){ FILTRO_COA=false; } else if(cfg[3]==='LOTE'){ FILTRO_LOTE=false; } else { FILTRO_CHK=false; } b.style.background=''; }
   });
 }
-function isCritical(inv){
-  var s = String(inv[KEYS.invSolicitar] || '').toLowerCase();
-  return s.indexOf('solicitar') >= 0;
+// Semáforo de un artículo: el MISMO de Stock (SubatirApp.estadoStock),
+// con el tránsito real para la cobertura. Antes "crítico" era la columna
+// SOLICITAR, un texto congelado del Sheet que nadie actualiza.
+function estadoInv(inv){
+  return SubatirApp.estadoStock({
+    stock:     pNum(inv[KEYS.invStock]),
+    minimo:    pNum(inv[KEYS.invMinimo]),
+    consumo:   pNum(inv[KEYS.invConsumo]),
+    pendiente: TRANSITO_DASH ? (TRANSITO_DASH.de(inv.__row).pendiente || 0) : 0,
+    solicitar: inv[KEYS.invSolicitar]
+  });
 }
-function stockEstado(st){
-  var e = String(st[KEYS.stEstado] || '').toUpperCase()
-           .normalize('NFD').replace(/[̀-ͯ]/g,'');
-  if (e.indexOf('CRIT') >= 0) return 'critical';
-  if (e.indexOf('MEDI') >= 0) return 'medium';
-  return 'ok';
-}
+function isCritical(inv){ return !!String(inv[KEYS.invDesc]||'').trim() && estadoInv(inv).estado === 'CRITICO'; }
 
 // ══════════════════════════════════════════════════════════════
 //  RENDER ALL
@@ -1506,14 +1504,15 @@ function clearDashFilters(){
 }
 
 // ── Tabla de pedidos ───────────────────────────────────────────
-function renderPedidos(){
+// Las filas que se ven con los filtros puestos, más recientes primero.
+// Una sola vez: la tabla y el CSV tenían cada uno su copia del filtro.
+function pedidosFiltrados(){
   var buscar   = (document.getElementById('f-buscar').value || '').toLowerCase();
   var estado   = document.getElementById('f-estado').value;
   var provFilt = document.getElementById('f-proveedor').value;
   var coaFilt  = document.getElementById('f-coa').value;
   var desde    = document.getElementById('f-desde') ? document.getElementById('f-desde').value : '';
   var hasta    = document.getElementById('f-hasta') ? document.getElementById('f-hasta').value : '';
-
   var rows = (DATA.pedidos || []).filter(function(p){
     if (FILTRO_COA  && !faltaCOA(p))  return false;
     if (FILTRO_LOTE && !faltaLote(p)) return false;
@@ -1525,21 +1524,22 @@ function renderPedidos(){
     if (estado === 'pendiente' && !isPendiente(p)) return false;
     if (estado === 'recibido'  &&  isPendiente(p)) return false;
     if (provFilt && String(p[KEYS.proveedor]||'') !== provFilt) return false;
-    var coaVal = String(p[KEYS.coa] || '').trim().toUpperCase();
-    if (coaFilt === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== 'SÍ' && coaVal !== 'NO NECESARIO' && coaVal !== 'NO APLICA' && coaVal !== 'NO REQUERIDO' && coaVal !== 'N/A' && coaVal !== 'NA') return false;
-    if (coaFilt === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === 'SÍ' || coaVal === 'NO NECESARIO' || coaVal === 'NO APLICA' || coaVal === 'NO REQUERIDO' || coaVal === 'N/A' || coaVal === 'NA')) return false;
+    if (coaFilt === 'si' && !coaOk(p)) return false;
+    if (coaFilt === 'no' &&  coaOk(p)) return false;
     var f = String(p[KEYS.fecha]||'');
     if (desde && f && f < desde) return false;
     if (hasta && f && f > hasta) return false;
     return true;
   });
-
-  // Más reciente primero
   rows.sort(function(a,b){
     var fa = String(a[KEYS.fecha]||''); var fb = String(b[KEYS.fecha]||'');
     return fa > fb ? -1 : fa < fb ? 1 : 0;
   });
+  return rows;
+}
 
+function renderPedidos(){
+  var rows = pedidosFiltrados();
   set('pedidos-count', rows.length + ' registros');
   refreshBotonesCalidad();
 
@@ -1550,26 +1550,32 @@ function renderPedidos(){
     rows.forEach(function(p){
       var pend = isPendiente(p);
       var sinLote = isEmpty(p[KEYS.lote]);
-      var coaNorm = String(p[KEYS.coa]||'').trim().toUpperCase();
       var confNorm= String(p[KEYS.conforme]||'').trim().toUpperCase();
-      var hasCOA  = coaNorm === 'SI' || coaNorm === 'S' || coaNorm === 'SÍ' || coaNorm === 'NO NECESARIO' || coaNorm === 'NO APLICA' || coaNorm === 'NO REQUERIDO' || coaNorm === 'N/A' || coaNorm === 'NA';
+      var hasCOA  = coaOk(p);
       var hasConf = confNorm === 'SI' || confNorm === 'S' || confNorm === 'SÍ';
+      var st      = statsDe(p);
+      // Los textos vienen de lo que se tipeó en la base: van escapados
       html += '<tr>';
-      html += '<td style="font-weight:700;color:var(--tl);font-family:\'IBM Plex Mono\',monospace">' + (p[KEYS.orden]||'—') + '</td>';
+      html += '<td style="font-weight:700;color:var(--tl);font-family:\'IBM Plex Mono\',monospace">' + esc(p[KEYS.orden]||'—') + '</td>';
       html += '<td style="color:var(--mut2)">' + fmtDate(p[KEYS.fecha]) + '</td>';
-      html += '<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis">' + (p[KEYS.proveedor]||'—') + '</td>';
-      html += '<td style="max-width:190px;overflow:hidden;text-overflow:ellipsis">' + (p[KEYS.desc]||'—') + '</td>';
-      html += '<td style="text-align:right;font-family:\'IBM Plex Mono\',monospace">' + (p[KEYS.cantidad]||'—') + '</td>';
+      html += '<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis">' + esc(p[KEYS.proveedor]||'—') + '</td>';
+      html += '<td style="max-width:190px;overflow:hidden;text-overflow:ellipsis">' + esc(p[KEYS.desc]||'—') + '</td>';
+      html += '<td style="text-align:right;font-family:\'IBM Plex Mono\',monospace">' + esc(p[KEYS.cantidad]||'—') + '</td>';
       var mon=ocRowMoneda(p),sivVal=pNum(p[KEYS.siva]);
       html += '<td style="text-align:right;color:'+(mon==='USD'?'var(--grn)':'var(--tl)')+';font-family:\'IBM Plex Mono\',monospace">'+(sivVal>0?(mon==='USD'?fmtUSD(sivVal):fmtPSO(sivVal)):'—')+'</td>';
-      html += '<td>' + (pend
-        ? '<span class="pill pill-pendiente">⏳ Pendiente</span>'
-        : '<span class="pill pill-recibido">✓ ' + fmtDate(p[KEYS.recepcion]) + '</span>') + '</td>';
+      // Parcial como en Pedidos y Recepción: "Pendiente" a secas escondía
+      // que ya había llegado una parte
+      html += '<td>' + (!pend
+        ? '<span class="pill pill-recibido">✓ ' + fmtDate(p[KEYS.recepcion]) + '</span>'
+        : st.estado === 'PARCIAL'
+          ? '<span class="pill pill-pendiente" title="Recibido '+st.recibido+' de '+st.pedida+'">🟡 Parcial · saldo '+st.saldo+'</span>'
+          : '<span class="pill pill-pendiente">⏳ Pendiente</span>') + '</td>';
       html += '<td>' + (sinLote
         // Parpadea solo si hay que resolverlo: materia prima ya recibida
         ? (faltaLote(p) ? '<span class="pill falta-dato">⚠ Sin lote</span>'
                         : '<span class="pill pill-sinlote">Sin lote</span>')
-        : '<span style="color:var(--mut2);font-size:11px;font-family:\'IBM Plex Mono\',monospace">' + p[KEYS.lote] + '</span>') + '</td>';
+        : '<span style="color:var(--mut2);font-size:11px;font-family:\'IBM Plex Mono\',monospace">' + esc(p[KEYS.lote]) + '</span>'
+          + (faltaLote(p) ? ' <span class="pill falta-dato" title="Una de las entregas se registró sin lote">⚠</span>' : '')) + '</td>';
       html += '<td>' + (hasCOA ? '<span class="pill pill-ok">✓</span>'
                 : (faltaCOA(p) ? '<span class="pill falta-dato">⚠</span>'
                                : '<span style="color:var(--mut)">—</span>')) + '</td>';
@@ -1582,38 +1588,8 @@ function renderPedidos(){
 
 // ── Exportar CSV ───────────────────────────────────────────────
 function exportarCSV(){
-  // Obtiene las filas actualmente filtradas (misma lógica que renderPedidos)
-  var buscar   = (document.getElementById('f-buscar').value || '').toLowerCase();
-  var estado   = document.getElementById('f-estado').value;
-  var provFilt = document.getElementById('f-proveedor').value;
-  var coaFilt  = document.getElementById('f-coa').value;
-  var desde    = document.getElementById('f-desde') ? document.getElementById('f-desde').value : '';
-  var hasta    = document.getElementById('f-hasta') ? document.getElementById('f-hasta').value : '';
-
-  var rows = (DATA.pedidos || []).filter(function(p){
-    if (FILTRO_COA  && !faltaCOA(p))  return false;
-    if (FILTRO_LOTE && !faltaLote(p)) return false;
-    if (FILTRO_CHK  && !faltaChecklist(p)) return false;
-    if (buscar){
-      var hay = (String(p[KEYS.desc]||'')+' '+String(p[KEYS.proveedor]||'')+' '+String(p[KEYS.orden]||'')).toLowerCase();
-      if (hay.indexOf(buscar) < 0) return false;
-    }
-    if (estado === 'pendiente' && !isPendiente(p)) return false;
-    if (estado === 'recibido'  &&  isPendiente(p)) return false;
-    if (provFilt && String(p[KEYS.proveedor]||'') !== provFilt) return false;
-    var coaVal = String(p[KEYS.coa] || '').trim().toUpperCase();
-    if (coaFilt === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== 'SÍ' && coaVal !== 'NO NECESARIO' && coaVal !== 'NO APLICA' && coaVal !== 'NO REQUERIDO' && coaVal !== 'N/A' && coaVal !== 'NA') return false;
-    if (coaFilt === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === 'SÍ' || coaVal === 'NO NECESARIO' || coaVal === 'NO APLICA' || coaVal === 'NO REQUERIDO' || coaVal === 'N/A' || coaVal === 'NA')) return false;
-    var f = String(p[KEYS.fecha]||'');
-    if (desde && f && f < desde) return false;
-    if (hasta && f && f > hasta) return false;
-    return true;
-  });
-
-  rows.sort(function(a,b){
-    var fa = String(a[KEYS.fecha]||''); var fb = String(b[KEYS.fecha]||'');
-    return fa > fb ? -1 : fa < fb ? 1 : 0;
-  });
+  // Las filas que se ven en la tabla, con los mismos filtros
+  var rows = pedidosFiltrados();
 
   if (rows.length === 0){ alert('No hay filas visibles para exportar.'); return; }
 
@@ -1664,23 +1640,14 @@ function exportarCSV(){
 // ── Stock crítico panel ────────────────────────────────────────
 function renderStockCritico(){
   var inv   = DATA.inventario || [];
-  var stock = DATA.stock      || [];
   var criticos = inv.filter(isCritical);
   var html = '';
   var totalItems = 0;
 
-  // Usamos <a href="stock.html"> para hacer cada ítem clickeable
-  if (criticos.length === 0 && stock.length > 0){
-    criticos = stock.filter(function(s){ return stockEstado(s) === 'critical'; });
-    criticos.forEach(function(s){
-      var meses = pNum(s[KEYS.stCobert]);
-      html += '<a class="stock-item" href="stock.html" title="Ver en módulo Stock">'
-            + '<div class="dot dot-red"></div>'
-            + '<div class="stock-item-name">' + esc(s[KEYS.stArticulo]||'—') + '</div>'
-            + '<div class="stock-item-meta">' + meses.toFixed(1) + ' meses</div>'
-            + '</a>';
-    });
-  } else {
+  // Usamos <a href="stock.html"> para hacer cada ítem clickeable.
+  // (La rama de la vieja hoja "INVENTARIO" se sacó: getData la devuelve
+  // siempre vacía, así que los MEDIOS nunca aparecían.)
+  {
     criticos.forEach(function(i){
       var stock_act = pNum(i[KEYS.invStock]);
       // El "(+N)" sale del transito REAL (cruce con las OC sin recibir,
@@ -1698,13 +1665,15 @@ function renderStockCritico(){
   }
   totalItems += criticos.length;
 
-  var medios = stock.filter(function(s){ return stockEstado(s) === 'medium'; });
-  medios.slice(0,5).forEach(function(s){
-    var meses = pNum(s[KEYS.stCobert]);
+  var medios = inv.filter(function(i){
+    return String(i[KEYS.invDesc]||'').trim() && estadoInv(i).estado === 'MEDIO';
+  });
+  medios.slice(0,5).forEach(function(i){
+    var cob = estadoInv(i).cobertura;
     html += '<a class="stock-item" href="stock.html" title="Ver en módulo Stock">'
           + '<div class="dot dot-yellow"></div>'
-          + '<div class="stock-item-name">' + esc(s[KEYS.stArticulo]||'—') + '</div>'
-          + '<div class="stock-item-meta">' + meses.toFixed(1) + ' meses</div>'
+          + '<div class="stock-item-name">' + esc(i[KEYS.invDesc]||'—') + '</div>'
+          + '<div class="stock-item-meta">' + (cob !== null ? cob.toFixed(1) + ' meses' : 'Stock: ' + pNum(i[KEYS.invStock])) + '</div>'
           + '</a>';
   });
   totalItems += Math.min(medios.length, 5);
@@ -1723,26 +1692,13 @@ function renderCobertura(){
   }
 
   // Calcula cobertura desde hoja COMPRAS (stock/consumo mensual) igual que el módulo stock
+  // Mismo semáforo, cobertura y % que el módulo Stock (SubatirApp.estadoStock).
+  // Antes SOLICITAR le ganaba al mínimo y la cobertura no sumaba el tránsito.
   var items = inv.map(function(s){
-    var art     = String(s[KEYS.invDesc]    ||'').trim();
-    var stock   = pNum(s[KEYS.invStock]);
-    var minimo  = pNum(s[KEYS.invMinimo]);
-    var consumo = pNum(s[KEYS.invConsumo]);
-    var sol     = String(s[KEYS.invSolicitar]||'').toUpperCase();
-    var meses   = consumo > 0 ? stock / consumo : null;
-
-    var est;
-    if(sol.indexOf('SOLICITAR') >= 0)       est = 'critical';
-    else if(minimo > 0 && stock <= minimo)  est = 'critical';
-    else if(minimo > 0 && stock <= minimo * 1.5) est = 'medium';
-    else                                    est = 'ok';
-
-    // % respecto al doble del mínimo (6 meses si no hay mínimo)
-    var pct = minimo > 0
-      ? Math.min(100, (stock / (minimo * 2)) * 100)
-      : (meses !== null ? Math.min(100, (meses / 6) * 100) : 0);
-
-    return { art:art, meses:meses, pct:pct, est:est };
+    var art = String(s[KEYS.invDesc]||'').trim();
+    var e   = estadoInv(s);
+    var est = e.estado === 'CRITICO' ? 'critical' : e.estado === 'MEDIO' ? 'medium' : 'ok';
+    return { art:art, meses:e.cobertura, pct:e.pct, est:est };
   }).filter(function(x){ return x.art; });
 
   // Ordenar: alfabético por nombre de artículo
@@ -1761,7 +1717,7 @@ function renderCobertura(){
     html += '<div class="card" style="padding:12px 14px">'
           + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
           + '<div class="dot ' + dot + '"></div>'
-          + '<span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="' + x.art + '">' + x.art.slice(0,28) + '</span>'
+          + '<span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="' + esc(x.art) + '">' + esc(x.art.slice(0,28)) + '</span>'
           + '</div>'
           + '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut2)">'
           + '<span>' + mesesStr + '</span>'

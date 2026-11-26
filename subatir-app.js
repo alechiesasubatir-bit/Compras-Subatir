@@ -2420,6 +2420,29 @@
   //  La celda también vive acá, y no copiada en Pedidos y en
   //  Recepción, porque las dos pantallas muestran el mismo dato y ya
   //  pasó que dos copias del mismo cálculo terminaran discrepando.
+  //  ══ Semáforo de stock (CRITICO / MEDIO / OPTIMO) ══
+  //  Una sola regla para Stock y el Dashboard. Hasta el 26/11/2026 el
+  //  Dashboard decidía "crítico" con la columna SOLICITAR, un texto que
+  //  quedó congelado del Sheet y que nadie actualiza: marcaba 11 críticos
+  //  que estaban todos SOBRE el mínimo y no mostraba los 3 que estaban
+  //  debajo (la botella PET 500 decía "hay suficiente" con 2.992 de 3.000).
+  //   · Con mínimo: stock ≤ mínimo → CRITICO; ≤ 1,5×mínimo → MEDIO.
+  //   · Sin mínimo, con consumo: cobertura (stock + tránsito) / consumo,
+  //     < 1 mes CRITICO, < 2 MEDIO.
+  //   · Sin ninguno de los dos: SOLICITAR como último recurso.
+  //  pct es para la barra: respecto de 2×mínimo, o de 6 meses de cobertura.
+  function estadoStock(o) {
+    var stock = +o.stock || 0, minimo = +o.minimo || 0, consumo = +o.consumo || 0, pend = +o.pendiente || 0;
+    var cobertura = consumo > 0 ? (stock + pend) / consumo : null;
+    var pct = minimo > 0 ? Math.min(100, (stock / (minimo * 2)) * 100)
+      : (cobertura !== null ? Math.min(100, (cobertura / 6) * 100) : 0);
+    var estado;
+    if (minimo > 0)               estado = stock <= minimo ? 'CRITICO' : (stock <= minimo * 1.5 ? 'MEDIO' : 'OPTIMO');
+    else if (cobertura !== null)  estado = cobertura < 1 ? 'CRITICO' : (cobertura < 2 ? 'MEDIO' : 'OPTIMO');
+    else estado = String(o.solicitar || '').toUpperCase().indexOf('SOLICITAR') >= 0 ? 'CRITICO' : 'OPTIMO';
+    return { estado: estado, cobertura: cobertura, pct: pct };
+  }
+
   var LLEGADA = (function () {
     function p2(n) { return (n < 10 ? '0' : '') + n; }
     function ymd(s) { return /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || '')); }
@@ -2496,7 +2519,7 @@
     PL06: PL06, operador: OPER, stock: STOCK,
     live: live,
     xlsx: XLSX, logoCirc: function () { return LOGO_CIRC; }, match: MATCH, cat: CAT,
-    transito: transito, llegada: LLEGADA,
+    transito: transito, llegada: LLEGADA, estadoStock: estadoStock,
     // Filas crudas de la base -> formato de hoja, el que esperan transito() y
     // los módulos. Informes lee la base paginada y lo necesita para transito().
     aHoja: function (sheetKey, rows) {

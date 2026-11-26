@@ -170,9 +170,14 @@
         }
       });
       var ga = grupos.filter(function (g) { return g.k === abierto; })[0];
-      var sub = ga ? ga.its.map(function (it) { return link(it, aqui); }).join('') : '';
-      nav.innerHTML = '<div class="sbtabs">' + tabs + '</div>'
-        + '<div class="sbsub" id="sbsub" style="--c:' + (ga ? ga.c : '27,200,255') + '">' + sub + '</div>';
+      // Un grupo de un solo módulo (Previsión Cloro, Calidad MP,
+      // Importaciones) no lleva fila: repetiría el nombre de la pestaña.
+      // Sin la fila, el encabezado recupera ese renglón.
+      var sub = ga && ga.its.length > 1
+        ? '<div class="sbsub" id="sbsub" style="--c:' + ga.c + '">'
+          + ga.its.map(function (it) { return link(it, aqui); }).join('') + '</div>'
+        : '';
+      nav.innerHTML = '<div class="sbtabs">' + tabs + '</div>' + sub;
     }
     // Tocar otra pestaña cambia la fila, sin cambiar de página
     nav.onclick = function (e) {

@@ -547,15 +547,16 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="oc-pdf.js?v=2026-11-26.0923"></script>
-<script src="compras-pdf.js?v=2026-11-26.0923"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.0923"/>
-<script src="supabase-config.js?v=2026-11-26.0923"></script>
-<script src="subatir-app.js?v=2026-11-26.0923"></script>
+<script src="oc-pdf.js?v=2026-11-26.1320"></script>
+<script src="compras-pdf.js?v=2026-11-26.1320"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1320"/>
+<script src="supabase-config.js?v=2026-11-26.1320"></script>
+<script src="subatir-app.js?v=2026-11-26.1320"></script>
+<script src="recepcion-calc.js?v=2026-11-26.1320"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.0923';
+window.APP_VER='2026-11-26.1320';
 </script>
 </head>
 <body>
@@ -571,7 +572,7 @@ window.APP_VER='2026-11-26.0923';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.0923"></script>
+  <script src="nav.js?v=2026-11-26.1320"></script>
   <div class="header-right">
     <div id="hdr-counter" style="display:none;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--warn);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:4px 10px;border-radius:20px;white-space:nowrap"></div>
     <button class="btn btn-orange" onclick="openNewModal()" style="font-size:13px;padding:8px 16px">+ Nueva OC</button>
@@ -1056,7 +1057,7 @@ window.APP_VER='2026-11-26.0923';
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('new-overlay')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveNew()">💾 Crear Orden</button>
+      <button class="btn btn-primary" id="btn-save-new" onclick="saveNew()">💾 Crear Orden</button>
     </div>
   </div>
 </div>
@@ -1076,7 +1077,7 @@ window.APP_VER='2026-11-26.0923';
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('confirm-overlay')">Cancelar</button>
-      <button class="btn btn-danger" onclick="doDelete()">🗑 Sí, eliminar</button>
+      <button class="btn btn-danger" id="btn-do-delete" onclick="doDelete()">🗑 Sí, eliminar</button>
     </div>
   </div>
 </div>
@@ -1196,8 +1197,8 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 
 function setTodayDate(){
-  var today = new Date().toISOString().split('T')[0];
-  document.getElementById('nw-fecha').value = today;
+  // Hora local: la fecha UTC ya es "mañana" después de las 21 h
+  document.getElementById('nw-fecha').value = RecepcionCalc.hoyLocal();
 }
 
 // ── Fetch con fallback JSONP (funciona desde file:// y localhost) ──
@@ -1501,9 +1502,8 @@ function applyFilters(){
     if (estado === 'pendiente' && !isPendiente(r)) return false;
     if (estado === 'recibido'  &&  isPendiente(r)) return false;
     if (prov && String(r[K.proveedor]||'').toLowerCase() !== prov.toLowerCase()) return false;
-    var coaVal = String(r[K.coa]||'').toUpperCase().trim();
-    if (coa === 'si' && coaVal !== 'SI' && coaVal !== 'S' && coaVal !== '1' && coaVal !== 'TRUE' && coaVal !== 'NO NECESARIO' && coaVal !== 'NO APLICA' && coaVal !== 'NO REQUERIDO' && coaVal !== 'N/A' && coaVal !== 'NA') return false;
-    if (coa === 'no' && (coaVal === 'SI' || coaVal === 'S' || coaVal === '1' || coaVal === 'TRUE' || coaVal === 'NO NECESARIO' || coaVal === 'NO APLICA' || coaVal === 'NO REQUERIDO' || coaVal === 'N/A' || coaVal === 'NA')) return false;
+    if (coa === 'si' && !coaOkR(r[K.coa])) return false;
+    if (coa === 'no' &&  coaOkR(r[K.coa])) return false;
     if (lote === 'si' && (!r[K.lote] || String(r[K.lote]).trim()==='')) return false;
     if (lote === 'no' && r[K.lote] && String(r[K.lote]).trim()!=='') return false;
     if (desde && r[K.fecha] && r[K.fecha] < desde) return false;
@@ -1568,7 +1568,7 @@ function renderTable(){
       var sinLote  = !r[K.lote] || String(r[K.lote]).trim() === '';
       var coaUp    = String(r[K.coa]||'').toUpperCase().trim();
       var confUp   = String(r[K.conforme]||'').toUpperCase().trim();
-      var hasCOA   = coaUp === 'SI' || coaUp === 'S' || coaUp === '1' || coaUp === 'TRUE' || coaUp === 'NO NECESARIO' || coaUp === 'NO APLICA' || coaUp === 'NO REQUERIDO' || coaUp === 'N/A' || coaUp === 'NA';
+      var hasCOA   = coaOkR(r[K.coa]);
       var hasConf  = confUp === 'SI' || confUp === 'S' || confUp === '1' || confUp === 'TRUE';
       var rowClass  = r.__local ? 'local-row' : r.__modified ? 'modified-row' : '';
       var moneda  = ocMoneda(r);
@@ -1623,7 +1623,8 @@ function renderTable(){
       html += '<td>' + (sinLote
         ? (faltaLote(r) ? '<span class="pill falta-dato">⚠ Sin lote</span>'
                         : '<span class="pill pill-warn" style="opacity:.55">Sin lote</span>')
-        : '<span style="font-size:11px;color:var(--muted)">'+esc(String(r[K.lote]))+'</span>') + '</td>';
+        : '<span style="font-size:11px;color:var(--muted)">'+esc(String(r[K.lote]))+'</span>'
+          + (faltaLote(r) ? ' <span class="pill falta-dato" title="Una de las entregas se registró sin lote">⚠ Entrega sin lote</span>' : '')) + '</td>';
       html += '<td><div style="display:flex;gap:4px;justify-content:center;white-space:nowrap">'
             + (hasCOA ? '<span class="pill pill-ok">✓COA</span>'
                       : (faltaCOA(r) ? '<span class="pill falta-dato">⚠ COA</span>'
@@ -1647,9 +1648,15 @@ function renderProveedores(){
   var map = {};
   DATA_DISPLAY.forEach(function(r){
     var p = String(r[K.proveedor]||'Desconocido');
-    if (!map[p]) map[p] = {total:0, pend:0, usd:0, ultima:''};
+    if (!map[p]) map[p] = {total:0, pend:0, usd:0, pso:0, ultima:''};
     map[p].total++;
-    if (isPendiente(r)) { map[p].pend++; map[p].usd += pNum(r[K.siva]); }
+    // Pesos y dólares por separado (sumaba los pesos como si fueran
+    // dólares) y sólo la parte que falta llegar, igual que el KPI.
+    if (isPendiente(r)) {
+      map[p].pend++;
+      var imp = pNum(r[K.siva]) * fracPendiente(r);
+      if (ocMoneda(r)==='USD') map[p].usd += imp; else map[p].pso += imp;
+    }
     var f = r[K.fecha]||'';
     if (f > map[p].ultima) map[p].ultima = f;
   });
@@ -1662,7 +1669,8 @@ function renderProveedores(){
           + '<div class="prov-stats">'
           + '<div class="prov-stat"><strong>'+m.total+'</strong>órdenes</div>'
           + '<div class="prov-stat"><strong style="color:var(--warn)">'+m.pend+'</strong>pendientes</div>'
-          + '<div class="prov-stat"><strong style="color:var(--ok)">'+fmtUSD(m.usd)+'</strong>USD pend.</div>'
+          + '<div class="prov-stat"><strong style="color:var(--ok)">'+fmtUSD(m.usd)+'</strong>U$S pend.</div>'
+          + (m.pso>0 ? '<div class="prov-stat"><strong style="color:var(--teal-l)">'+fmtPSO(m.pso)+'</strong>$ pend.</div>' : '')
           + '<div class="prov-stat"><strong style="font-size:12px">'+fmtDate(m.ultima)+'</strong>última OC</div>'
           + '</div></div>';
   });
@@ -1708,15 +1716,17 @@ function openDetail(id){
     {l:'Est. Llegada', v: SubatirApp.llegada.texto(row[K.fecha], row[K.demora])},
     {l:'F. Recepción',v: fmtDate(row[K.recepcion]) || 'Pendiente'},
     {l:'F. Vencim.',  v: isVtoNA(row[K.vto]) ? 'No aplica' : (fmtDate(row[K.vto]) || '—')},
+    // Atraso contra la llegada estimada (fecha OC + demora). Antes se
+    // medía contra F. Vto, que es el VENCIMIENTO del producto, no la
+    // fecha en que tenía que llegar.
     (function(){
-      var td=new Date(); td.setHours(0,0,0,0);
-      var pend=isPendiente(row); var atr=0;
-      var vtoVal = String(K.vto?(row[K.vto]||''):'');
-      if(pend && /^\d{4}-\d{2}-\d{2}/.test(vtoVal)){var vd=new Date(vtoVal);vd.setHours(0,0,0,0);var dif=(td-vd)/86400000;if(dif>0)atr=Math.round(dif);}
-      return {l:'Atraso', v: atr>0 ? '+'+atr+' días de atraso' : (pend ? 'En plazo' : '—')};
+      if(lineStats(row).estado==='COMPLETA') return {l:'Atraso', v:'—'};
+      var f = SubatirApp.llegada.faltan(estLlegadaDe(row));
+      if(f==null) return {l:'Atraso', v:'Sin demora cargada'};
+      return {l:'Atraso', v: f<0 ? '+'+(-f)+' día'+(f===-1?'':'s')+' de atraso' : 'En plazo'};
     }()),
     {l:'Lote',        v: row[K.lote] || 'Sin lote'},
-    {l:'COA',         v: (['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(row[K.coa]||'').toUpperCase().trim())>=0) ? '✓ Recibido' : '✗ Pendiente'},
+    {l:'COA',         v: coaOkR(row[K.coa]) ? '✓ Recibido' : '✗ Pendiente'},
     {l:'Conforme',    v: (['SI','S','1','TRUE'].indexOf(String(row[K.conforme]||'').toUpperCase().trim())>=0) ? '✓ Conforme' : '✗ Pendiente'},
     {l:'Observaciones',v: row[K.obs] || '—', span:true},
   ];
@@ -1770,10 +1780,28 @@ function toggleEditForm(){
     // que ahora quiere decir lo mismo. El valor original no se pierde:
     // saveEdit lo respeta si nadie carga una fecha.
     document.getElementById('ed-vto').value = /^\d{4}-\d{2}-\d{2}/.test(vtoRaw) ? vtoRaw.slice(0,10) : '';
-    document.getElementById('ed-coa').checked      = String(row[K.coa]||'').toUpperCase() === 'SI';
+    // El tilde refleja lo mismo que la tabla ("NO APLICA" también es COA resuelto)
+    document.getElementById('ed-coa').checked      = coaOkR(row[K.coa]);
     document.getElementById('ed-conforme').checked = String(row[K.conforme]||'').toUpperCase() === 'SI';
     document.getElementById('ed-obs').value        = row[K.obs]      || '';
+    ED_ORIG = recepcionDelForm();
+    document.getElementById('btn-save-edit').disabled = false;
   }
+}
+
+// Datos de recepción tal como están en el formulario. saveEdit manda sólo
+// los que cambiaron: antes los mandaba siempre, y corregir el precio de
+// una OC borraba el "NO APLICA" / "NO NECESARIO" del COA (el tilde sólo
+// sabía de "SI") y pisaba lo que las entregas habían dejado en la línea.
+var ED_ORIG = null;
+function recepcionDelForm(){
+  return {
+    'F.Recepción': document.getElementById('ed-recepcion').value,
+    'F. Vto':      document.getElementById('ed-vto').value,
+    'Lote':        document.getElementById('ed-lote').value,
+    'COA':         document.getElementById('ed-coa').checked,
+    'Conforme':    document.getElementById('ed-conforme').checked
+  };
 }
 
 // Detecta valores de "vencimiento no aplica". El tilde que los cargaba ya
@@ -1842,10 +1870,15 @@ function saveEdit(){
   // pisar la lista con el precio de hace meses.
   var precioTocado = prec !== pNum(row[K.precio]) || (mon==='U$S') !== (ocMoneda(row)==='USD');
   var cambios = precioTocado ? preciosDistintos(prov, [{desc:desc, prec:prec, moneda:mon}]) : [];
+  var ahora = recepcionDelForm();
+  Object.keys(ahora).forEach(function(k){ if(ED_ORIG && ahora[k]===ED_ORIG[k]) delete fields[k]; });
   preguntarPrecios(cambios, function(elegidos){
+    var btn = document.getElementById('btn-save-edit');
+    if(btn.disabled) return;                 // ya está guardando
+    btn.disabled = true;
     toast('Guardando…','info');
     apiWrite({ action:'updateRow', sheetKey:'pedidos', row: row.__row, fields: JSON.stringify(fields) }, function(d){
-      if(!d) return;
+      if(!d){ btn.disabled = false; return; }
       closeModal('edit-overlay');
       toast('OC #' + (row[K.orden]||'') + ' actualizada ✓', 'ok');
       aplicarPrecios(elegidos).then(load);
@@ -2383,6 +2416,11 @@ function crearOC(prov, lines, preciosElegidos){
   // queda en "—" y se puede completar después desde ✏ Editar.
   var demora = SubatirApp.llegada.dias(document.getElementById('nw-demora').value);
   var iva    = ivaSel('nw-iva');
+  // Mientras se buscan las fichas y se graba, el botón queda bloqueado:
+  // otro toque creaba otra orden, con otro número.
+  var btn = document.getElementById('btn-save-new');
+  if(btn.disabled) return;
+  btn.disabled = true;
   lines.forEach(function(l){ l.iva = iva; });
   // Cada línea se ata a su ficha de inventario ANTES de crear la orden.
   // Con el id adentro, el tránsito y la suma al recibir dejan de depender
@@ -2397,6 +2435,7 @@ function crearOC(prov, lines, preciosElegidos){
     var sinFicha = items.filter(function(it){ return !it.inventario_id; }).length;
     if(sinFicha) console.warn('[OC] '+sinFicha+' línea(s) sin ficha: se resolverán por nombre');
     apiWrite({ action:'addPedidoMulti', fecha:fecha, proveedor:prov, obs:obs, demora:demora, items:JSON.stringify(items) }, function(d){
+    btn.disabled = false;   // si salió bien el modal se cierra; si no, se puede reintentar
     if(!d) return;
     var orden = d.orden || '?';
     closeModal('new-overlay');
@@ -2451,8 +2490,12 @@ function doDelete(){
   var row = CURRENT_ROW;
   if(!row) return;
   if(row.__row == null){ toast('No se puede eliminar esta línea (sin identificador). Recargá la página.','err'); return; }
+  var btn = document.getElementById('btn-do-delete');
+  if(btn.disabled) return;
+  btn.disabled = true;
   toast('Eliminando…','info');
   apiWrite({ action:'deleteRow', sheetKey:'pedidos', row: row.__row }, function(d){
+    btn.disabled = false;
     if(!d) return;
     closeModal('confirm-overlay');
     closeModal('edit-overlay');
@@ -2561,24 +2604,17 @@ function buildEntregasMap(){
     ENTREGAS_BY_PID[k].sort(function(a,b){ return String(a.created_at||'').localeCompare(String(b.created_at||'')); });
   });
 }
-// Estadística de recepción de una línea de OC (a partir de sus entregas)
+// Estadística de recepción de una línea de OC (a partir de sus entregas).
+// La cuenta vive en recepcion-calc.js: Recepción usa la misma.
 function lineStats(r){
-  var pid = r.__row, pedida = pNum(r[K.cantidad]);
-  var ents = ENTREGAS_BY_PID[pid] || [];
-  var recEnt = ents.reduce(function(s,e){ return s + pNum(e.cantidad); }, 0);
-  var legacy = !isPendiente(r) && recEnt <= 0;           // recibida al viejo estilo (f_recepcion), sin entregas
-  var recibido = legacy ? pedida : recEnt;
-  var estado = legacy ? 'COMPLETA'
-    : (recibido <= 0 ? 'PENDIENTE' : (pedida > 0 && recibido >= pedida ? 'COMPLETA' : 'PARCIAL'));
-  var saldo = estado === 'COMPLETA' ? 0 : Math.max(0, pedida - recibido);
-  return { pid:pid, pedida:pedida, recibido:recibido, saldo:saldo, estado:estado, entregas:ents, legacy:legacy };
+  return RecepcionCalc.lineStats(r.__row, r[K.cantidad], r[K.recepcion], ENTREGAS_BY_PID[r.__row] || []);
 }
 function estadoPill(est){
   if(est==='COMPLETA') return '<span class="pill pill-recv">✅ Completa</span>';
   if(est==='PARCIAL')  return '<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d;border:1px solid rgba(245,158,11,.4)">🟡 Parcial</span>';
   return '<span class="pill pill-pend">⏳ Pendiente</span>';
 }
-function coaOkR(v){ return ['SI','S','1','TRUE','NO NECESARIO','NO APLICA','NO REQUERIDO','N/A','NA'].indexOf(String(v||'').toUpperCase().trim())>=0; }
+function coaOkR(v){ return RecepcionCalc.coaOk(v); }
 // "Mercadería conforme" es el atajo para lo que NO es materia prima ni
 // producto químico: ahí el PL-06 no aplica, así que se esconde en vez de
 // dejar ocho puntos en blanco pidiendo que los completen.
@@ -2606,9 +2642,10 @@ function openEntrega(pid){
   document.getElementById('btn-save-entrega').style.display = completa ? 'none' : 'inline-flex';
   EDIT_ENTREGA = null;
   document.getElementById('en-cant').disabled = false;
+  document.getElementById('btn-save-entrega').disabled = false;   // se bloquea al guardar
   marcarModoEdicion(false);
   document.getElementById('en-cant').value = st.saldo>0 ? st.saldo : '';
-  document.getElementById('en-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('en-fecha').value = RecepcionCalc.hoyLocal();
   document.getElementById('en-lote').value='';
   document.getElementById('en-vto').value='';
   document.getElementById('en-conforme').checked=false;
@@ -2747,6 +2784,13 @@ function saveEntrega(){
     remito: SubatirApp.PL06.remito(),
     checklist: (conforme && !chkUsado) ? null : chk
   };
+
+  // Entrega repetida o más de lo pedido: se pregunta antes de guardar
+  // (mismo aviso que Recepción, RecepcionCalc.avisosAntesDeRegistrar).
+  if(!EDIT_ENTREGA){
+    var avisos = RecepcionCalc.avisosAntesDeRegistrar(st, row);
+    if(avisos.length && !confirm('⚠ ' + avisos.join('\n\n⚠ ') + '\n\n¿Registrar igual esta entrega?')) return;
+  }
   document.getElementById('btn-save-entrega').disabled=true;
 
   if(EDIT_ENTREGA){
@@ -2780,8 +2824,16 @@ function saveEntrega(){
     }
     return d;
   }).then(function(d){
-    document.getElementById('btn-save-entrega').disabled=false;
-    if(d && d.error){ toast('Error: '+d.error,'err'); return; }
+    if(d && d.error){
+      document.getElementById('btn-save-entrega').disabled=false;
+      toast('Error: '+d.error,'err'); return;
+    }
+    // Queda anotada ya, sin esperar a load(): si se reabre la línea antes,
+    // el saldo y el aviso de repetida tienen que verla.
+    ENTREGAS.push({ id: d && d.id, pedido_id: pid, cantidad: cant, fecha: row.fecha, lote: row.lote,
+                    coa: row.coa, checklist: row.checklist, recibido_por: row.recibido_por,
+                    created_at: new Date().toISOString() });
+    buildEntregasMap();
     // La sincronización con pedidos.f_recepcion la hace el trigger en la base.
     var completa = st.pedida > 0 && (st.recibido + cant) >= st.pedida;
     closeModal('entrega-overlay');
@@ -2877,22 +2929,14 @@ function buildCatMap(inv){ SubatirApp.cat.cargar(inv); }
 function catDeLinea(r){ return SubatirApp.cat.de(r['ID Inventario'], r[K.desc]); }
 function esMateriaPrima(r){ return SubatirApp.cat.esMP(r['ID Inventario'], r[K.desc]); }
 
-// Reclaman COA y lote solo las materias primas ya recibidas: es lo unico
-// accionable, y es el mismo criterio con el que Recepcion las marca
-function faltaCOA(r){  return !isPendiente(r) && esMateriaPrima(r) && !coaOkR(r[K.coa]); }
-function faltaLote(r){ return !isPendiente(r) && esMateriaPrima(r) && !String(r[K.lote]||'').trim(); }
-// Falta el check list PL-06: materia prima, ya llego, y alguna entrega sin
-// checklist. Se mira solo lo cargado DESDE que el PL-06 existe (11/08/2026):
-// reclamar lo anterior seria pedir algo que nadie pudo haber hecho.
-var PL06_DESDE = '2026-08-11';
-function faltaChecklist(r){
-  if(isPendiente(r) || !esMateriaPrima(r)) return false;
-  var st = lineStats(r);
-  if(st.legacy) return false;
-  return (st.entregas||[]).some(function(e){
-    return String(e.fecha||'') >= PL06_DESDE && !e.checklist;
-  });
-}
+// COA, lote y check list que faltan: la regla vive en recepcion-calc.js y
+// es la MISMA que usa Recepción. Pedidos tenía su copia (sólo miraba líneas
+// completas y el lote de la línea) y las dos pantallas daban números
+// distintos: una entrega sin lote en una línea que ya tenía otro lote
+// aparecía en Recepción y no acá.
+function faltaCOA(r){  return RecepcionCalc.faltaCoa(esMateriaPrima(r), lineStats(r), r[K.coa]); }
+function faltaLote(r){ return RecepcionCalc.faltaLote(esMateriaPrima(r), lineStats(r), r[K.lote]); }
+function faltaChecklist(r){ return RecepcionCalc.faltaChecklist(esMateriaPrima(r), lineStats(r)); }
 
 // Accesos directos a lo que hay que resolver: los avisos parpadean pero
 // quedan perdidos entre cientos de filas si no se pueden aislar
@@ -2929,8 +2973,11 @@ function alertaKPI(id, n){
   var card=el.closest('.kpi'); if(!card) return;
   card.classList.toggle('kpi-alerta', n>0);
 }
+//  El lector es SubatirApp.num (uno solo para toda la app). Lo de abajo
+//  queda de respaldo por si subatir-app.js no cargó.
 function pNum(v){
   if (v === null || v === undefined || v === '') return 0;
+  if (window.SubatirApp && SubatirApp.num){ var x = SubatirApp.num(v); return isFinite(x) ? x : 0; }
   // Si ya es número no hay nada que interpretar. La versión anterior lo pasaba
   // por String() y lo re-parseaba, y ahí rompiía precios como 0.576.
   if (typeof v === 'number') return isFinite(v) ? v : 0;

@@ -563,14 +563,14 @@ select option:checked,select option:hover{background:#14212f;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.0923"/>
-<script src="supabase-config.js?v=2026-11-26.0923"></script>
-<script src="subatir-app.js?v=2026-11-26.0923"></script>
-<script src="reposicion-calc.js?v=2026-11-26.0923"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1320"/>
+<script src="supabase-config.js?v=2026-11-26.1320"></script>
+<script src="subatir-app.js?v=2026-11-26.1320"></script>
+<script src="reposicion-calc.js?v=2026-11-26.1320"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.0923';
+window.APP_VER='2026-11-26.1320';
 </script>
 </head>
 <body>
@@ -586,7 +586,7 @@ window.APP_VER='2026-11-26.0923';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.0923"></script>
+  <script src="nav.js?v=2026-11-26.1320"></script>
   <div class="hdr-right">
     <button class="btn btn-orange btn-sm" onclick="openConteo()">📋 Control de Stock</button>
     <button class="btn btn-teal btn-sm" onclick="openNewArt()">➕ Nuevo artículo</button>
@@ -1238,7 +1238,7 @@ function buildOCIndex(){
   RAW_PED.forEach(function(oc){
     var desc = norm(String(oc[PK.desc]||''));
     if(!desc || desc.length < 3) return;
-    if(!idx[desc]) idx[desc] = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', lastOrden:'', provs:{}, origDesc: String(oc[PK.desc]||'').trim() };
+    if(!idx[desc]) idx[desc] = { pendiente:0, valorPendiente:0, valorUSD:0, valorPSO:0, lastProv:'', lastFecha:'', lastPrecio:'', lastOrden:'', provs:{}, origDesc: String(oc[PK.desc]||'').trim() };
 
     // TODOS los proveedores que alguna vez lo vendieron, no solo el último
     var pv = String(oc[PK.prov]||'').trim();
@@ -1260,6 +1260,9 @@ function buildOCIndex(){
     if(sinRecibir && saldo > 0){
       idx[desc].pendiente      += saldo;
       idx[desc].valorPendiente += saldo * precio;
+      // Pesos y dólares en cuentas separadas, con la misma regla que transito()
+      if(SubatirApp.esDolar(oc['$/U$S'])) idx[desc].valorUSD += saldo * precio;
+      else                                idx[desc].valorPSO += saldo * precio;
     }
 
     // Último proveedor: OC con fecha más reciente
@@ -1394,11 +1397,13 @@ function findOCMatch(desc, ocIdx){
 
   // Sumar pendiente de TODAS las claves que coincidan
   // (un mismo artículo puede estar con descripción levemente distinta en varias OC)
-  var result = { pendiente:0, valorPendiente:0, lastProv:'', lastFecha:'', lastPrecio:'', lastOrden:'', provs:{} };
+  var result = { pendiente:0, valorPendiente:0, valorUSD:0, valorPSO:0, lastProv:'', lastFecha:'', lastPrecio:'', lastOrden:'', provs:{} };
   keys.forEach(function(k){
     var m = ocIdx[k];
     result.pendiente      += m.pendiente;
     result.valorPendiente += m.valorPendiente;
+    result.valorUSD       += m.valorUSD || 0;
+    result.valorPSO       += m.valorPSO || 0;
     Object.keys(m.provs||{}).forEach(function(n){ result.provs[n] = m.provs[n]; });
     if(m.lastFecha > result.lastFecha){
       result.lastFecha  = m.lastFecha;
@@ -1575,6 +1580,8 @@ function buildMerged(){
       consumo:       consumo,
       pendiente:     pendiente,
       valorPendiente:valorPendiente,
+      valorUSD:      tr.valorUSD || 0,
+      valorPSO:      tr.valorPSO || 0,
       proveedor:     proveedor,
       provs:         provs,
       precio:        precio,
@@ -1659,6 +1666,8 @@ function buildMerged(){
       consumo:       0,
       pendiente:     pendSobrante,
       valorPendiente:Math.max(0, valorSobrante),
+      valorUSD:      Math.max(0, (ocData.valorUSD||0) - (tomado.valorUSD||0)),
+      valorPSO:      Math.max(0, (ocData.valorPSO||0) - (tomado.valorPSO||0)),
       proveedor:     canonProv(ocData.lastProv || ''),
       provs:         collectProvs(ocData.origDesc || normKey, null, null, ocData, precIdx, ''),
       precio:        ocData.lastPrecio || '',
@@ -1691,8 +1700,10 @@ function updateKPIs(){
   var medio = all.filter(function(x){return x.estado==='MEDIO'});
   var opt   = all.filter(function(x){return x.estado==='OPTIMO'});
 
-  // Valor en tránsito: suma de precio×cantidad de OCs pendientes
-  var valorTransit  = all.reduce(function(s,x){return s + (x.valorPendiente||0);}, 0);
+  // Valor en tránsito: precio×saldo de las OC pendientes, pesos y dólares
+  // por separado (antes una sola suma "$" que mezclaba las dos monedas)
+  var valorUSD = all.reduce(function(s,x){return s + (x.valorUSD||0);}, 0);
+  var valorPSO = all.reduce(function(s,x){return s + (x.valorPSO||0);}, 0);
   var artTransit    = all.filter(function(x){return x.pendiente > 0}).length;
 
   setText('k-total',    all.length);
@@ -1719,8 +1730,14 @@ function updateKPIs(){
   // KPI valor en tránsito
   var elTransit = document.getElementById('k-transit');
   if(elTransit){
-    if(valorTransit > 0){
-      elTransit.textContent = '$ ' + fmtN(Math.round(valorTransit));
+    var partes = [];
+    if(valorUSD > 0) partes.push('U$S ' + fmtN(Math.round(valorUSD)));
+    if(valorPSO > 0) partes.push('$ ' + fmtN(Math.round(valorPSO)));
+    // Una moneda por renglón: las dos juntas no entran en la tarjeta
+    elTransit.style.fontSize = partes.length > 1 ? '16px' : '';
+    elTransit.style.lineHeight = partes.length > 1 ? '1.25' : '';
+    if(partes.length){
+      elTransit.innerHTML = partes.map(esc).join('<br>');
     } else {
       elTransit.textContent = artTransit > 0 ? artTransit + ' art.' : '—';
     }
@@ -2162,24 +2179,39 @@ function toggleEdit(){
       document.getElementById('ed-seg').checked = !!CUR.seguimiento;
       document.getElementById('ed-rev-meses').value = CUR.revisarCadaMeses || '';
       document.getElementById('ed-rev-fecha').value = CUR.proximaRevision || '';
+      // Cómo quedó el formulario al abrir: saveEdit manda sólo lo distinto
+      ED_ORIG = {
+        stock: document.getElementById('ed-stock').value,
+        min:   document.getElementById('ed-min').value,
+        cons:  document.getElementById('ed-cons').value,
+        prov:  document.getElementById('ed-prov').value.trim()
+      };
       toggleSeg();
       if(CUR.__row) renderFichasProv(CUR.__row);
     }
   }
 }
 
+var ED_ORIG = null;
 function saveEdit(){
   if(!CUR) return;
   if(!CUR.__row){ toast('Este artículo no tiene ficha en inventario. Usá "➕ Nuevo artículo".','err'); return; }
-  var fields = {};
+  // Sólo viaja lo que se cambió en el formulario. Antes se reescribía todo
+  // lo que tuviera valor, y eso tenía dos efectos escondidos:
+  //  · el STOCK volvía al número que había cuando se abrió la pantalla:
+  //    si en el medio Recepción sumó una entrega o alguien contó, corregir
+  //    el mínimo borraba ese movimiento;
+  //  · el proveedor del formulario arranca con el de la ÚLTIMA OC, así que
+  //    cualquier edición lo grababa como "proveedor sugerido" de la ficha.
+  var fields = {}, ED = ED_ORIG || {};
   var sVal = document.getElementById('ed-stock').value;
-  if(sVal!=='' && IK.stock)   fields[IK.stock]   = parseFloat(sVal)||0;
+  if(sVal!=='' && sVal!==ED.stock && IK.stock)  fields[IK.stock]   = parseFloat(sVal)||0;
   var mVal = document.getElementById('ed-min').value;
-  if(mVal!=='' && IK.min)     fields[IK.min]     = parseFloat(mVal)||0;
+  if(mVal!=='' && mVal!==ED.min && IK.min)      fields[IK.min]     = parseFloat(mVal)||0;
   var cVal = document.getElementById('ed-cons').value;
-  if(cVal!=='' && IK.consumo) fields[IK.consumo] = parseFloat(cVal)||0;
+  if(cVal!=='' && cVal!==ED.cons && IK.consumo) fields[IK.consumo] = parseFloat(cVal)||0;
   var pVal = document.getElementById('ed-prov').value.trim();
-  if(pVal && IK.provSugerido) fields[IK.provSugerido] = pVal;
+  if(pVal && pVal!==ED.prov && IK.provSugerido) fields[IK.provSugerido] = pVal;
 
   var seg = document.getElementById('ed-seg').checked;
   if(seg !== !!CUR.seguimiento) fields['SEGUIMIENTO'] = seg;
@@ -2451,11 +2483,15 @@ function cntStIcon(i){
 }
 
 // Parseo tolerante: acepta coma decimal (el teclado del celular la ofrece)
+// Lo contado. Con una sola coma y sin puntos, la coma es el decimal, como
+// siempre en el conteo ("2,500" kg = 2,5). Para lo demás, el lector de toda
+// la app: "1.234,5" es 1234,5 (antes daba 1,234 y ese número iba derecho al
+// stock). null = campo vacío; NaN = no hay número.
 function cntNum(raw){
-  var s = String(raw==null?'':raw).replace(/\s/g,'').replace(',','.');
+  var s = String(raw==null?'':raw).replace(/\s/g,'');
   if(s==='') return null;
-  var n = parseFloat(s);
-  return isNaN(n) ? NaN : n;
+  if(/^-?\d*,\d+$/.test(s)) return parseFloat(s.replace(',','.'));
+  return SubatirApp.num(s);
 }
 
 function cntDelta(i, raw){
@@ -3150,12 +3186,12 @@ function updateSyncUI(){}
 
 // ─── Export CSV ───────────────────────────────────────────────
 function exportCSV(){
-  var hdr = ['Código','Descripción','Stock','Mínimo','Consumo/mes','Cobertura (meses)','En tránsito','Valor en tránsito','Proveedor','Estado','Precio ref.','Observaciones'];
+  var hdr = ['Código','Descripción','Stock','Mínimo','Consumo/mes','Cobertura (meses)','En tránsito','Valor en tránsito U$S','Valor en tránsito $','Proveedor','Estado','Precio ref.','Observaciones'];
   var rows = (FILT.length ? FILT : MERGED).map(function(x){
     var cob = x.cobertura !== null ? x.cobertura.toFixed(2) : '';
     return [
       x.codigo, x.desc, x.stock, x.minimo, x.consumo,
-      cob, x.pendiente, x.valorPendiente||0,
+      cob, x.pendiente, Math.round((x.valorUSD||0)*100)/100, Math.round((x.valorPSO||0)*100)/100,
       x.proveedor, x.estado, x.precio, x.obs
     ].map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(',');
   });
@@ -3188,7 +3224,9 @@ document.addEventListener('keydown',function(e){
 });
 
 // ─── Helpers ──────────────────────────────────────────────────
-function pn(v){if(!v&&v!==0)return 0;var s=String(v).replace(/[^\d.,-]/g,'').replace(',','.');return parseFloat(s)||0;}
+// Un solo lector de números para toda la app (SubatirApp.num). El de acá
+// cambiaba sólo la primera coma: "1.234,5" daba 1,234.
+function pn(v){ if(v===null||v===undefined||v==='') return 0; var n=SubatirApp.num(v); return isFinite(n)?n:0; }
 function fmtN(n){if(!n&&n!==0)return '—';return n%1===0?n.toLocaleString('es-UY'):(+n).toLocaleString('es-UY',{minimumFractionDigits:1,maximumFractionDigits:1});}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}

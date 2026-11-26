@@ -1,0 +1,8 @@
+{
+  "name": "sistema-compras-subatir",
+  "private": true,
+  "description": "Sitio estatico (HTML + JS) sobre Supabase. Sin build ni dependencias: package.json existe solo para correr las pruebas.",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}

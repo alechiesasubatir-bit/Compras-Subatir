@@ -182,13 +182,41 @@
   function headerToCol(def) {
     var inv = {}; Object.keys(def.cols).forEach(function (c) { inv[def.cols[c]] = c; }); return inv;
   }
+  //  Texto con formato -> número (NaN si no hay número). ÚNICO lector,
+  //  expuesto como SubatirApp.num: lo usan la escritura (coerce), el
+  //  tránsito (_numTr), y el pNum de Recepción y Pedidos. Hasta el
+  //  26/11/2026 había cuatro y no coincidían ("1.234,5" se guardaba
+  //  1234,5 pero el tránsito lo leía 1,234).
+  //   · Con punto y coma, el que aparece ÚLTIMO es el decimal:
+  //     "1.234,5" (uruguayo) y "1,234.56" (cotización en dólares).
+  //   · Sólo comas: miles si forman grupos exactos de 3 ("1,234",
+  //     "1,234,567"); si no, decimal ("3,75", "0,250").
+  //   · Varios puntos = miles ("1.234.567"). Un solo punto es DECIMAL:
+  //     hay precios unitarios de 3 decimales ("0.576" son 576 milésimas).
+  //   · Negativo con "-" o entre paréntesis (notación contable).
+  function _parseNum(v) {
+    if (typeof v === 'number') return v;
+    var s = String(v == null ? '' : v).trim();
+    var neg = /^-/.test(s) || /^\(.*\)$/.test(s);
+    s = s.replace(/[^\d.,]/g, '');
+    if (!s) return NaN;
+    var puntos = (s.match(/\./g) || []).length, comas = (s.match(/,/g) || []).length;
+    if (puntos && comas) {
+      s = s.lastIndexOf(',') > s.lastIndexOf('.') ? s.replace(/\./g, '').replace(/,/g, '.') : s.replace(/,/g, '');
+    } else if (comas) {
+      // "0,250" es decimal aunque tenga 3 cifras: nadie escribe miles con un 0 adelante
+      s = (comas > 1 || /^[1-9]\d{0,2}(,\d{3})+$/.test(s)) ? s.replace(/,/g, '') : s.replace(',', '.');
+    } else if (puntos > 1) {
+      s = s.replace(/\./g, '');
+    }
+    var n = parseFloat(s);
+    return neg ? -Math.abs(n) : n;
+  }
+
   function coerce(def, dbCol, val) {
     if (val === '' || val === undefined || val === null) return null;
     if (def.num.indexOf(dbCol) >= 0) {
-      var s = String(val).replace(/[^\d.,-]/g, '');
-      if (s.indexOf('.') >= 0 && s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
-      else if (s.indexOf(',') >= 0) s = s.replace(',', '.');
-      var n = parseFloat(s); return isFinite(n) ? n : null;
+      var n = _parseNum(val); return isFinite(n) ? n : null;
     }
     if (def.date.indexOf(dbCol) >= 0) {
       var m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[0] : null;
@@ -1585,11 +1613,14 @@
   //  inventario, y contarlo de nuevo sería contarlo dos veces.
   function _numTr(v) {
     if (v === null || v === undefined || v === '') return 0;
-    var s = String(v).replace(/[^\d.,-]/g, '').replace(',', '.');
-    var n = parseFloat(s);
+    var n = _parseNum(v);
     return isFinite(n) ? n : 0;
   }
   function _txtTr(v) { return v === null || v === undefined ? '' : String(v).trim(); }
+  //  Moneda de una línea de OC ('$/U$S'). El valor en tránsito se lleva en
+  //  dos cuentas: Stock lo mostraba como una sola suma "$" que mezclaba
+  //  pesos y dólares (26/11/2026: $ 444.434 + U$S 28.674 = "$ 473.108").
+  function _esDolar(m) { return /^(U\$S|USD|US\$|U\$)$/i.test(_txtTr(m)); }
 
   //  Devuelve { porArticulo: {invId: acumulador}, usadas: {...}, de(invId) }.
   //  `usadas` es {descNorm: {pendiente, valorPendiente}}: CUÁNTO de cada
@@ -1620,7 +1651,7 @@
     });
 
     function vacio() {
-      return { pendiente: 0, valorPendiente: 0, ultimaOC: '', ultimaOrden: '', ultimoProv: '' };
+      return { pendiente: 0, valorPendiente: 0, valorUSD: 0, valorPSO: 0, ultimaOC: '', ultimaOrden: '', ultimoProv: '' };
     }
     function sumar(acc, p) {
       var recibido = _txtTr(p[C.f_recepcion]).toUpperCase();
@@ -1631,7 +1662,9 @@
       var saldo = Math.max(0, cant - (entregado[p.__row] || 0));
       if (sinRecibir && saldo > 0) {
         acc.pendiente += saldo;
-        acc.valorPendiente += saldo * _numTr(p[C.precio_un]);
+        var valor = saldo * _numTr(p[C.precio_un]);
+        acc.valorPendiente += valor;     // mezcla monedas: sólo para la resta de huérfanas
+        if (_esDolar(p[C.moneda])) acc.valorUSD += valor; else acc.valorPSO += valor;
       }
       // Última OC = la de fecha más reciente, recibida o no: es desde
       // donde cuenta la regla "revisar cada N meses".
@@ -1646,6 +1679,8 @@
     function fundir(acc, otro) {
       acc.pendiente += otro.pendiente;
       acc.valorPendiente += otro.valorPendiente;
+      acc.valorUSD += otro.valorUSD;
+      acc.valorPSO += otro.valorPSO;
       if (otro.ultimaOC > acc.ultimaOC) {
         acc.ultimaOC = otro.ultimaOC;
         acc.ultimaOrden = otro.ultimaOrden;
@@ -1662,9 +1697,11 @@
     function marcarUsada(nd, cuanto) {
       if (!nd) return;
       var u = out.usadas[nd];
-      if (!u) { u = out.usadas[nd] = { pendiente: 0, valorPendiente: 0 }; }
+      if (!u) { u = out.usadas[nd] = { pendiente: 0, valorPendiente: 0, valorUSD: 0, valorPSO: 0 }; }
       u.pendiente += cuanto.pendiente;
       u.valorPendiente += cuanto.valorPendiente;
+      u.valorUSD += cuanto.valorUSD || 0;
+      u.valorPSO += cuanto.valorPSO || 0;
     }
 
     // porId: lo que cada OC declara con 'ID Inventario'.
@@ -2453,6 +2490,7 @@
     legacyFetch: legacyFetch, write: write,
     categorias: categorias, setCategoria: setCategoria,
     ivaTasa: ivaTasa, ivaMult: ivaMult, ivaMonto: ivaMonto, ivaDeLinea: ivaDeLinea, IVA_TASAS: IVA_TASAS,
+    num: _parseNum, esDolar: _esDolar,
     getEntregas: getEntregas, addEntrega: addEntrega, updateEntrega: updateEntrega, deleteEntrega: deleteEntrega,
     getArtProveedor: getArtProveedor, saveArtProveedor: saveArtProveedor, deleteArtProveedor: deleteArtProveedor,
     PL06: PL06, operador: OPER, stock: STOCK,

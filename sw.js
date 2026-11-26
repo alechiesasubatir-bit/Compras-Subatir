@@ -18,14 +18,14 @@
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
-self.APP_VER = '2026-11-26.0923';
+self.APP_VER = '2026-11-26.1320';
 var CACHE = 'compras-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
 var SHELL = ['./', './index.html', './pedidos.html', './recepcion.html', './stock.html',
              './precios.html', './proveedores.html', './varios.html', './mp-importacion.html',
              './cloro.html', './calidad.html', './calidad-calc.js',
-             './informes.html', './informes-calc.js', './cloro-calc.js',
+             './informes.html', './informes-calc.js', './cloro-calc.js', './recepcion-calc.js',
              './calidad-imp.html', './calidad-ui.js', './calidad-ui.css',
              './login.html', './subatir-app.js', './supabase-config.js',
              './nav.js', './nav.css',

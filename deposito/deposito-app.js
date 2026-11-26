@@ -87,6 +87,12 @@
         if (!canAccess(profile)) {
           var casa = casaDe(profile);
           if (casa) { location.replace(casa); return; }
+          // Quien trabaja en Compras vuelve a Compras: allá su guard lo
+          // ubica. NO se cierra la sesión: es la misma en las dos apps.
+          var deCompras = (profile.modules || []).filter(function (m) {
+            return MODULOS_DEPOSITO.indexOf(m) < 0;
+          });
+          if (deCompras.length) { location.replace('../index.html'); return; }
           location.replace('login.html?denegado=1'); return;
         }
         injectUserBar(profile);

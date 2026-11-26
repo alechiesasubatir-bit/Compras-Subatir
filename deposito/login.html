@@ -65,7 +65,7 @@ button.go:disabled{opacity:.6;cursor:wait;transform:none}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../supabase-config.js?v=2026-11-26.0923"></script>
+<script src="../supabase-config.js?v=2026-11-26.1320"></script>
 <script>
 var msg = document.getElementById('msg');
 function show(t, type){ msg.textContent = t; msg.className = 'msg ' + type; }
@@ -75,8 +75,11 @@ var qs = new URLSearchParams(location.search);
 if (qs.get('inactivo')) show('Tu usuario está desactivado. Contactá al administrador.', 'err');
 if (qs.get('denegado')) show('Tu usuario no tiene acceso al módulo de depósitos.', 'err');
 
-// Si ya hay sesión activa, ir al dashboard
-SB.auth.getSession().then(function(r){ if (r.data && r.data.session) location.replace('index.html'); });
+// Si ya hay sesión activa, ir al dashboard. Salvo que se llegó acá
+// rebotado por el guard: con sesión viva, volver a index.html lo
+// rebotaba de nuevo, en un bucle sin fin (corregido el 26/11/2026).
+if (!qs.get('denegado') && !qs.get('inactivo'))
+  SB.auth.getSession().then(function(r){ if (r.data && r.data.session) location.replace('index.html'); });
 
 document.getElementById('form').addEventListener('submit', function(e){
   e.preventDefault();

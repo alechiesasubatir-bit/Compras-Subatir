@@ -83,20 +83,17 @@ nav.sbnav a.sbnl:hover{
 }
 nav.sbnav a.sbnl:focus-visible{outline:2px solid rgba(var(--c),.75);outline-offset:2px}
 
-/* Módulo abierto: relleno pleno, glow y subrayado del color */
+/* Módulo abierto: "Mando iluminado" (25/11/2026). Relleno pleno de su
+   color con letra oscura: se distingue desde lejos, sin depender del
+   subrayado finito que tenía antes. */
 nav.sbnav a.sbnl.on{
-  color:#fff;
-  border-color:rgba(var(--c),.62);
-  background:linear-gradient(158deg,rgba(var(--c),.36),rgba(var(--c),.13) 75%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 8px 22px -10px rgba(var(--c),.85);
+  color:#0b0f17;font-weight:700;
+  border-color:rgb(var(--c));
+  background:linear-gradient(180deg,rgb(var(--c)),rgba(var(--c),.82));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 26px -10px rgba(var(--c),.95);
 }
-nav.sbnav a.sbnl.on .sbnl-i{background:rgba(var(--c),.34);border-color:rgba(var(--c),.5)}
-nav.sbnav a.sbnl.on::after{
-  content:'';position:absolute;left:50%;transform:translateX(-50%);
-  bottom:4px;width:28px;height:2px;
-  border-radius:2px;background:rgb(var(--c));
-  box-shadow:0 0 8px rgba(var(--c),.85);
-}
+nav.sbnav a.sbnl.on .sbnl-i{background:rgba(11,15,23,.16);border-color:rgba(11,15,23,.18)}
+nav.sbnav a.sbnl.on:hover{color:#0b0f17}
 
 /* ── Un color por módulo ─────────────────────────────────────
    Elegidos para que se distingan entre sí sobre el fondo negro
@@ -126,43 +123,51 @@ nav.sbnav a[data-nav="usuarios"]    {--c:129,140,248}  /* índigo   */
   display:flex;flex-direction:column;gap:0;
   padding-top:7px;
 }
-nav.sbnav .sbtabs{display:flex;align-items:flex-end;gap:3px;min-width:0}
+/* "Mando iluminado" (opción A de las tres propuestas, 25/11/2026): las
+   pestañas van juntas en una cápsula de vidrio y el grupo abierto se
+   enciende con su color pleno. Antes eran texto de 11 px con un borde
+   tenue y el grupo abierto casi no se distinguía. */
+nav.sbnav .sbtabs{
+  display:inline-flex;align-items:center;gap:4px;min-width:0;max-width:100%;
+  align-self:flex-start;padding:3px;border-radius:13px;
+  background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
 nav.sbnav .sbtab{
   --c:27,200,255;
-  display:inline-flex;align-items:center;gap:7px;flex:none;
-  padding:6px 13px 6px;margin:0;
-  border:1px solid transparent;border-bottom:none;border-radius:9px 9px 0 0;
-  background:none;color:#7f93a8;cursor:pointer;text-decoration:none;
-  font-family:'Syne','DM Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;
+  display:inline-flex;align-items:center;gap:8px;flex:none;
+  padding:6px 15px;margin:0;border:0;border-radius:10px;
+  background:none;color:#9fb0c3;cursor:pointer;text-decoration:none;
+  font-family:'Syne','DM Sans',sans-serif;font-size:12.5px;font-weight:700;letter-spacing:.2px;
   line-height:1.2;white-space:nowrap;
-  transition:color .16s,background .16s,border-color .16s;
+  transition:color .18s,background .18s,box-shadow .18s;
 }
-nav.sbnav .sbtab i{width:7px;height:7px;border-radius:2px;background:rgba(var(--c),.55);flex:none}
-nav.sbnav .sbtab:hover{color:#e2e8f0;background:rgba(var(--c),.06)}
-nav.sbnav .sbtab:focus-visible{outline:2px solid rgba(var(--c),.75);outline-offset:-2px}
-/* La pestaña del grupo abierto se "pega" a la fila de abajo */
+nav.sbnav .sbtab i{width:8px;height:8px;border-radius:50%;background:rgb(var(--c));opacity:.7;flex:none}
+nav.sbnav .sbtab:hover{color:#fff;background:rgba(var(--c),.10)}
+nav.sbnav .sbtab:focus-visible{outline:2px solid rgba(var(--c),.8);outline-offset:1px}
 nav.sbnav .sbtab.on{
-  color:#fff;
-  background:linear-gradient(180deg,rgba(var(--c),.16),rgba(var(--c),.10));
-  border-color:rgba(var(--c),.34);
-  position:relative;z-index:1;margin-bottom:-1px;padding-bottom:7px;
+  color:#0b0f17;
+  background:linear-gradient(180deg,rgb(var(--c)),rgba(var(--c),.78));
+  box-shadow:0 6px 22px -6px rgba(var(--c),.8),inset 0 1px 0 rgba(255,255,255,.35);
 }
-nav.sbnav .sbtab.on i,
-nav.sbnav .sbtab.aqui i{background:rgb(var(--c));box-shadow:0 0 6px rgba(var(--c),.8)}
-/* Grupo de la página actual mientras se mira otro: el punto lo delata */
-nav.sbnav .sbtab.aqui:not(.on){color:#cbd5e1}
+nav.sbnav .sbtab.on i{background:#0b0f17;opacity:1}
+/* Grupo de la página actual mientras se mira otro: el punto se enciende */
+nav.sbnav .sbtab.aqui:not(.on){color:#e2e8f0}
+nav.sbnav .sbtab.aqui:not(.on) i{opacity:1;box-shadow:0 0 8px rgba(var(--c),.9)}
 
+/* La fila del grupo abierto: lleva su color en el borde izquierdo y un
+   degradé que se apaga hacia la derecha. */
 nav.sbnav .sbsub{
   --c:27,200,255;
-  display:flex;flex-wrap:wrap;gap:6px;
-  padding:5px 6px;border-radius:0 10px 10px 10px;
-  border:1px solid rgba(var(--c),.34);
-  background:linear-gradient(180deg,rgba(var(--c),.10),rgba(var(--c),.025) 85%);
+  display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;
+  padding:5px 6px;border-radius:14px;
+  border:1px solid rgba(var(--c),.22);
+  background:linear-gradient(90deg,rgba(var(--c),.13),rgba(var(--c),.03) 60%,transparent);
+  box-shadow:inset 3px 0 0 rgb(var(--c));
 }
-/* Los cuadros de la fila: mismos colores, más bajos y sin ancho fijo */
-nav.sbnav .sbsub a.sbnl{padding:4px 11px 4px 5px;font-size:12px;gap:7px;flex:0 0 auto}
-nav.sbnav .sbsub a.sbnl .sbnl-i{width:21px;height:21px;font-size:11.5px;border-radius:6px}
-nav.sbnav .sbsub a.sbnl.on::after{bottom:2px}
+/* Los cuadros de la fila: más grandes que antes, ancho según su texto */
+nav.sbnav .sbsub a.sbnl{padding:4px 15px 4px 4px;font-size:13.5px;gap:9px;flex:0 0 auto;border-radius:11px}
+nav.sbnav .sbsub a.sbnl .sbnl-i{width:26px;height:26px;font-size:13.5px;border-radius:8px}
 nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* violeta claro */
 
 /* Pantalla ancha: las pestañas suben al renglón del logo, que tiene
@@ -174,9 +179,9 @@ nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* viole
    si no, el renglón se parte y quedan despegadas de su fila. */
 @media (min-width:1200px){
   .sbhdr:has(> nav.sbnav.agrupado:not(.baja)){row-gap:0;padding-bottom:9px}
-  .sbhdr:has(> nav.sbnav.agrupado:not(.baja)) > .logo{margin-bottom:5px}
+
   .sbhdr > nav.sbnav.agrupado:not(.baja){display:contents}
-  nav.sbnav.agrupado .sbtabs{order:1;align-self:flex-end;margin-left:18px;margin-bottom:-1px}
+  nav.sbnav.agrupado:not(.baja) .sbtabs{order:1;align-self:center;margin-left:18px}
   nav.sbnav.agrupado .sbsub{order:3;flex:1 1 100%;min-width:0}
 }
 
@@ -207,8 +212,9 @@ nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* viole
   nav.sbnav .sbsub{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   nav.sbnav .sbtabs::-webkit-scrollbar,
   nav.sbnav .sbsub::-webkit-scrollbar{display:none}
-  nav.sbnav .sbtab{padding:6px 10px;font-size:10.5px}
-  nav.sbnav .sbsub{border-radius:0 0 10px 10px}
+  nav.sbnav .sbtabs{display:flex}
+  nav.sbnav .sbtab{padding:7px 12px;font-size:12px}
+  nav.sbnav .sbsub a.sbnl{font-size:13px}
   nav.sbnav a.sbnl .sbnl-t{overflow:visible;text-overflow:clip}
   nav.sbnav::-webkit-scrollbar{height:3px}
   nav.sbnav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}

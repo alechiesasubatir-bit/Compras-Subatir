@@ -18,7 +18,7 @@
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
-self.APP_VER = '2026-11-25.2248';
+self.APP_VER = '2026-11-25.2255';
 var CACHE = 'compras-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
@@ -78,9 +78,18 @@ self.addEventListener('fetch', function (ev) {
   if (url.pathname.indexOf('manifest.json') >= 0) return;
 
   // Documento: red primero, cache si no hay señal.
+  //  cache:'no-cache' = siempre se le pregunta al servidor si cambió (si
+  //  no cambió contesta 304 y no se baja de nuevo). Sin esto, el navegador
+  //  usaba su copia de hasta 10 min (GitHub Pages: max-age=600): después de
+  //  un deploy, ir por el menú a otra página abría la versión vieja, que
+  //  volvía a mostrar "Hay una versión nueva" sin parar (25/11/2026).
+  //  Si la respuesta vino redirigida (…/Compras-Subatir → …/Compras-Subatir/)
+  //  no se puede devolver a una navegación: se repite el pedido original.
   if (req.mode === 'navigate') {
     ev.respondWith(
-      fetch(req).then(function (r) {
+      fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then(function (r) {
+        return r.redirected ? fetch(req) : r;
+      }).then(function (r) {
         var copy = r.clone();
         caches.open(CACHE).then(function (c) { c.put(req, copy); });
         return r;

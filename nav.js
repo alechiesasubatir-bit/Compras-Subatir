@@ -29,7 +29,7 @@
     { k: 'varios',       href: 'varios.html',         ico: '🧾', txt: 'Pedidos Varios' },
     { k: 'deposito',     href: 'deposito/index.html', ico: '🏢', txt: 'Depósitos',
       title: 'Ir a la app de Control de Stock de Depósitos' },
-    { k: 'stock',        href: 'reposicion.html',     ico: '🔁', txt: 'Reposición',
+    { k: 'stock',        href: 'reposicion.html',     ico: '🔁', txt: 'Previsión de Reposición',
       title: 'Cargar de una sentada la configuración de reposición: demora, lote y compras pactadas' },
     { k: 'mp_importacion', href: 'mp-importacion.html', ico: '🚢', txt: 'Importaciones', sub: ['importaciones.html'],
       title: 'Previsión de importaciones: MERO AR, Subatir (Consumo) y las líneas de Depósitos' },
@@ -63,17 +63,21 @@
   // cada grupo es el de esta lista, no el de ITEMS.
   var GRUPOS = [
     { k: 'compras', t: 'Compras',       c: '251,146,60',
-      m: ['pedidos.html', 'varios.html', 'recepcion.html', 'proveedores.html', 'precios.html'] },
+      m: ['pedidos.html', 'recepcion.html', 'precios.html', 'varios.html'] },
     { k: 'stock',   t: 'Stock',         c: '167,139,250',
-      m: ['stock.html', 'reposicion.html', 'deposito/index.html'] },
-    { k: 'mp',      t: 'Materia prima', c: '250,204,21',
-      m: ['cloro.html', 'calidad.html'] },
+      m: ['stock.html', 'deposito/index.html', 'reposicion.html'] },
+    // Sin grupo "Materia prima" (25/11/2026): Cloro y Calidad vuelven a ser
+    // pestañas propias. Con un solo módulo, la pestaña lleva directo.
+    { k: 'cloro',   t: 'Previsión Cloro', c: '56,189,248',
+      m: ['cloro.html'] },
+    { k: 'calidad', t: 'Calidad MP',    c: '163,230,53',
+      m: ['calidad.html'] },
     // Importaciones va en su propia pestaña (pedido 25/11/2026). Con un solo
     // módulo la pestaña es un acceso directo: un clic y se está adentro.
     { k: 'imp',     t: 'Importaciones', c: '45,212,191',
       m: ['mp-importacion.html'] },
     { k: 'gestion', t: 'Gestión',       c: '129,140,248',
-      m: ['informes.html', 'usuarios.html'] }
+      m: ['proveedores.html', 'informes.html', 'usuarios.html'] }   // Proveedores, desde Compras el 25/11/2026
   ];
   // Hasta este número de módulos visibles no se agrupa: el operario de
   // recepción ve uno o dos, y una pestaña para cada uno sería un clic

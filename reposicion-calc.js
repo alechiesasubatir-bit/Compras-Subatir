@@ -42,6 +42,17 @@
     return new Date(Math.min.apply(null, cand.map(function (f) { return f.getTime(); })));
   }
 
+  // "Hoy" para calcular(): el día de la PC a medianoche UTC, que es como
+  // vienen todas las fechas de la base ('2026-12-01' = 01/12 00:00 UTC).
+  // Las pantallas pasaban new Date(), un instante: el 01/12 a las 10 h ya
+  // era "después" del 01/12 00:00 UTC, así que una compra pactada que vence
+  // el 01/12 figuraba vencida ese mismo día, y la próxima revisión se
+  // disparaba desde las 21 h del día anterior (26/11/2026).
+  function hoyDia(d) {
+    d = d || new Date();
+    return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  }
+
   function pactadaAgotada(art) {
     return +art.pactCantidad > 0 && (+art.pactEntregado || 0) >= +art.pactCantidad;
   }
@@ -144,7 +155,7 @@
   }
 
   return {
-    calcular: calcular, desdeFila: desdeFila, canonProv: canonProv,
+    calcular: calcular, desdeFila: desdeFila, canonProv: canonProv, hoy: hoyDia,
     MESES_OBJETIVO: MESES_OBJETIVO, DIAS_AVISO: DIAS_AVISO,
     DIAS_AVISO_PACTADA: DIAS_AVISO_PACTADA
   };

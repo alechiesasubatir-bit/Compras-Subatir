@@ -309,3 +309,25 @@ test('canonProv normaliza tildes, espacios y mayusculas', () => {
   // trim, doble espacio interno y tilde: los tres tienen que colapsar al mismo canon
   assert.strictEqual(Reposicion.canonProv(' Química   S.A. '), Reposicion.canonProv('QUIMICA S.A.'));
 });
+
+// ── 26/11/2026: "hoy" es el día de la PC, no un instante ──────────────
+test('Reposicion.hoy: el dia de la PC a medianoche UTC', () => {
+  const { execFileSync } = require('node:child_process');
+  // Montevideo, 01/12/2026 a las 22:30 (= 02/12 01:30 UTC): sigue siendo el 01/12
+  const out = execFileSync(process.execPath, ['-e',
+    "const {Reposicion:R}=require('./reposicion-calc.js');" +
+    "const h=R.hoy(new Date('2026-12-02T01:30:00Z'));" +
+    "const art={seguimiento:true,stock:500,minimo:100,consumo:300,demoraDias:10,pactCantidad:1000,pactEntregado:200,pactVence:new Date('2026-12-01T00:00:00Z')};" +
+    "const r=R.calcular(art,R.hoy(new Date('2026-12-01T13:00:00Z')));" +
+    "process.stdout.write(h.toISOString().slice(0,10)+' '+r.pactadaVencida)"],
+    { env: Object.assign({}, process.env, { TZ: 'America/Montevideo' }), cwd: require('node:path').join(__dirname, '..') }).toString();
+  assert.strictEqual(out, '2026-12-01 false', 'el dia que vence la pactada todavia vale');
+});
+
+test('las tres pantallas le pasan Reposicion.hoy(), no new Date()', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  ['stock.html', 'reposicion.html', 'index.html'].forEach((f) => {
+    const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+    assert.doesNotMatch(src, /Reposicion\.calcular\([\s\S]{0,200}?new Date\(\)\)/, f);
+  });
+});

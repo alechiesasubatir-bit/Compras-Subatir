@@ -407,14 +407,14 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1556"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-26.1556"/>
-<script src="supabase-config.js?v=2026-11-26.1556"></script>
-<script src="subatir-app.js?v=2026-11-26.1556"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1605"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-26.1605"/>
+<script src="supabase-config.js?v=2026-11-26.1605"></script>
+<script src="subatir-app.js?v=2026-11-26.1605"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1556';
+window.APP_VER='2026-11-26.1605';
 </script>
 </head>
 <body>
@@ -426,7 +426,7 @@ window.APP_VER='2026-11-26.1556';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1556"></script>
+  <script src="nav.js?v=2026-11-26.1605"></script>
   <div class="hdr-r">
   </div>
 </header>
@@ -435,7 +435,7 @@ window.APP_VER='2026-11-26.1556';
 
   <!-- Submódulos de Importaciones: los arma importaciones-tabs.js -->
   <div class="imp-tabs" id="imp-tabs" data-on="mero"></div>
-  <script src="importaciones-tabs.js?v=2026-11-26.1556"></script>
+  <script src="importaciones-tabs.js?v=2026-11-26.1605"></script>
 
   <!-- ══ Contexto: proveedor y corrida ══════════════════════ -->
   <div class="card ctx">
@@ -837,10 +837,10 @@ window.APP_VER='2026-11-26.1556';
      pantalla, porque sólo hace falta al apretar el botón. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="mp-oc-pdf.js?v=2026-11-26.1556"></script>
-<script src="mp-costeo.js?v=2026-11-26.1556"></script>
-<script src="xlsx-lite.js?v=2026-11-26.1556"></script>
-<script src="importaciones-export.js?v=2026-11-26.1556"></script>
+<script src="mp-oc-pdf.js?v=2026-11-26.1605"></script>
+<script src="mp-costeo.js?v=2026-11-26.1605"></script>
+<script src="xlsx-lite.js?v=2026-11-26.1605"></script>
+<script src="importaciones-export.js?v=2026-11-26.1605"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -1602,8 +1602,8 @@ function openConfig(){
   abrir('ovl-conf');
 }
 function revisionEn(dias){
-  var d=new Date(); d.setDate(d.getDate()+dias);
-  document.getElementById('cf-rev').value=d.toISOString().slice(0,10);
+  // Fecha de la PC (toISOString da la UTC: de noche, un día de más)
+  document.getElementById('cf-rev').value=sumarDias(hoyISO(), dias);
   pintarConfEstado();
 }
 document.addEventListener('input', function(e){
@@ -1671,7 +1671,9 @@ function setCat(id,c){ CAT_PEND[id]=c; pintarCategorias(); }
 //  Se guardan al toque, no con el botón de abajo: son filas propias y
 //  esperar a "guardar configuración" para ver el efecto haría que uno
 //  cargue tres y recién ahí descubra que se equivocó de mes.
-function mesActual(){ return new Date().toISOString().slice(0,7); }
+// El mes de la PC: con la fecha UTC, el último día del mes después de las
+// 21 h la oferta se cargaba en el mes siguiente
+function mesActual(){ return hoyISO().slice(0,7); }
 function nombreMes(ym){
   var d=new Date(ym+'-01T00:00:00');
   var s=d.toLocaleDateString('es-UY',{month:'long',year:'numeric'});
@@ -1993,7 +1995,7 @@ function guardarConfig(){
 
 // ══ NUEVA CORRIDA ═════════════════════════════════════════════
 function openNuevaCorrida(){
-  document.getElementById('nc-fecha').value=new Date().toISOString().slice(0,10);
+  document.getElementById('nc-fecha').value=hoyISO();     // día de la PC, no el UTC
   document.getElementById('nc-nombre').value='';
   document.getElementById('nc-nota').value='';
   abrir('ovl-nueva');
@@ -2029,6 +2031,9 @@ function crearCorrida(){
       CUR_CORR=nueva.id;
       cargarProveedor();
     });
+  }).catch(function(e){
+    // Si fallaba guardar lo pendiente, el botón quedaba trabado sin aviso
+    b.disabled=false; toast('No se pudo crear la corrida: '+((e&&e.message)||e),'err');
   });
 }
 

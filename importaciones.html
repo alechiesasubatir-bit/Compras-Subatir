@@ -261,14 +261,14 @@ details.xl-ign div{max-height:140px;overflow:auto;margin-top:6px;line-height:1.6
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1556"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-26.1556"/>
-<script src="supabase-config.js?v=2026-11-26.1556"></script>
-<script src="subatir-app.js?v=2026-11-26.1556"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1605"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-26.1605"/>
+<script src="supabase-config.js?v=2026-11-26.1605"></script>
+<script src="subatir-app.js?v=2026-11-26.1605"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1556';
+window.APP_VER='2026-11-26.1605';
 </script>
 </head>
 <body>
@@ -279,7 +279,7 @@ window.APP_VER='2026-11-26.1556';
     <div><h1>Subatir</h1><p id="hdr-sub">Importaciones</p></div>
   </a>
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1556"></script>
+  <script src="nav.js?v=2026-11-26.1605"></script>
   <div class="hdr-r">
   </div>
 </header>
@@ -294,7 +294,7 @@ window.APP_VER='2026-11-26.1556';
     window.LINEA = (new URLSearchParams(location.search).get('linea') || 'Subatir');
     document.getElementById('imp-tabs').setAttribute('data-on', window.LINEA);
   </script>
-  <script src="importaciones-tabs.js?v=2026-11-26.1556"></script>
+  <script src="importaciones-tabs.js?v=2026-11-26.1605"></script>
 
   <!-- ══ Contexto: corrida ══════════════════════════════════ -->
   <div class="card ctx">
@@ -462,9 +462,9 @@ window.APP_VER='2026-11-26.1556';
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
-<script src="importaciones-calc.js?v=2026-11-26.1556"></script>
-<script src="xlsx-lite.js?v=2026-11-26.1556"></script>
-<script src="importaciones-export.js?v=2026-11-26.1556"></script>
+<script src="importaciones-calc.js?v=2026-11-26.1605"></script>
+<script src="xlsx-lite.js?v=2026-11-26.1605"></script>
+<script src="importaciones-export.js?v=2026-11-26.1605"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  IMPORTACIONES · artículos de Depósitos (Subatir Consumo, y
@@ -520,6 +520,7 @@ document.addEventListener('keydown', function(e){
 function fechaUTC(iso){ return iso ? new Date(iso+'T00:00:00Z') : null; }
 function fmtFecha(d){ if(!d) return '—';
   return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+String(d.getUTCFullYear()).slice(2); }
+function hoyISO(){ var h=new Date(), p=function(n){ return (n<10?'0':'')+n; }; return h.getFullYear()+'-'+p(h.getMonth()+1)+'-'+p(h.getDate()); }
 function hoyUTC(){ var h=new Date(); return new Date(Date.UTC(h.getFullYear(),h.getMonth(),h.getDate())); }
 
 document.title = 'Importaciones · '+LIN.titulo+' — Subatir / Prolimpio';
@@ -972,7 +973,7 @@ function traerStock(){
 // ══ NUEVA CORRIDA ═════════════════════════════════════════════
 function openNuevaCorrida(){
   if(!ART.length){ toast('No hay artículos de '+LIN.titulo+' en Depósitos','err'); return; }
-  document.getElementById('nc-fecha').value=new Date().toISOString().slice(0,10);
+  document.getElementById('nc-fecha').value=hoyISO();     // día de la PC, no el UTC
   document.getElementById('nc-nombre').value='';
   document.getElementById('nc-nota').value='';
   abrir('ovl-nueva');
@@ -1008,6 +1009,9 @@ function crearCorrida(){
       CUR_CORR=nueva.id;
       cargar();
     });
+  }).catch(function(e){
+    // Si fallaba guardar lo pendiente, el botón quedaba trabado sin aviso
+    b.disabled=false; toast('No se pudo crear la corrida: '+((e&&e.message)||e),'err');
   });
 }
 

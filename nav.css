@@ -135,10 +135,12 @@ nav.sbnav .sbtabs{
 }
 nav.sbnav .sbtab{
   --c:27,200,255;
-  display:inline-flex;align-items:center;gap:8px;flex:none;
-  padding:6px 15px;margin:0;border:0;border-radius:10px;
+  display:inline-flex;align-items:center;gap:7px;flex:none;
+  padding:6px 12px;margin:0;border:0;border-radius:10px;
   background:none;color:#9fb0c3;cursor:pointer;text-decoration:none;
-  font-family:'Syne','DM Sans',sans-serif;font-size:12.5px;font-weight:700;letter-spacing:.2px;
+  /* Manrope y no Syne: Syne no la carga ninguna página y caía en DM Sans,
+     que llega a 600 y no da la negrita que se pidió */
+  font-family:'Manrope','DM Sans',sans-serif;font-size:13.5px;font-weight:800;letter-spacing:.1px;
   line-height:1.2;white-space:nowrap;
   transition:color .18s,background .18s,box-shadow .18s;
 }
@@ -159,14 +161,15 @@ nav.sbnav .sbtab.aqui:not(.on) i{opacity:1;box-shadow:0 0 8px rgba(var(--c),.9)}
    el color del grupo se enciende en el medio y se apaga a los costados. */
 nav.sbnav .sbsub{
   --c:27,200,255;
-  display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-top:8px;
-  padding:5px 6px;border-radius:14px;
+  display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:8px;
+  padding:4px 5px;border-radius:13px;
   border:1px solid rgba(var(--c),.20);
   background:linear-gradient(90deg,rgba(var(--c),.03),rgba(var(--c),.14) 50%,rgba(var(--c),.03));
 }
-/* Los cuadros de la fila: más grandes que antes, ancho según su texto */
-nav.sbnav .sbsub a.sbnl{padding:4px 15px 4px 4px;font-size:13.5px;gap:9px;flex:0 0 auto;border-radius:11px}
-nav.sbnav .sbsub a.sbnl .sbnl-i{width:26px;height:26px;font-size:13.5px;border-radius:8px}
+/* Los cuadros de la fila, ancho según su texto. Más chicos que las
+   pestañas (25/11/2026): la jerarquía la marca el menú principal. */
+nav.sbnav .sbsub a.sbnl{padding:3px 12px 3px 3px;font-size:12.5px;gap:7px;flex:0 0 auto;border-radius:10px}
+nav.sbnav .sbsub a.sbnl .sbnl-i{width:22px;height:22px;font-size:12px;border-radius:7px}
 nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* violeta claro */
 
 /* Pantalla ancha: logo a la izquierda, pestañas en el centro exacto y
@@ -227,8 +230,7 @@ nav.sbnav a[data-nav="stock"][href="reposicion.html"]{--c:192,132,252}  /* viole
      comienzo de la tira sin forma de llegar a él */
   nav.sbnav .sbtabs{display:flex;align-self:stretch}
   nav.sbnav .sbsub{justify-content:flex-start}
-  nav.sbnav .sbtab{padding:7px 12px;font-size:12px}
-  nav.sbnav .sbsub a.sbnl{font-size:13px}
+  nav.sbnav .sbtab{padding:7px 12px;font-size:13px}
   nav.sbnav a.sbnl .sbnl-t{overflow:visible;text-overflow:clip}
   nav.sbnav::-webkit-scrollbar{height:3px}
   nav.sbnav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}

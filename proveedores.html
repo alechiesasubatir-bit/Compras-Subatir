@@ -375,13 +375,13 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1523"/>
-<script src="supabase-config.js?v=2026-11-26.1523"></script>
-<script src="subatir-app.js?v=2026-11-26.1523"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1544"/>
+<script src="supabase-config.js?v=2026-11-26.1544"></script>
+<script src="subatir-app.js?v=2026-11-26.1544"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1523';
+window.APP_VER='2026-11-26.1544';
 </script>
 </head>
 <body>
@@ -395,7 +395,7 @@ window.APP_VER='2026-11-26.1523';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1523"></script>
+  <script src="nav.js?v=2026-11-26.1544"></script>
   <div class="hdr-r">
     <button class="btn btn-sm pri" onclick="openModal()">+ Proveedor</button>
     <button class="btn btn-sm sec" onclick="exportCSV()">⬇ CSV</button>
@@ -526,7 +526,7 @@ window.APP_VER='2026-11-26.1523';
   <div class="f1"><label>Observaciones</label><textarea id="m-obs" placeholder="Condiciones especiales, notas, etc."></textarea></div>
   <div class="modal-foot">
     <button class="btn" onclick="closeModal()">Cancelar</button>
-    <button class="btn pri" onclick="saveProveedor()">💾 Guardar</button>
+    <button class="btn pri" id="m-save" onclick="saveProveedor()">💾 Guardar</button>
   </div>
 </div>
 </div>
@@ -636,7 +636,17 @@ function fmt(n,d){
   var v=parseFloat(n); if(isNaN(v)) return n||'—';
   return v.toFixed(d||0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 }
-function fmtUSD(n){ var v=parseFloat(n); if(isNaN(v)||v===0) return '—'; return '$ '+fmt(v,2); }
+// Importe con SU moneda. Monedas nunca se suman: hasta el 26/11/2026
+// "Comprado USD" sumaba pesos y dólares, y todo precio salía con "$".
+function fmtMon(n,mon){ var v=parseFloat(n); if(isNaN(v)||v===0) return '—'; return (mon==='USD'?'U$S ':'$ ')+fmt(v,2); }
+function monDe(r){ return SubatirApp.esDolar(fk(r,['$/U$S','Moneda','MONEDA'])) ? 'USD' : 'UYU'; }
+// Lo comprado, en dos renglones si hay de las dos monedas
+function fmtTot(p,d){
+  var a=[]; if(p.totUSD>0) a.push('U$S '+fmt(p.totUSD,d||0)); if(p.totPSO>0) a.push('$ '+fmt(p.totPSO,d||0));
+  return a.length?a.join(' · '):'—';
+}
+function recibida(r){ return !!String(fk(r,['F.Recepcion','F. Recepcion','Recepcion','RECEPCION','Fecha Recepcion','Recibido'])||''); }
+function hoyLocal(){ var d=new Date(), q=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+q(d.getMonth()+1)+'-'+q(d.getDate()); }
 function scoreColor(s){ return s>=70?'var(--grn)':s>=50?'var(--amb)':'var(--red)'; }
 function proper(s){
   var t=String(s||'').toLowerCase().replace(/(?:^|\s)\S/g,function(a){return a.toUpperCase();});
@@ -709,7 +719,7 @@ function newProv(normName){
     rut:'', pago:'', rubro:'', dir:'', obs:'', calidad:'N',
     pedidos:[], articulos:[], precios:[],
     qScore:0, score:0, totalOrders:0, pendOrders:0,
-    totalUSD:0, confRate:null, coaRate:null,
+    totUSD:0, totPSO:0, confRate:null, coaRate:null,
     lastOCDate:null
   };
 }
@@ -781,16 +791,16 @@ function buildProvs(){
       'Item','ITEM','Nombre','Nombre Producto'
     ])||'').trim();
 
-    var price = parseFloat(String(fk(row,[
-      'USD','Precio USD','PRECIO USD','Precio','PRECIO',
-      'Costo','COSTO','Precio Unit','PU','Precio Unitario'
-    ])||'0')) || 0;
+    // La lista tiene dos columnas, U$S y $: antes se tomaba la primera que
+    // dijera "Precio" y se mostraba con "$" aunque fuera en dólares.
+    var pUSD = SubatirApp.num(row['PRECIO S/IVA U$S']), pPSO = SubatirApp.num(row['PRECIO S/IVA $']);
+    var price = pUSD > 0 ? pUSD : (pPSO > 0 ? pPSO : 0), pmon = pUSD > 0 ? 'USD' : 'UYU';
 
     var q = qual(fk(row,['Calidad','CALIDAD','Calificacion','CALIFICACION','Rating']));
     if(q!=='N' && p.calidad==='N') p.calidad=q;
 
     if(art && p.articulos.indexOf(art)<0) p.articulos.push(art);
-    if(price>0) p.precios.push({art:art||'—',price:price,q:q,row:row});
+    if(price>0) p.precios.push({art:art||'—',price:price,mon:pmon,q:q,row:row});
 
     // Pago from precios
     if(!p.pago){
@@ -825,20 +835,24 @@ function buildProvs(){
       return !rec;
     }).length;
 
-    var confOk=0, coaOk=0;
+    var confOk=0, coaOk=0, recib=0;
     p.pedidos.forEach(function(r){
+      if(!recibida(r)) return;      // lo que no llegó no es "no conforme"
+      recib++;
       var c=norm(fk(r,['Conforme','CONFORME'])||'');
       var co=norm(fk(r,['COA','coa','Coa'])||'');
       if(c==='SI'||c==='S'||c==='OK'||c==='X'||c==='1'||c==='TRUE') confOk++;
       if(co==='SI'||co==='S'||co==='OK'||co==='X'||co==='1'||co==='TRUE'||co==='NO NECESARIO'||co==='NO APLICA'||co==='NO REQUERIDO'||co==='N/A'||co==='NA') coaOk++;
     });
-    p.confRate = p.pedidos.length?Math.round(confOk/p.pedidos.length*100):null;
-    p.coaRate  = p.pedidos.length?Math.round(coaOk/p.pedidos.length*100):null;
+    p.confRate = recib?Math.round(confOk/recib*100):null;
+    p.coaRate  = recib?Math.round(coaOk/recib*100):null;
 
-    var vals=p.pedidos.map(function(r){
-      return parseFloat(fk(r,['c/iva','C/IVA','c/IVA','Total','TOTAL','Importe','IMPORTE'])||0)||0;
+    p.totUSD=0; p.totPSO=0;
+    p.pedidos.forEach(function(r){
+      var v=SubatirApp.num(fk(r,['c/iva','C/IVA','c/IVA','Total','TOTAL','Importe','IMPORTE']));
+      if(!isFinite(v)) return;
+      if(monDe(r)==='USD') p.totUSD+=v; else p.totPSO+=v;
     });
-    p.totalUSD=vals.reduce(function(a,b){return a+b;},0);
   });
 }
 
@@ -858,8 +872,10 @@ function renderKPIs(){
   var scores=names.map(function(n){return PROVS[n].qScore;}).filter(function(s){return s>0;});
   var avgScore=scores.length?Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length):0;
 
-  var totPed=RAW_PED.length, confPed=0, coaPed=0;
+  var totPed=0, confPed=0, coaPed=0;
   RAW_PED.forEach(function(r){
+    if(!recibida(r)) return;
+    totPed++;
     var c=norm(fk(r,['Conforme','CONFORME'])||'');
     var co=norm(fk(r,['COA','coa'])||'');
     if(c==='SI'||c==='S'||c==='OK'||c==='X'||c==='1'||c==='TRUE') confPed++;
@@ -925,7 +941,7 @@ function renderList(){
       +'<div class="pitem-av" style="background:'+col[0]+';color:'+col[1]+'">'+avatar(p.displayName||n)+'</div>'
       +'<div class="pitem-info">'
         +'<div class="pitem-name">'+esc(proper(p.displayName||n))+'</div>'
-        +'<div class="pitem-meta">'+(p.rubro||'Sin categoría')+' · '+p.totalOrders+' OC</div>'
+        +'<div class="pitem-meta">'+esc(p.rubro||'Sin categoría')+' · '+p.totalOrders+' OC</div>'
       +'</div>'
       +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">'
         +(p.calidad!=='N'?'<span class="rate '+p.calidad+'">'+qualLabel(p.calidad)+'</span>':'')
@@ -956,7 +972,7 @@ function renderDetail(p){
   html+='<div class="ficha-av" style="background:'+col[0]+';color:'+col[1]+'">'+avatar(p.displayName||p.normName)+'</div>';
   html+='<div class="ficha-title">';
   html+='<h3>'+esc(proper(p.displayName||p.normName))+'</h3>';
-  html+='<p>'+(p.rubro||'Sin categoría')+(p.rut?' &nbsp;·&nbsp; RUT: '+esc(p.rut):'')+'</p>';
+  html+='<p>'+esc(p.rubro||'Sin categoría')+(p.rut?' &nbsp;·&nbsp; RUT: '+esc(p.rut):'')+'</p>';
   html+='<div class="ficha-badges">';
   if(p.calidad!=='N') html+='<span class="rate '+p.calidad+'">'+qualLabel(p.calidad)+'</span>';
   if(p.pago) html+='<span class="badge b-tl sm">'+esc(p.pago)+'</span>';
@@ -998,7 +1014,7 @@ function renderDetail(p){
   html+='<div class="stats-row">';
   html+=statBox(p.totalOrders,'Pedidos total','c-pu');
   html+=statBox(p.pendOrders,'Pendientes','c-or');
-  html+=statBox(p.totalUSD?'$ '+fmt(p.totalUSD,0):'—','Comprado USD','c-tl');
+  html+=statBox(fmtTot(p),'Comprado c/IVA','c-tl');
   html+=statBox(p.confRate!==null?p.confRate+'%':'—','Tasa conforme','c-gr');
   html+='</div>';
 
@@ -1013,7 +1029,7 @@ function renderDetail(p){
       html+='<div class="art-row">'
         +'<span class="art-name">'+esc(it.art)+'</span>'
         +(it.q!=='N'?'<span class="rate '+it.q+' sm">'+qualLabel(it.q)+'</span>':'')
-        +'<span class="art-price">'+fmtUSD(it.price)+'</span>'
+        +'<span class="art-price">'+fmtMon(it.price,it.mon)+'</span>'
       +'</div>';
     });
     html+='</div></div>';
@@ -1049,8 +1065,8 @@ function renderDetail(p){
         +'<td class="mono">'+esc(String(fecha||'—'))+'</td>'
         +'<td style="max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(String(desc||'—'))+'</td>'
         +'<td class="mono">'+esc(String(cant||'—'))+'</td>'
-        +'<td class="mono">'+fmtUSD(parseFloat(pu)||0)+'</td>'
-        +'<td class="mono">'+fmtUSD(parseFloat(civa)||0)+'</td>'
+        +'<td class="mono">'+fmtMon(SubatirApp.num(pu),monDe(r))+'</td>'
+        +'<td class="mono">'+fmtMon(SubatirApp.num(civa),monDe(r))+'</td>'
         +'<td class="mono">'+(rec?esc(String(rec)):'<span style="color:var(--amb)">Pendiente</span>')+'</td>'
         +'<td>'+(coaR?'<span class="dot '+(coaOk?'dok':'dno')+'"></span>'+(coaOk?'Sí':'No'):'<span class="dot dnd"></span>—')+'</td>'
         +'<td>'+(confR?'<span class="dot '+(confOk?'dok':'dno')+'"></span>'+(confOk?'Sí':'No'):'<span class="dot dnd"></span>—')+'</td>'
@@ -1086,7 +1102,7 @@ function renderRanking(){
         +'<div style="width:38px;height:38px;border-radius:9px;display:grid;place-items:center;background:'+col[0]+';color:'+col[1]+';font-family:Manrope,sans-serif;font-weight:800;font-size:13px;flex-shrink:0">'+avatar(p.displayName||n)+'</div>'
         +'<div style="flex:1;min-width:0">'
           +'<div style="font-family:Manrope,sans-serif;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(proper(p.displayName||n))+'</div>'
-          +'<div style="font-size:10px;color:var(--mut2);margin-top:2px">'+(p.rubro||'General')+' · '+p.articulos.length+' arts.</div>'
+          +'<div style="font-size:10px;color:var(--mut2);margin-top:2px">'+esc(p.rubro||'General')+' · '+p.articulos.length+' arts.</div>'
         +'</div>'
         +'<div style="text-align:center">'
           +'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:22px;font-weight:700;color:'+scC+'">'+sc+'</div>'
@@ -1105,7 +1121,7 @@ function renderRanking(){
       +'<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">'
         +(p.calidad!=='N'?'<span class="rate '+p.calidad+'">'+qualLabel(p.calidad)+'</span>':'')
         +(p.pago?'<span class="badge b-tl sm">'+esc(p.pago)+'</span>':'')
-        +(p.totalUSD>0?'<span class="badge b-or sm" style="margin-left:auto">$ '+fmt(p.totalUSD,0)+'</span>':'')
+        +((p.totUSD>0||p.totPSO>0)?'<span class="badge b-or sm" style="margin-left:auto">'+fmtTot(p)+'</span>':'')
       +'</div>'
     +'</div>';
   }).join('');
@@ -1163,8 +1179,11 @@ function saveProveedor(){
     obs:     document.getElementById('m-obs').value.trim(),
   };
   // ── Escritura directa a la hoja CONTACTOS de la base de datos ──
-  var existing = PROVS[key];
+  // Editando, la ficha es la que se abrió (EDIT_ID), aunque se le cambie el
+  // nombre: buscarla por el nombre nuevo no la encontraba y creaba otra.
+  var existing = (EDIT_ID && PROVS[EDIT_ID]) || PROVS[key];
   var cttRow   = existing ? existing.__cttRow : null;
+  if(GUARDANDO) return;
   var fields   = {};
   fields[CK.empresa] = ficha.displayName;
   fields[CK.rut]     = ficha.rut;
@@ -1179,16 +1198,21 @@ function saveProveedor(){
   fields[CK.calidad] = qualWord(ficha.calidad);
 
   toast('Guardando…','ok');
+  bloquear(true);
   var op = cttRow
     ? SubatirApp.write({action:'updateRow', sheetKey:'contactos', row:cttRow, fields:JSON.stringify(fields)})
     : SubatirApp.write({action:'addRow',    sheetKey:'contactos', fields:JSON.stringify(fields)});
   op.then(function(d){
+    bloquear(false);
     if(d && d.error){ toast('Error: '+d.error,'err'); return; }
     closeModal();
     toast('Proveedor guardado ✓','ok');
     load(); // recarga desde la base de datos
-  });
+  }).catch(function(e){ bloquear(false); toast('Error: '+((e&&e.message)||e),'err'); });
 }
+// Con dos toques en Guardar se cargaban dos fichas del mismo proveedor
+var GUARDANDO=false;
+function bloquear(on){ GUARDANDO=on; var b=document.getElementById('m-save'); if(b) b.disabled=on; }
 
 // ── Sync con la hoja CONTACTOS de la base de datos ──────────────────────────
 // Cloud-only: se escribe directo a la base de datos, sin cola de sincronización.
@@ -1230,15 +1254,15 @@ function syncPending(){
 function exportCSV(){
   var names=Object.keys(PROVS);
   if(!names.length){toast('No hay proveedores para exportar','err');return;}
-  var hdr=['Empresa','RUT','Contacto','Teléfono','Celular','Email','Dirección','Cond. Pago','Rubro','Calidad','Score','Pedidos','Total USD','Artículos','Última OC','Activo 90d','Observaciones'];
+  var hdr=['Empresa','RUT','Contacto','Teléfono','Celular','Email','Dirección','Cond. Pago','Rubro','Calidad','Score','Pedidos','Comprado c/IVA U$S','Comprado c/IVA $','Artículos','Última OC','Activo 90d','Observaciones'];
   var rows=names.map(function(n){
     var p=PROVS[n];
     var lastOC=p.lastOCDate?p.lastOCDate.toISOString().slice(0,10):'';
     var activo=p.totalOrders>0?(isRecent(p.lastOCDate,90)?'Sí':'No'):'';
-    return[proper(p.displayName||n),p.rut,p.contacto,p.tel,p.cel,p.email,p.dir,p.pago,p.rubro,qualLabel(p.calidad),p.score,p.totalOrders,fmt(p.totalUSD,2),p.articulos.join('; '),lastOC,activo,p.obs];
+    return[proper(p.displayName||n),p.rut,p.contacto,p.tel,p.cel,p.email,p.dir,p.pago,p.rubro,qualLabel(p.calidad),p.score,p.totalOrders,p.totUSD?p.totUSD.toFixed(2):'',p.totPSO?p.totPSO.toFixed(2):'',p.articulos.join('; '),lastOC,activo,p.obs];
   });
   var csv='﻿'+hdr.join(',')+'\n'+rows.map(function(r){return r.map(function(c){return'"'+String(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
-  dl(csv,'proveedores_'+new Date().toISOString().slice(0,10)+'.csv');
+  dl(csv,'proveedores_'+hoyLocal()+'.csv');
   toast('CSV exportado ('+names.length+' proveedores)','ok');
 }
 function exportProvCSV(key){
@@ -1252,7 +1276,7 @@ function exportProvCSV(key){
     fk(r,['Conforme','CONFORME']),fk(r,['Lote','LOTE'])
   ];});
   var csv='﻿'+hdr.join(',')+'\n'+rows.map(function(r){return r.map(function(c){return'"'+String(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
-  dl(csv,'pedidos_'+key.slice(0,15)+'_'+new Date().toISOString().slice(0,10)+'.csv');
+  dl(csv,'pedidos_'+key.slice(0,15)+'_'+hoyLocal()+'.csv');
   toast('CSV exportado','ok');
 }
 function dl(csv,fname){

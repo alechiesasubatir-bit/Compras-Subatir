@@ -79,6 +79,11 @@
 
   function moneda(m) { return /U\$S|USD|US\$|D[OÓ]LAR/i.test(String(m || '')) ? 'USD' : 'UYU'; }
 
+  // Los mismos valores que RecepcionCalc.coaOk, separados en "lo tiene"
+  // y "no corresponde": acá importa la diferencia, allá no.
+  function esSi(v) { return ['SI', 'SÍ', 'S', '1', 'TRUE'].indexOf(norm(v === true ? 'TRUE' : v)) >= 0; }
+  function coaNoCorresponde(v) { return ['NO NECESARIO', 'NO APLICA', 'NO REQUERIDO', 'N/A', 'NA'].indexOf(norm(v)) >= 0; }
+
   function provOk(p, f) { return !f.prov || norm(p) === norm(f.prov); }
 
   function textoOk(textos, f) {
@@ -260,7 +265,7 @@
       var x = g[k] || (g[k] = {
         prov: p.proveedor, lineas: 0, completas: 0, parciales: 0, pendientes: 0,
         conDemora: 0, aTiempo: 0, tarde: 0, vencidas: 0, aRevisar: 0, pactadas: [], reales: [],
-        recepciones: 0, conformes: 0, conCoa: 0
+        recepciones: 0, conformes: 0, conCoa: 0, coaNoCorresponde: 0
       });
       var st = estadoLinea(p, ents[p.id]);
       x.lineas++;
@@ -288,8 +293,9 @@
       var recs = st.legacy ? [p] : st.entregas;
       recs.forEach(function (e) {
         x.recepciones++;
-        if (String(e.conforme || '').toUpperCase() === 'SI') x.conformes++;
-        if (String(e.coa || '').toUpperCase() === 'SI') x.conCoa++;
+        if (esSi(e.conforme)) x.conformes++;
+        if (esSi(e.coa)) x.conCoa++;
+        else if (coaNoCorresponde(e.coa)) x.coaNoCorresponde++;
       });
     });
     var filas = Object.keys(g).map(function (k) {
@@ -298,7 +304,9 @@
       x.demoraReal = r2(prom(x.reales));
       x.pctATiempo = pct(x.aTiempo, x.aTiempo + x.tarde);
       x.pctConforme = pct(x.conformes, x.recepciones);
-      x.pctCoa = pct(x.conCoa, x.recepciones);
+      // Sobre las recepciones que lo piden: "NO APLICA" / "NO NECESARIO"
+      // no es un COA que falta (hasta el 26/11/2026 bajaban el %).
+      x.pctCoa = pct(x.conCoa, x.recepciones - x.coaNoCorresponde);
       delete x.pactadas; delete x.reales;
       return x;
     }).sort(function (a, b) { return b.lineas - a.lineas; });
@@ -518,12 +526,16 @@
         if (num(p.precio_un) > 0 && (!ult || fe > ult.fecha)) ult = { fecha: fe, precio: num(p.precio_un), mon: moneda(p.moneda), prov: p.proveedor };
       });
       var st = num(a.inventario), min = num(a.stock_minimo), cons = num(a.consumo_mensual);
-      var estado = st <= 0 ? 'SIN STOCK' : (min > 0 && st < min ? 'BAJO MÍNIMO' : 'OK');
+      var pend = pendienteDe ? num(pendienteDe(a.id)) : 0;
+      // "Bajo mínimo" con ≤, como el semáforo de Stock y el Dashboard
+      // (SubatirApp.estadoStock): con 3.000 de 3.000 Stock decía CRÍTICO y acá OK.
+      var estado = st <= 0 ? 'SIN STOCK' : (min > 0 && st <= min ? 'BAJO MÍNIMO' : 'OK');
       var valor = ult ? st * ult.precio : null;
       filas.push({
         id: a.id, codigo: a.codigo || '', desc: a.descripcion || '', unidad: a.unidad || '',
-        stock: st, minimo: min, consumo: cons, cobertura: cons > 0 ? st / cons : null,
-        pendiente: pendienteDe ? num(pendienteDe(a.id)) : 0, estado: estado,
+        // Cobertura contando lo que está en camino, la misma que muestra Stock
+        stock: st, minimo: min, consumo: cons, cobertura: cons > 0 ? (st + pend) / cons : null,
+        pendiente: pend, estado: estado,
         comprado: comprado, recibido: recibido,
         precioRef: ult ? ult.precio : null, monRef: ult ? ult.mon : null, provRef: ult ? ult.prov : '',
         valorUSD: ult && ult.mon === 'USD' ? valor : null, valorUYU: ult && ult.mon === 'UYU' ? valor : null
@@ -547,14 +559,20 @@
   }
 
   // Los que piden atención: sin stock, bajo el mínimo o con menos de un
-  // mes de cobertura sin nada en camino que lo cubra.
+  // mes de cobertura aun sumando lo que está en camino.
   function criticos(filas) {
     return filas.filter(function (x) {
-      return x.estado !== 'OK' || (x.cobertura != null && x.cobertura < 1 && x.pendiente <= 0);
+      return x.estado !== 'OK' || (x.cobertura != null && x.cobertura < 1);
     });
   }
 
   // ═══ MP IMPORTACIÓN ═══════════════════════════════════════════════
+  // Las esencias van en kg; frascos, tirillas y el resto en unidades. Kilos
+  // y unidades no se suman (hasta el 26/11/2026 el total los mezclaba).
+  // La regla es la de unidadDe() en mp-importacion.html: si cambia una,
+  // cambiar la otra.
+  function unidadMP(a) { return /^\s*esencia/i.test((a && a.nombre) || '') ? 'kg' : 'un'; }
+
   function mp(d, f) {
     var provs = {}, arts = {}, corr = {};
     (d.mpProveedores || []).forEach(function (p) { provs[p.id] = p.nombre; });
@@ -567,11 +585,14 @@
       var c = corr[x.corrida_id], a = arts[x.articulo_id];
       if (!c || !a || !textoOk([a.nombre, a.codigo, a.grupo], f)) return;
       var mensual = num(x.consumo_3m) / 3;
+      var compra = x.compra_confirmada == null ? null : num(x.compra_confirmada);
+      var un = unidadMP(a);
       filas.push({
         corridaId: c.id, corrida: c.nombre || '', fecha: dia(c.fecha), prov: provs[c.proveedor_id] || '',
         articuloId: a.id, grupo: a.grupo || '', articulo: a.nombre || '', codigo: a.codigo || '',
         consumo3m: num(x.consumo_3m), mensual: mensual, stock: num(x.stock_actual),
-        promAnual: num(x.prom_anual), compra: x.compra_confirmada == null ? null : num(x.compra_confirmada),
+        promAnual: num(x.prom_anual), compra: compra, unidad: un,
+        compraKg: un === 'kg' ? compra : null, compraUn: un === 'un' ? compra : null,
         cobertura: mensual > 0 ? num(x.stock_actual) / mensual : null, cerrada: !!c.cerrada
       });
     });
@@ -580,7 +601,8 @@
       kpis: {
         corridas: Object.keys(corr).length,
         articulos: Object.keys(porClave(filas, 'articuloId')).length,
-        compraTotal: filas.reduce(function (s, x) { return s + (x.compra || 0); }, 0),
+        compraKg: filas.reduce(function (s, x) { return s + (x.compraKg || 0); }, 0),
+        compraUn: filas.reduce(function (s, x) { return s + (x.compraUn || 0); }, 0),
         bajaCobertura: filas.filter(function (x) { return x.cobertura != null && x.cobertura < 2; }).length
       },
       filas: filas
@@ -596,8 +618,10 @@
       return {
         prov: ult.prov, grupo: ult.grupo, articulo: ult.articulo, codigo: ult.codigo, corridas: v.length,
         mensualIni: pri.mensual, mensualFin: ult.mensual, variacion: variacion(pri.mensual, ult.mensual),
-        stockIni: pri.stock, stockFin: ult.stock, cobertura: ult.cobertura,
-        compras: v.reduce(function (s, x) { return s + (x.compra || 0); }, 0)
+        stockIni: pri.stock, stockFin: ult.stock, cobertura: ult.cobertura, unidad: ult.unidad,
+        compras: v.reduce(function (s, x) { return s + (x.compra || 0); }, 0),
+        comprasKg: ult.unidad === 'kg' ? v.reduce(function (s, x) { return s + (x.compra || 0); }, 0) : null,
+        comprasUn: ult.unidad === 'un' ? v.reduce(function (s, x) { return s + (x.compra || 0); }, 0) : null
       };
     }).sort(function (a, b) { return a.grupo.localeCompare(b.grupo) || a.articulo.localeCompare(b.articulo); });
   }
@@ -967,7 +991,7 @@
     estadoLinea: estadoLinea, lineasCompra: lineasCompra, compras: compras, agruparCompras: agruparCompras,
     cumplimiento: cumplimiento, proveedores: proveedores,
     listaPrecios: listaPrecios, evolucionPrecios: evolucionPrecios,
-    stock: stock, criticos: criticos,
+    stock: stock, criticos: criticos, unidadMP: unidadMP,
     mp: mp, mpEvolucion: mpEvolucion,
     cloro: cloro, cloroPorMateria: cloroPorMateria,
     depositos: depositos, stockDepositos: stockDepositos, infraestructura: infraestructura,

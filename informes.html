@@ -234,15 +234,15 @@ td.txt-l{min-width:220px}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1523"/>
-<script src="supabase-config.js?v=2026-11-26.1523"></script>
-<script src="subatir-app.js?v=2026-11-26.1523"></script>
-<script src="cloro-calc.js?v=2026-11-26.1523"></script>
-<script src="informes-calc.js?v=2026-11-26.1523"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1544"/>
+<script src="supabase-config.js?v=2026-11-26.1544"></script>
+<script src="subatir-app.js?v=2026-11-26.1544"></script>
+<script src="cloro-calc.js?v=2026-11-26.1544"></script>
+<script src="informes-calc.js?v=2026-11-26.1544"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1523';
+window.APP_VER='2026-11-26.1544';
 </script>
 </head>
 <body>
@@ -258,7 +258,7 @@ window.APP_VER='2026-11-26.1523';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1523"></script>
+  <script src="nav.js?v=2026-11-26.1544"></script>
   <div class="hdr-right">
   </div>
 </header>
@@ -520,7 +520,8 @@ function construir(){
         C('aRevisar','Fechas a revisar','num',{w:10,tot:1}) ];
       out.filas = cu.filas;
       out.sub = 'Demora real = días desde la OC hasta que llegó el total. "A tiempo" sólo mide las líneas con demora pactada. '
-              + '"Fechas a revisar" = recibidas antes de la fecha de la OC (fecha mal cargada): no entran en los promedios.';
+              + '"Fechas a revisar" = recibidas antes de la fecha de la OC (fecha mal cargada): no entran en los promedios. '
+              + '"% con COA" no cuenta las recepciones marcadas NO APLICA / NO NECESARIO.';
     }
   }
 
@@ -576,7 +577,7 @@ function construir(){
       C('precioRef','Último precio','pre',{w:12,monK:'monRef'}), C('valorUSD','Valor U$S','usd',{w:13,tot:1}), C('valorUYU','Valor $','uyu',{w:13,tot:1}) ];
     out.filas = V==='criticos' ? I.criticos(s.filas) : s.filas;
     out.sub = V==='criticos'
-      ? 'Sin stock, bajo el mínimo, o con menos de un mes de cobertura y nada en camino.'
+      ? 'Sin stock, en o bajo el mínimo, o con menos de un mes de cobertura contando lo que está en camino.'
       : 'Foto de hoy. "Comprado" y "Recibido" son los del período elegido. "En camino" es el mismo número que muestra Stock.';
   }
 
@@ -585,21 +586,23 @@ function construir(){
     out.kpis = [
       { l:'Corridas', v:fNum(km.corridas), s:'de previsión en el período', c:'250,204,21' },
       { l:'Artículos', v:fNum(km.articulos), s:'con datos', c:'167,139,250' },
-      { l:'Compra confirmada', v:fCant(km.compraTotal), s:'suma de unidades confirmadas', c:'34,197,94' },
+      { l:'Compra confirmada', v:fCant(km.compraKg)+' kg', s:fCant(km.compraUn)+' unidades (frascos, tirillas…) aparte', c:'34,197,94' },
       { l:'Cobertura < 2 meses', v:fNum(km.bajaCobertura), s:'filas con poco stock', c:'239,68,68' }
     ];
     if(V==='detalle'){
       out.cols = [ C('fecha','Fecha','fecha',{w:11}), C('corrida','Corrida','txt',{w:22}), C('prov','Proveedor','txt',{w:16}),
         C('grupo','Grupo','txt',{w:14}), C('articulo','Artículo','txt',{w:32,l:1}), C('codigo','Código','txt',{w:10}),
         C('consumo3m','Consumo 3 m','cant',{w:11}), C('mensual','Consumo/mes','cant',{w:11}), C('promAnual','Prom. anual','cant',{w:11}),
-        C('stock','Stock','cant',{w:10}), C('cobertura','Cobertura (meses)','num',{w:11,dec:1}), C('compra','Compra confirmada','cant',{w:12,tot:1}) ];
+        C('stock','Stock','cant',{w:10}), C('cobertura','Cobertura (meses)','num',{w:11,dec:1}), C('unidad','Unid.','txt',{w:7}),
+        C('compraKg','Compra kg','cant',{w:11,tot:1}), C('compraUn','Compra unid.','cant',{w:11,tot:1}) ];
       out.filas = m.filas;
       out.sub = 'Los datos de cada corrida de MP Importación, tal como se cargaron.';
     } else {
       out.cols = [ C('prov','Proveedor','txt',{w:16}), C('grupo','Grupo','txt',{w:14}), C('articulo','Artículo','txt',{w:32,l:1}),
         C('corridas','Corridas','num',{w:8}), C('mensualIni','Consumo/mes inicial','cant',{w:13}), C('mensualFin','Consumo/mes final','cant',{w:13}),
         C('variacion','Variación','var',{w:10,bueno:1}), C('stockIni','Stock inicial','cant',{w:11}), C('stockFin','Stock final','cant',{w:11}),
-        C('cobertura','Cobertura (meses)','num',{w:11,dec:1}), C('compras','Compras confirmadas','cant',{w:12,tot:1}) ];
+        C('cobertura','Cobertura (meses)','num',{w:11,dec:1}), C('unidad','Unid.','txt',{w:7}),
+        C('comprasKg','Compras kg','cant',{w:11,tot:1}), C('comprasUn','Compras unid.','cant',{w:11,tot:1}) ];
       out.filas = I.mpEvolucion(m.filas);
       out.sub = 'Primera contra última corrida del período, artículo por artículo.';
     }

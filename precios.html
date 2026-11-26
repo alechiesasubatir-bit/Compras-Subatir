@@ -384,13 +384,13 @@ select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1523"/>
-<script src="supabase-config.js?v=2026-11-26.1523"></script>
-<script src="subatir-app.js?v=2026-11-26.1523"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-26.1544"/>
+<script src="supabase-config.js?v=2026-11-26.1544"></script>
+<script src="subatir-app.js?v=2026-11-26.1544"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1523';
+window.APP_VER='2026-11-26.1544';
 </script>
 </head>
 <body>
@@ -406,7 +406,7 @@ window.APP_VER='2026-11-26.1523';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1523"></script>
+  <script src="nav.js?v=2026-11-26.1544"></script>
   <div class="hdr-r">
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()" id="btn-csv" style="display:none">⬇ CSV</button>
     <button class="btn btn-orange btn-sm" onclick="openNew()" id="btn-new">＋ Nuevo precio</button>
@@ -649,7 +649,7 @@ window.APP_VER='2026-11-26.1523';
       <button class="btn btn-danger btn-sm" id="ed-del" onclick="deleteCurrent()" style="display:none">🗑 Eliminar</button>
       <div class="right" style="margin-left:auto">
         <button class="btn btn-ghost btn-sm" onclick="closeEdit()">Cancelar</button>
-        <button class="btn btn-orange btn-sm" onclick="saveEdit()">Guardar</button>
+        <button class="btn btn-orange btn-sm" id="ed-save" onclick="saveEdit()">Guardar</button>
       </div>
     </div>
   </div>
@@ -1558,7 +1558,7 @@ function openNew(){
   document.getElementById('ed-del').style.display='none';
   ['ed-articulo','ed-codigo','ed-proveedor','ed-usd','ed-pso','ed-pago'].forEach(function(id){document.getElementById(id).value='';});
   ['ed-calidad','ed-atencion','ed-demora','ed-cat'].forEach(function(id){document.getElementById(id).value='';});
-  document.getElementById('ed-fecha').value=new Date().toISOString().slice(0,10);
+  document.getElementById('ed-fecha').value=hoyLocal();
   edFillLists();
   document.getElementById('ed-art-sel').value='';
   document.getElementById('ed-prov-sel').value='';
@@ -1610,6 +1610,22 @@ function setSelect(id,val){
   sel.value=val;
 }
 
+// Hoy en la hora de la PC. toISOString() da la fecha UTC: después de las
+// 21 h en Uruguay ya es "mañana" (mismo arreglo que RecepcionCalc.hoyLocal).
+function hoyLocal(){
+  var d=new Date(), p=function(n){ return (n<10?'0':'')+n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+
+// Guardar y Eliminar quedan bloqueados mientras se escribe en la base: con
+// dos toques se cargaban dos precios iguales (y dos fichas en Inventario
+// si el artículo era nuevo — así nacen las fichas repetidas).
+var GUARDANDO=false;
+function bloquear(on){
+  GUARDANDO=on;
+  ['ed-save','ed-del'].forEach(function(id){ var b=document.getElementById(id); if(b) b.disabled=on; });
+}
+
 function isoDate(v){
   if(!v) return '';
   var s=String(v);
@@ -1637,6 +1653,7 @@ function saveEdit(){
   var art=document.getElementById('ed-articulo').value.trim();
   var prov=document.getElementById('ed-proveedor').value.trim();
   if(!art||!prov){ toast('Artículo y Proveedor son obligatorios.','err'); return; }
+  if(GUARDANDO) return;
   var f=readForm();
   var clean={}; Object.keys(f).forEach(function(k){ if(k.indexOf('__')!==0) clean[k]=f[k]; });
   var isNew = (ED_REF===null), ref = ED_REF;
@@ -1649,6 +1666,7 @@ function saveEdit(){
   var faltaFicha = document.getElementById('ed-ficha-box').style.display !== 'none';
 
   toast('Guardando…','info');
+  bloquear(true);
 
   // La ficha va PRIMERO y es condición: si no se puede crear, no se guarda
   // el precio. Al revés quedaría el artículo en el catálogo sin ficha, que
@@ -1663,6 +1681,7 @@ function saveEdit(){
 
   paso1.then(function(inv){
     if(inv && inv.error){
+      bloquear(false);
       toast('No se pudo crear la ficha en Inventario, así que no se guardó el precio: '+inv.error,'err');
       return;
     }
@@ -1673,8 +1692,8 @@ function saveEdit(){
       : SubatirApp.write({action:'updateRow', sheetKey:'precios', row:ref, fields:JSON.stringify(clean)});
 
     op.then(function(d){
-      if(d && d.error){ toast('Error: '+d.error,'err'); return; }
-      var finish=function(){ closeEdit(); toast(isNew ? 'Precio agregado ✓' : 'Cambios guardados ✓','ok'); load(); };
+      if(d && d.error){ bloquear(false); toast('Error: '+d.error,'err'); return; }
+      var finish=function(){ bloquear(false); closeEdit(); toast(isNew ? 'Precio agregado ✓' : 'Cambios guardados ✓','ok'); load(); };
       // La categoría vive en la ficha de inventario. Vaciarla es
       // setCategoria con '' — deja ext_id en null.
       if(catChanged && SubatirApp.setCategoria){
@@ -1684,20 +1703,23 @@ function saveEdit(){
         });
       } else finish();
     });
-  });
+  }).catch(function(e){ bloquear(false); toast('Error: '+((e&&e.message)||e),'err'); });
 }
 
 function deleteCurrent(){
   if(ED_REF===null){ closeEdit(); return; }
   if(!confirm('¿Eliminar este precio de la base de datos? No se puede deshacer.')) return;
+  if(GUARDANDO) return;
   var ref=ED_REF;
   toast('Eliminando…','info');
+  bloquear(true);
   SubatirApp.write({action:'deleteRow', sheetKey:'precios', row:ref}).then(function(d){
+    bloquear(false);
     if(d && d.error){ toast('Error: '+d.error,'err'); return; }
     closeEdit();
     toast('Precio eliminado ✓','ok');
     load();
-  });
+  }).catch(function(e){ bloquear(false); toast('Error: '+((e&&e.message)||e),'err'); });
 }
 
 function buildPending(){
@@ -1753,7 +1775,7 @@ function exportCSV(){
   var cols=[PK.fecha,PK.codigo,PK.articulo,PK.proveedor,PK.precioUSD,PK.precioPSO,PK.atencion,PK.calidad,PK.demora,PK.pago];
   var hdr=['Fecha','Código','Artículo','Proveedor','Precio USD s/IVA','Precio $ s/IVA','Atención','Calidad','Demora','Modalidad Pago'];
   var csv='﻿'+hdr.join(',')+'\n'+rows.map(function(r){return cols.map(function(c){return '"'+String(r[c]||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
-  download(csv,'precios_subatir_'+new Date().toISOString().slice(0,10)+'.csv');
+  download(csv,'precios_subatir_'+hoyLocal()+'.csv');
   toast('CSV exportado ('+rows.length+' filas)','ok');
 }
 
@@ -1763,7 +1785,7 @@ function exportCompCSV(){
   var cols=[PK.proveedor,PK.codProv,PK.precioUSD,PK.precioPSO,PK.atencion,PK.calidad,PK.demora,PK.pago,PK.fecha];
   var hdr=['Proveedor','Cód.Prov','USD s/IVA','$ s/IVA','Atención','Calidad','Demora','Pago','Fecha'];
   var csv='﻿Artículo:,'+SEL_ART+'\n'+hdr.join(',')+'\n'+rows.map(function(r){return cols.map(function(c){return '"'+String(r[c]||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
-  download(csv,'comparativa_'+SEL_ART.slice(0,20).replace(/[^a-z0-9]/gi,'_')+'_'+new Date().toISOString().slice(0,10)+'.csv');
+  download(csv,'comparativa_'+SEL_ART.slice(0,20).replace(/[^a-z0-9]/gi,'_')+'_'+hoyLocal()+'.csv');
   toast('Comparativa exportada','ok');
 }
 
@@ -1785,7 +1807,9 @@ function ratingPill(v){
   if(s==='MALA')    return '<span class="rp rp-m">✗ Mala</span>';
   return '<span class="rp rp-nd">—</span>';
 }
-function pn(v){if(!v&&v!==0)return 0;var s=String(v).replace(/[^\d.,-]/g,'').replace(',','.');return parseFloat(s)||0;}
+// El lector de números de toda la app: "1.234,50" es 1234,5 (el de antes
+// leía 1,234 porque sólo cambiaba la primera coma)
+function pn(v){if(!v&&v!==0)return 0;var n=SubatirApp.num(v);return isFinite(n)?n:0;}
 
 // ── Precio tal cual se cargó ───────────────────────────────────
 // Ni redondeado ni rellenado con ceros: 0,016 sigue siendo 0,016 y

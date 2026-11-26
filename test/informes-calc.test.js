@@ -165,7 +165,7 @@ test('stock: cruza por id de inventario o por nombre, y valoriza al ultimo preci
   assert.strictEqual(b.recibido, 4);
   assert.strictEqual(b.precioRef, 2);          // la mas nueva
   assert.strictEqual(b.valorUSD, 10);
-  assert.strictEqual(b.cobertura, 0.5);
+  assert.strictEqual(b.cobertura, 1.1);         // (5 + 6 en camino) / 10, como Stock
   assert.strictEqual(b.pendiente, 6);
   assert.strictEqual(r.filas[0].estado, 'SIN STOCK'); // los criticos primero
   assert.strictEqual(I.criticos(r.filas).length, 2);
@@ -338,4 +338,53 @@ test('infra por destino y por mes: solo lo despachado, cancelado fuera', () => {
   const mes = I.infraPorMes(d, {});
   assert.deepStrictEqual(mes.map((x) => [x.mes, x.ingresos, x.salidas, x.ajustes, x.nPedidos]),
     [['2026-08', 1192, 0, 0, 0], ['2026-09', 0, 16, 0, 1], ['2026-10', 0, 16, -3, 1]]);
+});
+
+// ── Revisión del 26/11/2026 ──────────────────────────────────────────
+test('stock: en el minimo justo ya es BAJO MINIMO (como Stock y el Dashboard)', () => {
+  const d = { inventario: [{ id: 33, descripcion: 'Botella Pet', inventario: 3000, stock_minimo: 3000, consumo_mensual: 100 }], pedidos: [], entregas: [] };
+  const r = I.stock(d, {}, () => 0);
+  assert.strictEqual(r.filas[0].estado, 'BAJO MÍNIMO');
+  assert.strictEqual(r.kpis.bajoMinimo, 1);
+});
+
+test('stock: criticos por cobertura cuentan lo que esta en camino', () => {
+  const d = { inventario: [
+    { id: 1, descripcion: 'Sin min, cubierto en camino', inventario: 5, consumo_mensual: 10 },
+    { id: 2, descripcion: 'Sin min, corto', inventario: 5, consumo_mensual: 10 }], pedidos: [], entregas: [] };
+  const r = I.stock(d, {}, (id) => (id === 1 ? 20 : 2));
+  const c = I.criticos(r.filas).map((x) => x.id);
+  assert.deepStrictEqual(c, [2]);
+});
+
+test('cumplimiento: % con COA no cuenta NO APLICA y acepta SI con tilde', () => {
+  const d = {
+    pedidos: [oc({ id: 1, cantidad: 30 })],
+    entregas: [
+      { pedido_id: 1, cantidad: 10, fecha: '2026-09-08', coa: 'SÍ', conforme: 'SÍ' },
+      { pedido_id: 1, cantidad: 10, fecha: '2026-09-09', coa: 'NO APLICA', conforme: 'SI' },
+      { pedido_id: 1, cantidad: 10, fecha: '2026-09-10', coa: null, conforme: null }
+    ]
+  };
+  const x = I.cumplimiento(d, {}, HOY).filas[0];
+  assert.strictEqual(x.recepciones, 3);
+  assert.strictEqual(x.pctCoa, 50, '1 con COA de 2 que lo piden');
+  assert.strictEqual(Math.round(x.pctConforme), 67);
+});
+
+test('MP: kilos y unidades no se suman', () => {
+  const d = {
+    mpProveedores: [{ id: 1, nombre: 'Mero AR' }],
+    mpArticulos: [{ id: 10, nombre: 'Esencia Lavanda', grupo: 'Esencias' }, { id: 11, nombre: 'Frasco 100 ml', grupo: 'Envases' }],
+    mpCorridas: [{ id: 5, fecha: '2026-09-10', proveedor_id: 1, nombre: 'Sep' }],
+    mpDatos: [
+      { corrida_id: 5, articulo_id: 10, consumo_3m: 30, stock_actual: 10, compra_confirmada: 200 },
+      { corrida_id: 5, articulo_id: 11, consumo_3m: 300, stock_actual: 100, compra_confirmada: 5000 }]
+  };
+  const r = I.mp(d, {});
+  assert.strictEqual(r.kpis.compraKg, 200);
+  assert.strictEqual(r.kpis.compraUn, 5000);
+  assert.strictEqual(r.kpis.compraTotal, undefined, 'ya no hay un total mezclado');
+  const ev = I.mpEvolucion(r.filas);
+  assert.deepStrictEqual(ev.map((x) => [x.unidad, x.comprasKg, x.comprasUn]), [['un', null, 5000], ['kg', 200, null]]);
 });

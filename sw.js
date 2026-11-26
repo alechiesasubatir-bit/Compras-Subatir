@@ -18,7 +18,7 @@
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
-self.APP_VER = '2026-11-25.2255';
+self.APP_VER = '2026-11-25.2318';
 var CACHE = 'compras-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
@@ -81,17 +81,21 @@ self.addEventListener('fetch', function (ev) {
   //  cache:'no-cache' = siempre se le pregunta al servidor si cambió (si
   //  no cambió contesta 304 y no se baja de nuevo). Sin esto, el navegador
   //  usaba su copia de hasta 10 min (GitHub Pages: max-age=600): después de
-  //  un deploy, ir por el menú a otra página abría la versión vieja, que
-  //  volvía a mostrar "Hay una versión nueva" sin parar (25/11/2026).
-  //  Si la respuesta vino redirigida (…/Compras-Subatir → …/Compras-Subatir/)
-  //  no se puede devolver a una navegación: se repite el pedido original.
+  //  un deploy, ir por el menú a otra página abría la versión vieja y el
+  //  cartel de "versión nueva" volvía sin parar (25/11/2026).
+  //  Una respuesta redirigida no se le puede devolver a una navegación: si
+  //  alguna dirección redirige, se repite el pedido original y el navegador
+  //  sigue la redirección solo. Eso no se guarda.
+  //  Sólo se guarda una página que llegó bien (200): un 404 o un 5xx de un
+  //  instante (durante un deploy) pisaría la copia buena para usar sin señal.
   if (req.mode === 'navigate') {
     ev.respondWith(
       fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then(function (r) {
-        return r.redirected ? fetch(req) : r;
-      }).then(function (r) {
-        var copy = r.clone();
-        caches.open(CACHE).then(function (c) { c.put(req, copy); });
+        if (r.redirected) return fetch(req);
+        if (r.status === 200) {
+          var copy = r.clone();
+          caches.open(CACHE).then(function (c) { return c.put(req, copy); }).catch(function () { });
+        }
         return r;
       }).catch(function () {
         return caches.match(req).then(function (m) { return m || caches.match('./index.html'); });

@@ -407,14 +407,14 @@ select option{background:#0c1119;color:#e2e8f0}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="nav.css?v=2026-11-26.1656"/>
-<link rel="stylesheet" href="importaciones.css?v=2026-11-26.1656"/>
-<script src="supabase-config.js?v=2026-11-26.1656"></script>
-<script src="subatir-app.js?v=2026-11-26.1656"></script>
+<link rel="stylesheet" href="nav.css?v=2026-11-27.1100"/>
+<link rel="stylesheet" href="importaciones.css?v=2026-11-27.1100"/>
+<script src="supabase-config.js?v=2026-11-27.1100"></script>
+<script src="subatir-app.js?v=2026-11-27.1100"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-26.1656';
+window.APP_VER='2026-11-27.1100';
 </script>
 </head>
 <body>
@@ -426,7 +426,7 @@ window.APP_VER='2026-11-26.1656';
   </a>
   <!-- El menú lo arma nav.js (mismo orden y color en todas las páginas) -->
   <nav></nav>
-  <script src="nav.js?v=2026-11-26.1656"></script>
+  <script src="nav.js?v=2026-11-27.1100"></script>
   <div class="hdr-r">
   </div>
 </header>
@@ -435,7 +435,7 @@ window.APP_VER='2026-11-26.1656';
 
   <!-- Submódulos de Importaciones: los arma importaciones-tabs.js -->
   <div class="imp-tabs" id="imp-tabs" data-on="mero"></div>
-  <script src="importaciones-tabs.js?v=2026-11-26.1656"></script>
+  <script src="importaciones-tabs.js?v=2026-11-27.1100"></script>
 
   <!-- ══ Contexto: proveedor y corrida ══════════════════════ -->
   <div class="card ctx">
@@ -487,42 +487,12 @@ window.APP_VER='2026-11-26.1656';
     <div class="formula" id="formula"></div>
   </div>
 
-  <!-- ══ Gráficos ═══════════════════════════════════════════ -->
-  <div class="charts">
-    <div class="card sec">
-      <div class="sec-h">
-        <div class="sec-t">
-          <div class="sec-ico">◑</div>
-          <div><div class="sec-eyebrow">02 · Panorama</div><h2>Cómo se reparte</h2></div>
-        </div>
-      </div>
-      <div id="donut"></div>
-    </div>
-    <div class="card sec">
-      <div class="sec-h">
-        <div class="sec-t">
-          <div class="sec-ico or">▤</div>
-          <div><div class="sec-eyebrow">03 · Dónde está la plata</div><h2>Lo que más hay que pedir</h2></div>
-        </div>
-        <div class="sec-tools">
-          <select class="inp" id="f-bar" onchange="pintarBarras()" aria-label="Qué mostrar en el gráfico"
-                  style="font-size:12px;padding:5px 9px;min-height:32px">
-            <option value="pedido">Pedido calculado (kg de esencias)</option>
-            <option value="confirmada">Compra confirmada (kg de esencias)</option>
-            <option value="cobertura">Semanas de stock que quedan</option>
-          </select>
-        </div>
-      </div>
-      <div id="barras"></div>
-    </div>
-  </div>
-
   <!-- ══ Tabla ══════════════════════════════════════════════ -->
   <div class="card sec">
     <div class="sec-h">
       <div class="sec-t">
         <div class="sec-ico">▦</div>
-        <div><div class="sec-eyebrow">04 · Detalle</div><h2>Cálculo artículo por artículo</h2></div>
+        <div><div class="sec-eyebrow">02 · Detalle</div><h2>Cálculo artículo por artículo</h2></div>
       </div>
       <div class="sec-tools">
         <input class="inp" id="f-buscar" type="search" placeholder="Buscar artículo o código…"
@@ -569,6 +539,36 @@ window.APP_VER='2026-11-26.1656';
           <tr><td colspan="16" class="empty">Cargando…</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ══ Gráficos ═══════════════════════════════════════════ -->
+  <div class="charts">
+    <div class="card sec">
+      <div class="sec-h">
+        <div class="sec-t">
+          <div class="sec-ico">◑</div>
+          <div><div class="sec-eyebrow">03 · Panorama</div><h2>Cómo se reparte</h2></div>
+        </div>
+      </div>
+      <div id="donut"></div>
+    </div>
+    <div class="card sec">
+      <div class="sec-h">
+        <div class="sec-t">
+          <div class="sec-ico or">▤</div>
+          <div><div class="sec-eyebrow">04 · Dónde está la plata</div><h2>Lo que más hay que pedir</h2></div>
+        </div>
+        <div class="sec-tools">
+          <select class="inp" id="f-bar" onchange="pintarBarras()" aria-label="Qué mostrar en el gráfico"
+                  style="font-size:12px;padding:5px 9px;min-height:32px">
+            <option value="pedido">Pedido calculado (kg de esencias)</option>
+            <option value="confirmada">Compra confirmada (kg de esencias)</option>
+            <option value="cobertura">Semanas de stock que quedan</option>
+          </select>
+        </div>
+      </div>
+      <div id="barras"></div>
     </div>
   </div>
 
@@ -837,10 +837,10 @@ window.APP_VER='2026-11-26.1656';
      pantalla, porque sólo hace falta al apretar el botón. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="mp-oc-pdf.js?v=2026-11-26.1656"></script>
-<script src="mp-costeo.js?v=2026-11-26.1656"></script>
-<script src="xlsx-lite.js?v=2026-11-26.1656"></script>
-<script src="importaciones-export.js?v=2026-11-26.1656"></script>
+<script src="mp-oc-pdf.js?v=2026-11-27.1100"></script>
+<script src="mp-costeo.js?v=2026-11-27.1100"></script>
+<script src="xlsx-lite.js?v=2026-11-27.1100"></script>
+<script src="importaciones-export.js?v=2026-11-27.1100"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════

@@ -435,10 +435,13 @@
   }
 
   var META_OSCURO = null;
-  function poner(t) {
+  // seguir=true: otra pestaña ya lo guardó; acá sólo se aplica. Si se
+  // guardara, una pestaña con una versión vieja (que no conoce un modo)
+  // pisaba la elección recién hecha en otra.
+  function poner(t, seguir) {
     if (MODOS.indexOf(t) < 0) t = 'oscuro';
     var antes = actual();
-    guardar(t);
+    if (!seguir) guardar(t);
     html.setAttribute('data-tema', t);
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
@@ -485,7 +488,7 @@
 
   // Otra pestaña cambió el tema: ésta lo sigue
   window.addEventListener('storage', function (e) {
-    if (e.key === CLAVE) poner(leer());
+    if (e.key === CLAVE) poner(leer(), true);
   });
 
   window.SubatirTema = { boton: boton, poner: poner, actual: actual, modos: MODOS.slice() };

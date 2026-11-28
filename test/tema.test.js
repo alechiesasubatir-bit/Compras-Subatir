@@ -71,7 +71,7 @@ function entorno(opts) {
   return {
     tema: window.SubatirTema, html, store, hojas,
     mutar(registros) { observadores.forEach(function (o) { o.cb(registros); }); },
-    disparar(clave) { (oyentes[clave] || []).forEach(function (f) { f(); }); }
+    disparar(clave, ev) { (oyentes[clave] || []).forEach(function (f) { f(ev); }); }
   };
 }
 
@@ -246,4 +246,20 @@ test('un valor raro guardado arranca en oscuro', function () {
   const e = entorno({ storage: { 'sb-tema': 'azul' }, reglas: [r] });
   assert.equal(e.tema.actual(), 'oscuro');
   assert.equal(r.getPropertyValue('background-color'), '#0c1119');
+});
+
+test('seguir el cambio de otra pestaña no vuelve a guardar (una versión vieja pisaba la elección)', function () {
+  const r = estilo({ 'background-color': '#0c1119' });
+  const e = entorno({ reglas: [r] });
+  // otra pestaña guardó gris
+  e.store['sb-tema'] = 'gris';
+  e.disparar('win:storage', { key: 'sb-tema' });
+  assert.equal(e.tema.actual(), 'gris');
+  assert.notEqual(r.getPropertyValue('background-color'), '#0c1119');
+  // otra pestaña guardó algo que esta versión no conoce: se sigue en oscuro
+  // pero NO se pisa lo guardado
+  e.store['sb-tema'] = 'sepia';
+  e.disparar('win:storage', { key: 'sb-tema' });
+  assert.equal(e.tema.actual(), 'oscuro');
+  assert.equal(e.store['sb-tema'], 'sepia');
 });

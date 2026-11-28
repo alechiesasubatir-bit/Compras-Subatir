@@ -61,57 +61,122 @@ window.Traslados = (function () {
            '<span class="tr-paso ' + (fin ? 'c-fin' : 'c-now') + '">' + PASOS[i][1] + '</span>';
   }
 
-  function titulo(s) {
+  // ── Renglones agrupados por tipo (28/11/2026) ────────────────
+  // Antes era una tira de tarjetas al costado: con varios traslados había
+  // que scrollear de lado, y faltaban datos (responsable, motivo, nota) o
+  // estaban mal (los sueltos de Infraestructura se contaban como pallets).
+  // Ahora cada traslado es un renglón y van agrupados por el tipo de lo que
+  // se mueve, como se piden en Depósitos.
+  var ORDEN_TIPOS = ['Infraestructura', 'Consumo', 'Venta', 'Varios', 'Sin tipo'];
+  var ICONO = { Infraestructura: '🏗', Consumo: '🧴', Venta: '🏷', Varios: '🔀', 'Sin tipo': '📦' };
+
+  // Tipo de cada artículo, del maestro de Depósitos (imp_articulos). La
+  // vista de traslados no lo trae; se cruza por código + descripción.
+  var TIPOS = null;
+  function claveArt(cod, art) { return String(cod || '').trim() + '|' + String(art || '').trim().toLowerCase(); }
+  function leerTipos() {
+    if (TIPOS) return Promise.resolve(TIPOS);
+    return SB.from('imp_articulos').select('codigo,descripcion,tipo').then(function (r) {
+      if (r.error) return {};
+      var m = {};
+      (r.data || []).forEach(function (a) { if (a.tipo) m[claveArt(a.codigo, a.descripcion)] = a.tipo; });
+      TIPOS = m;
+      return m;
+    }, function () { return {}; });
+  }
+  function tipoDe(s, tipos) {
     var arts = Array.isArray(s.articulos) ? s.articulos : [];
-    if (arts.length === 1) {
-      var a = arts[0];
-      return esc(a.art) + (a.cod ? '<span class="cod">' + esc(a.cod) + '</span>' : '');
-    }
-    if (!arts.length) return s.items + ' pallet' + (s.items === 1 ? '' : 's');
-    // Varios: se listan todos, que para eso hay ancho
-    return arts.map(function (x) { return esc(x.art); }).join(' + ');
+    var vistos = {};
+    arts.forEach(function (a) { var t = tipos[claveArt(a.cod, a.art)]; if (t) vistos[t] = 1; });
+    var ks = Object.keys(vistos);
+    if (ks.length === 1) return ks[0];
+    if (ks.length > 1) return 'Varios';
+    // Sin cruce: lo que viaja suelto (sin pallet) es Infraestructura
+    return s.sueltos > 0 ? 'Infraestructura' : 'Sin tipo';
   }
 
-  function tarjeta(s) {
+  function fechaHora(iso) {
+    if (!iso) return '';
+    var f = new Date(iso);
+    return f.toLocaleDateString('es-UY', { day: '2-digit', month: '2-digit' }) + ' ' +
+      f.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  // Pallets y sueltos por separado: Infraestructura no se palletiza
+  function bultos(s) {
+    var sueltos = parseInt(s.sueltos, 10) || 0;
+    var pal = Math.max(0, (parseInt(s.items, 10) || 0) - sueltos);
+    var out = [];
+    if (pal) out.push(pal + ' pallet' + (pal === 1 ? '' : 's'));
+    if (sueltos) out.push(sueltos + ' suelto' + (sueltos === 1 ? '' : 's'));
+    return out.join(' + ') || ((s.items || 0) + ' ítems');
+  }
+
+  // Un artículo por línea, con su cantidad: nada se resume en "A + B"
+  function articulos(s) {
+    var arts = Array.isArray(s.articulos) ? s.articulos : [];
+    if (!arts.length) return '<span class="tr-a">' + bultos(s) + '</span>';
+    return arts.map(function (a) {
+      return '<span class="tr-a" title="' + esc(a.art) + (a.cod ? ' · ' + esc(a.cod) : '') + '">' +
+        (a.un != null ? '<b>' + num(a.un) + '</b> ' : '') + esc(a.art) +
+        (a.cod ? '<span class="cod">' + esc(a.cod) + '</span>' : '') +
+        (a.pal ? '<span class="tr-pal">' + a.pal + ' pal.</span>' : '') +
+      '</span>';
+    }).join('');
+  }
+
+  function renglon(s) {
     var llego = s.estado === 'ENTREGADA';
-    var f = new Date(s.created_at);
-    // Todo el detalle: quien lo pidio y cuando son lo que evita que
-    // alguien vuelva a pedir lo mismo sin darse cuenta
-    var meta = '<b>' + num(s.unidades) + '</b> u. · ' + s.items + ' pallet' + (s.items === 1 ? '' : 's') +
-      ' · ' + esc(s.origen) + ' → ' + esc(s.destino) +
-      ' · #' + s.id +
-      ' · ' + f.toLocaleDateString('es-UY') + ' ' +
-      f.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' h' +
-      (s.pedido_por ? ' · pidió <b>' + esc(s.pedido_por) + '</b>'
-                    : (s.solicitante ? ' · pidió <b>' + esc(s.solicitante) + '</b>' : ''));
-    return '<div class="tr-item' + (llego ? ' tr-ok' : '') + '">' +
-      '<div class="tr-txt">' +
-        '<div class="tr-art">' + titulo(s) + '</div>' +
-        '<div class="tr-meta">' + meta + '</div>' +
-      '</div>' +
-      barra(s.estado) +
+    var quien = s.pedido_por || s.solicitante || '';
+    var gente = [];
+    if (quien) gente.push('pidió <b>' + esc(quien) + '</b>');
+    if (s.responsable) gente.push('resp. <b>' + esc(s.responsable) + '</b>');
+    if (s.operario) gente.push('preparó <b>' + esc(s.operario) + '</b>');
+    // El motivo de Infraestructura suele repetir el destino: sólo si dice otra cosa
+    var notas = [];
+    if (s.motivo && String(s.motivo).trim() !== String(s.destino || '').trim()) notas.push(esc(s.motivo));
+    if (s.nota) notas.push(esc(s.nota));
+    return '<div class="tr-row' + (llego ? ' tr-ok' : '') + '">' +
+      '<div class="tr-c tr-c-av">' + barra(s.estado) + '</div>' +
+      '<div class="tr-c tr-c-id"><b>#' + s.id + '</b><span>' + fechaHora(s.created_at) + '</span>' +
+        (llego && s.entregada_at ? '<span class="tr-lleg">llegó ' + fechaHora(s.entregada_at) + '</span>' : '') + '</div>' +
+      '<div class="tr-c tr-c-art">' + articulos(s) + '</div>' +
+      '<div class="tr-c tr-c-cant"><b>' + num(s.unidades) + '</b> u.<span>' + bultos(s) + '</span></div>' +
+      '<div class="tr-c tr-c-ruta">' + esc(s.origen) + ' <i>→</i> ' + esc(s.destino) + '</div>' +
+      '<div class="tr-c tr-c-qui">' + gente.join(' · ') +
+        (notas.length ? '<span class="tr-nota">' + notas.join(' · ') + '</span>' : '') + '</div>' +
     '</div>';
   }
 
-  function pintar(host, lista) {
+  function pintar(host, lista, tipos) {
     if (!lista.length) {
       host.innerHTML = '<div class="tr-vacio">Sin traslados en curso.</div>';
       return;
     }
-    host.innerHTML = '<div class="tr-strip">' + lista.map(tarjeta).join('') + '</div>';
+    var grupos = {};
+    lista.forEach(function (s) { var t = tipoDe(s, tipos || {}); (grupos[t] = grupos[t] || []).push(s); });
+    host.innerHTML = '<div class="tr-lista">' + ORDEN_TIPOS.filter(function (t) { return grupos[t]; }).map(function (t) {
+      return '<div class="tr-grupo">' +
+        '<div class="tr-gtit">' + ICONO[t] + ' ' + t + ' <span>' + grupos[t].length + '</span></div>' +
+        grupos[t].map(renglon).join('') +
+      '</div>';
+    }).join('') + '</div>';
   }
 
   function cargar(host) {
+    var pTipos = leerTipos();
     return SB.from('imp_solicitud_resumen').select('*')
       .order('created_at', { ascending: false }).limit(40)
-      .then(function (r) {
+      .then(function (r) { return pTipos.then(function (tipos) { return [r, tipos]; }); })
+      .then(function (par) {
+        var r = par[0], tipos = par[1];
         if (r.error) {
           host.innerHTML = '<div class="tr-vacio">No se pudieron leer los traslados.</div>';
           return;
         }
         var fuera = ocultos();
         var lista = (r.data || []).filter(enCurso).filter(function (s) { return fuera.indexOf(s.id) < 0; });
-        pintar(host, lista);
+        pintar(host, lista, tipos);
         var cnt = document.getElementById('tr-cnt');
         if (cnt) cnt.textContent = lista.length + (lista.length === 1 ? ' traslado' : ' traslados');
 

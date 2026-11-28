@@ -51,17 +51,22 @@ async function abrir(opts = {}) {
 }
 
 describe('Dashboard: stock critico', () => {
-  test('el KPI cuenta lo que esta bajo el minimo, no la columna SOLICITAR', async () => {
+  // La tarjeta "Stock Crítico" y el panel de la derecha se sacaron del
+  // Dashboard el 28/11/2026 (pedido del usuario). La misma regla sigue
+  // en el aviso rojo de arriba y en el ticker.
+  test('el aviso y el ticker cuentan lo que esta bajo el minimo, no la columna SOLICITAR', async () => {
     const p = await abrir();
-    assert.strictEqual(p.d.el('kpi-critical').textContent, 1);
-    const lista = p.d.el('stock-list').innerHTML;
-    assert.match(lista, /Botella Pet x 500 mL/);
-    assert.doesNotMatch(lista, /Doypack/, 'el que sobra no es critico aunque diga "solicitar material"');
+    const aviso = String(p.d.el('alert-text').textContent);
+    assert.match(aviso, /^🔴 1 artículo\(s\) requieren reposición urgente: Botella Pet x 500 mL\.$/);
+    assert.doesNotMatch(aviso, /Doypack/, 'el que sobra no es critico aunque diga "solicitar material"');
+    assert.strictEqual(p.d.el('alert-banner').style.display, 'flex');
+    assert.strictEqual(String(p.d.el('tk-crit').textContent), '1');
   });
 
-  test('los MEDIOS aparecen en el panel (antes salian de una hoja siempre vacia)', async () => {
+  test('ya no se dibujan la tarjeta ni el panel de stock critico', async () => {
     const p = await abrir();
-    assert.match(p.d.el('stock-list').innerHTML, /dot-yellow[\s\S]*Soda caustica/);
+    assert.ok(!('kpi-critical' in p.d.els), 'nadie escribe en la tarjeta');
+    assert.ok(!('stock-list' in p.d.els), 'nadie escribe en el panel');
   });
 
   test('mismo semaforo que el modulo Stock', async () => {

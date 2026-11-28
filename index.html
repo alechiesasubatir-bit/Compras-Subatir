@@ -336,19 +336,16 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .kpi-sub{font-size:11px;color:var(--mut);margin-top:6px}
 
 .kpi-pending  .kpi-value,.kpi-pending ::after  {color:var(--tl)}
-.kpi-critical .kpi-value,.kpi-critical::after  {color:var(--red)}
 .kpi-value-usd.kpi-value,.kpi-value-usd::after {color:var(--grn)}
 .kpi-value-pso.kpi-value,.kpi-value-pso::after {color:var(--tl)}
 .kpi-conform  .kpi-value,.kpi-conform ::after  {color:var(--amb)}
 .kpi-expiry   .kpi-value,.kpi-expiry  ::after  {color:var(--or)}
 .kpi-pending  .kpi-value{color:var(--tl)}
-.kpi-critical .kpi-value{color:var(--red)}
 .kpi-value-usd .kpi-value{color:var(--grn)}
 .kpi-value-pso .kpi-value{color:var(--tl)}
 .kpi-conform  .kpi-value{color:var(--amb)}
 .kpi-expiry   .kpi-value{color:var(--or)}
 .kpi-pending::after  {background:var(--tl)}
-.kpi-critical::after {background:var(--red)}
 .kpi-value-usd::after{background:var(--grn)}
 .kpi-value-pso::after{background:var(--tl)}
 .kpi-conform::after  {background:var(--amb)}
@@ -428,23 +425,6 @@ tbody td{padding:8px 11px;white-space:nowrap;overflow:hidden;text-overflow:ellip
 .pill-sinlote{background:rgba(239,68,68,.10);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}
 .pill-ok{background:rgba(34,197,94,.10);color:#86efac;border:1px solid rgba(34,197,94,.2)}
 
-/* ── Stock crítico ──────────────────────────────────────────── */
-.stock-list{display:flex;flex-direction:column;gap:7px;max-height:200px;overflow-y:auto}
-.stock-item{
-  padding:9px 13px;border-radius:9px;
-  display:flex;align-items:center;gap:10px;
-  background:rgba(255,255,255,.025);border:1px solid var(--bdr);
-  transition:background .12s, border-color .12s;
-  cursor:pointer;text-decoration:none;color:inherit;
-}
-.stock-item:hover{background:rgba(27,200,255,.07);border-color:rgba(27,200,255,.25)}
-.stock-item-name{font-size:12px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.stock-item-meta{font-size:10px;color:var(--mut2);white-space:nowrap}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dot-red{background:var(--red);box-shadow:0 0 7px var(--red)}
-.dot-yellow{background:var(--amb);box-shadow:0 0 7px var(--amb)}
-.dot-green{background:var(--grn);box-shadow:0 0 7px var(--grn)}
-
 /* ── Reposición ────────────────────────────────────────────── */
 .rep-list{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto}
 .rep-row{
@@ -505,19 +485,19 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-11-28.0050"/>
-<link rel="stylesheet" href="nav.css?v=2026-11-28.0050"/>
+<link rel="stylesheet" href="traslados.css?v=2026-11-28.0104"/>
+<link rel="stylesheet" href="nav.css?v=2026-11-28.0104"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-11-28.0050"></script>
-<script src="tema.js?v=2026-11-28.0050"></script>
-<script src="subatir-app.js?v=2026-11-28.0050"></script>
-<script src="recepcion-calc.js?v=2026-11-28.0050"></script>
-<script src="reposicion-calc.js?v=2026-11-28.0050"></script>
-<script src="traslados.js?v=2026-11-28.0050"></script>
+<script src="supabase-config.js?v=2026-11-28.0104"></script>
+<script src="tema.js?v=2026-11-28.0104"></script>
+<script src="subatir-app.js?v=2026-11-28.0104"></script>
+<script src="recepcion-calc.js?v=2026-11-28.0104"></script>
+<script src="reposicion-calc.js?v=2026-11-28.0104"></script>
+<script src="traslados.js?v=2026-11-28.0104"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-28.0050';
+window.APP_VER='2026-11-28.0104';
 </script>
 </head>
 <body>
@@ -577,7 +557,7 @@ window.APP_VER='2026-11-28.0050';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-11-28.0050"></script>
+    <script src="nav.js?v=2026-11-28.0104"></script>
     <div class="hdr-right">
     </div>
   </div>
@@ -639,12 +619,6 @@ window.APP_VER='2026-11-28.0050';
         <div class="kpi-label">Pedidos Pendientes</div>
         <div class="kpi-value" id="kpi-pending">—</div>
         <div class="kpi-sub" id="kpi-pending-sub">sin fecha de recepción</div>
-      </div>
-      <div class="card kpi kpi-critical" title="Artículos con stock en o por debajo del mínimo (o con menos de un mes de cobertura si no tienen mínimo). Es el mismo semáforo rojo del módulo Stock.">
-        <div class="kpi-icon">🔴</div>
-        <div class="kpi-label">Stock Crítico</div>
-        <div class="kpi-value" id="kpi-critical">—</div>
-        <div class="kpi-sub" id="kpi-critical-sub">artículos a reponer</div>
       </div>
       <div class="card kpi kpi-value-usd" title="Suma s/IVA en dólares de pedidos pendientes.">
         <div class="kpi-icon">💵</div>
@@ -756,17 +730,6 @@ window.APP_VER='2026-11-28.0050';
 
       <!-- RIGHT: Stock + Charts -->
       <div class="right-col">
-
-        <!-- Stock crítico -->
-        <div class="card" style="padding:18px">
-          <div class="section-title">
-            <h2>🔴 <span>Stock Crítico</span></h2>
-            <span class="badge badge-warn" id="stock-count">— artículos</span>
-          </div>
-          <div class="stock-list" id="stock-list">
-            <div class="empty">Cargando…</div>
-          </div>
-        </div>
 
         <!-- Reposición: mismo cálculo que Stock y la pantalla de configuración -->
         <div class="card" style="padding:18px">
@@ -1245,7 +1208,7 @@ function coaOk(row){ return RecepcionCalc.coaOk(row[KEYS.coa]); }
 // Mientras las entregas no hayan llegado, no avisa nada: mejor callado que
 // marcando en rojo lineas que todavia no se pudieron mirar.
 var ENTREGAS_POR_PEDIDO = {};
-// El transito por articulo, para el panel de criticos y para que el
+// El transito por articulo, para que el
 // "(+N)" sea el mismo numero que muestran Stock y Reposicion.
 var TRANSITO_DASH = null;
 // Que proporcion de una linea abierta todavia NO llego. Mientras las
@@ -1324,7 +1287,6 @@ function renderAll(){
   renderKPIs();
   renderTicker();
   renderPedidos();
-  renderStockCritico();
   renderAlertBanner();
   populateProveedorFilter();
   cargarReposicion();
@@ -1427,17 +1389,14 @@ function renderTicker(){
 // ── KPIs ───────────────────────────────────────────────────────
 function renderKPIs(){
   var pedidos  = DATA.pedidos || [];
-  var inv      = DATA.inventario || [];
   var stock    = DATA.stock || [];
 
   var pendientes  = pedidos.filter(isPendiente);
-  var criticos    = inv.filter(isCritical);
   var sinCOA      = pedidos.filter(faltaCOA);
   var totalUSD    = plataPendiente(pendientes, 'USD');
   var totalPSO    = plataPendiente(pendientes, 'PSO');
 
   set('kpi-pending',   pendientes.length);
-  set('kpi-critical',  criticos.length);
   set('kpi-usd',       fmtUSD(totalUSD));
   set('kpi-pso',       fmtPSO(totalPSO));
   set('kpi-conform',   sinCOA.length);
@@ -1459,7 +1418,6 @@ function renderKPIs(){
   if(cardChk) cardChk.classList.toggle('kpi-alerta', sinChk.length>0);
 
   set('kpi-pending-sub',  'de ' + pedidos.length + ' pedidos totales');
-  set('kpi-critical-sub', 'requieren reposición urgente');
   set('kpi-usd-sub',      'pedidos en dólares');
   set('kpi-pso-sub',      'pedidos en pesos');
   set('kpi-conform-sub',  'sin COA o conformidad');
@@ -1620,52 +1578,6 @@ function exportarCSV(){
   document.body.appendChild(a);
   a.click();
   setTimeout(function(){ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
-}
-
-// ── Stock crítico panel ────────────────────────────────────────
-function renderStockCritico(){
-  var inv   = DATA.inventario || [];
-  var criticos = inv.filter(isCritical);
-  var html = '';
-  var totalItems = 0;
-
-  // Usamos <a href="stock.html"> para hacer cada ítem clickeable.
-  // (La rama de la vieja hoja "INVENTARIO" se sacó: getData la devuelve
-  // siempre vacía, así que los MEDIOS nunca aparecían.)
-  {
-    criticos.forEach(function(i){
-      var stock_act = pNum(i[KEYS.invStock]);
-      // El "(+N)" sale del transito REAL (cruce con las OC sin recibir,
-      // descontando entregas parciales), no de inventario.pendiente_entrega:
-      // esa columna es herencia del Sheet viejo, no la escribe nadie y esta
-      // vacia en 144 de 157 articulos. Mostraba "nada en camino" para casi
-      // todo, y un numero viejo de SQL manual para el resto.
-      var pend      = TRANSITO_DASH ? (TRANSITO_DASH.de(i.__row).pendiente || 0) : 0;
-      html += '<a class="stock-item" href="stock.html" title="Ver en módulo Stock">'
-            + '<div class="dot dot-red"></div>'
-            + '<div class="stock-item-name">' + esc(i[KEYS.invDesc]||'—') + '</div>'
-            + '<div class="stock-item-meta">Stock: ' + stock_act + (pend > 0 ? ' (+'+pend+')' : '') + '</div>'
-            + '</a>';
-    });
-  }
-  totalItems += criticos.length;
-
-  var medios = inv.filter(function(i){
-    return String(i[KEYS.invDesc]||'').trim() && estadoInv(i).estado === 'MEDIO';
-  });
-  medios.slice(0,5).forEach(function(i){
-    var cob = estadoInv(i).cobertura;
-    html += '<a class="stock-item" href="stock.html" title="Ver en módulo Stock">'
-          + '<div class="dot dot-yellow"></div>'
-          + '<div class="stock-item-name">' + esc(i[KEYS.invDesc]||'—') + '</div>'
-          + '<div class="stock-item-meta">' + (cob !== null ? cob.toFixed(1) + ' meses' : 'Stock: ' + pNum(i[KEYS.invStock])) + '</div>'
-          + '</a>';
-  });
-  totalItems += Math.min(medios.length, 5);
-
-  if (html === '') html = '<div class="empty">✅ Sin artículos críticos</div>';
-  document.getElementById('stock-list').innerHTML = html;
-  set('stock-count', totalItems + ' artículos');
 }
 
 // ── Populate proveedor filter ──────────────────────────────────

@@ -3,7 +3,8 @@
    (28/11/2026). Antes era una tira de tarjetas que scrolleaba al
    costado. Ahora cada traslado ocupa un renglón compacto con todos
    sus datos en columnas fijas, para leerlos de un vistazo y
-   compararlos. En pantallas angostas el renglón se acomoda en dos.
+   compararlos. Nada se corta con "…": lo largo baja de renglón.
+   En pantallas angostas el renglón se acomoda en dos.
    ============================================================ */
 .tr-lista{display:flex;flex-direction:column;gap:8px}
 .tr-grupo{display:flex;flex-direction:column;gap:3px}
@@ -33,11 +34,11 @@
 .tr-c-id .tr-lleg{color:#86efac}
 .tr-c-cant b{color:#1bc8ff;font-size:11.5px}
 .tr-c-art{display:flex;flex-direction:column;gap:1px}
-.tr-a{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr-a{font-weight:600;overflow-wrap:anywhere}
 .tr-a b{font-family:'IBM Plex Mono',monospace;color:#1bc8ff;font-weight:700;margin-right:2px}
 .tr-a .cod{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:#6b7f93;margin-left:6px}
 .tr-a .tr-pal{font-size:9px;color:#6b7f93;margin-left:6px}
-.tr-c-ruta{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-c-ruta{font-weight:600}
 .tr-c-ruta i{font-style:normal;color:#fb923c;margin:0 2px}
 .tr-c-qui{font-size:10px;color:#7a8fa8}
 .tr-c-qui b{color:inherit;font-weight:700;filter:brightness(1.25)}

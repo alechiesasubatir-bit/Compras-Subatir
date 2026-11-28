@@ -466,10 +466,6 @@ tbody td{padding:8px 11px;white-space:nowrap;overflow:hidden;text-overflow:ellip
 .right-col{display:flex;flex-direction:column;gap:18px}
 .chart-wrap{position:relative;height:190px;display:flex;align-items:center;justify-content:center}
 
-/* ── Cobertura grid ─────────────────────────────────────────── */
-.progress-bg{height:4px;background:rgba(255,255,255,.07);border-radius:3px;margin-top:5px}
-.progress-fill{height:100%;border-radius:3px;transition:width .7s ease}
-
 /* ── Loading skeleton ───────────────────────────────────────── */
 .skeleton{
   background:linear-gradient(90deg,rgba(255,255,255,.03) 25%,rgba(255,255,255,.07) 50%,rgba(255,255,255,.03) 75%);
@@ -509,19 +505,19 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-11-28.0035"/>
-<link rel="stylesheet" href="nav.css?v=2026-11-28.0035"/>
+<link rel="stylesheet" href="traslados.css?v=2026-11-28.0042"/>
+<link rel="stylesheet" href="nav.css?v=2026-11-28.0042"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-11-28.0035"></script>
-<script src="tema.js?v=2026-11-28.0035"></script>
-<script src="subatir-app.js?v=2026-11-28.0035"></script>
-<script src="recepcion-calc.js?v=2026-11-28.0035"></script>
-<script src="reposicion-calc.js?v=2026-11-28.0035"></script>
-<script src="traslados.js?v=2026-11-28.0035"></script>
+<script src="supabase-config.js?v=2026-11-28.0042"></script>
+<script src="tema.js?v=2026-11-28.0042"></script>
+<script src="subatir-app.js?v=2026-11-28.0042"></script>
+<script src="recepcion-calc.js?v=2026-11-28.0042"></script>
+<script src="reposicion-calc.js?v=2026-11-28.0042"></script>
+<script src="traslados.js?v=2026-11-28.0042"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-28.0035';
+window.APP_VER='2026-11-28.0042';
 </script>
 </head>
 <body>
@@ -581,7 +577,7 @@ window.APP_VER='2026-11-28.0035';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-11-28.0035"></script>
+    <script src="nav.js?v=2026-11-28.0042"></script>
     <div class="hdr-right">
     </div>
   </div>
@@ -785,17 +781,6 @@ window.APP_VER='2026-11-28.0035';
 
       </div>
     </div><!-- /grid-main -->
-
-    <!-- Cobertura de stock por artículo -->
-    <div class="card" style="padding:20px">
-      <div class="section-title">
-        <h2>📅 <span>Cobertura de Stock (meses)</span></h2>
-        <span class="badge badge-info" id="cobertura-count">—</span>
-      </div>
-      <div id="cobertura-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">
-        <div class="empty">Cargando…</div>
-      </div>
-    </div>
 
   </div><!-- /main -->
 
@@ -1340,7 +1325,6 @@ function renderAll(){
   renderTicker();
   renderPedidos();
   renderStockCritico();
-  renderCobertura();
   renderAlertBanner();
   populateProveedorFilter();
   cargarReposicion();
@@ -1682,53 +1666,6 @@ function renderStockCritico(){
   if (html === '') html = '<div class="empty">✅ Sin artículos críticos</div>';
   document.getElementById('stock-list').innerHTML = html;
   set('stock-count', totalItems + ' artículos');
-}
-
-// ── Cobertura de stock ────────────────────────────────────────
-function renderCobertura(){
-  var inv = DATA.inventario || [];
-  if (inv.length === 0){
-    document.getElementById('cobertura-grid').innerHTML = '<div class="empty">Sin datos de control de stock.</div>';
-    return;
-  }
-
-  // Calcula cobertura desde hoja COMPRAS (stock/consumo mensual) igual que el módulo stock
-  // Mismo semáforo, cobertura y % que el módulo Stock (SubatirApp.estadoStock).
-  // Antes SOLICITAR le ganaba al mínimo y la cobertura no sumaba el tránsito.
-  var items = inv.map(function(s){
-    var art = String(s[KEYS.invDesc]||'').trim();
-    var e   = estadoInv(s);
-    var est = e.estado === 'CRITICO' ? 'critical' : e.estado === 'MEDIO' ? 'medium' : 'ok';
-    return { art:art, meses:e.cobertura, pct:e.pct, est:est };
-  }).filter(function(x){ return x.art; });
-
-  // Ordenar: alfabético por nombre de artículo
-  items.sort(function(a,b){
-    return a.art.localeCompare(b.art, 'es', {sensitivity:'base'});
-  });
-
-  var html = '';
-  items.forEach(function(x){
-    var color = x.est === 'critical' ? 'var(--red)' : x.est === 'medium' ? 'var(--amb)' : 'var(--grn)';
-    var dot   = x.est === 'critical' ? 'dot-red'   : x.est === 'medium' ? 'dot-yellow' : 'dot-green';
-    var fill  = Math.min(Math.max(x.pct, 0), 100);
-    var mesesStr = x.meses !== null ? x.meses.toFixed(1) + ' meses' : 'Sin consumo';
-    var pctStr   = x.pct > 0 ? x.pct.toFixed(0) + '%' : '—';
-
-    html += '<div class="card" style="padding:12px 14px">'
-          + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
-          + '<div class="dot ' + dot + '"></div>'
-          + '<span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="' + esc(x.art) + '">' + esc(x.art.slice(0,28)) + '</span>'
-          + '</div>'
-          + '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mut2)">'
-          + '<span>' + mesesStr + '</span>'
-          + '<span style="color:' + color + ';font-weight:700;font-family:\'IBM Plex Mono\',monospace">' + pctStr + '</span>'
-          + '</div>'
-          + '<div class="progress-bg"><div class="progress-fill" style="width:' + fill + '%;background:' + color + '"></div></div>'
-          + '</div>';
-  });
-  document.getElementById('cobertura-grid').innerHTML = html || '<div class="empty">Sin datos.</div>';
-  set('cobertura-count', items.length + ' artículos');
 }
 
 // ── Populate proveedor filter ──────────────────────────────────

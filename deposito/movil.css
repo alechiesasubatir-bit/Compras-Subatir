@@ -70,6 +70,11 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .btn[data-nav="panel"]    {--c:167,139,250}  /* violeta  */
 .btn[data-nav="recorrido"]{--c: 52,211,153}  /* verde    */
 .btn[data-nav="solicitar"]{--c:250,204, 21}  /* dorado   */
+/* Modo claro (tema.js): la letra rgb(var(--c)) es para fondo negro; el dorado
+   sobre blanco no se leía. El color sale de una variable y tema.js no lo alcanza. */
+html[data-tema="claro"] .btn[data-nav="panel"]    {color:#6d28d9}
+html[data-tema="claro"] .btn[data-nav="recorrido"]{color:#047857}
+html[data-tema="claro"] .btn[data-nav="solicitar"]{color:#a16207;border-color:rgba(202,138,4,.45)}
 
 /* Un pallet. Toda la tarjeta es el area tocable: en el deposito se usa
    con guantes y una casilla de 20px no se acierta. */

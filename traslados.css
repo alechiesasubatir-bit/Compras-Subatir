@@ -41,7 +41,8 @@
 .tr-c-ruta{font-weight:600}
 .tr-c-ruta i{font-style:normal;color:#fb923c;margin:0 2px}
 .tr-c-qui{font-size:10px;color:#7a8fa8}
-.tr-c-qui b{color:inherit;font-weight:700;filter:brightness(1.25)}
+/* Sin filter: un filter en el texto, en modo claro, dejaba a Chrome sin dibujar el Dashboard */
+.tr-c-qui b{color:inherit;font-weight:700}
 .tr-nota{display:block;font-style:italic;color:#6b7f93;margin-top:1px}
 
 /* Angosto: avance y N° arriba, el resto debajo */

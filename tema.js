@@ -71,11 +71,14 @@
     // un fondo liso no se nota. El encabezado ya es blanco al 90 %.
     'html[data-tema="claro"] *{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}',
     // El botón del tema, junto al usuario
-    '.sb-tema-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:26px;',
-    'padding:0;border-radius:8px;cursor:pointer;font-size:13px;line-height:1;',
+    // Ícono + texto chico con el modo al que se pasa (pedido 28/11/2026)
+    '.sb-tema-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:26px;',
+    'padding:0 9px 0 7px;border-radius:8px;cursor:pointer;font-size:13px;line-height:1;white-space:nowrap;',
+    'color:#cbd5e1;font-family:inherit;',
     'border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);transition:background .15s,border-color .15s}',
     '.sb-tema-btn:hover{background:rgba(255,255,255,.12)}',
-    'html[data-tema="claro"] .sb-tema-btn{border-color:rgba(15,23,42,.16);background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.08)}',
+    '.sb-tema-btn .sb-tema-t{font-size:10.5px;font-weight:700;letter-spacing:.1px}',
+    'html[data-tema="claro"] .sb-tema-btn{border-color:rgba(15,23,42,.16);background:#fff;color:#334155;box-shadow:0 1px 3px rgba(15,23,42,.08)}',
     'html[data-tema="claro"] .sb-tema-btn:hover{background:#f1f5f9}',
     '.sb-tema-btn:focus-visible{outline:2px solid #1bc8ff;outline-offset:2px}'
   ].join('');
@@ -375,7 +378,8 @@
   var botones = [];
   function pintarBoton(b) {
     var claro = html.getAttribute('data-tema') === 'claro';
-    b.textContent = claro ? '🌙' : '☀️';
+    b.innerHTML = '<span aria-hidden="true">' + (claro ? '🌙' : '☀️') + '</span>'
+                + '<span class="sb-tema-t">' + (claro ? 'Modo oscuro' : 'Modo claro') + '</span>';
     b.title = claro ? 'Pasar a modo oscuro' : 'Pasar a modo claro';
     b.setAttribute('aria-label', b.title);
     b.setAttribute('aria-pressed', claro ? 'true' : 'false');

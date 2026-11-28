@@ -57,6 +57,9 @@
     '--red:#dc2626;--danger:#dc2626;--purple:#7c3aed;--pur:#7c3aed;',
     '--agua:#0284c7;--agua-d:#075985;--coral:#e11d48;',
     '--red-g:rgba(220,38,38,.10);--amber-g:rgba(217,119,6,.10);--green-g:rgba(22,163,74,.10);',
+    // Primeros/últimos colores de los títulos con degradé en la letra (el
+    // navegador no deja leerlos si van junto a una var(): se cambian por acá)
+    '--cian-l:#0891b2;--titulo-l:#0f1b2d;',
     // Depósitos
     '--border-s:rgba(15,23,42,.17);--teal-d:#075f78;--focus:#0891b2;--shadow-l:0 22px 56px rgba(15,23,42,.16);',
     '--shadow:0 8px 28px rgba(15,23,42,.10);--shd:0 8px 28px rgba(15,23,42,.10)}',
@@ -220,7 +223,10 @@
     // atajo 'background' porque si lleva var() el longhand viene vacío.
     var degradeTexto = /text/.test(st.getPropertyValue('-webkit-background-clip') + st.getPropertyValue('background-clip'));
     if (degradeTexto) {
-      var g = st.getPropertyValue('background-image') || st.getPropertyValue('background');
+      // Con var() y un background-clip después, ni el atajo se puede leer:
+      // queda sólo en el texto de la regla (Depósitos, .section-title h2 span)
+      var g = st.getPropertyValue('background-image') || st.getPropertyValue('background') ||
+              ((st.cssText || '').match(/(?:^|;)\s*background(?:-image)?\s*:\s*([^;]*gradient[^;]*)/) || [])[1] || '';
       var ng = g && g.indexOf('gradient') >= 0 ? convertirValor(g, 'texto', {}) : null;
       if (ng && ng !== g) {
         var pg = st.getPropertyPriority('background-image');

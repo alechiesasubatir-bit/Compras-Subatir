@@ -352,10 +352,9 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 .kpi-expiry::after   {background:var(--or)}
 
 /* ── Main grid ──────────────────────────────────────────────── */
-.grid-main{display:grid;grid-template-columns:1fr 340px;gap:20px}
+.grid-main{display:grid;grid-template-columns:1fr;gap:20px}
 /* min-width:0: si no, la tabla de pedidos estira la columna en vez de deslizarse en su .table-wrap */
 .grid-main > *{min-width:0}
-@media(max-width:900px){.grid-main{grid-template-columns:1fr}}
 
 /* ── Section title ──────────────────────────────────────────── */
 .section-title{
@@ -425,25 +424,7 @@ tbody td{padding:8px 11px;white-space:nowrap;overflow:hidden;text-overflow:ellip
 .pill-sinlote{background:rgba(239,68,68,.10);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}
 .pill-ok{background:rgba(34,197,94,.10);color:#86efac;border:1px solid rgba(34,197,94,.2)}
 
-/* ── Reposición ────────────────────────────────────────────── */
-.rep-list{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto}
-.rep-row{
-  display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
-  padding:9px 13px;border-radius:9px;
-  background:rgba(255,255,255,.025);border:1px solid var(--bdr);
-  transition:background .12s, border-color .12s;
-  text-decoration:none;color:inherit;
-}
-.rep-row:hover{background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.3)}
-.rep-row strong{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rep-row span{font-size:10px;font-weight:700;white-space:nowrap}
-.rep-sig-atrasado{color:var(--red)}
-.rep-sig-pedir{color:var(--amb)}
-.rep-sig-revisar{color:var(--pur)}
-.rep-row .rep-sug{font-weight:600;color:var(--mut2)}
-
 /* ── Charts ─────────────────────────────────────────────────── */
-.right-col{display:flex;flex-direction:column;gap:18px}
 .chart-wrap{position:relative;height:190px;display:flex;align-items:center;justify-content:center}
 
 /* ── Loading skeleton ───────────────────────────────────────── */
@@ -485,19 +466,18 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-11-28.0104"/>
-<link rel="stylesheet" href="nav.css?v=2026-11-28.0104"/>
+<link rel="stylesheet" href="traslados.css?v=2026-11-28.0110"/>
+<link rel="stylesheet" href="nav.css?v=2026-11-28.0110"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-11-28.0104"></script>
-<script src="tema.js?v=2026-11-28.0104"></script>
-<script src="subatir-app.js?v=2026-11-28.0104"></script>
-<script src="recepcion-calc.js?v=2026-11-28.0104"></script>
-<script src="reposicion-calc.js?v=2026-11-28.0104"></script>
-<script src="traslados.js?v=2026-11-28.0104"></script>
+<script src="supabase-config.js?v=2026-11-28.0110"></script>
+<script src="tema.js?v=2026-11-28.0110"></script>
+<script src="subatir-app.js?v=2026-11-28.0110"></script>
+<script src="recepcion-calc.js?v=2026-11-28.0110"></script>
+<script src="traslados.js?v=2026-11-28.0110"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-28.0104';
+window.APP_VER='2026-11-28.0110';
 </script>
 </head>
 <body>
@@ -557,7 +537,7 @@ window.APP_VER='2026-11-28.0104';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-11-28.0104"></script>
+    <script src="nav.js?v=2026-11-28.0110"></script>
     <div class="hdr-right">
     </div>
   </div>
@@ -728,21 +708,6 @@ window.APP_VER='2026-11-28.0104';
         </div>
       </div>
 
-      <!-- RIGHT: Stock + Charts -->
-      <div class="right-col">
-
-        <!-- Reposición: mismo cálculo que Stock y la pantalla de configuración -->
-        <div class="card" style="padding:18px">
-          <div class="section-title">
-            <h2>🔔 <span>Reposición</span></h2>
-            <span class="badge badge-warn" id="rep-cnt">—</span>
-          </div>
-          <div class="rep-list" id="rep-list">
-            <div class="empty">Cargando…</div>
-          </div>
-        </div>
-
-      </div>
     </div><!-- /grid-main -->
 
   </div><!-- /main -->
@@ -915,91 +880,6 @@ function avisoSemanaCloro(){
   });
 }
 
-// ══ Aviso: reposición de artículos con seguimiento ═════════════
-//  Mismo cálculo que Stock y la pantalla de configuración
-//  (Reposicion.calcular, en reposicion-calc.js): un aviso acá con reglas
-//  propias terminaría diciendo algo distinto que esas dos pantallas.
-function renderReposicion(inventario, fichas, pedidos){
-  // Índice de fichas por artículo + proveedor normalizado: la que manda es
-  // la del proveedor de la ficha de stock.
-  var idx = {};
-  (fichas||[]).forEach(function(f){
-    idx[f.inventario_id+'|'+Reposicion.canonProv(f.proveedor)] = f;
-  });
-
-  // Tránsito y última OC por artículo: los mismos que usan Stock y la
-  // pantalla de configuración, del cruce compartido con las OC pendientes.
-  // Sin esto el panel calculaba con el tránsito en cero (avisaba de pedir
-  // cosas que ya venían en camino) y sin última OC (la regla "cada N meses"
-  // no disparaba nunca).
-  var tr = SubatirApp.transito(inventario || [], pedidos || [], ENTREGAS);
-
-  var hoy = Reposicion.hoy(), avisos = [];   // día de la PC, como Stock y Reposición
-  (inventario||[]).forEach(function(a){
-    // Proveedor TITULAR: el de la ultima OC, y si el articulo nunca se
-    // compro, el que tenga cargado la ficha. Misma regla que Stock y que
-    // la pantalla de Reposicion: sale de SubatirApp para no divergir.
-    var titular = tr ? tr.titular(a.__row, a) : (a['PROVEEDOR']||a['PROOVEDOR SUGERIDO']||'');
-    var f = idx[a.__row+'|'+Reposicion.canonProv(titular)] || null;
-    var t = tr.de(a.__row);
-    var rep = Reposicion.calcular(
-      Reposicion.desdeFila(a, f, t.ultimaOC ? new Date(t.ultimaOC) : null, t.pendiente), hoy);
-    if(['ATRASADO','PEDIR','REVISAR'].indexOf(rep.senal)>=0) avisos.push({ a:a, rep:rep });
-  });
-
-  avisos.sort(function(x,y){
-    return (x.rep.diasParaPedir==null?9999:x.rep.diasParaPedir)
-         - (y.rep.diasParaPedir==null?9999:y.rep.diasParaPedir);
-  });
-
-  var REP_SIG_CLASS = { ATRASADO:'rep-sig-atrasado', PEDIR:'rep-sig-pedir', REVISAR:'rep-sig-revisar' };
-  var REP_SIG_LABEL = { ATRASADO:'🔴 atrasado', PEDIR:'🟠 pedir', REVISAR:'🔔 revisar' };
-
-  document.getElementById('rep-cnt').textContent = avisos.length;
-  document.getElementById('rep-list').innerHTML = avisos.length
-    ? avisos.map(function(x){
-        return '<a href="stock.html" class="rep-row">'
-             + '<strong>'+esc(x.a['DESCRIPCIÓN']||'—')+'</strong>'
-             + '<span class="'+(REP_SIG_CLASS[x.rep.senal]||'')+'">'+(REP_SIG_LABEL[x.rep.senal]||x.rep.senal)+'</span>'
-             + '<span class="rep-sug">'+(x.rep.sugerido>0 ? 'pedir '+x.rep.sugerido : '')+'</span></a>';
-      }).join('')
-    : '<div class="empty" style="padding:14px 0">Nada para pedir. ✓</div>';
-}
-
-// "No pude revisar" no es lo mismo que "revisé y no hay nada": si se
-// confunden, alguien con un artículo atrasado se va pensando que está
-// todo bien. Este estado es para cuando el panel no puede armarse (script
-// no cargó, falló la consulta, etc.) — se distingue a propósito del
-// "Nada para pedir. ✓" de renderReposicion.
-function repNoDisponible(){
-  var cnt = document.getElementById('rep-cnt');
-  if(cnt) cnt.textContent = '—';
-  var host = document.getElementById('rep-list');
-  if(host) host.innerHTML = '<div class="empty" style="padding:14px 0">⚠ Avisos de reposición no disponibles en este momento.</div>';
-}
-
-// El dashboard está abierto a cualquier autenticado (OPEN_MODULES), a
-// diferencia de Stock: si art_proveedor no se puede leer por permisos o
-// por red, el panel tiene que decir "no disponible" — NO "nada para pedir".
-// getArtProveedor() rechaza ante cualquier error (antes devolvía [], y ese
-// [] se leía como "revisé y no hay nada"), así que el "no disponible" que
-// vive acá abajo por fin se dispara.
-// Se cubre además: que reposicion-calc.js no haya cargado (queda
-// window.Reposicion sin definir) y que renderReposicion explote ya con los
-// datos en mano. Ningún camino puede dejar puesto el "Cargando…" del
-// placeholder inicial: o se pinta la lista, o se pinta este aviso.
-function cargarReposicion(){
-  var host = document.getElementById('rep-list');
-  if(!host) return;
-  if(!window.SubatirApp || !SubatirApp.getArtProveedor || !SubatirApp.transito || !window.Reposicion){ repNoDisponible(); return; }
-  try{
-    SubatirApp.getArtProveedor().then(function(fichas){
-      try{ renderReposicion(DATA.inventario, fichas || [], DATA.pedidos || []); }
-      catch(e){ repNoDisponible(); }
-    }, function(){ repNoDisponible(); });
-  }catch(e){ repNoDisponible(); }
-}
-
 // ── Inicialización ─────────────────────────────────────────────
 (function init(){
   // Se limpia el rastro del Apps Script viejo: quedaba guardado por
@@ -1011,7 +891,7 @@ function cargarReposicion(){
   // perder por un error en otra cosa.
   avisoRevisionMP(); avisoSemanaCloro();
   load();
-  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','proveedores','art_proveedor'], load);
+  if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['pedidos','precios','inventario','proveedores'], load);
   // Aviso de lo que viene en camino desde los depósitos
   loadEnCamino();
   if(window.SubatirApp&&SubatirApp.live) SubatirApp.live(['imp_pallets'], loadEnCamino);
@@ -1208,8 +1088,8 @@ function coaOk(row){ return RecepcionCalc.coaOk(row[KEYS.coa]); }
 // Mientras las entregas no hayan llegado, no avisa nada: mejor callado que
 // marcando en rojo lineas que todavia no se pudieron mirar.
 var ENTREGAS_POR_PEDIDO = {};
-// El transito por articulo, para que el
-// "(+N)" sea el mismo numero que muestran Stock y Reposicion.
+// El transito por articulo: el semaforo del aviso rojo y del ticker
+// (estadoInv) lo cuenta igual que Stock y Reposicion.
 var TRANSITO_DASH = null;
 // Que proporcion de una linea abierta todavia NO llego. Mientras las
 // entregas no hayan cargado devuelve 1 (la linea entera), que es como
@@ -1289,7 +1169,6 @@ function renderAll(){
   renderPedidos();
   renderAlertBanner();
   populateProveedorFilter();
-  cargarReposicion();
 }
 
 // ── Mapa moneda desde PRECIOS ──────────────────────────────────

@@ -63,10 +63,11 @@ describe('Dashboard: stock critico', () => {
     assert.strictEqual(String(p.d.el('tk-crit').textContent), '1');
   });
 
-  test('ya no se dibujan la tarjeta ni el panel de stock critico', async () => {
+  test('ya no se dibujan la tarjeta ni los paneles de stock critico y reposicion', async () => {
     const p = await abrir();
     assert.ok(!('kpi-critical' in p.d.els), 'nadie escribe en la tarjeta');
     assert.ok(!('stock-list' in p.d.els), 'nadie escribe en el panel');
+    assert.ok(!('rep-list' in p.d.els) && !('rep-cnt' in p.d.els), 'Reposicion tambien se fue (vive en Stock)');
   });
 
   test('mismo semaforo que el modulo Stock', async () => {

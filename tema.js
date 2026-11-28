@@ -185,11 +185,14 @@
   }
 
   // Fondos que hacen que un texto blanco tenga que seguir blanco
-  var ACENTOS = /var\(--(teal|tl|teal-l|or|orl|orange|orange-d|orange-l|red|danger|grn|green|ok|amb|amber|warn|pur|purple|gold|agua|agua-d|coral|c)\b/;
+  var ACENTOS = /var\(--(teal|tl|teal-l|or|orl|orange|orange-d|orange-l|red|danger|grn|green|ok|amb|amber|warn|pur|purple|gold|agua|agua-d|coral)\b/;
+  // --c (color del módulo en el menú) sólo cuenta a color pleno: con un tinte
+  // suave detrás, el blanco no se leía (pestaña abierta de Depósitos)
+  var ACENTO_C = /rgb\(var\(--c\)\)|rgba\(var\(--c\),\s*(0?\.[5-9]|1)/;
   function contexto(st) {
     var bg = (st.getPropertyValue('background') || '') + ' ' + (st.getPropertyValue('background-color') || '') +
              ' ' + (st.getPropertyValue('background-image') || '');
-    var blanco = ACENTOS.test(bg);
+    var blanco = ACENTOS.test(bg) || ACENTO_C.test(bg);
     if (!blanco) {
       (bg.match(RE_COLOR) || []).forEach(function (t) {
         var c = leerColor(t); if (!c) return;
@@ -212,8 +215,22 @@
     for (var i = 0; i < st.length; i++) props.push(st[i]);
     if (!props.length) return;
     var ctx = null;
+    // Títulos con degradé en la letra (background-clip:text): el degradé es
+    // el color del texto, así que se convierte como texto. Se lee del
+    // atajo 'background' porque si lleva var() el longhand viene vacío.
+    var degradeTexto = /text/.test(st.getPropertyValue('-webkit-background-clip') + st.getPropertyValue('background-clip'));
+    if (degradeTexto) {
+      var g = st.getPropertyValue('background-image') || st.getPropertyValue('background');
+      var ng = g && g.indexOf('gradient') >= 0 ? convertirValor(g, 'texto', {}) : null;
+      if (ng && ng !== g) {
+        var pg = st.getPropertyPriority('background-image');
+        st.setProperty('background-image', ng, pg);
+        hechos.push({ st: st, prop: 'background-image', orig: g, nuevo: st.getPropertyValue('background-image'), prio: pg });
+      }
+    }
     props.forEach(function (p) {
       if (p.charAt(0) === '-' && p.charAt(1) === '-') return;   // variables: las maneja CSS_CLARO
+      if (degradeTexto && p === 'background-image') return;
       var tipo = tipoDe(p); if (!tipo) return;
       var v = st.getPropertyValue(p);
       if (!v) return;
@@ -300,6 +317,46 @@
     if (vistos) vistos = new WeakMap();
   }
 
+  // ── Gráficos (Chart.js) ──────────────────────────────────────
+  // Los colores de un gráfico no pasan por CSS: la grilla viene como
+  // rgba(255,255,255,.04) en las opciones y en claro desaparecía (Precios).
+  // Antes de cada dibujado se pasa la grilla y los textos de los ejes por
+  // la misma conversión; el original queda guardado para volver a oscuro.
+  var origGraf = (typeof WeakMap === 'function') ? new WeakMap() : null;
+  function colorEje(obj, clave, tipo, claro) {
+    if (!obj || !origGraf) return;
+    var o = origGraf.get(obj) || {};
+    if (!(clave in o)) { o[clave] = obj[clave]; origGraf.set(obj, o); }
+    var v = o[clave];
+    obj[clave] = (claro && typeof v === 'string') ? (convertirValor(v, tipo, {}) || v) : v;
+  }
+  function engancharGraficos() {
+    var C = window.Chart;
+    if (!C || !C.register || C._sbTema) return;
+    C._sbTema = true;
+    C.register({
+      id: 'sbTema',
+      beforeUpdate: function (ch) {
+        var claro = html.getAttribute('data-tema') === 'claro';
+        var sc = (ch.options && ch.options.scales) || {};
+        Object.keys(sc).forEach(function (k) {
+          var s = sc[k]; if (!s) return;
+          colorEje(s.grid, 'color', 'borde', claro);
+          colorEje(s.ticks, 'color', 'texto', claro);
+        });
+      }
+    });
+  }
+  function redibujarGraficos() {
+    var C = window.Chart;
+    if (!C || !C.instances) return;
+    Object.keys(C.instances).forEach(function (k) {
+      try { C.instances[k].update('none'); } catch (e) { }
+    });
+  }
+  engancharGraficos();
+  document.addEventListener('DOMContentLoaded', engancharGraficos);
+
   // ── Botón ☀ / 🌙 ──────────────────────────────────────────────
   var botones = [];
   function pintarBoton(b) {
@@ -332,8 +389,9 @@
     if (t === 'claro' && antes !== 'claro') aplicarClaro();
     else if (t === 'oscuro' && antes === 'claro') deshacer();
     botones.forEach(pintarBoton);
-    // Los gráficos (Chart.js) toman sus colores al dibujarse: se avisa
-    // por si algún módulo quiere redibujar.
+    engancharGraficos();
+    redibujarGraficos();
+    // Por si algún módulo quiere enterarse del cambio
     try { window.dispatchEvent(new CustomEvent('sb-tema', { detail: t })); } catch (e) { }
   }
 

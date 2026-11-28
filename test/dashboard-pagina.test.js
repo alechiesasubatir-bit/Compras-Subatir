@@ -51,23 +51,20 @@ async function abrir(opts = {}) {
 }
 
 describe('Dashboard: stock critico', () => {
-  // La tarjeta "Stock Crítico" y el panel de la derecha se sacaron del
-  // Dashboard el 28/11/2026 (pedido del usuario). La misma regla sigue
-  // en el aviso rojo de arriba y en el ticker.
-  test('el aviso y el ticker cuentan lo que esta bajo el minimo, no la columna SOLICITAR', async () => {
+  // La tarjeta "Stock Crítico", su panel, Reposición y el aviso rojo se
+  // sacaron del Dashboard el 28/11/2026 (pedido del usuario). La regla
+  // sigue en el "Stock crítico" del ticker.
+  test('el ticker cuenta lo que esta bajo el minimo, no la columna SOLICITAR', async () => {
     const p = await abrir();
-    const aviso = String(p.d.el('alert-text').textContent);
-    assert.match(aviso, /^🔴 1 artículo\(s\) requieren reposición urgente: Botella Pet x 500 mL\.$/);
-    assert.doesNotMatch(aviso, /Doypack/, 'el que sobra no es critico aunque diga "solicitar material"');
-    assert.strictEqual(p.d.el('alert-banner').style.display, 'flex');
-    assert.strictEqual(String(p.d.el('tk-crit').textContent), '1');
+    assert.strictEqual(String(p.d.el('tk-crit').textContent), '1', 'sólo la Botella Pet: el Doypack sobra aunque diga "solicitar material"');
   });
 
-  test('ya no se dibujan la tarjeta ni los paneles de stock critico y reposicion', async () => {
+  test('ya no se dibujan la tarjeta, los paneles de stock critico y reposicion ni el aviso rojo', async () => {
     const p = await abrir();
     assert.ok(!('kpi-critical' in p.d.els), 'nadie escribe en la tarjeta');
     assert.ok(!('stock-list' in p.d.els), 'nadie escribe en el panel');
     assert.ok(!('rep-list' in p.d.els) && !('rep-cnt' in p.d.els), 'Reposicion tambien se fue (vive en Stock)');
+    assert.ok(!('alert-text' in p.d.els) && !('alert-banner' in p.d.els), 'ni el aviso rojo');
   });
 
   test('mismo semaforo que el modulo Stock', async () => {

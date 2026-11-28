@@ -277,13 +277,6 @@ nav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
 #dashboard{display:none;flex:1}
 .main{padding:20px 24px;display:flex;flex-direction:column;gap:20px;max-width:1600px;margin:0 auto;width:100%}
 
-/* ── Alert banner ───────────────────────────────────────────── */
-#alert-banner{
-  display:none;padding:10px 16px;border-radius:10px;
-  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);
-  font-size:13px;color:#fca5a5;align-items:center;gap:10px;
-}
-#alert-banner .icon{font-size:15px;flex-shrink:0}
 /* Aviso de revisión de MP Importación. Es un link: el aviso sin la
    puerta al lado obliga a buscar dónde se hace lo que pide. */
 .mp-rev{display:flex;align-items:center;gap:11px;text-decoration:none;
@@ -466,18 +459,18 @@ select{color-scheme:dark}
 select option,select optgroup{background:#0c1119;color:#e2e8f0}
 select option:checked,select option:hover{background:#14212f;color:#fff}
 </style>
-<link rel="stylesheet" href="traslados.css?v=2026-11-28.0110"/>
-<link rel="stylesheet" href="nav.css?v=2026-11-28.0110"/>
+<link rel="stylesheet" href="traslados.css?v=2026-11-28.0112"/>
+<link rel="stylesheet" href="nav.css?v=2026-11-28.0112"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=2026-11-28.0110"></script>
-<script src="tema.js?v=2026-11-28.0110"></script>
-<script src="subatir-app.js?v=2026-11-28.0110"></script>
-<script src="recepcion-calc.js?v=2026-11-28.0110"></script>
-<script src="traslados.js?v=2026-11-28.0110"></script>
+<script src="supabase-config.js?v=2026-11-28.0112"></script>
+<script src="tema.js?v=2026-11-28.0112"></script>
+<script src="subatir-app.js?v=2026-11-28.0112"></script>
+<script src="recepcion-calc.js?v=2026-11-28.0112"></script>
+<script src="traslados.js?v=2026-11-28.0112"></script>
 <script>
 // Version del modulo. La compara subatir-app.js contra version.json y si
 // hay una nueva avisa y recarga. bump-version.ps1 escribe los dos juntos.
-window.APP_VER='2026-11-28.0110';
+window.APP_VER='2026-11-28.0112';
 </script>
 </head>
 <body>
@@ -537,7 +530,7 @@ window.APP_VER='2026-11-28.0110';
     </a>
     <!-- El menú lo arma nav.js (mismo orden y color en las 9 páginas) -->
     <nav></nav>
-    <script src="nav.js?v=2026-11-28.0110"></script>
+    <script src="nav.js?v=2026-11-28.0112"></script>
     <div class="hdr-right">
     </div>
   </div>
@@ -563,12 +556,6 @@ window.APP_VER='2026-11-28.0110';
   </div>
 
   <div class="main">
-
-    <!-- Alert banner -->
-    <div id="alert-banner">
-      <span class="icon">⚠</span>
-      <span id="alert-text"></span>
-    </div>
 
     <!-- Toca revisar la importación de materia prima (módulo MP Importación).
          Avisa desde el día anterior a la fecha configurada allá. -->
@@ -1088,7 +1075,7 @@ function coaOk(row){ return RecepcionCalc.coaOk(row[KEYS.coa]); }
 // Mientras las entregas no hayan llegado, no avisa nada: mejor callado que
 // marcando en rojo lineas que todavia no se pudieron mirar.
 var ENTREGAS_POR_PEDIDO = {};
-// El transito por articulo: el semaforo del aviso rojo y del ticker
+// El transito por articulo: el semaforo del "Stock critico" del ticker
 // (estadoInv) lo cuenta igual que Stock y Reposicion.
 var TRANSITO_DASH = null;
 // Que proporcion de una linea abierta todavia NO llego. Mientras las
@@ -1167,7 +1154,6 @@ function renderAll(){
   renderKPIs();
   renderTicker();
   renderPedidos();
-  renderAlertBanner();
   populateProveedorFilter();
 }
 
@@ -1300,20 +1286,6 @@ function renderKPIs(){
   set('kpi-usd-sub',      'pedidos en dólares');
   set('kpi-pso-sub',      'pedidos en pesos');
   set('kpi-conform-sub',  'sin COA o conformidad');
-}
-
-// ── Alert banner ───────────────────────────────────────────────
-function renderAlertBanner(){
-  var criticos = (DATA.inventario || []).filter(isCritical);
-  var banner = document.getElementById('alert-banner');
-  if (criticos.length > 0){
-    var nombres = criticos.slice(0,3).map(function(i){ return i[KEYS.invDesc] || '—'; }).join(', ');
-    var extra   = criticos.length > 3 ? ' y ' + (criticos.length-3) + ' más.' : '.';
-    set('alert-text', '🔴 ' + criticos.length + ' artículo(s) requieren reposición urgente: ' + nombres + extra);
-    banner.style.display = 'flex';
-  } else {
-    banner.style.display = 'none';
-  }
 }
 
 function clearDashFilters(){

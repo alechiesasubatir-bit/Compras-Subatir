@@ -1,5 +1,9 @@
 // ============================================================
-//  TEMA — modo oscuro (el de siempre) o modo claro
+//  TEMA — modo oscuro (el de siempre), claro o gris
+//
+//  Gris (28/11/2026): lo mismo que claro pero sin blancos: fondos gris
+//  medio, tarjetas gris perla, nada que encandile. Usa la misma
+//  conversión de colores con otro punto de llegada (ver LLEGADA).
 //
 //  Pedido del 27/11/2026: poder pasar la app a claro sin perder el
 //  oscuro. La elección queda guardada en el equipo (localStorage) y
@@ -28,9 +32,19 @@
   var CLAVE = 'sb-tema';
   var html = document.documentElement;
 
+  var MODOS = ['oscuro', 'claro', 'gris'];      // el botón los recorre en este orden
   function leer() {
-    try { return localStorage.getItem(CLAVE) === 'claro' ? 'claro' : 'oscuro'; } catch (e) { return 'oscuro'; }
+    try { var v = localStorage.getItem(CLAVE); return MODOS.indexOf(v) > 0 ? v : 'oscuro'; } catch (e) { return 'oscuro'; }
   }
+  function actual() { return html.getAttribute('data-tema') || 'oscuro'; }
+  function esClaroOGris() { return actual() !== 'oscuro'; }
+  // Hacia dónde van los fondos oscuros al convertirlos, y si los blancos
+  // sólidos también se apagan (sólo en gris: "quitar los blancos").
+  var LLEGADA = {
+    claro: { fondo: .99, borde: .87, blancos: false, meta: '#edf1f6' },
+    gris:  { fondo: .875, borde: .76, blancos: true,  meta: '#c7ced6' }
+  };
+  var modo = LLEGADA.claro;
   function guardar(t) {
     try { localStorage.setItem(CLAVE, t); } catch (e) { }
   }
@@ -63,13 +77,33 @@
     // Depósitos
     '--border-s:rgba(15,23,42,.17);--teal-d:#075f78;--focus:#0891b2;--shadow-l:0 22px 56px rgba(15,23,42,.16);',
     '--shadow:0 8px 28px rgba(15,23,42,.10);--shd:0 8px 28px rgba(15,23,42,.10)}',
+    // ── Gris: mismos nombres, tonos intermedios y nada blanco ──
+    'html[data-tema="gris"]{color-scheme:light !important;',
+    '--bg:#c7ced6;--bg0:#c7ced6;--bg1:#d0d6dd;--bg2:#dce1e6;--bg3:#d3d9df;',
+    '--glass:rgba(224,229,234,.80);--gl:rgba(224,229,234,.80);--gl2:rgba(230,234,238,.92);',
+    '--glass-b:rgba(15,23,42,.14);',
+    '--border:rgba(15,23,42,.14);--bdr:rgba(15,23,42,.14);--border-b:rgba(15,23,42,.22);--bdr2:rgba(15,23,42,.22);',
+    '--text:#111c2b;--txt:#111c2b;--muted:#566377;--mut:#566377;--muted-l:#3e4a5a;--mut2:#3e4a5a;',
+    '--teal:#0a6b84;--tl:#086f8f;--teal-l:#086f8f;--teal-g:rgba(14,107,138,.14);',
+    '--orange:#e2600a;--or:#e2600a;--orange-d:#b33c0b;--orange-l:#c9500a;--orl:#c9500a;',
+    '--gold:#9a7009;--amber:#b86304;--amb:#b86304;--warn:#b86304;',
+    '--green:#13803b;--grn:#13803b;--ok:#13803b;',
+    '--red:#c01f1f;--danger:#c01f1f;--purple:#6d2fd6;--pur:#6d2fd6;',
+    '--agua:#0369a1;--agua-d:#0c4a6e;--coral:#be123c;',
+    '--red-g:rgba(192,31,31,.12);--amber-g:rgba(184,99,4,.12);--green-g:rgba(19,128,59,.12);',
+    '--cian-l:#0e7490;--titulo-l:#111c2b;',
+    '--border-s:rgba(15,23,42,.22);--teal-d:#06566b;--focus:#0e7490;--shadow-l:0 22px 56px rgba(15,23,42,.20);',
+    '--shadow:0 8px 26px rgba(15,23,42,.14);--shd:0 8px 26px rgba(15,23,42,.14)}',
+    // ── Comunes a claro y gris ──
     'html[data-tema="claro"] body{background-color:var(--bg,#edf1f6)}',
-    'html[data-tema="claro"] select,html[data-tema="claro"] input,html[data-tema="claro"] textarea{color-scheme:light !important}',
-    'html[data-tema="claro"] ::-webkit-scrollbar-thumb{background:rgba(15,23,42,.22)}',
+    'html[data-tema="gris"] body{background-color:var(--bg,#c7ced6)}',
+    'html[data-tema="claro"] select,html[data-tema="claro"] input,html[data-tema="claro"] textarea,',
+    'html[data-tema="gris"] select,html[data-tema="gris"] input,html[data-tema="gris"] textarea{color-scheme:light !important}',
+    'html[data-tema="claro"] ::-webkit-scrollbar-thumb,html[data-tema="gris"] ::-webkit-scrollbar-thumb{background:rgba(15,23,42,.25)}',
     // Sin desenfoque en claro: con fondo claro el blur dejaba el Dashboard
     // (165 tarjetas de Cobertura) y Previsión Cloro casi congelados, y sobre
     // un fondo liso no se nota. El encabezado ya es blanco al 90 %.
-    'html[data-tema="claro"] *{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}',
+    'html[data-tema="claro"] *,html[data-tema="gris"] *{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}',
     // El botón del tema, junto al usuario
     // Ícono + texto chico con el modo al que se pasa (pedido 28/11/2026)
     '.sb-tema-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:26px;',
@@ -80,6 +114,8 @@
     '.sb-tema-btn .sb-tema-t{font-size:10.5px;font-weight:700;letter-spacing:.1px}',
     'html[data-tema="claro"] .sb-tema-btn{border-color:rgba(15,23,42,.16);background:#fff;color:#334155;box-shadow:0 1px 3px rgba(15,23,42,.08)}',
     'html[data-tema="claro"] .sb-tema-btn:hover{background:#f1f5f9}',
+    'html[data-tema="gris"] .sb-tema-btn{border-color:rgba(15,23,42,.2);background:#dce1e6;color:#26303d;box-shadow:0 1px 3px rgba(15,23,42,.12)}',
+    'html[data-tema="gris"] .sb-tema-btn:hover{background:#d0d6dd}',
     '.sb-tema-btn:focus-visible{outline:2px solid #1bc8ff;outline-offset:2px}'
   ].join('');
 
@@ -150,15 +186,17 @@
     if (tipo === 'fondo') {
       if (x.l < .2) {
         if (ctx.capa && a >= .4) return tinta(.38);          // velo detrás de un modal
-        if (a >= .5) return conHsl(x.h, Math.min(x.s, .35), .99 - x.l * .4, a);
+        if (a >= .5) return conHsl(x.h, Math.min(x.s, .35), modo.fondo - x.l * .4, a);
         return tinta(Math.max(.015, a * .18));
       }
       if (x.l > .9 && x.s < .3 && a < .35) return tinta(Math.max(.015, a * .9));
+      // En gris, un fondo blanco sólido (botones, tarjetas #fff) pasa a gris perla
+      if (modo.blancos && x.l > .93 && x.s < .3 && a >= .5) return conHsl(x.h, Math.min(x.s, .15), .885, a);
       return null;
     }
     if (tipo === 'borde') {
       if (x.l > .9 && x.s < .3 && a < .5) return tinta(Math.min(.22, Math.max(.06, a * 1.4)));
-      if (x.l < .2 && a >= .5) return conHsl(x.h, Math.min(x.s, .25), .87, a);
+      if (x.l < .2 && a >= .5) return conHsl(x.h, Math.min(x.s, .25), modo.borde, a);
       return null;
     }
     if (tipo === 'sombra') {
@@ -318,7 +356,8 @@
     obs.observe(html, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
   }
 
-  function aplicarClaro() {
+  function aplicarClaro(t) {
+    modo = LLEGADA[t] || LLEGADA[actual()] || LLEGADA.claro;
     convertirHojas();
     if (document.body) convertirArbol(document.body);
     vigilar();
@@ -354,7 +393,7 @@
     C.register({
       id: 'sbTema',
       beforeUpdate: function (ch) {
-        var claro = html.getAttribute('data-tema') === 'claro';
+        var claro = esClaroOGris();
         var sc = (ch.options && ch.options.scales) || {};
         Object.keys(sc).forEach(function (k) {
           var s = sc[k]; if (!s) return;
@@ -376,19 +415,20 @@
 
   // ── Botón ☀ / 🌙 ──────────────────────────────────────────────
   var botones = [];
+  // El botón dice a qué modo se pasa con el próximo clic
+  var ROTULO = { oscuro: ['🌙', 'Modo oscuro'], claro: ['☀️', 'Modo claro'], gris: ['🌫️', 'Modo gris'] };
+  function siguiente() { return MODOS[(MODOS.indexOf(actual()) + 1) % MODOS.length]; }
   function pintarBoton(b) {
-    var claro = html.getAttribute('data-tema') === 'claro';
-    b.innerHTML = '<span aria-hidden="true">' + (claro ? '🌙' : '☀️') + '</span>'
-                + '<span class="sb-tema-t">' + (claro ? 'Modo oscuro' : 'Modo claro') + '</span>';
-    b.title = claro ? 'Pasar a modo oscuro' : 'Pasar a modo claro';
+    var r = ROTULO[siguiente()];
+    b.innerHTML = '<span aria-hidden="true">' + r[0] + '</span><span class="sb-tema-t">' + r[1] + '</span>';
+    b.title = 'Pasar a ' + r[1].toLowerCase() + ' (ahora: ' + ROTULO[actual()][1].toLowerCase() + ')';
     b.setAttribute('aria-label', b.title);
-    b.setAttribute('aria-pressed', claro ? 'true' : 'false');
   }
   function boton() {
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'sb-tema-btn';
-    b.onclick = function () { poner(html.getAttribute('data-tema') === 'claro' ? 'oscuro' : 'claro'); };
+    b.onclick = function () { poner(siguiente()); };
     pintarBoton(b);
     botones.push(b);
     return b;
@@ -396,16 +436,21 @@
 
   var META_OSCURO = null;
   function poner(t) {
-    var antes = html.getAttribute('data-tema') || 'oscuro';
+    if (MODOS.indexOf(t) < 0) t = 'oscuro';
+    var antes = actual();
     guardar(t);
     html.setAttribute('data-tema', t);
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
       if (META_OSCURO == null) META_OSCURO = meta.getAttribute('content');
-      meta.setAttribute('content', t === 'claro' ? '#edf1f6' : META_OSCURO);
+      meta.setAttribute('content', t === 'oscuro' ? META_OSCURO : LLEGADA[t].meta);
     }
-    if (t === 'claro' && antes !== 'claro') aplicarClaro();
-    else if (t === 'oscuro' && antes === 'claro') deshacer();
+    if (t !== antes) {
+      // De claro a gris (o al revés) se deshace y se vuelve a convertir:
+      // los colores de llegada son otros.
+      if (antes !== 'oscuro') deshacer();
+      if (t !== 'oscuro') aplicarClaro(t);
+    }
     botones.forEach(pintarBoton);
     engancharGraficos();
     redibujarGraficos();
@@ -419,20 +464,23 @@
   st.textContent = CSS_CLARO;
   (document.head || html).appendChild(st);
 
-  if (leer() === 'claro') {
-    html.setAttribute('data-tema', 'claro');
+  var inicial = leer();
+  if (inicial !== 'oscuro') {
+    html.setAttribute('data-tema', inicial);
+    modo = LLEGADA[inicial];
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) { META_OSCURO = meta.getAttribute('content'); meta.setAttribute('content', '#edf1f6'); }
+    if (meta) { META_OSCURO = meta.getAttribute('content'); meta.setAttribute('content', LLEGADA[inicial].meta); }
     // Las hojas que ya están cargadas, ahora (antes del primer pintado);
     // las que aparezcan después y el HTML del cuerpo, cuando lleguen.
     convertirHojas();
     vigilar();
-    // Si en el medio la persona ya volvió a oscuro, no se convierte nada
-    var siSigueClaro = function (fn) {
-      return function () { if (html.getAttribute('data-tema') === 'claro') fn(); };
+    // Si en el medio la persona cambió de modo, no se convierte con el viejo:
+    // poner() ya hizo lo suyo.
+    var siSigue = function (fn) {
+      return function () { if (actual() === inicial) fn(inicial); };
     };
-    document.addEventListener('DOMContentLoaded', siSigueClaro(aplicarClaro));
-    window.addEventListener('load', siSigueClaro(convertirHojas));
+    document.addEventListener('DOMContentLoaded', siSigue(aplicarClaro));
+    window.addEventListener('load', siSigue(convertirHojas));
   }
 
   // Otra pestaña cambió el tema: ésta lo sigue
@@ -440,5 +488,5 @@
     if (e.key === CLAVE) poner(leer());
   });
 
-  window.SubatirTema = { boton: boton, poner: poner, actual: function () { return html.getAttribute('data-tema') || 'oscuro'; } };
+  window.SubatirTema = { boton: boton, poner: poner, actual: actual, modos: MODOS.slice() };
 })();

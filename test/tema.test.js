@@ -182,3 +182,68 @@ test('la impresión queda como está', function () {
   assert.equal(imp.getPropertyValue('background-color'), '#0c1119');
   assert.notEqual(pant.getPropertyValue('background-color'), '#0c1119');
 });
+
+// ── Modo gris (28/11/2026): como claro pero sin blancos ──────
+function luz(rgb) {
+  const [r, g, b] = rgb.match(/\d+/g).map(Number);
+  return (Math.max(r, g, b) + Math.min(r, g, b)) / 2 / 255;
+}
+
+test('gris: los fondos oscuros llegan a un gris medio, no a blanco', function () {
+  const tarjeta = estilo({ 'background-color': '#0c1119', color: '#fca5a5' });
+  entorno({ storage: { 'sb-tema': 'gris' }, reglas: [tarjeta] });
+  const l = luz(tarjeta.getPropertyValue('background-color'));
+  assert.ok(l > .78 && l < .9, 'gris intermedio, luz ' + l.toFixed(2));
+  assert.notEqual(tarjeta.getPropertyValue('color'), '#fca5a5', 'el texto pastel igual se oscurece');
+});
+
+test('gris apaga los blancos sólidos; claro los deja', function () {
+  const enGris = estilo({ 'background-color': '#ffffff' });
+  entorno({ storage: { 'sb-tema': 'gris' }, reglas: [enGris] });
+  const l = luz(enGris.getPropertyValue('background-color'));
+  assert.ok(l < .92, 'blanco → gris perla, luz ' + l.toFixed(2));
+
+  const enClaro = estilo({ 'background-color': '#ffffff' });
+  entorno({ storage: { 'sb-tema': 'claro' }, reglas: [enClaro] });
+  assert.equal(enClaro.getPropertyValue('background-color'), '#ffffff');
+});
+
+test('el botón recorre oscuro → claro → gris → oscuro y al final todo queda como estaba', function () {
+  const r = estilo({ 'background-color': '#0c1119', color: '#e2e8f0', 'box-shadow': '0 8px 24px rgba(0,0,0,.6)' });
+  const blanco = estilo({ 'background-color': '#fff' });
+  const e = entorno({ reglas: [r, blanco] });
+  const b = e.tema.boton();
+  const original = ['background-color', 'color', 'box-shadow'].map(function (p) { return r.getPropertyValue(p); });
+
+  assert.equal(e.tema.actual(), 'oscuro');
+  b.onclick();
+  assert.equal(e.tema.actual(), 'claro');
+  const fondoClaro = r.getPropertyValue('background-color');
+  b.onclick();
+  assert.equal(e.tema.actual(), 'gris');
+  const fondoGris = r.getPropertyValue('background-color');
+  assert.ok(luz(fondoGris) < luz(fondoClaro), 'gris más oscuro que claro');
+  assert.notEqual(blanco.getPropertyValue('background-color'), '#fff', 'en gris el blanco se apaga');
+  b.onclick();
+  assert.equal(e.tema.actual(), 'oscuro');
+  assert.deepEqual(['background-color', 'color', 'box-shadow'].map(function (p) { return r.getPropertyValue(p); }), original);
+  assert.equal(blanco.getPropertyValue('background-color'), '#fff');
+  assert.equal(e.store['sb-tema'], 'oscuro');
+});
+
+test('el botón dice a qué modo pasa', function () {
+  const e = entorno();
+  const b = e.tema.boton();
+  assert.match(b.innerHTML, /Modo claro/);
+  e.tema.poner('claro');
+  assert.match(b.innerHTML, /Modo gris/);
+  e.tema.poner('gris');
+  assert.match(b.innerHTML, /Modo oscuro/);
+});
+
+test('un valor raro guardado arranca en oscuro', function () {
+  const r = estilo({ 'background-color': '#0c1119' });
+  const e = entorno({ storage: { 'sb-tema': 'azul' }, reglas: [r] });
+  assert.equal(e.tema.actual(), 'oscuro');
+  assert.equal(r.getPropertyValue('background-color'), '#0c1119');
+});

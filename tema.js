@@ -213,7 +213,10 @@
   // restaura sólo lo que sigue como lo dejamos (si el JS de la página
   // lo cambió después, manda el JS).
   var hechos = [];
-  function convertirEstilo(st) {
+  // esc (sólo para style=""): lo que ya escribimos en ese elemento. Si la
+  // página vuelve a tocar su style, no se reconvierte lo nuestro: una sombra
+  // ya convertida se aclaraba un poco más en cada pasada y `hechos` crecía.
+  function convertirEstilo(st, esc) {
     var props = [];
     for (var i = 0; i < st.length; i++) props.push(st[i]);
     if (!props.length) return;
@@ -228,10 +231,11 @@
       var g = st.getPropertyValue('background-image') || st.getPropertyValue('background') ||
               ((st.cssText || '').match(/(?:^|;)\s*background(?:-image)?\s*:\s*([^;]*gradient[^;]*)/) || [])[1] || '';
       var ng = g && g.indexOf('gradient') >= 0 ? convertirValor(g, 'texto', {}) : null;
-      if (ng && ng !== g) {
+      if (ng && ng !== g && !(esc && esc['background-image'] === g)) {
         var pg = st.getPropertyPriority('background-image');
         st.setProperty('background-image', ng, pg);
         hechos.push({ st: st, prop: 'background-image', orig: g, nuevo: st.getPropertyValue('background-image'), prio: pg });
+        if (esc) esc['background-image'] = st.getPropertyValue('background-image');
       }
     }
     props.forEach(function (p) {
@@ -240,12 +244,14 @@
       var tipo = tipoDe(p); if (!tipo) return;
       var v = st.getPropertyValue(p);
       if (!v) return;
+      if (esc && esc[p] === v) return;                          // ya es nuestro
       ctx = ctx || contexto(st);
       var n = convertirValor(v, tipo, ctx);
       if (n == null || n === v) return;
       var prio = st.getPropertyPriority(p);
       st.setProperty(p, n, prio);
       hechos.push({ st: st, prop: p, orig: v, nuevo: st.getPropertyValue(p), prio: prio });
+      if (esc) esc[p] = st.getPropertyValue(p);
     });
   }
 
@@ -277,9 +283,11 @@
   function convertirElemento(el) {
     if (!el.style || !el.getAttribute('style')) return;
     var marca = el.getAttribute('style');
-    if (vistos && vistos.get(el) === marca) return;
-    convertirEstilo(el.style);
-    if (vistos) vistos.set(el, el.getAttribute('style'));
+    var v = vistos && vistos.get(el);
+    if (v && v.marca === marca) return;
+    var esc = v ? v.esc : {};
+    convertirEstilo(el.style, esc);
+    if (vistos) vistos.set(el, { marca: el.getAttribute('style'), esc: esc });
   }
   function convertirArbol(raiz) {
     if (raiz.nodeType !== 1) return;
@@ -415,8 +423,12 @@
     // las que aparezcan después y el HTML del cuerpo, cuando lleguen.
     convertirHojas();
     vigilar();
-    document.addEventListener('DOMContentLoaded', aplicarClaro);
-    window.addEventListener('load', convertirHojas);
+    // Si en el medio la persona ya volvió a oscuro, no se convierte nada
+    var siSigueClaro = function (fn) {
+      return function () { if (html.getAttribute('data-tema') === 'claro') fn(); };
+    };
+    document.addEventListener('DOMContentLoaded', siSigueClaro(aplicarClaro));
+    window.addEventListener('load', siSigueClaro(convertirHojas));
   }
 
   // Otra pestaña cambió el tema: ésta lo sigue

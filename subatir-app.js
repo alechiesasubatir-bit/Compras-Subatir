@@ -375,6 +375,8 @@
       (profile.role === 'admin' ? '★ ' : '') + who + '</span>' +
       '<button id="sb-logout" style="cursor:pointer;font-size:10px;font-weight:700;padding:4px 9px;' +
       'border-radius:7px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#e2e8f0">Salir</button>';
+    // Botón ☀/🌙 del modo claro (tema.js), antes del nombre
+    if (window.SubatirTema) wrap.insertBefore(SubatirTema.boton(), wrap.firstChild);
     host.appendChild(wrap);
     document.getElementById('sb-logout').onclick = function () {
       SB.auth.signOut().then(function () { location.replace('login.html'); });

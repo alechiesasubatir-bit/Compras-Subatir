@@ -25,11 +25,11 @@
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
-self.APP_VER = '2026-11-27.1120';
+self.APP_VER = '2026-11-28.0015';
 var CACHE = 'deposito-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
-var SHELL = ['./', './index.html', './solicitar.html', './recorrido.html', './movil.css', './deposito-app.js', '../supabase-config.js',
+var SHELL = ['./', './index.html', './solicitar.html', './recorrido.html', './movil.css', './deposito-app.js', '../supabase-config.js', '../tema.js',
              './nav.js', './nav.css',
              './icon-192.png', './icon-512.png', '../logo.jpg'];
 

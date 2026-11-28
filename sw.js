@@ -18,7 +18,7 @@
 //  cambiar el archivo, el navegador instala el worker nuevo y
 //  descarta el cache viejo.
 // ============================================================
-self.APP_VER = '2026-11-27.1120';
+self.APP_VER = '2026-11-28.0015';
 var CACHE = 'compras-' + self.APP_VER;
 
 // Lo mínimo para que la app abra sin señal.
@@ -28,7 +28,7 @@ var SHELL = ['./', './index.html', './pedidos.html', './recepcion.html', './stoc
              './informes.html', './informes-calc.js', './cloro-calc.js', './recepcion-calc.js',
              './calidad-imp.html', './calidad-ui.js', './calidad-ui.css',
              './login.html', './subatir-app.js', './supabase-config.js',
-             './nav.js', './nav.css',
+             './nav.js', './nav.css', './tema.js',
              './logo.jpg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (ev) {

@@ -120,6 +120,8 @@
       '<span style="font-size:11px;color:var(--muted-l);font-family:var(--mono)">' +
       (profile.role === 'admin' ? '★ ' : '') + esc(who) + '</span>' +
       '<button id="sb-logout" class="btn btn-ghost btn-sm">Salir</button>';
+    // Botón ☀/🌙 del modo claro (../tema.js, el mismo de Compras)
+    if (window.SubatirTema) wrap.insertBefore(SubatirTema.boton(), wrap.firstChild);
     host.appendChild(wrap);
     document.getElementById('sb-logout').onclick = function () {
       SB.auth.signOut().then(function () { location.replace('login.html'); });

@@ -75,14 +75,21 @@
   background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.14);
 }
 .tr-p.done .tr-d{background:#1bc8ff;border-color:transparent}
-.tr-p.now  .tr-d{background:#fb923c;border-color:transparent;animation:tr-latir 1.9s ease-out infinite}
+.tr-p.now  .tr-d{background:#fb923c;border-color:transparent;position:relative}
+/* El latido es un anillo que crece y se apaga (transform + opacity). Antes
+   animaba box-shadow: se redibujaba en cada cuadro y en modo claro dejaba
+   a Chrome sin pintar la página (28/11/2026). */
+.tr-p.now .tr-d::after{
+  content:'';position:absolute;inset:-2px;border-radius:50%;pointer-events:none;
+  border:2px solid rgba(249,115,22,.7);animation:tr-latir 1.9s ease-out infinite;
+}
 .tr-p.fin  .tr-d{background:#4ade80;border-color:transparent}
 @keyframes tr-latir{
-  0%{box-shadow:0 0 0 0 rgba(249,115,22,.6)}
-  70%{box-shadow:0 0 0 7px rgba(249,115,22,0)}
-  100%{box-shadow:0 0 0 0 rgba(249,115,22,0)}
+  0%{transform:scale(1);opacity:.9}
+  70%{transform:scale(2);opacity:0}
+  100%{transform:scale(2);opacity:0}
 }
-@media (prefers-reduced-motion: reduce){ .tr-p.now .tr-d{animation:none} }
+@media (prefers-reduced-motion: reduce){ .tr-p.now .tr-d::after{animation:none;opacity:0} }
 
 /* El paso actual, escrito, para no tener que interpretar los puntos */
 .tr-paso{font-size:9px;font-weight:700;white-space:nowrap;margin-left:9px;flex:0 0 auto}
